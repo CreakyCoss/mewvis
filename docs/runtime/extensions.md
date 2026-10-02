@@ -7,15 +7,15 @@
 在仓库根目录执行：
 
 ```sh
-pnpm --filter @isle/agent-runtime test:extensions
+pnpm --filter @mewvis/agent-runtime test:extensions
 ```
 
 脚本在临时目录构建 SDK、测试插件和 worker，用真实 Pi SDK、本地 SSE 模型桩以及脚本 Mock 调用同一个临时回显工具，不访问外部模型服务，不需要 API Key。临时目录在结束后清理。
 
-输入 `你好🌍\nIsle`，两个 Agent 的工具结果均为：
+输入 `你好🌍\nMewvis`，两个 Agent 的工具结果均为：
 
 ```json
-{ "echo": "你好🌍\nIsle", "calls": 1 }
+{ "echo": "你好🌍\nMewvis", "calls": 1 }
 ```
 
 同时验证参数和能力检查、名称冲突、工具白名单、审批拒绝和通过、并发运行隔离、生命周期清理、取消、真实 OS 沙箱、技能注入、SDK 注册表隔离及会话落盘。启用的沙箱不可用时测试失败，不降级跳过。
@@ -24,10 +24,10 @@ pnpm --filter @isle/agent-runtime test:extensions
 
 ## 开发契约
 
-公共类型位于 `@isle/extension-sdk`，不导出 Pi 或 Chord 的内部类型。插件默认导出 `defineExtension()` 的结果，声明 `id`、`apiVersion: 1` 和同步 `setup`：
+公共类型位于 `@mewvis/extension-sdk`，不导出 Pi 或 Chord 的内部类型。插件默认导出 `defineExtension()` 的结果，声明 `id`、`apiVersion: 1` 和同步 `setup`：
 
 ```ts
-import { defineExtension } from "@isle/extension-sdk/agent";
+import { defineExtension } from "@mewvis/extension-sdk/agent";
 
 export default defineExtension({
   id: "example.greeting",
@@ -77,7 +77,7 @@ import {
 
 const tool = "ext_example_greeting__hello";
 const mock = createScriptedMockRuntime("greeting-mock", [
-  { type: "tool", name: tool, input: { name: "Isle" } },
+  { type: "tool", name: tool, input: { name: "Mewvis" } },
 ]);
 
 const runtime = createAgentRuntime({
@@ -96,7 +96,7 @@ await runtime.agent.run({
   runtimeId: "greeting-mock",
   taskId: "greeting-demo",
   workspacePath: "/absolute/path/workspace",
-  userMessage: "向 Isle 问好",
+  userMessage: "向 Mewvis 问好",
   resources: { tools: { allowed: [tool] } },
 });
 ```
@@ -118,10 +118,10 @@ SDK 将声明数据与调用接口分开：`ExtensionCatalog` 是可序列化的
 | 工具             | 原生 `registerTool`，执行时调用宿主绑定                                | `addTool`，脚本按名称调用             |
 | 命令             | 原生 `registerCommand`，参数为 JSON 对象文本，结果写入自定义消息       | `addCommand`，脚本 `command` 步骤调用 |
 | 内联技能         | 原生 `before_agent_start` 注入系统提示（模拟）                         | 注册指令（模拟）                      |
-| 工具事件         | 原生 `tool_execution_start/end` 映射到 Isle 事件                       | Mock 原生工具观察器                   |
-| 消息与回合事件   | 原生 message / turn 钩子映射为 Isle 快照                               | Mock 原生消息与回合观察器             |
+| 工具事件         | 原生 `tool_execution_start/end` 映射到 Mewvis 事件                       | Mock 原生工具观察器                   |
+| 消息与回合事件   | 原生 message / turn 钩子映射为 Mewvis 快照                               | Mock 原生消息与回合观察器             |
 | 压缩前决策与结果 | 原生 session_before_compact / session_compact / session_compact_failed | Mock 原生 beforeCompact / onCompact   |
-| 运行事件与状态   | Isle 运行边界与会话事务服务（模拟）                                    | 同一宿主服务（模拟）                  |
+| 运行事件与状态   | Mewvis 运行边界与会话事务服务（模拟）                                    | 同一宿主服务（模拟）                  |
 
 Pi 原生命令由适配器注册。这是适配器在 Pi 内部提供的注册；桌面聊天输入框仍未提供插件斜杠解析，也不内置通用命令面板。
 
@@ -137,7 +137,7 @@ Pi 原生命令由适配器注册。这是适配器在 Pi 内部提供的注册�
 
 宿主异常退出可能留下锁文件：确认旧进程退出后人工清理对应 `.lock`。当前不自动偷锁、重放操作或恢复 Agent 运行。
 
-事件由 Isle 归一化，不暴露 Pi 原生事件类型：
+事件由 Mewvis 归一化，不暴露 Pi 原生事件类型：
 
 | 事件                                                       | 内容                                               |
 | ---------------------------------------------------------- | -------------------------------------------------- |
@@ -162,12 +162,12 @@ SDK 提供插件入口
 → 按规范化会话目录排队借用实例（无会话时临时创建）
 → 首次借用：worker 导入插件，Chord 装配并激活 facet
 → 复用贡献目录，每次操作创建新的受控 bindings
-→ Isle 应用本轮工具与技能白名单
+→ Mewvis 应用本轮工具与技能白名单
 → 适配器生成 Pi 原生插件工厂 / Mock 插件
 → Agent 按自身标准注册，驱动工具、命令、技能和工具事件
 → 共享入口校验最终参数和权限，必要时审批
 → worker 执行，返回统一结果与进度
-→ Agent 发出标准事件，Isle 记录会话
+→ Agent 发出标准事件，Mewvis 记录会话
 → 本轮结束，归还实例；失效、显式释放或退出时释放 facet 和 worker
 ```
 

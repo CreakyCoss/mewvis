@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://isle.local/protocol/agent-runtime/v1/model.schema.json",
+  "$id": "https://mewvis.local/protocol/agent-runtime/v1/model.schema.json",
   "title": "Agent Runtime Model Contracts",
   "definitions": {
     "RuntimeApiFormat": {

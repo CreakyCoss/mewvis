@@ -1,8 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Isle Extension package.json",
+  "title": "Mewvis Extension package.json",
   "type": "object",
-  "required": ["name", "version", "type", "isle.extension"],
+  "required": ["name", "version", "type", "mewvis.extension"],
   "properties": {
     "name": {
       "type": "string",
@@ -15,7 +15,7 @@
     "type": {
       "const": "module"
     },
-    "isle.extension": {
+    "mewvis.extension": {
       "type": "object",
       "additionalProperties": false,
       "required": ["schemaVersion", "id", "apiVersion", "modules"],
@@ -108,7 +108,7 @@
                   "minItems": 1,
                   "maxItems": 16,
                   "items": {
-                    "$ref": "urn:isle:ui-contribution"
+                    "$ref": "urn:mewvis:ui-contribution"
                   }
                 }
               },

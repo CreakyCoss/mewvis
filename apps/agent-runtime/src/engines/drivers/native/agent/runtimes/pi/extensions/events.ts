@@ -6,7 +6,7 @@ import type {
   ExtensionMessageContent,
   ExtensionMessageChange,
   JsonValue,
-} from "@isle/extension-host";
+} from "@mewvis/extension-host";
 
 type NativeMessage = MessageStartEvent["message"];
 const json = (value: unknown): JsonValue => JSON.parse(JSON.stringify(value));
@@ -92,7 +92,7 @@ export function registerPiConversationEvents(pi: ExtensionAPI, bindings: Extensi
   const watched = new Set(bindings.catalog.subscriptions.flatMap((item) => item.events));
   if (![...watched].some((type) => type.startsWith("message_") || type.startsWith("turn_"))) return;
   const project = createPiMessageProjector();
-  // One Isle run can prompt Pi again after ask-user; Pi resets its own counter each time.
+  // One Mewvis run can prompt Pi again after ask-user; Pi resets its own counter each time.
   let turnIndex = -1;
   const notify: ExtensionBindings["notify"] = async (event) => {
     if (watched.has(event.type)) await bindings.notify(event);

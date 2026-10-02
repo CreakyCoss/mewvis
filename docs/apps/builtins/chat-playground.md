@@ -1,9 +1,9 @@
-# 调试台 · @isle/chat-playground
+# 调试台 · @mewvis/chat-playground
 
-这是使用 `@isle/app-dev` 的内置 React 应用示例，默认启用；已有用户的禁用设置仍然优先。
+这是使用 `@mewvis/app-dev` 的内置 React 应用示例，默认启用；已有用户的禁用设置仍然优先。
 
 ```text
-isle.config.ts                  权限与能力配置
+mewvis.config.ts                  权限与能力配置
 main/App.tsx                    工作区、应用对话、默认／组合 Chat 和会话检查器
 main/preferences.ts             通过应用 storage 保存工作区和各目录最近选择的会话
 main/components/HostTools.tsx    普通 React 页面调用宿主工具
@@ -15,20 +15,20 @@ main/styles.css                 定制样式
 
 React 初始化、宿主工具与技能注册、SDK 连接、预览和打包由公共工具链管理。业务代码不引用 desktop 内部 Store、AgentClient、Tauri 或聊天状态机。
 
-## 在 Isle 中调试
+## 在 Mewvis 中调试
 
 在仓库根目录执行：
 
 ```sh
-pnpm --filter @isle/chat-playground check
-pnpm --filter @isle/chat-playground build
+pnpm --filter @mewvis/chat-playground check
+pnpm --filter @mewvis/chat-playground build
 pnpm build:runtime
 ```
 
 内置产物位于 `apps/agent-runtime/dist/apps/chat-playground`，会随应用正常构建。
 构建后在当前开发应用刷新应用列表并打开「调试台」。不需要导入或创建另一份应用。
 
-调试台声明 `application-workspaces`、`application-data`，通过 `@isle/app-sdk/data` 管理自己的工作区和业务状态。首次加载使用应用的默认工作区；点击「新增工作区」，填写名称，再点击「选择目录并创建」，由宿主打开目录选择器。选择已被其他应用登记的目录时，宿主显示共享提示；取消不会切换或登记目录。页面展示实际目录，应用工作区不会加入应用侧栏的工作区列表。
+调试台声明 `application-workspaces`、`application-data`，通过 `@mewvis/app-sdk/data` 管理自己的工作区和业务状态。首次加载使用应用的默认工作区；点击「新增工作区」，填写名称，再点击「选择目录并创建」，由宿主打开目录选择器。选择已被其他应用登记的目录时，宿主显示共享提示；取消不会切换或登记目录。页面展示实际目录，应用工作区不会加入应用侧栏的工作区列表。
 
 `storage` 保存最近选择的工作区和各目录的会话 ID。重新打开应用后，调试台查询所选目录的历史，只恢复仍存在的会话；未发送过消息的空会话不会在应用重启后自动创建。消息和运行配置继续保存在工作区的聊天记录中。切换工作区会清空当前视图，再加载该目录的历史，已有后台任务继续运行。保存选择失败或目录不可用时，界面显示错误。
 
@@ -40,7 +40,7 @@ pnpm build:runtime
 
 测试中风险审批时，先在应用管理的工具权限中确认 `chat_playground_medium_risk` 已开启；已有的自定义工具勾选不会自动包含新工具。在调试台选择 `ask` 档位，点击组合界面的「中风险工具」并发送，预期出现审批；选择 `auto` 或 `full` 档位时，预期直接执行。默认界面也可以发送“请调用 chat_playground_medium_risk，text 设为中风险审批测试”。审批测试应通过聊天中的 Agent 工具调用进行；顶部 SDK 直接调用按钮用于测试工具执行，不经过 Agent 审批。
 
-技能示例 `chat-playground-text-inspection` 在 `host.skills` 中声明，工具链自动注册到宿主。新建对话后，点击组合界面的“技能示例”填入请求并发送；默认界面可以直接输入“请使用 chat-playground-text-inspection 技能分析文本 Hello Isle 👋 的字符数、UTF-8 字节数和 SHA-256”。技能指导模型使用 `chat_playground_inspect_text` 并解释结果，不会自动调用工具或扩大工具权限。
+技能示例 `chat-playground-text-inspection` 在 `host.skills` 中声明，工具链自动注册到宿主。新建对话后，点击组合界面的“技能示例”填入请求并发送；默认界面可以直接输入“请使用 chat-playground-text-inspection 技能分析文本 Hello Mewvis 👋 的字符数、UTF-8 字节数和 SHA-256”。技能指导模型使用 `chat_playground_inspect_text` 并解释结果，不会自动调用工具或扩大工具权限。
 
 应用技能沿用现有 Pi 加载机制，与技能页中的文件技能目录不同，目前不在 Chat 的技能选择菜单中单独显示。
 
@@ -56,7 +56,7 @@ pnpm build:runtime
 
 [静态预览](http://localhost:1420/scripts/app/dev/preview.html)
 
-这份仓库开发入口位于 `apps/client/scripts/app/dev`，不属于应用业务，也不进入应用产物。它直接预览 React 源码和公共内存聊天宿主，无须另外启动服务。1420 未挂载工具链的 Node 接口，因此宿主工具按钮会明确提示未连接，而不会伪造执行结果。真实 Node 调用在 Isle 或应用自身的 `pnpm dev` 中验证。
+这份仓库开发入口位于 `apps/client/scripts/app/dev`，不属于应用业务，也不进入应用产物。它直接预览 React 源码和公共内存聊天宿主，无须另外启动服务。1420 未挂载工具链的 Node 接口，因此宿主工具按钮会明确提示未连接，而不会伪造执行结果。真实 Node 调用在 Mewvis 或应用自身的 `pnpm dev` 中验证。
 
 ## 测试
 

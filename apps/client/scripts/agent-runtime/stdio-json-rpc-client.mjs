@@ -6,7 +6,7 @@ const openRpcDocument = JSON.parse(
 
 const methodByCommandType = new Map(
   openRpcDocument.methods.flatMap((method) => {
-    const command = method["x-isle-command"];
+    const command = method["x-mewvis-command"];
     return command ? [[command.type, { method: method.name, paramsMode: command.paramsMode }]] : [];
   }),
 );

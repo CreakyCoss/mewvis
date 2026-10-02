@@ -2,7 +2,7 @@ document.documentElement.lang = "zh-CN";
 document.body.innerHTML = `
   <div class="docs-app">
     <aside class="sidebar" aria-label="文档导航">
-      <header class="brand"><strong>Isle<span>文档中心</span></strong><span class="language">简体中文</span></header>
+      <header class="brand"><strong>Mewvis<span>文档中心</span></strong><span class="language">简体中文</span></header>
       <div class="search-box"><label for="docs-search">搜索文档</label><input id="docs-search" type="search" maxlength="200" placeholder="搜索标题、内容或 API…" autocomplete="off"><span class="hint">⌘ / Ctrl K</span></div>
       <div class="search-status" role="status" aria-live="polite"></div>
       <nav class="chapter-list" aria-label="章节目录"></nav>
@@ -14,7 +14,7 @@ document.body.innerHTML = `
         <button class="menu-toggle" type="button" aria-expanded="false" aria-label="展开文档目录">目录</button>
         <button class="history-back" type="button" aria-label="返回上一阅读位置" disabled>←</button>
         <button class="history-forward" type="button" aria-label="前往下一阅读位置" disabled>→</button>
-        <span class="breadcrumb">Isle 文档</span><span class="page-count"></span>
+        <span class="breadcrumb">Mewvis 文档</span><span class="page-count"></span>
       </header>
       <div class="reader-scroll">
         <div class="reading-grid">
@@ -52,8 +52,8 @@ const action = (title, callback, className = "") => {
   return button;
 };
 const execute = async (name, args = {}) => {
-  if (!window.isleApplication) throw new Error("未连接 Isle 应用宿主，请重新打开文档中心。");
-  return (await window.isleApplication.executeTool(name, args)).value;
+  if (!window.mewvisApplication) throw new Error("未连接 Mewvis 应用宿主，请重新打开文档中心。");
+  return (await window.mewvisApplication.executeTool(name, args)).value;
 };
 function notice(message, retry) {
   const node = $(".notice");
@@ -99,7 +99,7 @@ async function openPage(id, anchor = "", historyPosition = null) {
   notice("正在加载文档…");
   $(".prose").setAttribute("aria-busy", "true");
   try {
-    const page = await execute("isle_docs_read", { id });
+    const page = await execute("mewvis_docs_read", { id });
     if (version !== state.readVersion) return;
     state.current = page;
     if (historyPosition !== null) state.position = historyPosition;
@@ -153,7 +153,7 @@ async function openPage(id, anchor = "", historyPosition = null) {
 async function search(query, version) {
   const status = $(".search-status");
   try {
-    const { results, total } = await execute("isle_docs_search", { query });
+    const { results, total } = await execute("mewvis_docs_search", { query });
     if (version !== state.searchVersion) return;
     status.textContent = total
       ? `找到 ${total} 篇文档${total > 30 ? "，显示前 30 篇" : ""}`
@@ -194,7 +194,7 @@ $(".prose").addEventListener("click", async (event) => {
   if (link.dataset.doc) await openPage(link.dataset.doc, link.dataset.anchor || "");
   else if (link.dataset.external) {
     try {
-      await window.isleApplication.openExternal(link.href);
+      await window.mewvisApplication.openExternal(link.href);
     } catch (error) {
       notice(`无法打开链接：${error instanceof Error ? error.message : String(error)}`);
     }
@@ -220,15 +220,15 @@ document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") showMenu(false);
 });
 function syncTheme() {
-  document.documentElement.dataset.theme = window.isleApplication?.getHost()?.theme === "dark" ? "dark" : "light";
+  document.documentElement.dataset.theme = window.mewvisApplication?.getHost()?.theme === "dark" ? "dark" : "light";
 }
-window.addEventListener("isle:ready", syncTheme);
-window.addEventListener("isle:theme", syncTheme);
+window.addEventListener("mewvis:ready", syncTheme);
+window.addEventListener("mewvis:theme", syncTheme);
 syncTheme();
 async function initialize() {
   notice("正在加载文档目录…");
   try {
-    const catalog = await execute("isle_docs_catalog");
+    const catalog = await execute("mewvis_docs_catalog");
     state.entries = catalog.entries;
     if (!state.entries.length) throw new Error("文档目录为空，请重新构建应用内置文档。");
     renderCatalog();

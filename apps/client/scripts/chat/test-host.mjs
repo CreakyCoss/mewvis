@@ -31,7 +31,7 @@ const bundled = await build({
     },
   ],
 });
-const output = mkdtempSync(join(tmpdir(), "isle-chat-tests-"));
+const output = mkdtempSync(join(tmpdir(), "mewvis-chat-tests-"));
 try {
   const file = join(output, "test.mjs");
   writeFileSync(file, bundled.outputFiles[0].text);

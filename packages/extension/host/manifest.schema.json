@@ -1,8 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Isle native plugin package",
+  "title": "Mewvis native plugin package",
   "type": "object",
-  "required": ["name", "version", "type", "isle.plugin"],
+  "required": ["name", "version", "type", "mewvis.plugin"],
   "properties": {
     "name": {
       "type": "string",
@@ -15,7 +15,7 @@
     "type": {
       "const": "module"
     },
-    "isle.plugin": {
+    "mewvis.plugin": {
       "type": "object",
       "additionalProperties": false,
       "required": ["schemaVersion", "id", "protocolVersion", "modules"],
@@ -105,7 +105,7 @@
                   "minItems": 1,
                   "maxItems": 16,
                   "items": {
-                    "$ref": "urn:isle:host-ui-contribution"
+                    "$ref": "urn:mewvis:host-ui-contribution"
                   }
                 }
               },

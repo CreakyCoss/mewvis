@@ -25,7 +25,7 @@ const eventSchemaDocument = JSON.parse(readFileSync(join(schemaRoot, "event.sche
 const modelSchemaDocument = JSON.parse(readFileSync(join(schemaRoot, "model.schema.json"), "utf8"));
 const resultSchemaDocument = JSON.parse(readFileSync(join(schemaRoot, "result.schema.json"), "utf8"));
 const checkOnly = process.argv.includes("--check");
-const tempRoot = mkdtempSync(join(tmpdir(), "isle-agent-runtime-bindings-"));
+const tempRoot = mkdtempSync(join(tmpdir(), "mewvis-agent-runtime-bindings-"));
 const permissionOptions = getAgentPermissionOptions();
 if (
   permissionOptions.filter((option) => option.isDefault).length !== 1 ||
@@ -34,9 +34,9 @@ if (
   throw new Error("权限定义必须有且只有一个默认项，且模式不可重复。");
 const permissionSchema = {
   $schema: "http://json-schema.org/draft-07/schema#",
-  $id: "https://isle.local/protocol/agent-runtime/v1/permissions.schema.json",
+  $id: "https://mewvis.local/protocol/agent-runtime/v1/permissions.schema.json",
   $comment: "Generated from src/security/safety/policy.ts; do not edit.",
-  title: "IsleAgentPermissionsProtocol",
+  title: "MewvisAgentPermissionsProtocol",
   anyOf: [{ $ref: "#/definitions/AgentPermissions" }, { $ref: "#/definitions/AgentPermissionOption" }],
   definitions: {
     AgentPermissionMode: { type: "string", enum: AGENT_PERMISSION_DEFINITIONS.map((definition) => definition.mode) },
@@ -61,10 +61,10 @@ const permissionSchema = {
 };
 
 const commandMethods = openRpcDocument.methods
-  .filter((method) => method["x-isle-command"])
+  .filter((method) => method["x-mewvis-command"])
   .map((method) => method.name);
 const notificationMethods = openRpcDocument.methods
-  .filter((method) => !method["x-isle-command"])
+  .filter((method) => !method["x-mewvis-command"])
   .map((method) => method.name);
 const eventTypes = [
   ...new Set(
@@ -164,7 +164,7 @@ const typescriptRequestMetadata = () => {
     .join("\n");
 
   return [
-    "export type AgentRuntimeRequestFor<TMethod extends AgentRuntimeJsonRpcMethod> = Extract<IsleAgentRuntimeJSONRPCRequest, { method?: TMethod }> ;",
+    "export type AgentRuntimeRequestFor<TMethod extends AgentRuntimeJsonRpcMethod> = Extract<MewvisAgentRuntimeJSONRPCRequest, { method?: TMethod }> ;",
     'export type AgentRuntimeRequestParams<TMethod extends AgentRuntimeJsonRpcMethod> = NonNullable<AgentRuntimeRequestFor<TMethod>["params"]>;',
     "export const createAgentRuntimeRequest = <TMethod extends AgentRuntimeJsonRpcMethod>(",
     "  id: string | number,",

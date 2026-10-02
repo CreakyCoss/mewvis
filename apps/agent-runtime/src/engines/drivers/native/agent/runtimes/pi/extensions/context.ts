@@ -1,5 +1,5 @@
 import type { ContextEvent } from "@earendil-works/pi-coding-agent";
-import type { ExtensionContextMessage } from "@isle/extension-host";
+import type { ExtensionContextMessage } from "@mewvis/extension-host";
 import { randomUUID } from "node:crypto";
 
 /** Native messages never leave this adapter. References preserve signatures, images and tool metadata. */

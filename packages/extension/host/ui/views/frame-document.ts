@@ -1,4 +1,4 @@
-import { createExtensionHostClient } from "@isle/extension-host/services";
+import { createExtensionHostClient } from "@mewvis/extension-host/services";
 
 /** Only this bootstrap executes before the isolated plugin module is imported. */
 export function extensionFrameDocument(nonce: string) {
@@ -13,7 +13,7 @@ ${bootstrap}
 
 const bootstrap = String.raw`
 addEventListener("message", function connect(event) {
-  if (event.source !== parent || event.data?.type !== "isle.extension.connect" || !event.ports[0]) return;
+  if (event.source !== parent || event.data?.type !== "mewvis.extension.connect" || !event.ports[0]) return;
   removeEventListener("message", connect);
   const port = event.ports[0];
   const abort = new AbortController();

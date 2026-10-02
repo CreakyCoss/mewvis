@@ -1,5 +1,5 @@
 import { posix } from "node:path";
-import type { IsleSkillDefinition, IsleToolDefinition } from "@isle/app-sdk";
+import type { MewvisSkillDefinition, MewvisToolDefinition } from "@mewvis/app-sdk";
 import {
   assertProtocolImplementation,
   protocolSatisfies,
@@ -16,8 +16,8 @@ export type StorySkillRequirement = {
   actions: readonly string[];
 };
 export type StoryRegistryInput = {
-  tools: readonly IsleToolDefinition[];
-  skills: readonly IsleSkillDefinition[];
+  tools: readonly MewvisToolDefinition[];
+  skills: readonly MewvisSkillDefinition[];
   resources: Readonly<Record<string, string>>;
   requirements: readonly StorySkillRequirement[];
   requiredContract: AnyProtocolDefinition;
@@ -76,8 +76,8 @@ export function validateStoryRegistry(input: StoryRegistryInput) {
       documentKinds: "array",
       changeSet: "object",
     },
-    isle_story_skill: { name: "string" },
-    isle_story_skill_resource: { skillName: "string", path: "string" },
+    mewvis_story_skill: { name: "string" },
+    mewvis_story_skill_resource: { skillName: "string", path: "string" },
   };
   for (const [name, parameters] of Object.entries(parameterRequirements)) {
     const tool = input.tools.find((item) => item.name === name);

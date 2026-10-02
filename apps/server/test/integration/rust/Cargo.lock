@@ -73,7 +73,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "isle-server-storage-interop"
+name = "mewvis-server-storage-interop"
 version = "0.0.0"
 dependencies = [
  "rusqlite",

@@ -1,7 +1,7 @@
 import type {
   ApplicationStorage,
   ApplicationStorageValue,
-} from "@isle/app-sdk/data";
+} from "@mewvis/app-sdk/data";
 import {
   type Brief,
   type Course,

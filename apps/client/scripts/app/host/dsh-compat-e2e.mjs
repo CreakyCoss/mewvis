@@ -10,21 +10,21 @@ const manifest = JSON.parse(readFileSync(resolve(fixtureRoot, "package.json"), "
 const patch = readFileSync(resolve(fixtureRoot, "cordis.patch.yml"), "utf8");
 
 assert.equal(manifest.dsh?.bundle?.patch, "./cordis.patch.yml", "兼容夹具必须使用标准 dsh.bundle 清单。");
-assert.match(patch, /name:\s*['"]?@isle\/fixture-dsh-portable-application/, "Bundle patch 必须引用应用包入口。");
+assert.match(patch, /name:\s*['"]?@mewvis\/fixture-dsh-portable-application/, "Bundle patch 必须引用应用包入口。");
 
-const tempDir = mkdtempSync(join(root, ".isle-app-host-dsh-compat-"));
+const tempDir = mkdtempSync(join(root, ".mewvis-app-host-dsh-compat-"));
 const bundlePath = join(tempDir, "runner.mjs");
 const settingsRoot = join(tempDir, "apps");
 
 try {
-  mkdirSync(join(settingsRoot, "isle-fixture-portable"), { recursive: true });
-  writeFileSync(join(settingsRoot, "isle-fixture-portable", "settings.yaml"), 'prefix: "configured"\n', {
+  mkdirSync(join(settingsRoot, "mewvis-fixture-portable"), { recursive: true });
+  writeFileSync(join(settingsRoot, "mewvis-fixture-portable", "settings.yaml"), 'prefix: "configured"\n', {
     mode: 0o600,
   });
-  process.env.ISLE_DSH_COMPAT_FIXTURE_URL = pathToFileURL(resolve(fixtureRoot, "index.js")).href;
-  process.env.ISLE_DSH_COMPAT_FIXTURE_ROOT = fixtureRoot;
-  process.env.ISLE_DSH_COMPAT_SETTINGS_PATH = join(tempDir, "application-settings.yaml");
-  process.env.ISLE_DSH_COMPAT_SETTINGS_ROOT = settingsRoot;
+  process.env.MEWVIS_DSH_COMPAT_FIXTURE_URL = pathToFileURL(resolve(fixtureRoot, "index.js")).href;
+  process.env.MEWVIS_DSH_COMPAT_FIXTURE_ROOT = fixtureRoot;
+  process.env.MEWVIS_DSH_COMPAT_SETTINGS_PATH = join(tempDir, "application-settings.yaml");
+  process.env.MEWVIS_DSH_COMPAT_SETTINGS_ROOT = settingsRoot;
   await build({
     entryPoints: [resolve(root, "../../packages/app/host/tests/dsh-compat-runner.ts")],
     bundle: true,
@@ -36,9 +36,9 @@ try {
   });
   await import(pathToFileURL(bundlePath).href);
 } finally {
-  delete process.env.ISLE_DSH_COMPAT_FIXTURE_URL;
-  delete process.env.ISLE_DSH_COMPAT_FIXTURE_ROOT;
-  delete process.env.ISLE_DSH_COMPAT_SETTINGS_PATH;
-  delete process.env.ISLE_DSH_COMPAT_SETTINGS_ROOT;
+  delete process.env.MEWVIS_DSH_COMPAT_FIXTURE_URL;
+  delete process.env.MEWVIS_DSH_COMPAT_FIXTURE_ROOT;
+  delete process.env.MEWVIS_DSH_COMPAT_SETTINGS_PATH;
+  delete process.env.MEWVIS_DSH_COMPAT_SETTINGS_ROOT;
   rmSync(tempDir, { recursive: true, force: true });
 }

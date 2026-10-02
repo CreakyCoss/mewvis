@@ -5,7 +5,7 @@ import {
   getApplicationDataClient,
   ApplicationDataError,
   APPLICATION_DATA_PERMISSIONS,
-} from "@isle/app-sdk/data";
+} from "@mewvis/app-sdk/data";
 
 const workspace = {
   id: "ws-1",
@@ -313,7 +313,7 @@ test("uncertain transport failures are not retried or reported as host denial", 
 test("browser clients require an explicit supported bridge and follow bridge replacement", async () => {
   const previous = Object.getOwnPropertyDescriptor(
     globalThis,
-    "isleApplication",
+    "mewvisApplication",
   );
   try {
     for (const host of [
@@ -321,11 +321,11 @@ test("browser clients require an explicit supported bridge and follow bridge rep
       { version: 1 },
       { version: 1, data: { version: 2, request() {} } },
     ]) {
-      globalThis.isleApplication = host;
+      globalThis.mewvisApplication = host;
       assert.throws(getApplicationDataClient, isCode("CAPABILITY_UNAVAILABLE"));
     }
     for (const value of ["first connection", "new connection"]) {
-      globalThis.isleApplication = {
+      globalThis.mewvisApplication = {
         version: 1,
         data: { version: 1, request: async () => success(value) },
       };
@@ -336,8 +336,8 @@ test("browser clients require an explicit supported bridge and follow bridge rep
     }
   } finally {
     if (previous)
-      Object.defineProperty(globalThis, "isleApplication", previous);
-    else delete globalThis.isleApplication;
+      Object.defineProperty(globalThis, "mewvisApplication", previous);
+    else delete globalThis.mewvisApplication;
   }
 });
 test("directory selection, exclusive creation and removal use the generic workspace transport", async () => {

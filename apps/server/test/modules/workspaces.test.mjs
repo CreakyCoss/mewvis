@@ -25,7 +25,7 @@ const fixture = fileURLToPath(
 const uuid7 = /^[0-9a-f]{12}7[0-9a-f]{3}[89ab][0-9a-f]{15}$/;
 
 async function setup(t) {
-  const root = await mkdtemp(join(tmpdir(), "isle-workspaces-"));
+  const root = await mkdtemp(join(tmpdir(), "mewvis-workspaces-"));
   const dataDir = join(root, "data");
   const options = { token, port: 0, runtime: { cliPath: fixture, dataDir } };
   let server = await startServer(options);
@@ -299,7 +299,7 @@ test("moving workspace groups allocates order at destination and unknown groups 
 });
 
 test("Rust v24 configuration upgrades without losing settings and preserves the default group across restarts", async (t) => {
-  const root = await mkdtemp(join(tmpdir(), "isle-workspace-upgrade-"));
+  const root = await mkdtemp(join(tmpdir(), "mewvis-workspace-upgrade-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const path = join(root, "config.db");
   database(path, (db) => {

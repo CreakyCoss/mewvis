@@ -3,7 +3,7 @@ name: story-assistant-import
 description: >-
   Mewvis 故事创作助手专属的结构化小说导入技能。用户要求导入已有小说、反向解析半成品/完本、把旧稿变成可续写项目时必须使用。继承 oh-story-claudecode 最新长短篇分流和逆向工程方法，按当前故事类型的语义角色生成 Story Project、analysis 与 import 记录，不创建 Markdown 项目树，也不修改普通 story-import 技能。
 metadata:
-  isle-claw:
+  mewvis:
     assistant-only: true
     builtin-bundle: story-authoring
     required-private-tool: story

@@ -1,9 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { adaptAgentExtension, adaptUIExtension } from "../index.js";
-import { adaptIslePackage } from "../package.js";
-import { definePlugin } from "@isle/extension-host";
-import { createExtensionHostClient } from "@isle/extension-host/services";
+import { adaptMewvisPackage } from "../package.js";
+import { definePlugin } from "@mewvis/extension-host";
+import { createExtensionHostClient } from "@mewvis/extension-host/services";
 
 test("SDK callbacks cross a real native registration boundary, retaining lifecycle and cancellation", async () => {
   const registrations = {},
@@ -113,7 +113,7 @@ test("SDK package conversion produces a native manifest, and rejects unsupported
     name: "test.sdk",
     version: "1.0.0",
     type: "module",
-    "isle.extension": {
+    "mewvis.extension": {
       id: "test.sdk",
       displayName: "测试插件",
       schemaVersion: 2,
@@ -121,16 +121,16 @@ test("SDK package conversion produces a native manifest, and rejects unsupported
       modules: { agent: { entry: "index.js", capabilities: ["tools"] } },
     },
   };
-  const native = adaptIslePackage(source);
-  assert.equal(native["isle.extension"], undefined);
-  assert.equal(native["isle.plugin"].protocolVersion, 1);
-  assert.equal(native["isle.plugin"].displayName, "测试插件");
+  const native = adaptMewvisPackage(source);
+  assert.equal(native["mewvis.extension"], undefined);
+  assert.equal(native["mewvis.plugin"].protocolVersion, 1);
+  assert.equal(native["mewvis.plugin"].displayName, "测试插件");
   assert.notEqual(
-    native["isle.plugin"].modules.agent.capabilities,
-    source["isle.extension"].modules.agent.capabilities,
+    native["mewvis.plugin"].modules.agent.capabilities,
+    source["mewvis.extension"].modules.agent.capabilities,
   );
-  source["isle.extension"].apiVersion = 999;
-  assert.throws(() => adaptIslePackage(source), /无效/);
+  source["mewvis.extension"].apiVersion = 999;
+  assert.throws(() => adaptMewvisPackage(source), /无效/);
 });
 
 test("SDK dialogs map metadata, input and lifecycle without exposing native UI objects", async () => {
@@ -146,7 +146,7 @@ test("SDK dialogs map metadata, input and lifecycle without exposing native UI o
     name: "test.dialog",
     version: "1.0.0",
     type: "module",
-    "isle.extension": {
+    "mewvis.extension": {
       id: "test.dialog",
       schemaVersion: 2,
       apiVersion: 1,
@@ -154,14 +154,14 @@ test("SDK dialogs map metadata, input and lifecycle without exposing native UI o
     },
   };
   assert.deepEqual(
-    adaptIslePackage(metadata)["isle.plugin"].modules.ui.contributions,
+    adaptMewvisPackage(metadata)["mewvis.plugin"].modules.ui.contributions,
     [contribution],
   );
-  metadata["isle.extension"].modules.ui.contributions = [
+  metadata["mewvis.extension"].modules.ui.contributions = [
     { ...contribution, slot: "plugin.dialog" },
   ];
   assert.equal(
-    adaptIslePackage(metadata)["isle.plugin"].modules.ui.contributions[0].slot,
+    adaptMewvisPackage(metadata)["mewvis.plugin"].modules.ui.contributions[0].slot,
     "plugin.dialog",
   );
   let request,
@@ -211,8 +211,8 @@ test("SDK dialogs map metadata, input and lifecycle without exposing native UI o
     { ...contribution, title: undefined },
     { ...contribution, view: undefined },
   ]) {
-    metadata["isle.extension"].modules.ui.contributions = [invalid];
-    assert.throws(() => adaptIslePackage(metadata), /无效/);
+    metadata["mewvis.extension"].modules.ui.contributions = [invalid];
+    assert.throws(() => adaptMewvisPackage(metadata), /无效/);
   }
 });
 
@@ -229,13 +229,13 @@ test("SDK session actions retain their typed trigger during native manifest conv
     name: "test.actions",
     version: "1.0.0",
     type: "module",
-    "isle.extension": {
+    "mewvis.extension": {
       id: "test.actions",
       schemaVersion: 2,
       apiVersion: 1,
       modules: { ui: { entry: "ui.js", contributions: [action] } },
     },
   };
-  assert.deepEqual(adaptIslePackage(source)["isle.plugin"].modules.ui.contributions, [action]);
-  assert.notEqual(adaptIslePackage(source)["isle.plugin"].modules.ui.contributions[0].trigger, action.trigger);
+  assert.deepEqual(adaptMewvisPackage(source)["mewvis.plugin"].modules.ui.contributions, [action]);
+  assert.notEqual(adaptMewvisPackage(source)["mewvis.plugin"].modules.ui.contributions[0].trigger, action.trigger);
 });

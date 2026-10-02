@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { build } from "esbuild";
-import { dshBundleCompatibilityPlugin } from "@isle/app-dev/dsh";
+import { dshBundleCompatibilityPlugin } from "@mewvis/app-dev/dsh";
 import { once } from "node:events";
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
@@ -9,13 +9,13 @@ import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import entries from "../../../agent-runtime/build-entries.json" with { type: "json" };
 
-const temp = realpathSync(mkdtempSync(join(tmpdir(), "isle-application-no-sandbox-")));
-const previousSettingsPath = process.env.ISLE_SANDBOX_SETTINGS_PATH;
+const temp = realpathSync(mkdtempSync(join(tmpdir(), "mewvis-application-no-sandbox-")));
+const previousSettingsPath = process.env.MEWVIS_SANDBOX_SETTINGS_PATH;
 const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
-process.env.ISLE_SANDBOX_SETTINGS_PATH = join(temp, "sandbox.json");
+process.env.MEWVIS_SANDBOX_SETTINGS_PATH = join(temp, "sandbox.json");
 process.env.PI_CODING_AGENT_DIR = join(temp, "agent");
 // This choice is read by the same per-run settings path used on Windows.
-writeFileSync(process.env.ISLE_SANDBOX_SETTINGS_PATH, '{"enabled":false}\n');
+writeFileSync(process.env.MEWVIS_SANDBOX_SETTINGS_PATH, '{"enabled":false}\n');
 const workspace = join(temp, "workspace"),
   runtime = join(temp, "runtime"),
   application = join(temp, "application");
@@ -51,7 +51,7 @@ const server = createServer(async (request, response) => {
         id: "test",
         object: "chat.completion.chunk",
         created: 1,
-        model: "isle-test",
+        model: "mewvis-test",
         choices: [{ index: 0, delta: value, finish_reason: finish }],
       })}\n\n`,
     );
@@ -116,9 +116,9 @@ try {
     agentTaskPrompt: "Test application chat",
     userMessage: "hello",
     runtimeModel: {
-      provider: "isle-test",
-      modelId: "isle-test",
-      catalogModelId: "isle-test",
+      provider: "mewvis-test",
+      modelId: "mewvis-test",
+      catalogModelId: "mewvis-test",
       apiFormat: "openai-completions",
       apiEndpoint: `http://127.0.0.1:${server.address().port}/v1`,
       apiKey: "local-test-key",
@@ -136,7 +136,7 @@ try {
           tools: { allowed: ["scope_echo", "scope_risky", "scope_process", "read", "write", "bash", "powershell"] },
           applications: {
             items: [
-              { kind: "isle", id: "scope-fixture", entry: join(application, "index.js"), packageRoot: application },
+              { kind: "mewvis", id: "scope-fixture", entry: join(application, "index.js"), packageRoot: application },
             ],
           },
         },
@@ -183,13 +183,13 @@ try {
     const created = await api.createPiAgentSession(
       {
         ...command,
-        agentAccess: manifest.isle.agentAccess,
+        agentAccess: manifest.mewvis.agentAccess,
         permissions: { mode: "ask" },
         resources: {
           tools: { allowed: ["ask_user"] },
           applications: {
             items: [
-              { kind: "isle", id: manifest.name, packageRoot, entry: join(packageRoot, manifest.isle.app.entry) },
+              { kind: "mewvis", id: manifest.name, packageRoot, entry: join(packageRoot, manifest.mewvis.app.entry) },
             ],
           },
         },
@@ -208,8 +208,8 @@ try {
 } finally {
   server.closeAllConnections();
   if (server.listening) await new Promise((resolve) => server.close(resolve));
-  if (previousSettingsPath === undefined) delete process.env.ISLE_SANDBOX_SETTINGS_PATH;
-  else process.env.ISLE_SANDBOX_SETTINGS_PATH = previousSettingsPath;
+  if (previousSettingsPath === undefined) delete process.env.MEWVIS_SANDBOX_SETTINGS_PATH;
+  else process.env.MEWVIS_SANDBOX_SETTINGS_PATH = previousSettingsPath;
   if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
   else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
   rmSync(temp, { recursive: true, force: true });

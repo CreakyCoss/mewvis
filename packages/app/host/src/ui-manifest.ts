@@ -34,9 +34,9 @@ const asObject = (value: unknown, label: string): Record<string, unknown> => {
 
 const optionalTitle = (value: unknown) => {
   if (value === undefined) return undefined;
-  if (typeof value !== "string" || !value.trim()) throw new Error("isle.ui.title 必须是非空字符串。");
+  if (typeof value !== "string" || !value.trim()) throw new Error("mewvis.ui.title 必须是非空字符串。");
   const title = value.trim();
-  if (title.length > 100) throw new Error("isle.ui.title 不能超过 100 个字符。");
+  if (title.length > 100) throw new Error("mewvis.ui.title 不能超过 100 个字符。");
   return title;
 };
 
@@ -72,7 +72,7 @@ const compatibilityInfo = (manifest: Record<string, unknown>): readonly Applicat
   return [{ adapter: "dsh", clientPlatform: typeof platform === "string" ? platform : null }];
 };
 
-/** Read Isle's additive UI declaration without evaluating application browser code. */
+/** Read Mewvis's additive UI declaration without evaluating application browser code. */
 export const loadApplicationUiManifest = async (packageRoot: string): Promise<ApplicationUiManifestResult> => {
   let manifest: Record<string, unknown>;
   try {
@@ -89,20 +89,20 @@ export const loadApplicationUiManifest = async (packageRoot: string): Promise<Ap
 
   const compatibility = compatibilityInfo(manifest);
   try {
-    const isle = manifest.isle;
-    if (isle === undefined) return { contribution: null, document: null, error: null, compatibility };
-    const uiValue = asObject(isle, "isle").ui;
+    const mewvis = manifest.mewvis;
+    if (mewvis === undefined) return { contribution: null, document: null, error: null, compatibility };
+    const uiValue = asObject(mewvis, "mewvis").ui;
     if (uiValue === undefined) return { contribution: null, document: null, error: null, compatibility };
-    const ui = asObject(uiValue, "isle.ui");
-    if (ui.version !== 1) throw new Error("isle.ui.version 当前只支持 1。");
+    const ui = asObject(uiValue, "mewvis.ui");
+    if (ui.version !== 1) throw new Error("mewvis.ui.version 当前只支持 1。");
     const title = optionalTitle(ui.title);
 
     if (ui.kind === "sandbox") {
-      const entry = relativeEntry(ui.entry, "isle.ui.entry", [".js", ".mjs"]);
-      const style = ui.style === undefined ? undefined : relativeEntry(ui.style, "isle.ui.style", [".css"]);
+      const entry = relativeEntry(ui.entry, "mewvis.ui.entry", [".js", ".mjs"]);
+      const style = ui.style === undefined ? undefined : relativeEntry(ui.style, "mewvis.ui.style", [".css"]);
       const [script, stylesheet] = await Promise.all([
-        readPackageFile(packageRoot, entry, MAX_SCRIPT_BYTES, "isle.ui.entry"),
-        style ? readPackageFile(packageRoot, style, MAX_STYLE_BYTES, "isle.ui.style") : Promise.resolve(""),
+        readPackageFile(packageRoot, entry, MAX_SCRIPT_BYTES, "mewvis.ui.entry"),
+        style ? readPackageFile(packageRoot, style, MAX_STYLE_BYTES, "mewvis.ui.style") : Promise.resolve(""),
       ]);
       return {
         contribution: {
@@ -115,7 +115,7 @@ export const loadApplicationUiManifest = async (packageRoot: string): Promise<Ap
       };
     }
 
-    throw new Error(`isle.ui.kind 不受支持：${String(ui.kind)}`);
+    throw new Error(`mewvis.ui.kind 不受支持：${String(ui.kind)}`);
   } catch (error) {
     return {
       contribution: null,

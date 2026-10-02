@@ -1,7 +1,7 @@
 import { FolderIcon, GitBranchIcon } from "lucide-react";
-import { uiSlotDefinitions } from "@isle/extension-host/ui";
-import { SidebarSlot } from "@isle/extension-host/ui/slots/sidebar";
-import { UIIcon } from "@isle/extension-host/ui/slots/icons";
+import { uiSlotDefinitions } from "@mewvis/extension-host/ui";
+import { SidebarSlot } from "@mewvis/extension-host/ui/slots/sidebar";
+import { UIIcon } from "@mewvis/extension-host/ui/slots/icons";
 import { ChatPanels, ChatPanel } from "./layout";
 import { WorkspaceFiles } from "./files";
 import { WorkspaceVersionControl } from "./version-control";

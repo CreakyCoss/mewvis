@@ -1,10 +1,10 @@
 {
-  "name": "@isle/app-dev",
+  "name": "@mewvis/app-dev",
   "version": "0.1.0",
-  "description": "React application development, preview and packaging for Isle.",
+  "description": "React application development, preview and packaging for Mewvis.",
   "type": "module",
   "bin": {
-    "isle-app": "./src/cli.mjs"
+    "mewvis-app": "./src/cli.mjs"
   },
   "exports": {
     ".": {
@@ -35,8 +35,8 @@
     "prepack": "node src/check-dist.mjs"
   },
   "dependencies": {
-    "@isle/chat-contracts": "workspace:*",
-    "@isle/app-sdk": "workspace:*",
+    "@mewvis/chat-contracts": "workspace:*",
+    "@mewvis/app-sdk": "workspace:*",
     "@vitejs/plugin-react": "^4.6.0",
     "@types/node": "^22.0.0",
     "@types/react": "^19.1.8",

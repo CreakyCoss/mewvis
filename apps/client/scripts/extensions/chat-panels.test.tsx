@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
-import { defineUIContribution, uiSlotDefinitions } from "@isle/extension-host/ui";
-import { ExtensionSlotProvider } from "@isle/extension-host/ui/slots";
-import { SidebarSlot } from "@isle/extension-host/ui/slots/sidebar";
+import { defineUIContribution, uiSlotDefinitions } from "@mewvis/extension-host/ui";
+import { ExtensionSlotProvider } from "@mewvis/extension-host/ui/slots";
+import { SidebarSlot } from "@mewvis/extension-host/ui/slots/sidebar";
 import { ChatPanels, ChatPanel } from "../../src/workbench/pages/chats/panels/layout";
 
 function UnselectedView(): never {

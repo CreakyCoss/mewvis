@@ -1,4 +1,4 @@
-/** Isle plugin protocol overview. Capability guide: docs/extensions/sdk.md. */
+/** Mewvis plugin protocol overview. Capability guide: docs/extensions/sdk.md. */
 import type { ExtensionHostRequirements } from "./host/services.js";
 import type { JsonObject } from "./shared.js";
 import type { AgentModuleManifest } from "./agent/index.js";

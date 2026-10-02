@@ -4,7 +4,7 @@ import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
-import application from "../dist/isle/index.js";
+import application from "../dist/mewvis/index.js";
 
 async function setup(t) {
   const root = await mkdtemp(join(tmpdir(), "story-module-"));
@@ -47,7 +47,7 @@ async function setup(t) {
   });
   const call = (tool, input) => tools.get(tool).execute(input);
   const project = (action, input) =>
-    call("isle_story_project", { action, workspaceId: workspace.id, input });
+    call("mewvis_story_project", { action, workspaceId: workspace.id, input });
   await project("create", {
     storyId: "original-story-id",
     title: workspace.name,
@@ -71,7 +71,7 @@ test("original project facade exposes documents, schema, rename and remove witho
       .documents["story-book"],
   );
   await assert.rejects(
-    s.call("isle_story_project", {
+    s.call("mewvis_story_project", {
       action: "overview",
       workspaceId: "another-app",
     }),
@@ -80,17 +80,17 @@ test("original project facade exposes documents, schema, rename and remove witho
 });
 test("removing a library record keeps its files and does not resurrect it", async (t) => {
   const s = await setup(t);
-  await s.call("isle_story_library", {
+  await s.call("mewvis_story_library", {
     action: "add",
     workspaceId: s.workspace.id,
   });
   assert.equal(
-    (await s.call("isle_story_library", { action: "list" })).length,
+    (await s.call("mewvis_story_library", { action: "list" })).length,
     1,
   );
-  await s.call("isle_story_library", { action: "remove", id: s.workspace.id });
+  await s.call("mewvis_story_library", { action: "remove", id: s.workspace.id });
   assert.ok(await readFile(join(s.root, "story/book.json"), "utf8"));
-  assert.deepEqual(await s.call("isle_story_library", { action: "list" }), []);
+  assert.deepEqual(await s.call("mewvis_story_library", { action: "list" }), []);
 });
 test("tavern config and original message paths round-trip; traversal and unrelated files are rejected", async (t) => {
   const s = await setup(t);
@@ -99,18 +99,18 @@ test("tavern config and original message paths round-trip; traversal and unrelat
     ".tavern/original-story-id/chapter-01/messages.json",
   ]) {
     const input = { workspaceId: s.workspace.id, path };
-    await s.call("isle_story_file", {
+    await s.call("mewvis_story_file", {
       ...input,
       action: "write",
       content: '[{"text":"原酒馆消息"}]',
     });
     assert.match(
-      (await s.call("isle_story_file", { ...input, action: "read" })).content,
+      (await s.call("mewvis_story_file", { ...input, action: "read" })).content,
       /原酒馆消息/,
     );
-    await s.call("isle_story_file", { ...input, action: "delete" });
+    await s.call("mewvis_story_file", { ...input, action: "delete" });
     assert.equal(
-      await s.call("isle_story_file", { ...input, action: "read" }),
+      await s.call("mewvis_story_file", { ...input, action: "read" }),
       null,
     );
   }
@@ -119,10 +119,10 @@ test("tavern config and original message paths round-trip; traversal and unrelat
     "../secret",
     ".tavern/../chapter/messages.json",
     "story/book.json",
-    ".isle/workspace.json",
+    ".mewvis/workspace.json",
   ])
     await assert.rejects(
-      s.call("isle_story_file", {
+      s.call("mewvis_story_file", {
         workspaceId: s.workspace.id,
         path,
         action: "write",
@@ -132,7 +132,7 @@ test("tavern config and original message paths round-trip; traversal and unrelat
 });
 test("listing the library does not adopt workspaces or rewrite legacy chat files", async (t) => {
   const s = await setup(t);
-  assert.deepEqual(await s.call("isle_story_library", { action: "list" }), []);
+  assert.deepEqual(await s.call("mewvis_story_library", { action: "list" }), []);
   const directory = join(s.root, ".legacy/chats/old-chat");
   await mkdir(directory, { recursive: true });
   const original = JSON.stringify({
@@ -150,20 +150,20 @@ test("listing the library does not adopt workspaces or rewrite legacy chat files
     createdAt: 1,
     updatedAt: 1,
   });
-  const records = await s.call("isle_story_library", { action: "list" });
+  const records = await s.call("mewvis_story_library", { action: "list" });
   assert.equal(records[0].id, "old-story");
   assert.equal(await readFile(join(directory, "meta.json"), "utf8"), original);
-  const imported = await s.call("isle_story_library", {
+  const imported = await s.call("mewvis_story_library", {
     action: "add",
     workspaceId: s.workspace.id,
     name: "再次导入",
   });
   assert.equal(imported.id, "old-story");
   assert.equal(
-    (await s.call("isle_story_library", { action: "list" })).length,
+    (await s.call("mewvis_story_library", { action: "list" })).length,
     1,
   );
-  await s.call("isle_story_library", { action: "remove", id: "old-story" });
-  assert.deepEqual(await s.call("isle_story_library", { action: "list" }), []);
+  await s.call("mewvis_story_library", { action: "remove", id: "old-story" });
+  assert.deepEqual(await s.call("mewvis_story_library", { action: "list" }), []);
   assert.equal(await readFile(join(directory, "meta.json"), "utf8"), original);
 });

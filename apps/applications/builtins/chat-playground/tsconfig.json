@@ -1,4 +1,4 @@
 {
-  "extends": "@isle/app-dev/tsconfig.json",
-  "include": ["main", "isle.config.ts"]
+  "extends": "@mewvis/app-dev/tsconfig.json",
+  "include": ["main", "mewvis.config.ts"]
 }

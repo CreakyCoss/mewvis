@@ -1,4 +1,4 @@
-import type { ChatSession, OperationResult, SessionIdentity } from "@isle/chat-contracts";
+import type { ChatSession, OperationResult, SessionIdentity } from "@mewvis/chat-contracts";
 import { errorText, sessionKey } from "./contracts";
 
 /** Ownership is independent of subscriptions and React mount lifetimes. */

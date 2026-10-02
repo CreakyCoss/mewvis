@@ -1,8 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://isle.local/protocol/agent-runtime/v1/permissions.schema.json",
+  "$id": "https://mewvis.local/protocol/agent-runtime/v1/permissions.schema.json",
   "$comment": "Generated from src/security/safety/policy.ts; do not edit.",
-  "title": "IsleAgentPermissionsProtocol",
+  "title": "MewvisAgentPermissionsProtocol",
   "anyOf": [{ "$ref": "#/definitions/AgentPermissions" }, { "$ref": "#/definitions/AgentPermissionOption" }],
   "definitions": {
     "AgentPermissionMode": { "type": "string", "enum": ["ask", "auto", "full"] },

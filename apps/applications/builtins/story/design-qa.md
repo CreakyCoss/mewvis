@@ -32,7 +32,7 @@ final result: passed
 - 1280 × 720：8 场景 × 3 呈现方式 × 2 宿主主题，共 48 组，统一使用张力推进 / 轻小说。没有预览文字裁切、横向溢出或未加载背景。数据记录 `tavern-scenes-layout-checks.json`；深色短屏证据 `tavern-scenes-dark-short-screen.png`。
 - 390 × 740：占卜 / 小说正文 / 张力推进 / 轻小说，三段完整显示于 317 × 370 的预览内，文档宽度 390px；窄屏仍使用正常主体滚动。证据 `tavern-scenes-mobile.png` 已打开检查。
 - 实际房间组件：`tavern-scene-modern-room.png`、`tavern-scene-scifi-room.png`、`tavern-scene-wuxia-room-dark.png`，均为 1280 × 720，已检查输入区、标题、上下文、旁白和双方气泡。深色武侠背景偏亮的首次检查已修正，最终截图显示加深后的遮罩。
-- 7 项预览与视觉回归测试通过；其中 4 项验证背景字节和关键样式不重复、旧场景 ID 兼容、气泡渐变对比和主题基础文字对比。`pnpm --filter @isle/story check`、`pnpm --filter @isle/story build`、`git diff --check` 通过。
+- 7 项预览与视觉回归测试通过；其中 4 项验证背景字节和关键样式不重复、旧场景 ID 兼容、气泡渐变对比和主题基础文字对比。`pnpm --filter @mewvis/story check`、`pnpm --filter @mewvis/story build`、`git diff --check` 通过。
 - 临时宿主热更新曾产生 createRoot 重复初始化诊断，重新导航后的组件正常呈现；不是生产构建错误。验收未覆盖完整桌面宿主、真实模型生成或完整无障碍合规。草稿未保存，重新打开恢复原配置，视口覆盖已重置。
 
 ### 新素材来源与提示要点
@@ -60,7 +60,7 @@ final result: passed
 - 流程原截图：`tavern-entry-01-before.png`、`tavern-entry-02-settings-before.png`、`tavern-entry-03-after.png`、`tavern-entry-04-settings-after.png`，保存后均实际检查。
 - 1280 × 720：三个操作 top 均为 y=541.5，设置宽 100px、高 36px。390 × 740：三个操作同一行完整显示，无横向溢出。320 × 640：底栏自动换行，按钮完整保留，章节列表正常滚动。证据为 `tavern-entry-desktop.png`、`tavern-entry-mobile.png`、`tavern-entry-narrow.png`。
 - 所有本轮截图位于 `/Users/haowen.zheng/.codex/visualizations/2026/09/30/01a0f006-ec5d-7981-80bd-61e6d4c3c3b2/`，实现地址为 `http://127.0.0.1:5174/?entry`。
-- `pnpm --filter @isle/story check`、`pnpm --filter @isle/story build`、`git diff --check` 通过；保留既有按钮的键盘操作与焦点样式。未宣称完整无障碍合规，也未在完整桌面宿主中执行真实章节演绎。
+- `pnpm --filter @mewvis/story check`、`pnpm --filter @mewvis/story build`、`git diff --check` 通过；保留既有按钮的键盘操作与焦点样式。未宣称完整无障碍合规，也未在完整桌面宿主中执行真实章节演绎。
 
 ## 叙事与文风联动预览 · 上一轮验收
 
@@ -71,7 +71,7 @@ final result: passed
 - 浏览器验证 3 种呈现方式 × 3 种叙事策略 × 6 种文风，共 54 种组合；1280 × 720 下均没有新增主体滚动或预览文字裁切。
 - 390 × 740 下验证“小说正文 / 张力推进 / 轻小说”的较长示例：三段正文完整显示于预览框内，文档宽度 390px，无横向溢出；窄屏主体正常滚动。
 - 第三人称旁白使用间接叙事，小说正文保留对白；补充要求提示与沉浸开关联动已实际检查。验收草稿已取消，重新打开恢复保存值。
-- `node --test test/tavern-preview.test.mjs` 的 3 项测试、`pnpm --filter @isle/story check`、`pnpm --filter @isle/story build` 与 `git diff --check` 通过。
+- `node --test test/tavern-preview.test.mjs` 的 3 项测试、`pnpm --filter @mewvis/story check`、`pnpm --filter @mewvis/story build` 与 `git diff --check` 通过。
 - 实现地址沿用 `http://127.0.0.1:5174/`，加载真实组件和独立临时示例存储；未改动配置保存或运行逻辑。
 
 本轮截图已实际打开检查，均位于 `/Users/haowen.zheng/.codex/visualizations/2026/09/30/01a0f006-ec5d-7981-80bd-61e6d4c3c3b2/`：
@@ -119,7 +119,7 @@ final result: passed
 - 1280 × 720 下三个默认标签的主体均为 `clientHeight = scrollHeight = 506`。最终叙事策略与房间文风控件 top 均为 y=345；没有字段重复、横向溢出或默认内容滚动。
 - 390 × 740 下三个标签均可完整排入一行，控件保留 40px，文档宽度 390px，固定页脚底边 y=727。窄屏长内容保持正常滚动。
 - 三个标签分别修改名称、场景、呈现、叙事策略、文风、补充要求、发言人数与沉浸开关，统一保存后检查独立 JSON。移动沉浸开关不会覆盖调度配置；取消后重新打开仍显示已保存值。验收后示例数据恢复。
-- 最终 `pnpm --filter @isle/story check`、`pnpm --filter @isle/story build` 与 `git diff --check` 通过；浏览器没有新的 error/warn。
+- 最终 `pnpm --filter @mewvis/story check`、`pnpm --filter @mewvis/story build` 与 `git diff --check` 通过；浏览器没有新的 error/warn。
 
 ### 现有功能限制
 
@@ -155,7 +155,7 @@ final result: passed
 - 展开全部 8 个场景：主体 `554 / 879`，正常保留滚动，页脚底边 y=755 在窗口内；选择“科幻”并收起后保持选择，切回“通用”恢复已保存状态。
 - 390 × 740：控件仍为 40px，页面宽度 390px，固定页脚底边 y=727。截图为 `tavern-settings-compact-mobile.jpg`，单列长内容正常滚动。
 - 最终页面重新加载后控制台没有新的 error/warn。
-- 本轮 `pnpm --filter @isle/story check`、`pnpm --filter @isle/story build` 和 `git diff --check` 通过；没有修改读写或保存逻辑。
+- 本轮 `pnpm --filter @mewvis/story check`、`pnpm --filter @mewvis/story build` 和 `git diff --check` 通过；没有修改读写或保存逻辑。
 - 很矮的窗口、长文本或展开全部场景仍可能需要滚动，这是保留可读性和完整内容的正常行为。
 
 ## 用户确认后的追加调整
@@ -220,9 +220,9 @@ final result: passed
 
 ## 验证与剩余差异
 
-- `pnpm --filter @isle/story check`：通过类型和运行边界检查。
-- `pnpm --filter @isle/story build`：通过。
-- `pnpm --filter @isle/story test`：37 项单元测试及 core、contract、commit-tool、tavern-agent-protocol、boundary、binding 校验通过。
+- `pnpm --filter @mewvis/story check`：通过类型和运行边界检查。
+- `pnpm --filter @mewvis/story build`：通过。
+- `pnpm --filter @mewvis/story test`：37 项单元测试及 core、contract、commit-tool、tavern-agent-protocol、boundary、binding 校验通过。
 - `git diff --check`：通过。
 - 设计稿的保存按钮处于可操作状态，实现未修改时为禁用状态；这是统一草稿保存逻辑的预期表现。
 - 预览根据沉浸开关增加动作句，头像和场景使用原有资源；无需把生成稿整体或局部切片当成界面。

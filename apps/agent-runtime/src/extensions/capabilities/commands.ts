@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { ExtensionSource } from "@isle/extension-host";
+import type { ExtensionSource } from "@mewvis/extension-host";
 import type { AgentRuntimeCallbacks } from "../../engines/drivers/native/agent/runtimes/types.js";
 import type { ExtensionRuntime } from "../index.js";
 import type { ExtensionSessionTarget, RuntimeExtensions } from "../types.js";

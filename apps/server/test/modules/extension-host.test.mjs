@@ -3,9 +3,9 @@ import assert from "node:assert/strict";
 import { mkdtemp, writeFile, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createExtensionHostClient } from "@isle/extension-host/services";
-import { ExtensionHost } from "@isle/extension-host/services/runtime";
-import { createSessionHostAdapter } from "@isle/extension-host/services/session";
+import { createExtensionHostClient } from "@mewvis/extension-host/services";
+import { ExtensionHost } from "@mewvis/extension-host/services/runtime";
+import { createSessionHostAdapter } from "@mewvis/extension-host/services/session";
 import { createDesktopExtensionAdapter } from "../../dist/bootstrap/extensions.js";
 import { Extensions } from "../../dist/modules/extensions/service.js";
 
@@ -95,7 +95,7 @@ test("one protocol client works with different host implementations and reports 
 });
 
 test("read-only ledger projection and transient summaries leave source bytes unchanged", async (t) => {
-  const dir = await mkdtemp(join(tmpdir(), "isle-summary-contract-"));
+  const dir = await mkdtemp(join(tmpdir(), "mewvis-summary-contract-"));
   t.after(() => rm(dir, { recursive: true, force: true }));
   const file = join(dir, "ledger.json");
   const original = JSON.stringify(ledger);
@@ -153,10 +153,10 @@ test("read-only ledger projection and transient summaries leave source bytes unc
 
 test("desktop adapter uses stateless chat with host-resolved credentials, never a session mutation", async () => {
   const calls = [];
-  const dir = await mkdtemp(join(tmpdir(), "isle-desktop-summary-"));
+  const dir = await mkdtemp(join(tmpdir(), "mewvis-desktop-summary-"));
   try {
     const actual = createDesktopExtensionAdapter({
-      config: { appDataDirName: ".isle" },
+      config: { appDataDirName: ".mewvis" },
       agent: {
         invoke: async (name) => {
           assert.equal(name, "read_agent_runtime_session");
@@ -201,7 +201,7 @@ test("desktop adapter uses stateless chat with host-resolved credentials, never 
 });
 
 test("view cancellation, closure and disable abort host services and discard pending summaries", async (t) => {
-  const dir = await mkdtemp(join(tmpdir(), "isle-summary-cancel-"));
+  const dir = await mkdtemp(join(tmpdir(), "mewvis-summary-cancel-"));
   t.after(() => rm(dir, { recursive: true, force: true }));
   await writeFile(join(dir, "ui.js"), "export default {};");
   await writeFile(
@@ -210,7 +210,7 @@ test("view cancellation, closure and disable abort host services and discard pen
       name: "test.view",
       version: "1.0.0",
       type: "module",
-      "isle.plugin": {
+      "mewvis.plugin": {
         id: "test.view",
         schemaVersion: 1,
         protocolVersion: 1,

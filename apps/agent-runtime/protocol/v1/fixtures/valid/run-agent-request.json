@@ -4,7 +4,7 @@
   "method": "agent/run",
   "params": {
     "taskId": "task-1",
-    "workspacePath": "/tmp/isle-workspace",
+    "workspacePath": "/tmp/mewvis-workspace",
     "userMessage": "Write a short answer."
   }
 }

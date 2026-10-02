@@ -13,7 +13,7 @@ export async function createReactApplication({ destination, name, local }) {
     .at(-1)
     .toLowerCase()
     .replace(/[^a-z0-9._-]+/g, "-");
-  const packageName = name ?? `@isle/${slug}`;
+  const packageName = name ?? `@mewvis/${slug}`;
   if (
     !/^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/.test(packageName) ||
     packageName.length > 214
@@ -27,19 +27,19 @@ export async function createReactApplication({ destination, name, local }) {
     private: true,
     type: "module",
     scripts: {
-      dev: "isle-app dev",
-      build: "isle-app build",
-      check: "isle-app check",
+      dev: "mewvis-app dev",
+      build: "mewvis-app build",
+      check: "mewvis-app check",
     },
     dependencies: {
-      "@isle/app-sdk": local
-        ? `link:${dirname(createRequire(import.meta.url).resolve("@isle/app-sdk"))}`
+      "@mewvis/app-sdk": local
+        ? `link:${dirname(createRequire(import.meta.url).resolve("@mewvis/app-sdk"))}`
         : "^0.1.0",
       react: "^19.1.0",
       "react-dom": "^19.1.0",
     },
     devDependencies: {
-      "@isle/app-dev": local ? `link:${packageRoot}` : "^0.1.0",
+      "@mewvis/app-dev": local ? `link:${packageRoot}` : "^0.1.0",
       "@types/react": "^19.1.8",
       "@types/react-dom": "^19.1.6",
       "@types/node": "^22.0.0",

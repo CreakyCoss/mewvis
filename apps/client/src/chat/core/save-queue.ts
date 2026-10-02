@@ -1,4 +1,4 @@
-import type { OperationResult } from "@isle/chat-contracts";
+import type { OperationResult } from "@mewvis/chat-contracts";
 import { errorText } from "./contracts";
 
 /** A rejected write never poisons the queue; dirty revisions are retained until acknowledged. */

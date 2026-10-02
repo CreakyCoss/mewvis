@@ -124,17 +124,17 @@ Node 新增 `open_system_dialog`，接收 `{ input: { directory, multiple, title
 
 | 环境变量                       | 用途                                              |
 | ------------------------------ | ------------------------------------------------- |
-| `ISLE_WEB_PORT`                | Web 端口，默认开发 1420、正式模式 4173            |
-| `ISLE_SERVER_WEB_ROOT`         | 正式 Web 构建目录，默认 `apps/client/dist`        |
-| `ISLE_SERVER_PORT`             | HTTP 端口，默认 1422；0 表示分配空闲端口          |
-| `ISLE_SERVER_TOKEN`            | 自定义 Bearer token，至少 24 字节；省略时随机生成 |
-| `ISLE_SERVER_DATA_DIR`         | 共用业务数据目录，默认 `~/.isle-claw`             |
-| `ISLE_SERVER_RUNTIME_DATA_DIR` | 覆盖 Tauri runtime 数据目录，通常无需设置         |
-| `ISLE_SERVER_RESOURCES`        | 打包后的 Runtime、协议和产品资源根目录            |
-| `ISLE_SERVER_RUNTIME_CLI`      | Runtime CLI 构建产物的绝对路径                    |
+| `MEWVIS_WEB_PORT`                | Web 端口，默认开发 1420、正式模式 4173            |
+| `MEWVIS_SERVER_WEB_ROOT`         | 正式 Web 构建目录，默认 `apps/client/dist`        |
+| `MEWVIS_SERVER_PORT`             | HTTP 端口，默认 1422；0 表示分配空闲端口          |
+| `MEWVIS_SERVER_TOKEN`            | 自定义 Bearer token，至少 24 字节；省略时随机生成 |
+| `MEWVIS_SERVER_DATA_DIR`         | 共用业务数据目录，默认 `~/.mewvis`             |
+| `MEWVIS_SERVER_RUNTIME_DATA_DIR` | 覆盖 Tauri runtime 数据目录，通常无需设置         |
+| `MEWVIS_SERVER_RESOURCES`        | 打包后的 Runtime、协议和产品资源根目录            |
+| `MEWVIS_SERVER_RUNTIME_CLI`      | Runtime CLI 构建产物的绝对路径                    |
 | `AGENT_RUNTIME_PROFILE_ID`     | Runtime profile；`mock` 用于离线验证              |
 
-开发时 Server 从 `apps/agent-runtime` 读取协议，从 `apps/product.config.json` 读取产品配置。桌面构建会将 Server、原生依赖、协议、产品配置及技能打包进 Runtime 资源目录；通过 `ISLE_SERVER_RESOURCES` 定位，不依赖源码仓库或系统 Node。Node 可执行文件继续随桌面分发。Windows ARM64 使用原生 ARM64 Node；打包时从固定版本且经 SHA-256 校验的 sqlite-vec 0.1.9 源码编译 `server/native/vec0.dll`，同时复制上游许可证。其他平台继续使用 npm 的目标原生依赖。
+开发时 Server 从 `apps/agent-runtime` 读取协议，从 `apps/product.config.json` 读取产品配置。桌面构建会将 Server、原生依赖、协议、产品配置及技能打包进 Runtime 资源目录；通过 `MEWVIS_SERVER_RESOURCES` 定位，不依赖源码仓库或系统 Node。Node 可执行文件继续随桌面分发。Windows ARM64 使用原生 ARM64 Node；打包时从固定版本且经 SHA-256 校验的 sqlite-vec 0.1.9 源码编译 `server/native/vec0.dll`，同时复制上游许可证。其他平台继续使用 npm 的目标原生依赖。
 
 Windows ARM64 的本机构建需在 Visual Studio 的 ARM64 Native Tools 开发命令行中运行；macOS/Linux 交叉编译复用 LLVM 与 `cargo-xwin` 提供的 ARM64 CRT/SDK。源码及工具链缓存可供后续构建复用。Windows ARM64 开发时先运行 `pnpm --filter client build:node-server` 生成 DLL，再启动 Server；运行分发包无需编译器或 Rust。
 
@@ -146,20 +146,20 @@ Windows ARM64 的本机构建需在 Visual Studio 的 ARM64 Native Tools 开发�
 
 | 数据                                        | 默认位置                                                    |
 | ------------------------------------------- | ----------------------------------------------------------- |
-| 模型、Agent、工作区、故事、技能、知识库配置 | `~/.isle-claw/config.db`，schema v27                        |
-| 默认工作区                                  | `~/.isle-claw/default-workspace`                            |
-| 宿主技能                                    | `~/.isle-claw/skills`                                       |
-| 应用包、配置、SDK 数据、应用工作区          | `~/.isle-claw/apps/<应用命名空间>/`                         |
-| 应用目录锁                                  | `~/.isle-claw/apps/.layout.lock`                            |
-| 知识索引                                    | `~/.isle-claw/rag/index.sqlite`                             |
-| 工作区聊天、酒馆、Runtime 会话              | 原工作区内的 `.isle-claw/`                                  |
+| 模型、Agent、工作区、故事、技能、知识库配置 | `~/.mewvis/config.db`，schema v27                        |
+| 默认工作区                                  | `~/.mewvis/default-workspace`                            |
+| 宿主技能                                    | `~/.mewvis/skills`                                       |
+| 应用包、配置、SDK 数据、应用工作区          | `~/.mewvis/apps/<应用命名空间>/`                         |
+| 应用目录锁                                  | `~/.mewvis/apps/.layout.lock`                            |
+| 知识索引                                    | `~/.mewvis/rag/index.sqlite`                             |
+| 工作区聊天、酒馆、Runtime 会话              | 原工作区内的 `.mewvis/`                                  |
 | Agent runtime 持久目录、诊断日志            | Tauri 系统应用数据目录下的 `pi-agent/`、`agent-runtime.log` |
 
-Tauri 的系统应用数据目录与业务根目录不同：macOS 为 `~/Library/Application Support/com.isle-claw.desktop`；Windows 为 `%APPDATA%/com.isle-claw.desktop`；Linux 为 `${XDG_DATA_HOME:-~/.local/share}/com.isle-claw.desktop`。这些名称均来自现有产品配置。
+Tauri 的系统应用数据目录与业务根目录不同：macOS 为 `~/Library/Application Support/com.mewvis.desktop`；Windows 为 `%APPDATA%/com.mewvis.desktop`；Linux 为 `${XDG_DATA_HOME:-~/.local/share}/com.mewvis.desktop`。这些名称均来自现有产品配置。
 
 桌面和 Web 都使用 Node，并持有同一个 `.layout.lock`。同一目录不能同时启动两个独立后端；第二个进程会明确提示数据正在使用。旧版本 Rust 保存的配置和会话文件可以直接继续使用，不支持跨进程热接管正在运行的任务。
 
-`ISLE_SERVER_DATA_DIR` 仍可用于临时测试或指定业务根目录；显式指定时，Runtime 数据也默认写入该根目录，避免测试触碰桌面真实数据。需要分别指定时使用 `ISLE_SERVER_RUNTIME_DATA_DIR`。常规切换不需要设置这两个变量。
+`MEWVIS_SERVER_DATA_DIR` 仍可用于临时测试或指定业务根目录；显式指定时，Runtime 数据也默认写入该根目录，避免测试触碰桌面真实数据。需要分别指定时使用 `MEWVIS_SERVER_RUNTIME_DATA_DIR`。常规切换不需要设置这两个变量。
 
 两端业务命令与事件固定使用 `transport/index.ts` 的 HTTP/SSE，不再有 `backendKind()`。桌面保留包内页面加载方式，`transport/http.ts` 首次请求通过唯一的壳命令 `get_backend_connection` 获取 Node 地址与本次进程凭证，后续业务请求直接访问 Node；Web 继续使用同源 `/api/`。凭证不写入源码、URL或持久配置。
 
@@ -218,15 +218,15 @@ AGENT_RUNTIME_PROFILE_ID=mock pnpm dev:server
 在另一个终端设置启动时输出的 token，并使用真实存在的工作区绝对路径：
 
 ```sh
-export ISLE_SERVER_TOKEN='<启动时输出的 Session token>'
+export MEWVIS_SERVER_TOKEN='<启动时输出的 Session token>'
 
 curl http://127.0.0.1:1422/api/commands/list_agent_runtime_tools \
-  -H "Authorization: Bearer $ISLE_SERVER_TOKEN" \
+  -H "Authorization: Bearer $MEWVIS_SERVER_TOKEN" \
   -H 'Content-Type: application/json' \
   -d '{"input":{}}'
 
 curl http://127.0.0.1:1422/api/commands/run_agent_runtime_agent \
-  -H "Authorization: Bearer $ISLE_SERVER_TOKEN" \
+  -H "Authorization: Bearer $MEWVIS_SERVER_TOKEN" \
   -H 'Content-Type: application/json' \
   -d '{"input":{"taskId":"demo-1","workspacePath":"/absolute/existing/workspace","sessionRootDir":"sessions/demo","agentRoleId":"assistant","userMessage":"你好"}}'
 ```
@@ -254,7 +254,7 @@ curl http://127.0.0.1:1422/api/commands/run_agent_runtime_agent \
 
 HTTP 断开和任务生命周期分离。关闭网页或 SSE 连接不会取消 Agent。显式取消必须调用取消接口。
 
-相对 `sessionRootDir` 仍解析到 `<workspace>/.isle-claw/<sessionRootDir>`，目录名读取现有产品配置。释放与删除检查数据目录边界和符号链接，禁止删除数据根目录。内置、宿主与工作区技能由 Node 宿主注入；宿主技能位于 `<ISLE_SERVER_DATA_DIR>/skills`。
+相对 `sessionRootDir` 仍解析到 `<workspace>/.mewvis/<sessionRootDir>`，目录名读取现有产品配置。释放与删除检查数据目录边界和符号链接，禁止删除数据根目录。内置、宿主与工作区技能由 Node 宿主注入；宿主技能位于 `<MEWVIS_SERVER_DATA_DIR>/skills`。
 
 默认最多 32 个 Runtime 进程（包含短请求），每个会话最多 128 个排队任务。通过编程接口 `startServer({token, runtime: {...}})` 可调整进程、队列、心跳和超时参数。
 
@@ -289,7 +289,7 @@ data: {"streamId":"chat-1","event":{"type":"text_delta","delta":"你好"}}
 
 ```sh
 curl -N http://127.0.0.1:1422/api/events \
-  -H "Authorization: Bearer $ISLE_SERVER_TOKEN"
+  -H "Authorization: Bearer $MEWVIS_SERVER_TOKEN"
 ```
 
 建议先订阅，再提交任务。重连时使用 `Last-Event-ID` 补发缓存中的事件。缓存最多 1024 条、8 MiB，游标包含进程 epoch；缓存过期或 Server 重启时返回 `409 EVENT_CURSOR_EXPIRED`。此时先建立不带旧游标的新订阅，再查询任务快照恢复显示状态，避免在查询和订阅之间遗漏事件。

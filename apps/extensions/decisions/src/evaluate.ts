@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { DecisionRequest, DecisionResult } from "@isle/extension-sdk/host";
+import type { DecisionRequest, DecisionResult } from "@mewvis/extension-sdk/host";
 import { selectRule } from "./matching";
 import { modelJSON, type ModelHost } from "./model";
 import type { Rule } from "./rules";

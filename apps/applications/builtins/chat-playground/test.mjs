@@ -6,8 +6,8 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { createInterface } from "node:readline";
-import { packApplication } from "@isle/app-dev/tooling";
-import { dshBundleCompatibilityPlugin } from "@isle/app-dev/dsh";
+import { packApplication } from "@mewvis/app-dev/tooling";
+import { dshBundleCompatibilityPlugin } from "@mewvis/app-dev/dsh";
 import { build } from "esbuild";
 
 const source = dirname(fileURLToPath(import.meta.url));
@@ -22,8 +22,8 @@ const { outputRoot, manifest } = bundled
       ),
     }
   : await packApplication({ source });
-assert.equal(manifest.isle.defaultEnabled, true);
-assert.equal(manifest.dsh, undefined, "内置聊天应用必须使用 Isle 格式");
+assert.equal(manifest.mewvis.defaultEnabled, true);
+assert.equal(manifest.dsh, undefined, "内置聊天应用必须使用 Mewvis 格式");
 if (bundled) {
   for (const name of ["rss-reader", "docs-reader"]) {
     const portable = JSON.parse(
@@ -39,9 +39,9 @@ if (bundled) {
     );
   }
 }
-assert.equal(manifest.isle.ui.entry, "./isle-ui.js");
-assert.equal(manifest.isle.ui.style, "./isle-ui.css");
-assert.deepEqual(manifest.isle.permissions, [
+assert.equal(manifest.mewvis.ui.entry, "./mewvis-ui.js");
+assert.equal(manifest.mewvis.ui.style, "./mewvis-ui.css");
+assert.deepEqual(manifest.mewvis.permissions, [
   "chat",
   "workspace-files",
   "chat-knowledge",
@@ -52,7 +52,7 @@ assert.equal(
   (await readFile(join(outputRoot, "index.js"), "utf8")).includes("react-dom"),
   false,
 );
-const temporary = await mkdtemp(join(tmpdir(), "isle-chat-playground-"));
+const temporary = await mkdtemp(join(tmpdir(), "mewvis-chat-playground-"));
 const child = spawn(
   process.execPath,
   [
@@ -155,7 +155,7 @@ try {
   const bridge = await ApplicationRuntimeBridge.create(
     [
       {
-        kind: "isle",
+        kind: "mewvis",
         id: manifest.name,
         packageRoot: outputRoot,
         entry: join(outputRoot, "index.js"),
@@ -200,15 +200,15 @@ try {
     settingsPath: temporary,
     applications: [
       {
-        kind: "isle",
+        kind: "mewvis",
         id: manifest.name,
-        name: manifest.isle.displayName,
+        name: manifest.mewvis.displayName,
         version: manifest.version,
         description: manifest.description,
         source: "bundled",
         packageRoot: outputRoot,
         entry: join(outputRoot, "index.js"),
-        permissions: manifest.isle.permissions,
+        permissions: manifest.mewvis.permissions,
         permissionStatus: "declared",
       },
     ],
@@ -231,15 +231,15 @@ try {
   const document = await rpc("uiDocument", { applicationId: manifest.name });
   assert.ok(Buffer.byteLength(document.script) < 512 * 1024);
   assert.ok(Buffer.byteLength(document.style) < 256 * 1024);
-  assert.match(document.script, /isleApplicationChatUI/);
+  assert.match(document.script, /mewvisApplicationChatUI/);
   assert.match(document.style, /lab-custom-chat/);
   const result = await rpc("execute", {
     applicationId: manifest.name,
     toolName: "chat_playground_echo",
-    arguments: { text: "Isle 👋" },
+    arguments: { text: "Mewvis 👋" },
   });
-  assert.deepEqual(result.value, { echo: "Isle 👋", characters: 6 });
-  assert.match(result.content[0].text, /Isle 👋/);
+  assert.deepEqual(result.value, { echo: "Mewvis 👋", characters: 8 });
+  assert.match(result.content[0].text, /Mewvis 👋/);
   const mediumResult = await rpc("execute", {
     applicationId: manifest.name,
     toolName: "chat_playground_medium_risk",
@@ -252,13 +252,13 @@ try {
   const inspection = await rpc("execute", {
     applicationId: manifest.name,
     toolName: "chat_playground_inspect_text",
-    arguments: { text: "Isle 👋" },
+    arguments: { text: "Mewvis 👋" },
   });
   assert.deepEqual(inspection.value, {
-    text: "Isle 👋",
-    characters: 6,
-    bytes: 9,
-    sha256: createHash("sha256").update("Isle 👋").digest("hex"),
+    text: "Mewvis 👋",
+    characters: 8,
+    bytes: 11,
+    sha256: createHash("sha256").update("Mewvis 👋").digest("hex"),
     runtime: "node",
   });
   await assert.rejects(

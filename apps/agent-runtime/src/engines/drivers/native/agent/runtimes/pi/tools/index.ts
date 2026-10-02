@@ -1,5 +1,5 @@
 import type { ExtensionAPI, Skill } from "@earendil-works/pi-coding-agent";
-import { isRiskLevel } from "@isle/chat-contracts";
+import { isRiskLevel } from "@mewvis/chat-contracts";
 import { fileURLToPath } from "node:url";
 import entries from "../../../../../../../../build-entries.json" with { type: "json" };
 import { resolveBuiltins } from "../../../../../../builtins/index.js";
@@ -98,7 +98,7 @@ export async function createPiToolSet(
     const catalog = await initialize();
     const names = catalog.tools.map((tool) => tool.name);
     if (new Set(names).size !== names.length || names.includes("ask_user") || names.includes("subagent"))
-      throw new Error("应用工具不能覆盖 Isle Runtime 工具。");
+      throw new Error("应用工具不能覆盖 Mewvis Runtime 工具。");
     const baseNames = new Set([
       ...AGENT_TOOL_DEFINITIONS.map((tool) => tool.name),
       ...builtins.requiredTools.internal.map((tool) => tool.name),

@@ -10,7 +10,7 @@ test(
   "real Runtime CLI: workspace registration, HTTP agent, queue reuse, sessions, collaboration, and chat (mock profile)",
   { timeout: 60_000 },
   async (t) => {
-    const root = await mkdtemp(join(tmpdir(), "isle-server-real-runtime-"));
+    const root = await mkdtemp(join(tmpdir(), "mewvis-server-real-runtime-"));
     const server = await startServer({
       port: 0,
       token,
@@ -155,10 +155,10 @@ test(
     assert.equal(summarized.type, "session_mutation_result");
 
     await invoke("release_agent_runtime_session", scope);
-    await access(join(workspacePath, ".isle-claw/sessions/real/ledger.jsonl"));
+    await access(join(workspacePath, ".mewvis/sessions/real/ledger.jsonl"));
     await invoke("delete_agent_runtime_session", scope);
     await assert.rejects(
-      access(join(workspacePath, ".isle-claw/sessions/real")),
+      access(join(workspacePath, ".mewvis/sessions/real")),
     );
     await invoke("delete_workspace", { id: registered.id });
     await access(join(workspacePath, "workspace.db"));

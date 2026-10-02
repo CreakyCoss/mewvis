@@ -6,12 +6,12 @@ import { ApplicationHost } from "../../../../../packages/app/host/dist/index.js"
 test("the native application host can discover and load the authoring skill", async (t) => {
   const host = await ApplicationHost.create();
   t.after(() => host.dispose());
-  const packageRoot = fileURLToPath(new URL("../dist/isle/", import.meta.url));
+  const packageRoot = fileURLToPath(new URL("../dist/mewvis/", import.meta.url));
   await host.load({
-    kind: "isle",
-    id: "@isle/app-workshop",
+    kind: "mewvis",
+    id: "@mewvis/app-workshop",
     packageRoot,
-    entry: fileURLToPath(new URL("../dist/isle/index.js", import.meta.url)),
+    entry: fileURLToPath(new URL("../dist/mewvis/index.js", import.meta.url)),
   });
 
   const catalog = await host.listSkills();

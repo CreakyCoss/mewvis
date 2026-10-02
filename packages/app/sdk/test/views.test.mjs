@@ -59,11 +59,11 @@ test("view host starts before the document root exists and releases its observer
 test("owner mount requires an explicit host capability; child client never falls back to the application bridge", () => {
   const original = Object.getOwnPropertyDescriptor(
     globalThis,
-    "isleApplication",
+    "mewvisApplication",
   );
-  const child = Object.getOwnPropertyDescriptor(globalThis, "isleEmbeddedView");
+  const child = Object.getOwnPropertyDescriptor(globalThis, "mewvisEmbeddedView");
   try {
-    Object.defineProperty(globalThis, "isleApplication", {
+    Object.defineProperty(globalThis, "mewvisApplication", {
       configurable: true,
       value: { version: 1 },
     });
@@ -71,7 +71,7 @@ test("owner mount requires an explicit host capability; child client never falls
     assert.throws(() => getApplicationViewClient(), /内嵌视图宿主/);
     const calls = [];
     const view = { id: "fixture" };
-    globalThis.isleApplication.views = {
+    globalThis.mewvisApplication.views = {
       version: 1,
       mount: (...args) => {
         calls.push(args);
@@ -82,16 +82,16 @@ test("owner mount requires an explicit host capability; child client never falls
     const options = { id: "fixture", title: "Fixture", script: "" };
     assert.equal(mountApplicationView(container, options), view);
     assert.deepEqual(calls, [[container, options]]);
-    Object.defineProperty(globalThis, "isleEmbeddedView", {
+    Object.defineProperty(globalThis, "mewvisEmbeddedView", {
       configurable: true,
       value: { version: 1, request() {} },
     });
-    assert.equal(getApplicationViewClient(), globalThis.isleEmbeddedView);
+    assert.equal(getApplicationViewClient(), globalThis.mewvisEmbeddedView);
   } finally {
     if (original)
-      Object.defineProperty(globalThis, "isleApplication", original);
-    else delete globalThis.isleApplication;
-    if (child) Object.defineProperty(globalThis, "isleEmbeddedView", child);
-    else delete globalThis.isleEmbeddedView;
+      Object.defineProperty(globalThis, "mewvisApplication", original);
+    else delete globalThis.mewvisApplication;
+    if (child) Object.defineProperty(globalThis, "mewvisEmbeddedView", child);
+    else delete globalThis.mewvisEmbeddedView;
   }
 });

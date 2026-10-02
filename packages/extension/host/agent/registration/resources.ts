@@ -3,7 +3,7 @@ import type {
   ExtensionTool,
   ExtensionToolResult,
   ExtensionCommand,
-} from "@isle/extension-host";
+} from "@mewvis/extension-host";
 import { z } from "zod";
 
 const localName = z.string().regex(/^[a-z][a-z0-9_]{0,31}$/);

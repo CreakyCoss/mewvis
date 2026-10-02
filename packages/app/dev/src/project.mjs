@@ -2,7 +2,7 @@ import { access, mkdtemp, rm, realpath } from "node:fs/promises";
 import { dirname, join, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import { build } from "esbuild";
-import { isRiskLevel } from "@isle/chat-contracts";
+import { isRiskLevel } from "@mewvis/chat-contracts";
 
 export async function exists(path) {
   try {
@@ -14,9 +14,9 @@ export async function exists(path) {
 }
 
 // Bundle TS configuration/host modules beside their source so package resolution works
-// outside the Isle repository too. Each load is fresh and cleans its own files.
+// outside the Mewvis repository too. Each load is fresh and cleans its own files.
 export async function importSource(entry) {
-  const temporary = await mkdtemp(join(dirname(entry), ".isle-load-"));
+  const temporary = await mkdtemp(join(dirname(entry), ".mewvis-load-"));
   try {
     const outfile = join(temporary, "module.mjs");
     await build({
@@ -45,11 +45,11 @@ export async function projectFile(root, value, label) {
 }
 
 export async function readProject(root) {
-  const file = join(root, "isle.config.ts");
+  const file = join(root, "mewvis.config.ts");
   if (!(await exists(file))) return null;
   const { default: config } = await importSource(file);
   if (!config || typeof config !== "object" || Array.isArray(config))
-    throw new Error("isle.config.ts 必须默认导出应用配置");
+    throw new Error("mewvis.config.ts 必须默认导出应用配置");
   const allowed = [
     "displayName",
     "permissions",
@@ -119,7 +119,7 @@ export function hostSource(project, name) {
   if (project.hostEntry) return `export { default } from ${JSON.stringify(project.hostEntry)};`;
   return `${project.toolsEntry ? `import tools from ${JSON.stringify(project.toolsEntry)};` : "const tools = [];"}
 ${project.skillsEntry ? `import skills from ${JSON.stringify(project.skillsEntry)};` : "const skills = [];"}
-import { defineApplication } from "@isle/app-sdk";
+import { defineApplication } from "@mewvis/app-sdk";
 export default defineApplication({ name: ${JSON.stringify(name)}, inject: ${JSON.stringify(
     [
       ...(project.toolsEntry ? ["tools"] : []),
@@ -136,7 +136,7 @@ export function uiSource(project) {
 import { createRoot } from "react-dom/client";
 import App from ${JSON.stringify(project.uiEntry)};
 const root = document.createElement("div");
-root.id = "isle-app-root";
+root.id = "mewvis-app-root";
 root.style.height = "100%";
 document.body.append(root);
 createRoot(root).render(React.createElement(React.StrictMode, null, React.createElement(App)));`;
@@ -226,7 +226,7 @@ export async function loadHostEntry(project) {
     tools: { register: (tool) => tools.push(tool) },
     skills: { register: (skill) => skills.push(skill) },
     // The in-memory preview has no real registered directories.
-    workspaces: { get: async () => { throw new Error("请在 Isle 桌面宿主中选择真实工作区"); } },
+    workspaces: { get: async () => { throw new Error("请在 Mewvis 桌面宿主中选择真实工作区"); } },
   });
   return { tools: validateTools(tools), skills: validateSkills(skills) };
 }
@@ -247,21 +247,21 @@ export function isHostFile(root, project, path) {
 // Runtime imports cannot cross from browser business code into main/host.
 export function browserBoundary(root, project) {
   return {
-    name: "isle-browser-boundary",
+    name: "mewvis-browser-boundary",
     setup(context) {
       context.onResolve(
-        { filter: /^@isle\/app-sdk\/chat(?:\/react)?$/ },
+        { filter: /^@mewvis\/app-sdk\/chat(?:\/react)?$/ },
         () => {
           if (!project.config.permissions.includes("chat"))
             throw new Error(
-              "使用 Chat SDK 必须在 isle.config.ts 声明 chat 权限",
+              "使用 Chat SDK 必须在 mewvis.config.ts 声明 chat 权限",
             );
         },
       );
       context.onLoad({ filter: /\.[cm]?[jt]sx?$/ }, async ({ path }) => {
         if (isHostFile(root, project, path))
           throw new Error(
-            "React 页面不能导入 host 实现，请通过 @isle/app-sdk/browser 调用宿主工具；共享类型请放 main/contracts.ts",
+            "React 页面不能导入 host 实现，请通过 @mewvis/app-sdk/browser 调用宿主工具；共享类型请放 main/contracts.ts",
           );
       });
     },

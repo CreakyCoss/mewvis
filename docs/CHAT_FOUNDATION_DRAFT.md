@@ -1,6 +1,6 @@
 # Chat 基座接入草案
 
-状态：待确认，仅描述目标接口；本轮未实现新基座，也未创建新的 SDK 包。示例里的 `@isle/chat/*`、工厂和组件名称都是提案。
+状态：待确认，仅描述目标接口；本轮未实现新基座，也未创建新的 SDK 包。示例里的 `@mewvis/chat/*`、工厂和组件名称都是提案。
 
 ## 本轮恢复结果
 
@@ -19,7 +19,7 @@
 ## 1. 只使用核心：无界面或 TUI
 
 ```ts
-import { createAgentSession } from "@isle/chat/core";
+import { createAgentSession } from "@mewvis/chat/core";
 
 const session = await createAgentSession({
   id: "terminal-session",
@@ -67,7 +67,7 @@ return <Chat session={session} />;
 ## 3. 应用自由组合、定制 UI
 
 ```tsx
-import { Chat } from "@isle/chat/react";
+import { Chat } from "@mewvis/chat/react";
 
 return (
   <Chat.Provider session={session}>

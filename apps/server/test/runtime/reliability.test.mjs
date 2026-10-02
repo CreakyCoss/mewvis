@@ -136,7 +136,7 @@ test("unconfirmed stop quarantines session and preserves files; later exit relea
   const s = await setup(t, { stopTimeoutMs: 80 });
   await s.run("ignore-graceful-stop", "ignore-shutdown");
   await s.done("ignore-graceful-stop");
-  const path = join(s.root, ".isle-claw/sessions/test");
+  const path = join(s.root, ".mewvis/sessions/test");
   await mkdir(path, { recursive: true });
   await writeFile(join(path, "keep.txt"), "keep");
   await s.run("active", "hold");

@@ -6,7 +6,7 @@ import type { Workspace } from "@/api/workspace";
 import { createTimestampId } from "@/utils/ids";
 import { useWorkspaceStore } from "../workspace-store";
 import { workspaceChatProfile } from "../profile";
-import { ComposerActionSlot } from "@isle/extension-host/ui/slots/action";
+import { ComposerActionSlot } from "@mewvis/extension-host/ui/slots/action";
 
 export function HomeComposer({ workspace }: { workspace: Workspace }) {
   const [chatId] = useState(() => createTimestampId("chat"));

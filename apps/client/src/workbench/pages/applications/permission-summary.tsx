@@ -14,7 +14,7 @@ import {
   ShieldAlert,
   Terminal,
 } from "lucide-react";
-import type { AgentAccess, AgentAccessBase, AgentAccessPaths } from "@isle/chat-contracts";
+import type { AgentAccess, AgentAccessBase, AgentAccessPaths } from "@mewvis/chat-contracts";
 import type { ApplicationPermission, ApplicationPermissionStatus } from "@/api/applications";
 import { Popover, PopoverContent, PopoverTrigger } from "design-system/components/ui/popover";
 import { useIsMobile } from "design-system/hooks/use-mobile";
@@ -60,13 +60,13 @@ function DeclarationNotice({ status }: { status: ApplicationPermissionStatus }) 
     <p
       className={cn(
         "flex items-start gap-2 text-xs leading-5",
-        status === "isle-upgrade-required" ? "text-destructive" : "text-warning",
+        status === "mewvis-upgrade-required" ? "text-destructive" : "text-warning",
       )}
     >
       <ShieldAlert className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
-      {status === "isle-upgrade-required"
+      {status === "mewvis-upgrade-required"
         ? "旧版清单缺少权限声明，升级后才能启用。"
-        : "DSH 未提供 Isle 权限声明，将按受信任模式运行。"}
+        : "DSH 未提供 Mewvis 权限声明，将按受信任模式运行。"}
     </p>
   );
 }
@@ -191,16 +191,16 @@ export function ApplicationPermissionSummary(props: PermissionSummaryProps) {
               <ShieldAlert
                 className={cn(
                   "size-5 shrink-0",
-                  status === "isle-upgrade-required" ? "text-destructive" : "text-warning",
+                  status === "mewvis-upgrade-required" ? "text-destructive" : "text-warning",
                 )}
                 aria-hidden="true"
               />
               <span className="space-y-1 text-xs leading-4">
                 <span className="block">
-                  {status === "isle-upgrade-required" ? "缺少权限声明" : "DSH 未提供权限声明"}
+                  {status === "mewvis-upgrade-required" ? "缺少权限声明" : "DSH 未提供权限声明"}
                 </span>
                 <span className="block text-muted-foreground">
-                  {status === "isle-upgrade-required" ? "升级清单后才能启用" : "以受信任模式运行"}
+                  {status === "mewvis-upgrade-required" ? "升级清单后才能启用" : "以受信任模式运行"}
                 </span>
               </span>
             </span>

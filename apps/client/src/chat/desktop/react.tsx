@@ -1,4 +1,4 @@
-import { StatusSlot } from "@isle/extension-host/ui/slots/status";
+import { StatusSlot } from "@mewvis/extension-host/ui/slots/status";
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type PropsWithChildren } from "react";
 import { ChatEnvironment } from "../react";
 import { sessionKey, type ChatSession } from "../core";

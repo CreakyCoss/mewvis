@@ -77,7 +77,7 @@ test("app-owned checks reject incompatible registry entries", async (t) => {
       "missing skill loader",
       (input) => {
         input.tools = input.tools.filter(
-          (tool) => tool.name !== "isle_story_skill",
+          (tool) => tool.name !== "mewvis_story_skill",
         );
       },
       /技能工具参数不兼容|缺少工具/,
@@ -168,7 +168,7 @@ test("app-owned checks reject incompatible registry entries", async (t) => {
       "incompatible resource parameters",
       (input) => {
         delete input.tools.find(
-          (tool) => tool.name === "isle_story_skill_resource",
+          (tool) => tool.name === "mewvis_story_skill_resource",
         ).parameters.properties.path;
       },
       /技能工具参数不兼容/,

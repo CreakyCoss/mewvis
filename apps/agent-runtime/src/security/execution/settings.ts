@@ -14,7 +14,7 @@ import { EXECUTION_CONFIG } from "./policy.js";
 
 const settingsSchema = z.object({ enabled: z.boolean() }).strict();
 const settingsPath = () =>
-  process.env.ISLE_SANDBOX_SETTINGS_PATH ??
+  process.env.MEWVIS_SANDBOX_SETTINGS_PATH ??
   join(homedir(), product.appDataDirName, "sandbox.json");
 
 /** Read per run so existing runtime processes see changes without changing active snapshots. */

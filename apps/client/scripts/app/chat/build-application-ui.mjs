@@ -57,7 +57,7 @@ await build({
   format: "esm",
   platform: "browser",
   target: "es2022",
-  external: ["react", "react/*", "react-dom", "react-dom/*", "@isle/app-sdk/*"],
+  external: ["react", "react/*", "react-dom", "react-dom/*", "@mewvis/app-sdk/*"],
   loader: { ".jpg": "dataurl", ".png": "dataurl", ".webp": "dataurl", ".svg": "dataurl" },
 });
 await writeFile(resolve(previewOutput, "chat-ui.css"), bundledCss.outputFiles[0].text);
@@ -100,7 +100,7 @@ export type MessagesProps = ComponentProps<typeof Chat.Messages>;
 export type RenderMessage = NonNullable<MessagesProps["renderMessage"]>;
 `,
     );
-    const external = ["@isle/chat-contracts", "@isle/app-sdk/chat", "react", "react/jsx-runtime"];
+    const external = ["@mewvis/chat-contracts", "@mewvis/app-sdk/chat", "react", "react/jsx-runtime"];
     const bundle = await rollup({
       input: entry,
       external,

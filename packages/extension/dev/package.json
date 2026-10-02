@@ -1,10 +1,10 @@
 {
-  "name": "@isle/extension-dev",
+  "name": "@mewvis/extension-dev",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "bin": {
-    "isle-extension": "./cli.mjs"
+    "mewvis-extension": "./cli.mjs"
   },
   "exports": {
     ".": "./index.mjs"
@@ -13,9 +13,9 @@
     "test": "node --test test/*.test.mjs"
   },
   "dependencies": {
-    "@isle/extension-host": "workspace:*",
-    "@isle/extension-sdk": "workspace:*",
+    "@mewvis/extension-host": "workspace:*",
+    "@mewvis/extension-sdk": "workspace:*",
     "esbuild": "^0.28.0",
-    "@isle/extension-adapters": "workspace:*"
+    "@mewvis/extension-adapters": "workspace:*"
   }
 }

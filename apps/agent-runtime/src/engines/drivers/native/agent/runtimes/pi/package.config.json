@@ -2,7 +2,7 @@
   "piConfig": {
     "configDir": "{appDataDirName}/agents/{runtimeId}"
   },
-  "isle": {
+  "mewvis": {
     "extensionCompatibility": {
       "pi": {
         "package": "@earendil-works/pi-coding-agent",

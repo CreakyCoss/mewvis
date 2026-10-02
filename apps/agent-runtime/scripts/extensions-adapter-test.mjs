@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
-import { defineExtensionAdapter, resolveExtensionAdaptation } from "@isle/extension-host";
+import { defineExtensionAdapter, resolveExtensionAdaptation } from "@mewvis/extension-host";
 
 export async function verifyExtensionAdapters({ piExtensionAdapter, mockExtensionAdapter, createMockPluginRegistry }) {
   const packageConfig = JSON.parse(
@@ -10,7 +10,7 @@ export async function verifyExtensionAdapters({ piExtensionAdapter, mockExtensio
       "utf8",
     ),
   );
-  const baseline = packageConfig.isle.extensionCompatibility.pi;
+  const baseline = packageConfig.mewvis.extensionCompatibility.pi;
   const piRoot = new URL("../../../ai/pi/packages/coding-agent/", import.meta.url);
   const metadata = JSON.parse(await readFile(new URL("package.json", piRoot), "utf8"));
   assert.equal(metadata.name, baseline.package);
@@ -256,7 +256,7 @@ export async function verifyExtensionAdapters({ piExtensionAdapter, mockExtensio
   await hooks.get("context")({ messages: nativeMessages });
   assert.notEqual(contextIds[0], contextIds[1], "消息引用只对本次请求有效");
   factory.assertHealthy();
-  // Pi emits shallow streaming copies and can reset its turn counter within one Isle run.
+  // Pi emits shallow streaming copies and can reset its turn counter within one Mewvis run.
   events.length = 0;
   const conversationHooks = new Map();
   await piExtensionAdapter.adapt(
@@ -300,7 +300,7 @@ export async function verifyExtensionAdapters({ piExtensionAdapter, mockExtensio
   assert.deepEqual(events.at(-1).toolResults[0].content, nativeMessages[2].content);
   assert.equal(finished.stopReason, "tool");
   await emitNative("turn_start", { turnIndex: 0, timestamp: 4 });
-  assert.equal(events.at(-1).turnIndex, 1, "同一 Isle 运行中的追加 prompt 不重置回合索引");
+  assert.equal(events.at(-1).turnIndex, 1, "同一 Mewvis 运行中的追加 prompt 不重置回合索引");
   const customMessage = {
     role: "custom",
     customType: "sample",

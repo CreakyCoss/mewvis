@@ -1,6 +1,6 @@
 # 应用聊天
 
-Isle 应用使用宿主持有的 Chat 会话。纯 SDK 只镜像快照和转发操作；消息归并、Pi 执行、模型凭据解析、运行配置和历史保存都在宿主完成。这里没有第二套聊天执行引擎。
+Mewvis 应用使用宿主持有的 Chat 会话。纯 SDK 只镜像快照和转发操作；消息归并、Pi 执行、模型凭据解析、运行配置和历史保存都在宿主完成。这里没有第二套聊天执行引擎。
 
 ## 清单与打包
 
@@ -8,7 +8,7 @@ Isle 应用使用宿主持有的 Chat 会话。纯 SDK 只镜像快照和转发�
 
 ```json
 {
-  "isle": {
+  "mewvis": {
     "app": { "version": 1, "entry": "./index.js" },
     "permissions": ["chat", "application-workspaces"],
     "ui": { "version": 1, "kind": "sandbox", "entry": "./ui.tsx" }
@@ -18,14 +18,14 @@ Isle 应用使用宿主持有的 Chat 会话。纯 SDK 只镜像快照和转发�
 
 `chat` 允许使用宿主模型和聊天；`application-workspaces` 允许通过数据 SDK 新增、查询当前应用登记的工作区，Chat 也通过这个服务解析记录目录。如果场景要使用知识库，额外声明 `chat-knowledge`，并在 profile 中设置 `useKnowledge: true`。这些用途出现在原有安装权限说明中，不自动给已有应用增加权限。工作区分配后的普通文件操作沿用标准沙箱和所选权限档位；SDK 声明不是 Node 沙箱。
 
-用 Isle 的 `app:pack` 打包。聊天 UI 可以使用 TSX，打包器会解析 SDK 子入口，并将 React、ReactDOM 和 JSX runtime 连接到宿主提供的同一实例。生成的 UI 仍符合现有脚本大小限制；Chat、Lexical、设计系统、字体和图片由宿主共享运行时提供。CSS 和 JS 由应用实际源码构建，按需加载，不复制聊天组件。应用自己的 CSS 排在默认样式之后。
+用 Mewvis 的 `app:pack` 打包。聊天 UI 可以使用 TSX，打包器会解析 SDK 子入口，并将 React、ReactDOM 和 JSX runtime 连接到宿主提供的同一实例。生成的 UI 仍符合现有脚本大小限制；Chat、Lexical、设计系统、字体和图片由宿主共享运行时提供。CSS 和 JS 由应用实际源码构建，按需加载，不复制聊天组件。应用自己的 CSS 排在默认样式之后。
 
-聊天能力目前只支持 Isle 目标。DSH 目标会明确拒绝带 `chat` 权限的包；原有可移植工具／技能应用的打包方式不变。
+聊天能力目前只支持 Mewvis 目标。DSH 目标会明确拒绝带 `chat` 权限的包；原有可移植工具／技能应用的打包方式不变。
 
 ## 默认界面
 
 ```tsx
-import { Chat, useApplicationChatSession } from "@isle/app-sdk/chat/react";
+import { Chat, useApplicationChatSession } from "@mewvis/app-sdk/chat/react";
 
 const profile = {
   id: "business-assistant",
@@ -92,7 +92,7 @@ const session = await chat.openSession({
 
 业务组件使用 `ComposerBinding`、`useChatComposer`、`useChatControls`、`useChatSnapshot` 等公开绑定。自定义编辑器更新 `binding.setDraft({ text, blocks })`；自定义发送区域调用 `binding.submit()` / `binding.stop()`。默认发送和回答按钮直接调用动作，不依赖沙箱禁止的原生表单提交；Ctrl/⌘+Enter 由共享 Composer 处理。
 
-应用与应用的会话／消息契约共同依赖无运行时依赖的 `@isle/chat-contracts`。`@isle/app-sdk/chat/react` 的 `react.d.ts` 由应用共享组件和 hook 自动生成，随 SDK 发布，不要手动修改。修改共享 UI 后，在 `apps/client` 运行 `pnpm build:chat-ui` 更新；`pnpm check:chat-ui-types` 只检查是否同步。构建检查公共依赖边界和声明独立可用性，类型测试双向对照实际组件签名。纯 `@isle/app-sdk/chat` 入口不会导入 React、DOM、CSS 或 Tauri。
+应用与应用的会话／消息契约共同依赖无运行时依赖的 `@mewvis/chat-contracts`。`@mewvis/app-sdk/chat/react` 的 `react.d.ts` 由应用共享组件和 hook 自动生成，随 SDK 发布，不要手动修改。修改共享 UI 后，在 `apps/client` 运行 `pnpm build:chat-ui` 更新；`pnpm check:chat-ui-types` 只检查是否同步。构建检查公共依赖边界和声明独立可用性，类型测试双向对照实际组件签名。纯 `@mewvis/app-sdk/chat` 入口不会导入 React、DOM、CSS 或 Tauri。
 
 ## 无界面调用
 

@@ -1,11 +1,11 @@
 import { createElement } from "react";
 import { createRoot } from "react-dom/client";
-import { definePlugin } from "@isle/extension-host";
+import { definePlugin } from "@mewvis/extension-host";
 import { Ledger } from "./ledger";
 import { styles } from "./styles";
 
 export default definePlugin({
-  id: "isle.session-ledger",
+  id: "mewvis.session-ledger",
   protocolVersion: 1,
   mount(container, context) {
     const root = createRoot(container);

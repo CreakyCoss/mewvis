@@ -1,4 +1,4 @@
-import type { ApplicationStorage, ApplicationWorkspace } from "@isle/app-sdk/data";
+import type { ApplicationStorage, ApplicationWorkspace } from "@mewvis/app-sdk/data";
 
 const key = "playground.selection.v1";
 type Selection = { version: 1; workspaceId: string; chats: Record<string, string> };

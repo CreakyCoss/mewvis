@@ -1,7 +1,7 @@
 // Self-contained: the desktop embeds this factory's source in its audited sandbox
 // document. Keep helpers inside the factory so preview and production run the same code.
 export function createApplicationViewHost({ getTheme }) {
-  const channel = "isle-embedded-view-v1";
+  const channel = "mewvis-embedded-view-v1";
   const views = new Map();
   const maxMessageBytes = 256 * 1024;
   let disposed = false;
@@ -38,7 +38,7 @@ export function createApplicationViewHost({ getTheme }) {
   };
 
   // Also self-contained: only this bootstrap and the supplied browser bundle run
-  // in the child. It never receives isleApplication or an application data token.
+  // in the child. It never receives mewvisApplication or an application data token.
   function childBootstrap(channel, instance, viewId) {
     const pending = new Map();
     const listeners = new Set();
@@ -98,9 +98,9 @@ export function createApplicationViewHost({ getTheme }) {
         root.style.setProperty(name, value);
         appliedTokens.push(name);
       });
-      dispatchEvent(new CustomEvent("isle:theme", { detail: host.theme }));
+      dispatchEvent(new CustomEvent("mewvis:theme", { detail: host.theme }));
     };
-    Object.defineProperty(window, "isleEmbeddedView", {
+    Object.defineProperty(window, "mewvisEmbeddedView", {
       value: Object.freeze({
         version: 1,
         getHost: () => host,
@@ -461,12 +461,12 @@ export function createApplicationViewHost({ getTheme }) {
     disposed = true;
     for (const { view } of views.values()) view.dispose();
     observer.disconnect();
-    removeEventListener("isle:ready", updateTheme);
-    removeEventListener("isle:theme", updateTheme);
+    removeEventListener("mewvis:ready", updateTheme);
+    removeEventListener("mewvis:theme", updateTheme);
     removeEventListener("pagehide", dispose);
   };
-  addEventListener("isle:ready", updateTheme);
-  addEventListener("isle:theme", updateTheme);
+  addEventListener("mewvis:ready", updateTheme);
+  addEventListener("mewvis:theme", updateTheme);
   addEventListener("pagehide", dispose, { once: true });
   return Object.freeze({ version: 1, mount, dispose });
 }

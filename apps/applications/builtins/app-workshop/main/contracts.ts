@@ -1,4 +1,4 @@
-export const APPLICATION_ID = "@isle/app-workshop";
+export const APPLICATION_ID = "@mewvis/app-workshop";
 export const SOURCE_LIMIT = 128 * 1024;
 export const PROJECT_LIMIT = 1024 * 1024;
 export const FILE_LIMIT = 64;
@@ -10,7 +10,7 @@ export const DEPENDENCIES = [
   "react",
   "react/jsx-runtime",
   "react-dom/client",
-  "@isle/app-sdk/views",
+  "@mewvis/app-sdk/views",
 ] as const;
 export const AUTHORING_TOOLS = [
   "workshop_read_project",

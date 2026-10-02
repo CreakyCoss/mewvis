@@ -2,15 +2,15 @@
   "displayName": "Mewvis",
   "bundleName": "Mewvis",
   "windowTitle": "Mewvis",
-  "appDataDirName": ".isle-claw",
+  "appDataDirName": ".mewvis",
   "defaultWorkspaceDirName": "default-workspace",
-  "storageKeyPrefix": "isle-claw",
-  "envPrefix": "ISLE_CLAW",
+  "storageKeyPrefix": "mewvis",
+  "envPrefix": "MEWVIS",
   "versionControl": {
     "authorName": "Mewvis",
-    "authorEmail": "isle-claw@local"
+    "authorEmail": "mewvis@local"
   },
-  "agentRuntimePackageName": "isle-claw-agent-runtime",
-  "bundleIdentifier": "com.isle-claw.desktop",
+  "agentRuntimePackageName": "@mewvis/agent-runtime",
+  "bundleIdentifier": "com.mewvis.desktop",
   "description": "Mewvis Desktop Client"
 }

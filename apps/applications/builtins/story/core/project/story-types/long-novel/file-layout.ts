@@ -1,9 +1,9 @@
 import type { StoryFileLayout } from "../../storage/types.js";
 
 export const LONG_NOVEL_FILE_LAYOUT: StoryFileLayout = Object.freeze({
-  definitionPath: "story/.isle-claw/project.json",
+  definitionPath: "story/.mewvis/project.json",
   managedRoots: Object.freeze(["story"]),
-  preservedPaths: Object.freeze(["story/.isle-claw", "story/runtime", "story/tavern.json"]),
+  preservedPaths: Object.freeze(["story/.mewvis", "story/runtime", "story/tavern.json"]),
   documentPaths: Object.freeze({
     "story-manifest": "story/manifest.json",
     "story-book": "story/book.json",

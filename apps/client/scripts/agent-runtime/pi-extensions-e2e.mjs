@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { build } from "esbuild";
-import { dshBundleCompatibilityPlugin } from "@isle/app-dev/dsh";
+import { dshBundleCompatibilityPlugin } from "@mewvis/app-dev/dsh";
 import { createServer } from "node:http";
 import { once } from "node:events";
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
@@ -11,7 +11,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import entries from "../../../agent-runtime/build-entries.json" with { type: "json" };
 
 const desktop = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
-const temp = mkdtempSync(join(tmpdir(), "isle-pi-extensions-"));
+const temp = mkdtempSync(join(tmpdir(), "mewvis-pi-extensions-"));
 const workspace = join(temp, "workspace");
 const agentDir = join(temp, "agent");
 mkdirSync(workspace);
@@ -173,7 +173,7 @@ try {
     response.writeHead(200, { "Content-Type": "text/event-stream" });
     const send = (delta, finishReason = null) =>
       response.write(
-        `data: ${JSON.stringify({ id: "test", object: "chat.completion.chunk", created: 1, model: "isle-test", choices: [{ index: 0, delta, finish_reason: finishReason }] })}\n\n`,
+        `data: ${JSON.stringify({ id: "test", object: "chat.completion.chunk", created: 1, model: "mewvis-test", choices: [{ index: 0, delta, finish_reason: finishReason }] })}\n\n`,
       );
     send({ role: "assistant" });
     if (nativeApprovalTask) {
@@ -277,8 +277,8 @@ try {
     agentSessionDir: join(temp, "parent-session"),
     runtimeModel: {
       provider: "openai",
-      modelId: "isle-test",
-      catalogModelId: "isle-test",
+      modelId: "mewvis-test",
+      catalogModelId: "mewvis-test",
       apiFormat: "openai-completions",
       apiEndpoint: `http://127.0.0.1:${server.address().port}/v1`,
       apiKey: "local-test-key",
@@ -348,9 +348,9 @@ try {
   }
   console.log("PASS native engine approval events and answers gate real main/subagent writes");
   const settingsRoot = join(temp, "read-only-application-settings");
-  mkdirSync(join(settingsRoot, "isle-fixture-portable"), { recursive: true });
+  mkdirSync(join(settingsRoot, "mewvis-fixture-portable"), { recursive: true });
   writeFileSync(join(settingsRoot, "settings.yaml"), "{}\n");
-  writeFileSync(join(settingsRoot, "isle-fixture-portable", "settings.yaml"), "prefix: saved\n");
+  writeFileSync(join(settingsRoot, "mewvis-fixture-portable", "settings.yaml"), "prefix: saved\n");
   const fixtureRoot = join(desktop, "../../packages/app/host/fixtures/dsh-portable-application");
   const applicationExecution = api.resolveExecutionPolicy("ask", workspace);
   applicationExecution.sandbox.filesystem.denyWrite.push(settingsRoot);
@@ -358,13 +358,13 @@ try {
     {
       ...command,
       resources: {
-        tools: { allowed: ["isle_dsh_echo"] },
+        tools: { allowed: ["mewvis_dsh_echo"] },
         applications: {
           settingsPath: settingsRoot,
           items: [
             {
               kind: "dsh",
-              id: "@isle/fixture-dsh-portable-application",
+              id: "@mewvis/fixture-dsh-portable-application",
               packageRoot: fixtureRoot,
               entry: join(fixtureRoot, "index.js"),
               patchPath: join(fixtureRoot, "cordis.patch.yml"),
@@ -377,7 +377,7 @@ try {
     { policies: { safety: api.resolveSafetyPolicy("ask", workspace), execution: applicationExecution } },
   );
   try {
-    const tool = applicationTools.tools.find((tool) => tool.name === "isle_dsh_echo");
+    const tool = applicationTools.tools.find((tool) => tool.name === "mewvis_dsh_echo");
     assert.ok(tool);
     const result = await tool.execute("settings-read", { message: "loaded" });
     assert.equal(result.details.value, "saved:loaded");
@@ -423,7 +423,7 @@ try {
           settingsPath: settingsRoot,
           items: [
             {
-              kind: "isle",
+              kind: "mewvis",
               id: "scope-fixture",
               packageRoot: scopedApplicationRoot,
               entry: join(scopedApplicationRoot, "index.js"),
@@ -435,7 +435,7 @@ try {
     { ...callbacks, requestApproval: () => assert.fail("enabled application initialization must not prompt") },
   );
   try {
-    const session = { agent: {} };
+    const session = { agent: { state: { tools: scopedApplication.tools } } };
     scopedApplication.installSafety(session);
     assert.equal(
       await session.agent.beforeToolCall(
@@ -466,24 +466,24 @@ try {
   const storyWorkspaceId = "11111111-1111-4111-8111-111111111111";
   const storyPackageRoot = join(desktop, "../applications/dist/story");
   const storyManifest = JSON.parse(readFileSync(join(storyPackageRoot, "package.json"), "utf8"));
-  mkdirSync(join(storyWorkspace, ".isle"), { recursive: true });
-  writeFileSync(join(storyWorkspace, ".isle", "workspace.json"),
-    JSON.stringify({ version: 1, id: storyWorkspaceId, applications: ["@isle/story"] }));
+  mkdirSync(join(storyWorkspace, ".mewvis"), { recursive: true });
+  writeFileSync(join(storyWorkspace, ".mewvis", "workspace.json"),
+    JSON.stringify({ version: 1, id: storyWorkspaceId, applications: ["@mewvis/story"] }));
   const storyTools = await api.createPiToolSet({
     ...command,
     workspacePath: storyWorkspace,
     permissions: { mode: "ask" },
-    agentAccess: storyManifest.isle.agentAccess,
+    agentAccess: storyManifest.mewvis.agentAccess,
     resources: {
-      tools: { allowed: ["isle_story_inspect"] },
+      tools: { allowed: ["mewvis_story_inspect"] },
       applications: { items: [{
-        kind: "isle", id: "@isle/story", packageRoot: storyPackageRoot,
-        entry: join(storyPackageRoot, storyManifest.isle.app.entry),
+        kind: "mewvis", id: "@mewvis/story", packageRoot: storyPackageRoot,
+        entry: join(storyPackageRoot, storyManifest.mewvis.app.entry),
       }] },
     },
   }, callbacks);
   try {
-    const inspect = storyTools.tools.find((tool) => tool.name === "isle_story_inspect");
+    const inspect = storyTools.tools.find((tool) => tool.name === "mewvis_story_inspect");
     assert.equal((await inspect.execute("story-inspect", { workspaceId: storyWorkspaceId })).details.value.status,
       "empty");
     await assert.rejects(inspect.execute("wrong-workspace", { workspaceId: "22222222-2222-4222-8222-222222222222" }),
@@ -500,7 +500,7 @@ try {
           applications: {
             items: [
               {
-                kind: "isle",
+                kind: "mewvis",
                 id: "bootstrap-test",
                 packageRoot: workspace,
                 entry: "missing-application.js",
@@ -536,7 +536,7 @@ try {
     }),
   );
   for (const input of childRequests) {
-    assert.equal(input.model, "isle-test");
+    assert.equal(input.model, "mewvis-test");
     assert.equal(input.reasoning_effort, "provider-custom", "subagents inherit the selected thinking level");
     assert.ok(!JSON.stringify(input.messages).includes("PARENT_HISTORY_SENTINEL"));
     assert.deepEqual(

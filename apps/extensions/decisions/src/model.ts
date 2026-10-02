@@ -1,4 +1,4 @@
-import type { ExtensionHostServices } from "@isle/extension-sdk/host";
+import type { ExtensionHostServices } from "@mewvis/extension-sdk/host";
 export type ModelHost = Pick<ExtensionHostServices, "supports" | "tasks">;
 
 /** Retry invalid structure once; transport errors and cancellation never become fallback decisions. */

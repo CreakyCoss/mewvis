@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://isle.local/protocol/agent-runtime/v1/response.schema.json",
-  "title": "Isle Agent Runtime JSON-RPC Response",
+  "$id": "https://mewvis.local/protocol/agent-runtime/v1/response.schema.json",
+  "title": "Mewvis Agent Runtime JSON-RPC Response",
   "oneOf": [
     {
       "type": "object",

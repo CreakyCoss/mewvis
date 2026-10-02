@@ -12,7 +12,7 @@ import type {
   OperationResult,
   SendResult,
   ChatAssistantMessage,
-} from "@isle/chat-contracts";
+} from "@mewvis/chat-contracts";
 import { defaultConfig, errorText, type ChatSessionOptions } from "./contracts";
 import { applyChatMessageEvent, failChatMessage } from "./reducer";
 import { createSaveQueue } from "./save-queue";

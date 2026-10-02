@@ -1,6 +1,6 @@
 {
-  "extends": "@isle/app-dev/tsconfig.json",
-  "include": ["main", "core", "isle.config.ts"],
+  "extends": "@mewvis/app-dev/tsconfig.json",
+  "include": ["main", "core", "mewvis.config.ts"],
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {

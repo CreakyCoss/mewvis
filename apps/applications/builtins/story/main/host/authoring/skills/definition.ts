@@ -14,7 +14,7 @@ export const storySkillContract = defineProtocol<{
   validateChanges(): unknown;
   commitChanges(): unknown;
 }>()({
-  id: "isle-claw.story-project-tool",
+  id: "mewvis.story-project-tool",
   version: 2,
   properties: {},
   methods: {

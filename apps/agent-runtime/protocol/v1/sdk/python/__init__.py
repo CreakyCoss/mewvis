@@ -96,7 +96,7 @@ class AgentAccess:
 
 class AgentRuntimeApplicationKind(Enum):
     DSH = "dsh"
-    ISLE = "isle"
+    MEWVIS = "mewvis"
 
 
 @dataclass

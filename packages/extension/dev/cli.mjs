@@ -5,7 +5,7 @@ import { parseArgs } from "node:util";
 import {
   createExtensionPackageManager,
   readExtensionPackage,
-} from "@isle/extension-host/management";
+} from "@mewvis/extension-host/management";
 import {
   createExtensionPackage,
   buildExtensionPackage,
@@ -26,7 +26,7 @@ try {
   let result;
   if (command === "create") {
     if (!target || !values.id)
-      throw new Error("用法：isle-extension create <新目录> --id <插件ID>");
+      throw new Error("用法：mewvis-extension create <新目录> --id <插件ID>");
     result = await createExtensionPackage(target, values.id);
   } else if (command === "build")
     result = await buildExtensionPackage(target ?? ".", {

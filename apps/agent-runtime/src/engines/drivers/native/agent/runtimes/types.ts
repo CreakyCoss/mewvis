@@ -3,7 +3,7 @@ import type {
   ExtensionAdapter,
   ExtensionBindings,
   ExtensionAdaptationReport,
-} from "@isle/extension-host";
+} from "@mewvis/extension-host";
 import type { ExecutionApprovalRequest } from "../../../../../security/safety/index.js";
 import type {
   AgentEvent,

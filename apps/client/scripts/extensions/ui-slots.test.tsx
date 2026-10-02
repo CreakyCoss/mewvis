@@ -1,17 +1,17 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
-import { defineUIContribution, uiSlotDefinitions, type UISlotDefinition } from "@isle/extension-host/ui";
+import { defineUIContribution, uiSlotDefinitions, type UISlotDefinition } from "@mewvis/extension-host/ui";
 import {
   ExtensionSlot,
   ExtensionSlotProvider,
   useExtensionSlotStatus,
   useExtensionSlotContext,
   type UIHostContribution,
-} from "@isle/extension-host/ui/slots";
-import { SidebarSlot, type SidebarSlotItem } from "@isle/extension-host/ui/slots/sidebar";
-import { TextSlot } from "@isle/extension-host/ui/slots/text";
-import { ActionSlot, ComposerActionSlot, HeaderActionSlot, type ActionSlotItem } from "@isle/extension-host/ui/slots/action";
+} from "@mewvis/extension-host/ui/slots";
+import { SidebarSlot, type SidebarSlotItem } from "@mewvis/extension-host/ui/slots/sidebar";
+import { TextSlot } from "@mewvis/extension-host/ui/slots/text";
+import { ActionSlot, ComposerActionSlot, HeaderActionSlot, type ActionSlotItem } from "@mewvis/extension-host/ui/slots/action";
 import { DialogRuntimeProvider } from "../../../../packages/extension/host/ui/runtime/dialog-context";
 
 const context = { workspacePath: "/test", chatId: "a" };

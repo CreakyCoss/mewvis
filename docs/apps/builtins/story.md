@@ -28,7 +28,7 @@
 
 窗口标题栏与拖动区域由宿主统一管理，故事页面占满其下方、常驻导航栏之外的应用工作区。故事页面不设置窗口拖动区或为其预留空间，SDK 不提供窗口拖动接口。
 
-页面通过 `project-client` 保持原项目接口；调用应用自己的 `isle_story_project`，执行共享领域内核。Agent 使用原 `story` 工具及原技能，仍然先 `describe_structure`，通过 ChangeSet 校验并提交正式数据。
+页面通过 `project-client` 保持原项目接口；调用应用自己的 `mewvis_story_project`，执行共享领域内核。Agent 使用原 `story` 工具及原技能，仍然先 `describe_structure`，通过 ChangeSet 校验并提交正式数据。
 
 故事库数据放在应用 storage。新建故事先选择父目录，以独占模式创建子目录；导入、重命名和移除沿用原页面交互。`story/` 文件格式、版本升级、`story/tavern.json` 和 `.tavern/<故事 ID>/<章节>/messages.json` 保持原格式。
 
@@ -80,4 +80,4 @@ main/host/
 
 ## 验证
 
-`pnpm --filter @isle/story test` 覆盖原领域内核、工具契约、原子提交、酒馆协议、应用工作区绑定、文件边界、原有 ID 兼容和列表读取无迁移副作用。宿主回归使用 server、SDK、app-dev 和客户端应用聊天测试。浏览器验收应覆盖库列表、新建／导入、资料编辑保存、助手历史、酒馆配置及章节房间；真实模型演绎需要已配置的模型。
+`pnpm --filter @mewvis/story test` 覆盖原领域内核、工具契约、原子提交、酒馆协议、应用工作区绑定、文件边界、原有 ID 兼容和列表读取无迁移副作用。宿主回归使用 server、SDK、app-dev 和客户端应用聊天测试。浏览器验收应覆盖库列表、新建／导入、资料编辑保存、助手历史、酒馆配置及章节房间；真实模型演绎需要已配置的模型。

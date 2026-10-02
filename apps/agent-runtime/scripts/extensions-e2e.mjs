@@ -7,7 +7,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { build } from "esbuild";
-import { dshBundleCompatibilityPlugin } from "@isle/app-dev/dsh";
+import { dshBundleCompatibilityPlugin } from "@mewvis/app-dev/dsh";
 import entries from "../build-entries.json" with { type: "json" };
 import { verifyExtensionAdapters } from "./extensions-adapter-test.mjs";
 import { verifyExtensionSessions } from "./extensions-session-test.mjs";
@@ -20,7 +20,7 @@ import { verifyExtensionWait } from "./extensions-wait-test.mjs";
 
 // Self-contained demo/test: actual Pi SDK, actual execution workers and local SSE model.
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const temp = await mkdtemp(join(tmpdir(), "isle-extension-loop-"));
+const temp = await mkdtemp(join(tmpdir(), "mewvis-extension-loop-"));
 const dist = join(temp, "dist");
 const workspace = join(temp, "workspace");
 const oldAgentDir = process.env.PI_CODING_AGENT_DIR;
@@ -35,7 +35,7 @@ try {
   await mkdir(process.env.PI_CODING_AGENT_DIR);
   const manifest = JSON.stringify({
     type: "module",
-    name: "isle-extension-test",
+    name: "mewvis-extension-test",
     piConfig: { name: "pi", configDir: ".pi" },
   });
   await writeFile(join(temp, "package.json"), manifest);
@@ -47,7 +47,7 @@ try {
         out: entries[id].output.slice(0, -3),
       })),
       { in: join(root, "src/index.ts"), out: "api" },
-      { in: fileURLToPath(import.meta.resolve("@isle/extension-host/agent/registration")), out: "host" },
+      { in: fileURLToPath(import.meta.resolve("@mewvis/extension-host/agent/registration")), out: "host" },
       { in: join(root, "src/extensions/execution/deadline.ts"), out: "extension-deadline" },
       { in: join(root, "src/engines/drivers/native/agent/runtimes/pi/agent/idle-timeout.ts"), out: "pi-idle-timeout" },
       { in: join(root, "src/engines/drivers/native/agent/runtimes/pi/agent/session.ts"), out: "pi-session" },
@@ -92,7 +92,7 @@ try {
   });
   const toolName = "ext_test_echo__echo";
   const source = { id: "test.echo", entry: echoEntry, toolRisks: { echo: "low" } };
-  const script = [{ type: "tool", name: toolName, input: { text: "你好🌍\nIsle" } }];
+  const script = [{ type: "tool", name: toolName, input: { text: "你好🌍\nMewvis" } }];
   const mock = api.createScriptedMockRuntime("scripted", script);
   const registry = api.createRuntimeAgentRegistry([...api.builtinRuntimeAgents, mock]);
   const events = [];
@@ -119,7 +119,7 @@ try {
     () => api.createAgentEngine({ getExtensionSources: () => [source, source] }).runAgent(command, context),
     /重复插件/,
   );
-  await assert.rejects(() => engine.runAgent({ ...command, runtimeId: "mock" }, context), /不支持 Isle 插件/);
+  await assert.rejects(() => engine.runAgent({ ...command, runtimeId: "mock" }, context), /不支持 Mewvis 插件/);
   const result = await engine.runAgent(command, context);
   assert.deepEqual(JSON.parse(result.text), { echo: script[0].input.text, calls: 1 });
   assert.ok(events.some((event) => event.type === "tool_execution_update"));

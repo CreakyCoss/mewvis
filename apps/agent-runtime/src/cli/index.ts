@@ -7,8 +7,8 @@ const runAgentRuntimeCli = async () => {
   const protocol = new AgentRuntimeStdioProtocol();
   const runtime = createRuntimeEngine({
     profileId: process.env.AGENT_RUNTIME_PROFILE_ID,
-    extensionSettingsPath: process.env.ISLE_EXTENSION_SETTINGS_PATH,
-    bundledExtensionsPath: process.env.ISLE_BUNDLED_EXTENSIONS_PATH,
+    extensionSettingsPath: process.env.MEWVIS_EXTENSION_SETTINGS_PATH,
+    bundledExtensionsPath: process.env.MEWVIS_BUNDLED_EXTENSIONS_PATH,
     reloadExtensionSettings: true,
     close: () => {
       reader.close();

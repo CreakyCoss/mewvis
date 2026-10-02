@@ -21,7 +21,7 @@ test("command references retain display names across draft restoration while dis
     () => {
       $getRoot().append(
         $createParagraphNode().append(
-          $createCommandReferenceNode("isle.collaboration/pause_test", "暂停测试"),
+          $createCommandReferenceNode("mewvis.collaboration/pause_test", "暂停测试"),
           $createTextNode(" 设计一个方案"),
         ),
       );
@@ -29,10 +29,10 @@ test("command references retain display names across draft restoration while dis
     { discrete: true },
   );
   const value = serializeChatEditorState(editor.getEditorState());
-  assert.equal(value.text, "/isle.collaboration/pause_test 设计一个方案");
+  assert.equal(value.text, "/mewvis.collaboration/pause_test 设计一个方案");
   assert.deepEqual(value.blocks[0], {
     type: "command-reference",
-    commandId: "isle.collaboration/pause_test",
+    commandId: "mewvis.collaboration/pause_test",
     name: "暂停测试",
   });
   const snapshot = JSON.stringify(editor.getEditorState().toJSON());
@@ -46,5 +46,5 @@ test("command references retain display names across draft restoration while dis
     <UserBlocks blocks={value.blocks.map((block, i) => ({ ...block, id: String(i) }))} />,
   );
   assert.match(html, /暂停测试/);
-  assert.doesNotMatch(html, /pause_test|isle.collaboration/);
+  assert.doesNotMatch(html, /pause_test|mewvis.collaboration/);
 });

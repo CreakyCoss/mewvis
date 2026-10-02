@@ -7,7 +7,7 @@ import { runtimePayloadFromJsonRpcMessage, writeAgentRuntimeCommand } from "./st
 
 const workspaceRoot = process.cwd();
 const runtimePath = join(workspaceRoot, "../agent-runtime/dist", entries.cli.output);
-const workspacePath = mkdtempSync(join(tmpdir(), "isle-claw-runtime-e2e-"));
+const workspacePath = mkdtempSync(join(tmpdir(), "mewvis-runtime-e2e-"));
 const sessionRootDir = join(workspacePath, "standalone-session-store", "chats", "e2e-session", "session");
 const oversizedSummarySessionRootDir = join(
   workspacePath,

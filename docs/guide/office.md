@@ -33,7 +33,7 @@ Mewvis 偏爱统筹与规划，Lihua 偏爱开发与学习，Orange 偏爱调研
 ```sh
 node --experimental-strip-types scripts/office/route.test.mjs
 node --experimental-strip-types scripts/office/autonomous.test.mjs
-pnpm exec vite build --outDir /tmp/isle-hub-build
+pnpm exec vite build --outDir /tmp/mewvis-hub-build
 pnpm exec tsc --noEmit --pretty false
 ```
 

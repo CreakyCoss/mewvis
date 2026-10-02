@@ -2,17 +2,17 @@ import {
   createActivityStore,
   isActiveActivity,
   activityExecution,
-} from "@isle/extension-host/services/activity";
-import type { ExtensionHostAdapter } from "@isle/extension-host/services/runtime";
+} from "@mewvis/extension-host/services/activity";
+import type { ExtensionHostAdapter } from "@mewvis/extension-host/services/runtime";
 import type { RuntimeConfig } from "../config/runtime.js";
 import { root, safePath } from "../infrastructure/filesystem/paths.js";
 import { sessionId } from "../shared/session-id.js";
-import { HostServiceError as ServiceError } from "@isle/extension-host/services/error";
+import { HostServiceError as ServiceError } from "@mewvis/extension-host/services/error";
 import type { AgentRuntimeHost } from "../modules/agent/host.js";
 import type { AgentRuntimeSupervisor } from "../modules/agent/runtime/supervisor.js";
 import type { Chats } from "../modules/chats/service.js";
 import type { LlmSettingsService } from "../modules/settings/llm-service.js";
-import { createSessionHostAdapter } from "@isle/extension-host/services/session";
+import { createSessionHostAdapter } from "@mewvis/extension-host/services/session";
 
 /** The only place where plugin host capabilities know this application's service shapes. */
 export function createDesktopExtensionAdapter({

@@ -1,7 +1,7 @@
 import { StrictMode, useState } from "react";
-import { getApplicationChatClient, type ApplicationChatOpenInput } from "@isle/app-sdk/chat";
+import { getApplicationChatClient, type ApplicationChatOpenInput } from "@mewvis/app-sdk/chat";
 import { createRoot } from "react-dom/client";
-import { Chat, useApplicationChatSession, useChatSnapshot, type ComposerBinding } from "@isle/app-sdk/chat/react";
+import { Chat, useApplicationChatSession, useChatSnapshot, type ComposerBinding } from "@mewvis/app-sdk/chat/react";
 const input = {
   workspaceId: "workspace",
   sceneId: "debug",

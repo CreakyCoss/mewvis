@@ -1,5 +1,5 @@
 import type { AgentPermissions } from "../../engines/protocol/wire.js";
-import type { RiskLevel } from "@isle/chat-contracts";
+import type { RiskLevel } from "@mewvis/chat-contracts";
 
 export type PermissionMode = AgentPermissions["mode"];
 export type SafetyRisk = RiskLevel;

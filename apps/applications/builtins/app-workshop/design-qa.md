@@ -60,7 +60,7 @@ final result: passed
 
 窄窗口复查发现公共视图 SDK 在文档根元素尚未创建时启动 MutationObserver 会报错。改为观察文档本身后，重新打开的窄窗口控制台无 error/warn，预览操作拦截仍正常。补充 SDK 回归测试确认没有根元素时可以初始化，并在释放时断开观察器与移除事件监听；18 项 SDK 测试通过。
 
-验证限制：CUA 的坐标滚轮／拖拽输入在首页和没有操作拦截的使用页均未改变滚动位置，因此不将这些输入列为已通过；本轮实际证据确认了键盘默认滚动、完整内容可达和预览只读。真实 Isle 宿主中的鼠标滚轮、拖动滚动条与触摸滚动仍需复验。
+验证限制：CUA 的坐标滚轮／拖拽输入在首页和没有操作拦截的使用页均未改变滚动位置，因此不将这些输入列为已通过；本轮实际证据确认了键盘默认滚动、完整内容可达和预览只读。真实 Mewvis 宿主中的鼠标滚轮、拖动滚动条与触摸滚动仍需复验。
 
 工程检查：应用类型与运行边界检查、14 项打包项目工具测试、18 项 SDK 测试、6 个内置应用统一打包、53 页文档检查及 git diff --check 均通过。本轮所有测试数据位于独立预览临时目录，未修改用户的原生应用工作区。
 
@@ -74,7 +74,7 @@ final result: passed
 
 ## Findings
 
-最终比较没有遗留可操作的 P0、P1 或 P2 问题。验收范围为用户选择的第 3 套首页与第 3 套编辑页、对应的核心操作及响应式布局。真实 Isle 模型生成、原生宿主安装启动和完整跨浏览器自动化仍有下述验证缺口；本报告不将本地模拟聊天视为真实模型验证。
+最终比较没有遗留可操作的 P0、P1 或 P2 问题。验收范围为用户选择的第 3 套首页与第 3 套编辑页、对应的核心操作及响应式布局。真实 Mewvis 模型生成、原生宿主安装启动和完整跨浏览器自动化仍有下述验证缺口；本报告不将本地模拟聊天视为真实模型验证。
 
 ## 比较目标与证据
 
@@ -118,7 +118,7 @@ final result: passed
 | --- | --- |
 | 字体与排版 | 使用已有设计系统的系统中文字体栈和等宽代码栈。标题、正文、标签、代码行高与层级已逐项查看；桌面无异常换行，窄窗口标题正常横排。图稿缺少字体元数据，部分图稿字重和光学字号略大，作为 P3 保留。 |
 | 间距与布局 | 首页左列为 34%，右侧详情头与大预览保持第 3 套结构。编辑页为 216 px 文件区、弹性代码／预览区、420 px 助手区；1400 px 下的主要区域比例与源稿接近。自适应较短视口使上下分区高度改变；没有隐藏固定控件或区域重叠。 |
-| 颜色与令牌 | 复用 Isle 公共主题令牌：浅背景、白色面板、紫色主操作、灰色边框和绿色成功状态。选中项使用淡紫背景。深色主题下子视图同步更新，文本与控件可读。源稿轻微紫色渐变以产品已有实色令牌表达。 |
+| 颜色与令牌 | 复用 Mewvis 公共主题令牌：浅背景、白色面板、紫色主操作、灰色边框和绿色成功状态。选中项使用淡紫背景。深色主题下子视图同步更新，文本与控件可读。源稿轻微紫色渐变以产品已有实色令牌表达。 |
 | 图像与图标 | 源设计没有照片、插画或需要生成的栅格素材。工坊图标使用现成图标库，未嵌入整张设计图模拟页面。计时环属于可运行示例应用的状态 UI，其弧度和重置按钮表现与示意稿存在 P3 差异；它不是工坊的装饰图片。 |
 | 文案与内容 | 首页、文件区、运行预览、助手标题与主要操作沿用第 3 套中文文案。版本历史、新建文件、构建失败、运行失败、空项目与冲突提示补全真实流程。共享 Chat 组件保留模型及权限控件；开发预览的技术诊断回复只来自模拟宿主，不作为正式产品助手文案。 |
 
@@ -157,7 +157,7 @@ final result: passed
 
 ## Open Questions / 验证缺口
 
-- 本地预览使用 SDK 内存模型，不会调用真实模型。正式 Isle 环境中的工具调用、权限批准、连续 AI 改写与原生宿主启动尚未完成端到端验证。
+- 本地预览使用 SDK 内存模型，不会调用真实模型。正式 Mewvis 环境中的工具调用、权限批准、连续 AI 改写与原生宿主启动尚未完成端到端验证。
 - 已更新现有浏览器回归脚本中的 srcdoc 断言，但本次没有运行完整 Playwright 跨浏览器套件。这里只报告 CUA 实际浏览器验证和已运行的工程检查。
 - 源设计没有移动、空项目、构建诊断和历史弹窗稿；这些状态按现有组件和主题实现，已做功能及响应式检查。
 
@@ -172,7 +172,7 @@ final result: passed
 
 ## Follow-up Polish
 
-- P3：图稿部分字体更粗、更大，可根据实际 Isle 宿主视口进一步调节光学重量。
+- P3：图稿部分字体更粗、更大，可根据实际 Mewvis 宿主视口进一步调节光学重量。
 - P3：示例计时器的圆环角度、重置按钮图标和文字与示意稿不完全相同；核心工坊区域已按选定布局实现。
 - P3：真实 SDK 聊天控件比图稿多权限入口；保留产品现有组件的一致性。
 
@@ -223,7 +223,7 @@ Intentional differences from the generated reference: spacing follows the compac
 - Verified selection of a saved application and a pending application, project menu opening/closing, create dialog opening/canceling, “继续开发” opening the editor, and “运行” opening the saved application with return to homepage.
 - Homepage preview remains passive. Existing preview action is reported disabled in the accessibility tree.
 - Fresh preview console contains no errors or warnings.
-- `pnpm --filter @isle/app-workshop check` passed; `git diff --check` passed.
+- `pnpm --filter @mewvis/app-workshop check` passed; `git diff --check` passed.
 
 ## Iteration and limits
 

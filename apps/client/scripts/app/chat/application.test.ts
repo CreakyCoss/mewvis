@@ -5,7 +5,7 @@ import {
   createApplicationChatClient,
   type ApplicationChatEvent,
   type ApplicationChatCreateInput,
-} from "@isle/app-sdk/chat";
+} from "@mewvis/app-sdk/chat";
 import { createChatService, createChatSession, type ChatRuntime } from "../../../src/chat/core";
 import { createApplicationChatHost } from "../../../src/chat/desktop/application";
 import type { DesktopSessionInput, DesktopChatService } from "../../../src/chat/desktop/service";
@@ -380,7 +380,7 @@ test(
   { timeout: 20_000 },
   async () => {
     const f = fixture();
-    const directory = await mkdtemp(join(tmpdir(), "isle-native-chat-"));
+    const directory = await mkdtemp(join(tmpdir(), "mewvis-native-chat-"));
     const child = spawn(process.execPath, ["../../packages/app/host/dist/service.mjs"], {
       stdio: ["pipe", "pipe", "pipe"],
     });
@@ -420,12 +420,12 @@ test(
         send({ id, method, params });
       });
     try {
-      const packageRoot = resolve("scripts/app/chat/fixtures/application/dist/isle");
+      const packageRoot = resolve("scripts/app/chat/fixtures/application/dist/mewvis");
       const configured = await rpc("configure", {
         settingsPath: directory,
         applications: [
           {
-            kind: "isle",
+            kind: "mewvis",
             id: "application",
             name: "Fixture",
             version: "0.0.0",

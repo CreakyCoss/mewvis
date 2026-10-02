@@ -7,7 +7,7 @@ import { pathToFileURL } from "node:url";
 import { createServer } from "node:http";
 import { once } from "node:events";
 import entries from "../../../agent-runtime/build-entries.json" with { type: "json" };
-const temp = mkdtempSync(join(tmpdir(), "isle-tool-sandbox-"));
+const temp = mkdtempSync(join(tmpdir(), "mewvis-tool-sandbox-"));
 const workspace = join(temp, "workspace"),
   runtime = join(temp, "runtime");
 mkdirSync(workspace);
@@ -320,22 +320,22 @@ try {
           if (args.action === 'read') return await readFile(args.target, 'utf8');
           if (args.action === 'write') { await writeFile(args.target, 'application'); return 'written'; }
           if (args.action === 'network') return await (await fetch(args.target)).text();
-          return { pid: process.pid, startupBlocked, hasSecret: Boolean(process.env.ISLE_TEST_SECRET) };
+          return { pid: process.pid, startupBlocked, hasSecret: Boolean(process.env.MEWVIS_TEST_SECRET) };
         }
       }));
     }});
   `,
   );
-  process.env.ISLE_TEST_SECRET = "must-not-inherit";
+  process.env.MEWVIS_TEST_SECRET = "must-not-inherit";
   const applications = {
     applications: {
       items: [
-        { kind: "isle", id: "sandbox-fixture", packageRoot: applicationRoot, entry: join(applicationRoot, "index.js") },
+        { kind: "mewvis", id: "sandbox-fixture", packageRoot: applicationRoot, entry: join(applicationRoot, "index.js") },
       ],
     },
   };
   const application = await open("full", applications);
-  delete process.env.ISLE_TEST_SECRET;
+  delete process.env.MEWVIS_TEST_SECRET;
   const meta = await application.call("fixture_effect", { action: "meta" });
   assert.notEqual(meta.details.value.pid, process.pid);
   assert.equal(meta.details.value.startupBlocked, true, "module initialization is isolated too");
@@ -373,7 +373,7 @@ try {
   await afterCleanup.executor.dispose();
   console.log("PASS cleanup permits a restricted session after full sessions finish");
 } finally {
-  delete process.env.ISLE_TEST_SECRET;
+  delete process.env.MEWVIS_TEST_SECRET;
   await Promise.allSettled(workers.map((worker) => worker.dispose()));
   if (server) {
     server.closeAllConnections();

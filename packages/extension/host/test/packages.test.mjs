@@ -18,7 +18,7 @@ import {
 } from "../management/index.mjs";
 
 async function fixture(t, id = "test.package") {
-  const root = await mkdtemp(join(tmpdir(), "isle-package-test-"));
+  const root = await mkdtemp(join(tmpdir(), "mewvis-package-test-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const directory = join(root, "plugin");
   await mkdir(directory);
@@ -26,7 +26,7 @@ async function fixture(t, id = "test.package") {
     name: id,
     version: "1.0.0",
     type: "module",
-    "isle.plugin": {
+    "mewvis.plugin": {
       schemaVersion: 1,
       id,
       protocolVersion: 1,
@@ -90,8 +90,8 @@ test("metadata validation never executes code; configuration defaults and host r
 
 test("modular packages isolate UI from Agent sources and validate every entry", async (t) => {
   const f = await fixture(t);
-  const { id } = f.pkg["isle.plugin"];
-  f.pkg["isle.plugin"] = {
+  const { id } = f.pkg["mewvis.plugin"];
+  f.pkg["mewvis.plugin"] = {
     schemaVersion: 1,
     id,
     protocolVersion: 1,
@@ -116,7 +116,7 @@ test("modular packages isolate UI from Agent sources and validate every entry", 
     "throw new Error('UI must not execute in host');",
   );
   await f.save();
-  const contribution = f.pkg["isle.plugin"].modules.ui.contributions[0];
+  const contribution = f.pkg["mewvis.plugin"].modules.ui.contributions[0];
   for (const field of ["title", "icon", "view"]) {
     const value = contribution[field];
     delete contribution[field];
@@ -153,7 +153,7 @@ test("modular packages isolate UI from Agent sources and validate every entry", 
   const manager = createExtensionPackageManager(f.settings);
   await manager.add(f.directory);
   assert.equal(manager.list().length, 1);
-  f.pkg["isle.plugin"].modules.agent = {
+  f.pkg["mewvis.plugin"].modules.agent = {
     entry: "./index.js",
     capabilities: ["commands"],
   };
@@ -163,7 +163,7 @@ test("modular packages isolate UI from Agent sources and validate every entry", 
     manager.resolve()[0].entry,
     await realpath(join(f.directory, "index.js")),
   );
-  const ui = f.pkg["isle.plugin"].modules.ui;
+  const ui = f.pkg["mewvis.plugin"].modules.ui;
   ui.contributions.push({ ...ui.contributions[0] });
   await f.save();
   assert.throws(() => readExtensionPackage(f.directory), /重复/);
@@ -178,12 +178,12 @@ test("modular packages isolate UI from Agent sources and validate every entry", 
   await f.save();
   assert.throws(() => readExtensionPackage(f.directory), /共享入口/);
   ui.entry = "./ui.js";
-  f.pkg["isle.plugin"].host = { required: ["session.write"] };
+  f.pkg["mewvis.plugin"].host = { required: ["session.write"] };
   await f.save();
   assert.throws(() => readExtensionPackage(f.directory), /尚不支持/);
-  f.pkg["isle.plugin"].host = { required: [] };
-  delete f.pkg["isle.plugin"].modules.agent;
-  f.pkg["isle.plugin"].id = "test.changed";
+  f.pkg["mewvis.plugin"].host = { required: [] };
+  delete f.pkg["mewvis.plugin"].modules.agent;
+  f.pkg["mewvis.plugin"].id = "test.changed";
   await f.save();
   assert.throws(() => manager.resolve(), /身份已改变/);
 });
@@ -192,24 +192,24 @@ test("entry traversal, symlink escape, unsupported versions and capabilities fai
   const f = await fixture(t);
   await writeFile(join(f.root, "outside.js"), "");
   for (const entry of ["../outside.js", join(f.root, "outside.js")]) {
-    f.pkg["isle.plugin"].modules.agent.entry = entry;
+    f.pkg["mewvis.plugin"].modules.agent.entry = entry;
     await f.save();
     assert.throws(() => readExtensionPackage(f.directory), /包内/);
   }
   await symlink(join(f.root, "outside.js"), join(f.directory, "escape.js"));
-  f.pkg["isle.plugin"].modules.agent.entry = "escape.js";
+  f.pkg["mewvis.plugin"].modules.agent.entry = "escape.js";
   await f.save();
   assert.throws(() => readExtensionPackage(f.directory), /包内/);
-  f.pkg["isle.plugin"].modules.agent.entry = "index.js";
-  f.pkg["isle.plugin"].modules.agent.capabilities.push("context.transform");
+  f.pkg["mewvis.plugin"].modules.agent.entry = "index.js";
+  f.pkg["mewvis.plugin"].modules.agent.capabilities.push("context.transform");
   await f.save();
   assert.throws(() => readExtensionPackage(f.directory), /尚不支持/);
-  f.pkg["isle.plugin"].modules.agent.capabilities = [];
-  f.pkg["isle.plugin"].apiVersion = 2;
+  f.pkg["mewvis.plugin"].modules.agent.capabilities = [];
+  f.pkg["mewvis.plugin"].apiVersion = 2;
   await f.save();
   assert.throws(() => readExtensionPackage(f.directory), /清单无效/);
 
-  const manifest = f.pkg["isle.plugin"];
+  const manifest = f.pkg["mewvis.plugin"];
   manifest.apiVersion = 1;
   manifest.schemaVersion = 1;
   await f.save();
@@ -256,7 +256,7 @@ test("concurrent managers preserve updates and package identity cannot change si
     b = createExtensionPackageManager(f.settings);
   await Promise.all([a.add(f.directory), b.add(other.directory)]);
   assert.equal(a.list().length, 2);
-  f.pkg["isle.plugin"].id = "test.changed";
+  f.pkg["mewvis.plugin"].id = "test.changed";
   await f.save();
   assert.throws(() => b.resolve(), /身份已改变/);
   await writeFile(f.settings, "{broken");
@@ -336,11 +336,11 @@ test("UI protocol validates slot/type pairs and permits data-only text modules",
     tone: "info",
   };
   const ui = { contributions: [contribution] };
-  f.pkg["isle.plugin"].modules = { ui };
+  f.pkg["mewvis.plugin"].modules = { ui };
   await f.save();
   assert.equal(readExtensionPackage(f.directory).modules.ui.entry, undefined);
   assert.deepEqual(resolveExtensionPackages([{ path: f.directory }]), []);
-  const { uiSlotDefinitions } = await import("@isle/extension-host/ui");
+  const { uiSlotDefinitions } = await import("@mewvis/extension-host/ui");
   assert.equal(uiSlotDefinitions.sessionStatus.type, contribution.type);
   for (const invalid of [
     { ...contribution, slot: "session.sidebar" },
@@ -378,7 +378,7 @@ test("session actions require complete metadata and a declared session dialog", 
     icon: "puzzle", trigger: { kind: "dialog", id: "editor" },
   };
   const ui = { entry: "./ui.js", contributions: [dialog, action] };
-  f.pkg["isle.plugin"].modules = { ui };
+  f.pkg["mewvis.plugin"].modules = { ui };
   await f.save();
   assert.equal(readExtensionPackage(f.directory).modules.ui.contributions.length, 2);
   for (const invalid of [

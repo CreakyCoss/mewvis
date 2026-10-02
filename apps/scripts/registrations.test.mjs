@@ -14,7 +14,7 @@ import { test } from "node:test";
 import { copyRegistrations, loadRegistrations } from "./registrations.mjs";
 
 async function fixture(t) {
-  const root = await mkdtemp(join(tmpdir(), "isle-registrations-"));
+  const root = await mkdtemp(join(tmpdir(), "mewvis-registrations-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const sourceRoot = join(root, "sources");
   const configPath = join(root, "registry.json");

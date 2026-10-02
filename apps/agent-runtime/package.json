@@ -1,5 +1,5 @@
 {
-  "name": "@isle/agent-runtime",
+  "name": "@mewvis/agent-runtime",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -7,29 +7,29 @@
     "node": ">=22.13.0"
   },
   "scripts": {
-    "build": "pnpm --filter @isle/extension-host build && pnpm --filter @isle/app-host build && tsc --noEmit && node scripts/build-cli.mjs && pnpm --filter @isle/builtin-applications build && node scripts/write-package.mjs && node scripts/copy-builtin-resources.mjs && node scripts/copy-builtin-skills.mjs && node scripts/build-builtin-extensions.mjs && node scripts/copy-application-installer.mjs && node scripts/copy-node-runtime.mjs",
+    "build": "pnpm --filter @mewvis/extension-host build && pnpm --filter @mewvis/app-host build && tsc --noEmit && node scripts/build-cli.mjs && pnpm --filter @mewvis/builtin-applications build && node scripts/write-package.mjs && node scripts/copy-builtin-resources.mjs && node scripts/copy-builtin-skills.mjs && node scripts/build-builtin-extensions.mjs && node scripts/copy-application-installer.mjs && node scripts/copy-node-runtime.mjs",
     "check": "tsc --noEmit",
     "generate:protocol": "node protocol/scripts/generate-bindings.mjs",
     "check:protocol": "node protocol/scripts/generate-bindings.mjs --check",
-    "test:extensions": "pnpm --filter @isle/extension-host build && node scripts/extensions-e2e.mjs"
+    "test:extensions": "pnpm --filter @mewvis/extension-host build && node scripts/extensions-e2e.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sandbox-runtime": "0.0.75",
     "@earendil-works/pi-ai": "workspace:*",
     "@earendil-works/pi-coding-agent": "workspace:*",
-    "@isle/chat-contracts": "workspace:*",
+    "@mewvis/chat-contracts": "workspace:*",
     "@langchain/langgraph": "^1.4.7",
     "ajv": "^8.20.0",
     "lodash-es": "^4.18.1",
     "zod": "^4.2.0",
-    "@isle/app-host": "workspace:*",
+    "@mewvis/app-host": "workspace:*",
     "@earendil-works/chord": "workspace:*",
-    "@isle/extension-host": "workspace:*",
+    "@mewvis/extension-host": "workspace:*",
     "@deepseek-ai/dsh-atomic-write": "0.1.1-rc.2"
   },
   "devDependencies": {
-    "@isle/extension-dev": "workspace:*",
-    "@isle/app-dev": "workspace:*",
+    "@mewvis/extension-dev": "workspace:*",
+    "@mewvis/app-dev": "workspace:*",
     "@types/node": "^22.0.0",
     "@types/lodash-es": "^4.17.12",
     "esbuild": "^0.28.0",

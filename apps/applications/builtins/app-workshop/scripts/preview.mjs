@@ -4,20 +4,20 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { createServer, searchForWorkspaceRoot } from "vite";
-import { packApplication } from "@isle/app-dev/tooling";
+import { packApplication } from "@mewvis/app-dev/tooling";
 import { prepareRuntime } from "./runtime.mjs";
 import { seedExamples } from "./seed.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-// Each preview has an explicit isolated filesystem. No real Isle registration or
+// Each preview has an explicit isolated filesystem. No real Mewvis registration or
 // user projects are read. Closing/reopening the browser retains these source files.
-process.env.ISLE_WORKSHOP_PREVIEW_ROOT = await realpath(
-  await mkdtemp(join(tmpdir(), "isle-workshop-preview-")),
+process.env.MEWVIS_WORKSHOP_PREVIEW_ROOT = await realpath(
+  await mkdtemp(join(tmpdir(), "mewvis-workshop-preview-")),
 );
 await prepareRuntime();
 const { manifest } = await packApplication({
   source: root,
-  target: "isle",
+  target: "mewvis",
   outDir: join(root, "dist/preview"),
   quiet: true,
 });
@@ -40,7 +40,7 @@ application.apply({
 });
 if (process.argv.includes("--seed")) await seedExamples(tools);
 const token = randomUUID();
-const endpoint = "/__isle_application_tools__";
+const endpoint = "/__mewvis_application_tools__";
 const catalog = {
   tools: [...tools.values()].map(({ name, description, risk, parameters }) => ({
     name,
@@ -50,18 +50,18 @@ const catalog = {
   })),
   skills,
 };
-const entry = `import { mountPreview } from '@isle/app-dev/preview';
+const entry = `import { mountPreview } from '@mewvis/app-dev/preview';
 import App from ${JSON.stringify(join(root, "main/App.tsx"))};
-await mountPreview(App, ${JSON.stringify({ name: manifest.name, displayName: "应用工坊", version: manifest.version, permissions: manifest.isle.permissions, endpoint, token })});
+await mountPreview(App, ${JSON.stringify({ name: manifest.name, displayName: "应用工坊", version: manifest.version, permissions: manifest.mewvis.permissions, endpoint, token })});
 // Map the explicit filesystem fixture to the SDK's documented memory-chat
 // workspaces. Chat stays a simulation; production uses the real workspace IDs.
-const original=globalThis.isleApplication;
+const original=globalThis.mewvisApplication;
 const workspaces=new Map();
 async function memoryWorkspace(id){
   if(!workspaces.has(id)) workspaces.set(id,original.data.request({version:1,method:'workspaces.create',params:{name:'小应用预览'}}).then(result=>{if(!result.ok)throw new Error(result.error.message);return result.value.id}));
   return workspaces.get(id);
 }
-Object.defineProperty(globalThis,'isleApplication',{configurable:true,value:Object.freeze({...original,chat:{
+Object.defineProperty(globalThis,'mewvisApplication',{configurable:true,value:Object.freeze({...original,chat:{
   subscribe:listener=>original.chat.subscribe(listener),
   request:async request=>{if(request.input?.workspaceId){const workspaceId=await memoryWorkspace(request.input.workspaceId);request={...request,input:{...request.input,workspaceId}};}return original.chat.request(request);}
 }})});`;
@@ -70,11 +70,11 @@ const server = await createServer({
   root,
   publicDir: false,
   esbuild: { jsx: "automatic" },
-  resolve: { dedupe: ["react", "react-dom", "@isle/app-sdk"] },
-  optimizeDeps: { exclude: ["@isle/app-dev", "@isle/app-sdk/chat/react"] },
+  resolve: { dedupe: ["react", "react-dom", "@mewvis/app-sdk"] },
+  optimizeDeps: { exclude: ["@mewvis/app-dev", "@mewvis/app-sdk/chat/react"] },
   server: {
     host: "127.0.0.1",
-    port: Number(process.env.ISLE_WORKSHOP_PORT ?? 5183),
+    port: Number(process.env.MEWVIS_WORKSHOP_PORT ?? 5183),
     strictPort: true,
     fs: { allow: [searchForWorkspaceRoot(root)] },
   },
@@ -92,7 +92,7 @@ const server = await createServer({
           response.setHeader("Content-Type", "application/json; charset=utf-8");
           response.setHeader("Cache-Control", "no-store");
           try {
-            if (request.headers["x-isle-dev-token"] !== token)
+            if (request.headers["x-mewvis-dev-token"] !== token)
               throw new Error("预览连接无效，请刷新页面。");
             if (request.method === "GET") {
               response.end(JSON.stringify(catalog));
@@ -139,7 +139,7 @@ const server = await createServer({
 await server.listen();
 server.printUrls();
 console.log(
-  `Isolated preview files: ${process.env.ISLE_WORKSHOP_PREVIEW_ROOT}`,
+  `Isolated preview files: ${process.env.MEWVIS_WORKSHOP_PREVIEW_ROOT}`,
 );
 for (const signal of ["SIGINT", "SIGTERM"])
   process.once(signal, async () => {

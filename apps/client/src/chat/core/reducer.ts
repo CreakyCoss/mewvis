@@ -1,6 +1,6 @@
 import type { AgentClientChatMessageEvent, AgentClientToolEvent } from "@/agent-client/contracts";
 import { AgentRuntimeEventType } from "@/agent-client/wire";
-import type { ChatAssistantMessage, ChatAssistantMessageBlock, ChatToolEvent } from "@isle/chat-contracts";
+import type { ChatAssistantMessage, ChatAssistantMessageBlock, ChatToolEvent } from "@mewvis/chat-contracts";
 
 type ChatEvent = AgentClientChatMessageEvent;
 

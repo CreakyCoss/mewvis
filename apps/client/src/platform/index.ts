@@ -1,5 +1,5 @@
 import { platform as implementation } from "@platform-impl";
-import type { ClientPlatform } from "@isle/client-platform";
+import type { ClientPlatform } from "@mewvis/client-platform";
 
 /** The build selects the implementation; shared pages consume capabilities. */
 export const platform: ClientPlatform = {

@@ -3,7 +3,7 @@ name: story-assistant-long-write
 description: >-
   Mewvis 故事创作助手专属的结构化长篇写作技能。用户要求长篇开书、作品定位、卷纲、章节细纲、写第 N 章、日更、续写、回炉或重写时必须使用。继承 oh-story-claudecode 最新长篇方法，但所有正式产物必须通过 Story ChangeSet 写入分块 JSON，不创建或修改普通 story-long-write 的 Markdown 项目。
 metadata:
-  isle-claw:
+  mewvis:
     assistant-only: true
     builtin-bundle: story-authoring
     required-private-tool: story

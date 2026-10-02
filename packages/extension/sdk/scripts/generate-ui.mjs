@@ -5,7 +5,7 @@ import { uiSlotDefinitions, uiSlotTypes } from "../ui/slots.js";
 const id = { type: "string", pattern: "^[a-z][a-z0-9-]*$", maxLength: 64 };
 const schema = {
   $schema: "http://json-schema.org/draft-07/schema#",
-  $id: "urn:isle:ui-contribution",
+  $id: "urn:mewvis:ui-contribution",
   title: "UIContribution",
   oneOf: Object.values(uiSlotDefinitions).map((slot) => {
     const payload = uiSlotTypes[slot.type].schema;

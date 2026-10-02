@@ -7,7 +7,7 @@ export type StoryRecord = {
   updatedAt: number;
 };
 export const listStoryRecords = () =>
-  call<StoryRecord[]>("isle_story_library", { action: "list" });
+  call<StoryRecord[]>("mewvis_story_library", { action: "list" });
 export async function createStoryRecord(
   name: string,
   parentPath: string,
@@ -24,7 +24,7 @@ export async function createStoryRecord(
   });
   if (!workspace) throw new Error("已取消创建故事");
   try {
-    return await call("isle_story_library", {
+    return await call("mewvis_story_library", {
       action: "add",
       workspaceId: workspace.id,
       name,
@@ -43,7 +43,7 @@ export async function importStoryRecord(
 ): Promise<StoryRecord> {
   const workspace = await data().workspaces.create({ name, path });
   if (!workspace) throw new Error("已取消导入故事");
-  return call("isle_story_library", {
+  return call("mewvis_story_library", {
     action: "add",
     workspaceId: workspace.id,
     name,
@@ -53,9 +53,9 @@ export const updateStoryRecord = (
   id: string,
   name: string,
 ): Promise<StoryRecord> =>
-  call("isle_story_library", { action: "rename", id, name });
+  call("mewvis_story_library", { action: "rename", id, name });
 export const deleteStoryRecord = (
   id: string,
   deleteContent = false,
 ): Promise<void> =>
-  call("isle_story_library", { action: "remove", id, deleteContent });
+  call("mewvis_story_library", { action: "remove", id, deleteContent });

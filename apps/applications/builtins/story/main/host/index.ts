@@ -1,8 +1,8 @@
-import { defineApplication } from "@isle/app-sdk";
+import { defineApplication } from "@mewvis/app-sdk";
 import { createStoryRegistry } from "./registry.js";
 
 export default defineApplication({
-  name: "@isle/story",
+  name: "@mewvis/story",
   inject: ["tools", "skills", "workspaces", "storage"],
   apply(ctx) {
     if (!ctx.workspaces) throw new Error("故事应用需要应用工作区服务");

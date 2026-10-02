@@ -62,7 +62,7 @@ function sandbox() {
     window,
     html,
     send: (message, source = parent) =>
-      listeners.get("message")({ source, data: { channel: "isle-app-ui-v1", ...message } }),
+      listeners.get("message")({ source, data: { channel: "mewvis-app-ui-v1", ...message } }),
   };
 }
 
@@ -73,11 +73,11 @@ test("sandbox receives host tokens before ready, updates without changing mode a
     host: { theme: "light", themeTokens: { "--primary": "#123456", "--background": "#ffffff" } },
   });
   assert.equal(app.styles.get("--primary"), "#123456");
-  assert.equal(app.events.at(-1).type, "isle:ready");
+  assert.equal(app.events.at(-1).type, "mewvis:ready");
   app.send({ type: "host:theme", theme: "light", themeTokens: { "--primary": "#654321" } });
   assert.equal(app.styles.get("--primary"), "#654321");
   assert.equal(app.styles.has("--background"), false);
-  assert.equal(app.window.isleApplication.getHost().themeTokens["--primary"], "#654321");
+  assert.equal(app.window.mewvisApplication.getHost().themeTokens["--primary"], "#654321");
   assert.equal(app.events.at(-1).detail, "light");
   app.send({ type: "host:theme", theme: "dark" });
   assert.equal(app.styles.size, 0);
@@ -118,7 +118,7 @@ test("host exports only design-system properties and reads current values", () =
 
 test("embedded view runtime and blob frames are available only on explicit opt-in", () => {
   const ordinary = sandbox();
-  assert.equal(ordinary.window.isleApplication.views, undefined);
+  assert.equal(ordinary.window.mewvisApplication.views, undefined);
   assert.match(ordinary.html, /frame-src 'none'/);
   const enabled = sandboxDocument({ script: "", style: "" }, undefined, { embeddedViews: true });
   assert.match(enabled, /frame-src blob:/);

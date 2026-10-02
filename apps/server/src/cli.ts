@@ -12,14 +12,14 @@ const unknown = process.argv
   .filter((arg) => !["--desktop", "--web", "--help"].includes(arg));
 if (unknown.length) throw new Error(`未知参数：${unknown.join(", ")}`);
 if (process.argv.includes("--help")) {
-  console.log(`Isle Node Server (loopback only)
+  console.log(`Mewvis Node Server (loopback only)
 Usage: node cli.js [--desktop | --web]
-  ISLE_SERVER_PORT       Port, default 1422 (desktop uses a free port)
-  ISLE_WEB_PORT          Web mode port, default 4173
-  ISLE_SERVER_WEB_ROOT   Built React page directory for --web
-  ISLE_SERVER_TOKEN      Bearer token; generated when omitted
-  ISLE_SERVER_DATA_DIR   Shared data root, default ~/.isle-claw
-  ISLE_SERVER_RESOURCES  Packaged Runtime, protocol and product resources
+  MEWVIS_SERVER_PORT       Port, default 1422 (desktop uses a free port)
+  MEWVIS_WEB_PORT          Web mode port, default 4173
+  MEWVIS_SERVER_WEB_ROOT   Built React page directory for --web
+  MEWVIS_SERVER_TOKEN      Bearer token; generated when omitted
+  MEWVIS_SERVER_DATA_DIR   Shared data root, default ~/.mewvis
+  MEWVIS_SERVER_RESOURCES  Packaged Runtime, protocol and product resources
 Desktop mode writes a private readiness message to stdout and closes on stdin EOF.`);
 } else {
   let parentGone = false;
@@ -50,13 +50,13 @@ Desktop mode writes a private readiness message to stdout and closes on stdin EO
   try {
     const port = Number(
       web
-        ? (process.env.ISLE_WEB_PORT ?? 4173)
-        : (process.env.ISLE_SERVER_PORT ?? (desktop ? 0 : 1422)),
+        ? (process.env.MEWVIS_WEB_PORT ?? 4173)
+        : (process.env.MEWVIS_SERVER_PORT ?? (desktop ? 0 : 1422)),
     );
     if (!Number.isInteger(port) || port < 0 || port > 65535)
-      throw new Error(`${web ? "ISLE_WEB_PORT" : "ISLE_SERVER_PORT"} 不合法`);
+      throw new Error(`${web ? "MEWVIS_WEB_PORT" : "MEWVIS_SERVER_PORT"} 不合法`);
     const token =
-      process.env.ISLE_SERVER_TOKEN ?? randomBytes(32).toString("hex");
+      process.env.MEWVIS_SERVER_TOKEN ?? randomBytes(32).toString("hex");
     // Only desktop's known bundled-page origins and its exact development origin may use CORS.
     const allowedOrigins = desktop
       ? [
@@ -65,7 +65,7 @@ Desktop mode writes a private readiness message to stdout and closes on stdin EO
           "https://tauri.localhost",
         ]
       : [];
-    const devOrigin = process.env.ISLE_DESKTOP_DEV_ORIGIN;
+    const devOrigin = process.env.MEWVIS_DESKTOP_DEV_ORIGIN;
     if (desktop && devOrigin) {
       const parsed = new URL(devOrigin);
       if (
@@ -77,9 +77,9 @@ Desktop mode writes a private readiness message to stdout and closes on stdin EO
       allowedOrigins.push(devOrigin);
     }
     const webRoot = web
-      ? (process.env.ISLE_SERVER_WEB_ROOT ??
-        (process.env.ISLE_SERVER_RESOURCES
-          ? join(process.env.ISLE_SERVER_RESOURCES, "web")
+      ? (process.env.MEWVIS_SERVER_WEB_ROOT ??
+        (process.env.MEWVIS_SERVER_RESOURCES
+          ? join(process.env.MEWVIS_SERVER_RESOURCES, "web")
           : fileURLToPath(new URL("../../client/dist/", import.meta.url))))
       : undefined;
     server = await startServer({ port, token, allowedOrigins, webRoot });
@@ -88,10 +88,10 @@ Desktop mode writes a private readiness message to stdout and closes on stdin EO
       process.stdout.write(
         JSON.stringify({ type: "ready", url: server.url, token }) + "\n",
       );
-    else if (web) console.log(`Isle Web: ${server.url}`);
+    else if (web) console.log(`Mewvis Web: ${server.url}`);
     else {
-      console.log(`Isle Node Server: ${server.url}`);
-      if (!process.env.ISLE_SERVER_TOKEN)
+      console.log(`Mewvis Node Server: ${server.url}`);
+      if (!process.env.MEWVIS_SERVER_TOKEN)
         console.log(`Session token: ${token}`);
     }
   } catch (error) {

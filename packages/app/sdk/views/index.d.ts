@@ -64,5 +64,5 @@ export declare function mountApplicationView(
   container: HTMLElement,
   options: ApplicationViewOptions,
 ): ApplicationView;
-/** Available only inside an embedded view. The child has no Isle application bridge. */
+/** Available only inside an embedded view. The child has no Mewvis application bridge. */
 export declare function getApplicationViewClient(): ApplicationViewClient;

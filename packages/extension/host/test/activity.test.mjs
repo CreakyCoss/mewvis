@@ -10,7 +10,7 @@ import {
 } from "../dist/services/activity.js";
 
 test("reading an absent activity does not create a new chat directory", async (t) => {
-  const root = await mkdtemp(join(tmpdir(), "isle-activity-read-"));
+  const root = await mkdtemp(join(tmpdir(), "mewvis-activity-read-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const chat = join(root, "chats", "new-chat");
   const store = createActivityStore(join(chat, "session"), "test.flow");
@@ -20,7 +20,7 @@ test("reading an absent activity does not create a new chat directory", async (t
 });
 
 async function fixture(t) {
-  const root = await mkdtemp(join(tmpdir(), "isle-checkpoint-"));
+  const root = await mkdtemp(join(tmpdir(), "mewvis-checkpoint-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const writer = createActivityStore(root, "test.flow");
   const control = createActivityStore(root, "test.flow");

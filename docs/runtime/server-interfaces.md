@@ -36,7 +36,7 @@ Node Server 覆盖迁移前 Tauri 注册的现行业务命令；旧协作流程�
 
 文件路径限制在指定工作区内，拒绝上级路径逃逸和越界符号链接。批量写入先准备暂存文件和旧文件备份，支持 `revisionCondition`，版本冲突返回 `409 REVISION_CONFLICT`。写入失败时回滚；回滚本身失败则保留暂存目录及 `recovery.json`，返回 `ROLLBACK_FAILED`，供人工恢复。它保证服务内批量写入的互斥与失败恢复，不是断电后自动恢复的文件系统事务。
 
-聊天沿用 `.isle-claw/chats/<id>/` 的 `meta.json`、`messages.json`、`options.json`；既有聊天的 `workspaceId` 和 `origin` 不能改写，损坏记录不会因读取而被覆盖。酒馆沿用 v4 索引和分房间文件，清理旧房间只针对旧索引已登记的 ID。故事删除默认只删除登记；`deleteContent: true` 才会删除内容。
+聊天沿用 `.mewvis/chats/<id>/` 的 `meta.json`、`messages.json`、`options.json`；既有聊天的 `workspaceId` 和 `origin` 不能改写，损坏记录不会因读取而被覆盖。酒馆沿用 v4 索引和分房间文件，清理旧房间只针对旧索引已登记的 ID。故事删除默认只删除登记；`deleteContent: true` 才会删除内容。
 
 Git 使用系统命令行，以独立参数传递路径并禁用 hooks、外部 diff/textconv。工作区根目录必须有自己的仓库，不借用上级仓库。恢复历史版本更新索引和工作树，保持当前 HEAD，供后续创建新提交；切换分支要求当前没有未提交改动。
 
@@ -56,9 +56,9 @@ Git 使用系统命令行，以独立参数传递路径并禁用 hooks、外部 
 
 ## 应用与技能
 
-应用包安装到 `<dataDir>/apps/<应用命名空间>/package`，配置、SDK 数据和应用工作区位于同一命名空间的独立位置。保留包 scope，其他特殊字符编码，防止路径碰撞。应用卸载保留配置和 SDK 数据。`registry.json`、`settings.yaml`、`storage.sqlite`、应用工作区和 `.isle/workspace.json` 均沿用原格式；启动时在原 `.layout.lock` 保护下执行同一个 `app-host/migrate-layout.mjs`，处理原后端已有的历史目录升级。
+应用包安装到 `<dataDir>/apps/<应用命名空间>/package`，配置、SDK 数据和应用工作区位于同一命名空间的独立位置。保留包 scope，其他特殊字符编码，防止路径碰撞。应用卸载保留配置和 SDK 数据。`registry.json`、`settings.yaml`、`storage.sqlite`、应用工作区和 `.mewvis/workspace.json` 均沿用原格式；启动时在原 `.layout.lock` 保护下执行同一个 `app-host/migrate-layout.mjs`，处理原后端已有的历史目录升级。
 
-本地安装接受已构建应用目录，检查清单、入口和权限声明，不自动执行源码工程构建脚本。市场 `provider` 使用 `dsh-community`，通过随 Runtime 分发的 pnpm（缺少时使用运行环境中的 pnpm）下载依赖，始终使用 `--ignore-scripts`。市场安装默认不启用。本地 Isle 应用按原接口默认启用，可传 `enable: false`。
+本地安装接受已构建应用目录，检查清单、入口和权限声明，不自动执行源码工程构建脚本。市场 `provider` 使用 `dsh-community`，通过随 Runtime 分发的 pnpm（缺少时使用运行环境中的 pnpm）下载依赖，始终使用 `--ignore-scripts`。市场安装默认不启用。本地 Mewvis 应用按原接口默认启用，可传 `enable: false`。
 
 应用 UI 工具、UI 文档和工具授权复用现有 `app-host/service.mjs`。它由 Server 按需启动并托管，不需要用户再启动另一个 HTTP 服务。超时及配置变化会停止旧宿主；未确认退出时禁止创建替代进程。应用数据连接由宿主生成，每次请求重新检查所有者及权限；应用停用/移除时撤销连接、取消所属 Agent 任务并通知聊天宿主。
 

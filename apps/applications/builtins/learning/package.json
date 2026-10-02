@@ -1,23 +1,23 @@
 {
-  "name": "@isle/learning",
+  "name": "@mewvis/learning",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "description": "学习工坊：主题与文本资料生成课程、逐课学习、测验和 AI 导师。",
   "scripts": {
-    "dev": "isle-app dev",
-    "check": "isle-app check",
-    "build": "isle-app build",
+    "dev": "mewvis-app dev",
+    "check": "mewvis-app check",
+    "build": "mewvis-app build",
     "test": "pnpm build && node --test test/*.test.mjs"
   },
   "dependencies": {
-    "@isle/app-sdk": "workspace:*",
+    "@mewvis/app-sdk": "workspace:*",
     "lucide-react": "^0.500.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
   },
   "devDependencies": {
-    "@isle/app-dev": "workspace:*",
+    "@mewvis/app-dev": "workspace:*",
     "@types/node": "^22.0.0",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",

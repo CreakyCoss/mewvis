@@ -7,9 +7,9 @@ import { Chats } from "../../dist/modules/chats/service.js";
 import { WorkspaceFiles } from "../../dist/modules/files/service.js";
 
 async function setup(t) {
-  const workspacePath = await mkdtemp(join(tmpdir(), "isle-chat-save-"));
+  const workspacePath = await mkdtemp(join(tmpdir(), "mewvis-chat-save-"));
   t.after(() => rm(workspacePath, { recursive: true, force: true }));
-  const chats = new Chats(".isle-claw", new WorkspaceFiles({ publish() {} }));
+  const chats = new Chats(".mewvis", new WorkspaceFiles({ publish() {} }));
   const input = {
     workspacePath,
     chatId: "new-chat",
@@ -17,7 +17,7 @@ async function setup(t) {
     origin: { kind: "builtin", sceneId: "chat" },
     messages: [{ role: "user", text: "Test workflow" }],
   };
-  const directory = join(workspacePath, ".isle-claw/chats/new-chat");
+  const directory = join(workspacePath, ".mewvis/chats/new-chat");
   return { chats, input, directory };
 }
 

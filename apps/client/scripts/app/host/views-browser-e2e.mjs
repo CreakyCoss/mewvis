@@ -5,8 +5,8 @@ import { once } from "node:events";
 import { build } from "esbuild";
 
 // Use an installed Playwright or the desktop's bundled browser test runtime.
-const playwright = await import(process.env.ISLE_PLAYWRIGHT_MODULE ?? "playwright");
-const browsers = (process.env.ISLE_VIEW_TEST_BROWSERS ?? "chromium").split(",");
+const playwright = await import(process.env.MEWVIS_PLAYWRIGHT_MODULE ?? "playwright");
+const browsers = (process.env.MEWVIS_VIEW_TEST_BROWSERS ?? "chromium").split(",");
 const result = await build({
   entryPoints: [new URL("../../../src/workbench/pages/applications/sandbox-document.ts", import.meta.url).pathname],
   bundle: true,
@@ -35,12 +35,12 @@ const { sandboxDocument } = await import(
 const ownerScript = `
 window.test = { views: {}, errors: [], calls: [], aborted: [], protocol: [], releases: [] };
 addEventListener("message", event => {
-  if (event.data?.channel === "isle-embedded-view-v1") test.protocol.push(event.data);
+  if (event.data?.channel === "mewvis-embedded-view-v1") test.protocol.push(event.data);
 });
 window.mount = (id, script = "document.body.textContent = '小应用';") => {
   const container = document.createElement("div");
   container.id = id; container.style.height = "160px"; document.body.append(container);
-  const view = isleApplication.views.mount(container, { id, title: id, script, methods: {
+  const view = mewvisApplication.views.mount(container, { id, title: id, script, methods: {
     who(params, context) { test.calls.push(context.viewId); return { viewId: context.viewId, params }; },
     echo(params) { return params; },
     bad() { return undefined; },
@@ -61,10 +61,10 @@ function hostPage(embeddedViews) {
 const owner = window.document.getElementById("owner");
 window.toolCalls = 0;
 addEventListener("message", event => {
-  if (event.source !== owner.contentWindow || event.data?.channel !== "isle-app-ui-v1") return;
+  if (event.source !== owner.contentWindow || event.data?.channel !== "mewvis-app-ui-v1") return;
   if (event.data.type === "application:ready") {
     window.ownerReady = true;
-    owner.contentWindow.postMessage({ channel: "isle-app-ui-v1", type: "host:init", host: { theme: "light", themeTokens: { "--primary": "#123456" }, tools: [] } }, "*");
+    owner.contentWindow.postMessage({ channel: "mewvis-app-ui-v1", type: "host:init", host: { theme: "light", themeTokens: { "--primary": "#123456" }, tools: [] } }, "*");
   }
   if (event.data.type === "tool:execute") window.toolCalls++;
 });
@@ -86,8 +86,8 @@ try {
   for (const name of browsers) {
     const browser = await playwright[name].launch({
       headless: true,
-      ...(process.env[`ISLE_VIEW_TEST_${name.toUpperCase()}_EXECUTABLE`]
-        ? { executablePath: process.env[`ISLE_VIEW_TEST_${name.toUpperCase()}_EXECUTABLE`] }
+      ...(process.env[`MEWVIS_VIEW_TEST_${name.toUpperCase()}_EXECUTABLE`]
+        ? { executablePath: process.env[`MEWVIS_VIEW_TEST_${name.toUpperCase()}_EXECUTABLE`] }
         : {}),
     });
     try {
@@ -95,15 +95,15 @@ try {
       const errors = [];
       page.on("pageerror", (error) => {
         errors.push(error.message);
-        if (process.env.ISLE_VIEW_TEST_DEBUG) console.error(`${name}: ${error.stack}`);
+        if (process.env.MEWVIS_VIEW_TEST_DEBUG) console.error(`${name}: ${error.stack}`);
       });
-      if (process.env.ISLE_VIEW_TEST_DEBUG)
+      if (process.env.MEWVIS_VIEW_TEST_DEBUG)
         page.on("console", (message) => console.error(`${name}: ${message.text()} ${JSON.stringify(message.location())}`));
       await page.goto(origin + "/ordinary");
       await page.waitForFunction(() => window.ownerReady);
       let owner = page.frame({ name: "owner" });
-      await owner.waitForFunction(() => window.isleApplication?.getHost());
-      assert.equal(await owner.evaluate(() => isleApplication.views), undefined);
+      await owner.waitForFunction(() => window.mewvisApplication?.getHost());
+      assert.equal(await owner.evaluate(() => mewvisApplication.views), undefined);
       assert.equal(
         await owner.evaluate(async () => {
           const blocked = new Promise((resolve) =>
@@ -122,18 +122,18 @@ try {
       await page.goto(origin + "/enabled");
       await page.waitForFunction(() => window.ownerReady);
       owner = page.frame({ name: "owner" });
-      await owner.waitForFunction(() => window.isleApplication?.getHost());
+      await owner.waitForFunction(() => window.mewvisApplication?.getHost());
       await owner.evaluate(() => Promise.all([mount("a"), mount("b")]));
       const a = owner.childFrames()[0];
       const b = owner.childFrames()[1];
       assert.equal(await a.evaluate(() => location.href), "about:srcdoc");
       assert.equal(await b.evaluate(() => location.href), "about:srcdoc");
-      assert.deepEqual(await a.evaluate(() => isleEmbeddedView.request("who", { viewId: "b" })), {
+      assert.deepEqual(await a.evaluate(() => mewvisEmbeddedView.request("who", { viewId: "b" })), {
         viewId: "a",
         params: { viewId: "b" },
       });
-      assert.deepEqual(await b.evaluate(() => isleEmbeddedView.request("who", {})), { viewId: "b", params: {} });
-      assert.equal(await a.evaluate(() => typeof window.isleApplication), "undefined");
+      assert.deepEqual(await b.evaluate(() => mewvisEmbeddedView.request("who", {})), { viewId: "b", params: {} });
+      assert.equal(await a.evaluate(() => typeof window.mewvisApplication), "undefined");
       assert.equal(
         await a.evaluate(() => {
           try {
@@ -144,18 +144,18 @@ try {
         }),
         false,
       );
-      assert.match(await a.evaluate(() => isleEmbeddedView.request("constructor").catch((e) => e.message)), /未获授权/);
-      assert.match(await a.evaluate(() => isleEmbeddedView.request("bad").catch((e) => e.message)), /有限 JSON/);
-      assert.equal(await a.evaluate(() => isleEmbeddedView.request("rejectNull").then(() => "unexpected success", (e) => e.message)), "null");
-      assert.match(await a.evaluate(() => isleEmbeddedView.request("huge").catch((e) => e.message)), /256 KiB/);
+      assert.match(await a.evaluate(() => mewvisEmbeddedView.request("constructor").catch((e) => e.message)), /未获授权/);
+      assert.match(await a.evaluate(() => mewvisEmbeddedView.request("bad").catch((e) => e.message)), /有限 JSON/);
+      assert.equal(await a.evaluate(() => mewvisEmbeddedView.request("rejectNull").then(() => "unexpected success", (e) => e.message)), "null");
+      assert.match(await a.evaluate(() => mewvisEmbeddedView.request("huge").catch((e) => e.message)), /256 KiB/);
       assert.match(
         await a.evaluate(() =>
-          isleEmbeddedView.request("echo", { value: "x".repeat(256 * 1024) }).catch((e) => e.message),
+          mewvisEmbeddedView.request("echo", { value: "x".repeat(256 * 1024) }).catch((e) => e.message),
         ),
         /256 KiB/,
       );
       assert.match(
-        await a.evaluate(() => isleEmbeddedView.request("echo", { value: Infinity }).catch((e) => e.message)),
+        await a.evaluate(() => mewvisEmbeddedView.request("echo", { value: Infinity }).catch((e) => e.message)),
         /有限 JSON/,
       );
       assert.equal(
@@ -189,24 +189,24 @@ try {
       await b.evaluate(
         (instance) =>
           parent.postMessage(
-            { channel: "isle-embedded-view-v1", instance, type: "request", id: 100, method: "who", params: {} },
+            { channel: "mewvis-embedded-view-v1", instance, type: "request", id: 100, method: "who", params: {} },
             "*",
           ),
         tokenA,
       );
       await b.evaluate(() =>
         top.postMessage(
-          { channel: "isle-app-ui-v1", type: "tool:execute", id: "spoof", toolName: "host", args: {} },
+          { channel: "mewvis-app-ui-v1", type: "tool:execute", id: "spoof", toolName: "host", args: {} },
           "*",
         ),
       );
-      await b.evaluate(() => isleEmbeddedView.request("echo")); // Round trip drains earlier messages.
+      await b.evaluate(() => mewvisEmbeddedView.request("echo")); // Round trip drains earlier messages.
       assert.equal(await owner.evaluate(() => test.calls.length), calls);
       assert.equal(await page.evaluate(() => window.toolCalls), 0);
 
       await a.evaluate(() => {
         window.received = null;
-        isleEmbeddedView.subscribe((value) => {
+        mewvisEmbeddedView.subscribe((value) => {
           window.received = value;
         });
       });
@@ -216,11 +216,11 @@ try {
         document
           .getElementById("owner")
           .contentWindow.postMessage(
-            { channel: "isle-app-ui-v1", type: "host:theme", theme: "dark", themeTokens: { "--primary": "#abcdef" } },
+            { channel: "mewvis-app-ui-v1", type: "host:theme", theme: "dark", themeTokens: { "--primary": "#abcdef" } },
             "*",
           ),
       );
-      await a.waitForFunction(() => isleEmbeddedView.getHost().theme === "dark");
+      await a.waitForFunction(() => mewvisEmbeddedView.getHost().theme === "dark");
       assert.equal(
         await a.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--primary")),
         "#abcdef",
@@ -230,7 +230,7 @@ try {
       await b.evaluate(() => {
         window.timeouts = [];
         for (let index = 0; index < 5; index++)
-          isleEmbeddedView.request("slow").catch((error) => window.timeouts.push(error.message));
+          mewvisEmbeddedView.request("slow").catch((error) => window.timeouts.push(error.message));
       });
       await owner.waitForFunction(() => test.releases.length === 4);
       assert.match(await b.evaluate(() => window.timeouts[0]), /并发请求过多/);
@@ -246,7 +246,7 @@ try {
       await page.clock.resume();
 
       await a.evaluate(() => {
-        isleEmbeddedView.request("slow").catch(() => {});
+        mewvisEmbeddedView.request("slow").catch(() => {});
       });
       await owner.waitForFunction(() => test.releases.length === 1);
       await owner.evaluate(() => document.getElementById("a").remove());
@@ -256,17 +256,17 @@ try {
       const replacement = owner.childFrames().find((frame) => frame !== b);
       await replacement.evaluate(() => {
         window.events = 0;
-        isleEmbeddedView.subscribe(() => window.events++);
+        mewvisEmbeddedView.subscribe(() => window.events++);
       });
       await owner.evaluate(() => test.releases[0]());
-      await replacement.evaluate(() => isleEmbeddedView.request("echo"));
+      await replacement.evaluate(() => mewvisEmbeddedView.request("echo"));
       assert.equal(await replacement.evaluate(() => window.events), 0);
 
       await owner.evaluate(() => Promise.all([mount("c"), mount("d")]));
       const c = owner.childFrames().find((frame) => frame !== replacement && frame !== b);
       await c.evaluate(async () => {
         const instance = document.scripts[0].textContent.match(/[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}/)[0];
-        const request = { channel: "isle-embedded-view-v1", instance, type: "request", id: 1, method: "who", params: {} };
+        const request = { channel: "mewvis-embedded-view-v1", instance, type: "request", id: 1, method: "who", params: {} };
         const done = new Promise((resolve) => addEventListener("message", (event) => {
           if (event.source === parent && event.data?.instance === instance && event.data?.type === "result" && event.data.id === 2) resolve();
         }));
@@ -302,7 +302,7 @@ try {
       await owner.waitForFunction(() => test.views.b.state === "closed");
       assert.ok(await owner.evaluate(() => test.errors.some((message) => message.includes("离开了"))));
       await owner.evaluate(() => {
-        isleApplication.views.dispose();
+        mewvisApplication.views.dispose();
         try {
           mount("after-close");
         } catch (e) {

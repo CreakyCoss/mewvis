@@ -13,7 +13,7 @@ test(
   "collaboration crosses SDK, host and Pi with step-boundary pause, resume and cancellation",
   { timeout: 120000 },
   async (t) => {
-    const root = await mkdtemp(join(tmpdir(), "isle-plugin-collaboration-"));
+    const root = await mkdtemp(join(tmpdir(), "mewvis-plugin-collaboration-"));
     const requests = [];
     let gateChildren = false;
     const gates = [];
@@ -23,7 +23,7 @@ test(
       const input = JSON.parse(body);
       requests.push(input);
       const tool = input.tools?.find(
-        (item) => item.function?.name === "ext_isle_collaboration__review",
+        (item) => item.function?.name === "ext_mewvis_collaboration__review",
       );
       if (gateChildren && !tool) {
         await new Promise((resolve) => gates.push(resolve));
@@ -108,7 +108,7 @@ test(
       instructions: "宿主智能体独有指令，不应注入插件任务",
     });
     const settings = await call("open_extension_view", {
-      id: "isle.collaboration",
+      id: "mewvis.collaboration",
       contributionId: "settings",
       viewId: "settings",
     });
@@ -188,25 +188,25 @@ test(
     );
     const catalog = await call("list_extension_commands", target);
     assert.equal(
-      catalog.commands.find((item) => item.id === "isle.collaboration/review")
+      catalog.commands.find((item) => item.id === "mewvis.collaboration/review")
         .label,
       flow.name,
     );
     assert.ok(
       catalog.commands.some(
         (item) =>
-          item.id === "isle.collaboration/review" && item.inputMode === "text",
+          item.id === "mewvis.collaboration/review" && item.inputMode === "text",
       ),
     );
     const status = await call("open_extension_view", {
       ...target,
-      id: "isle.collaboration",
+      id: "mewvis.collaboration",
       contributionId: "progress",
     });
     const other = await call("open_extension_view", {
       ...target,
       chatId: "another-chat",
-      id: "isle.collaboration",
+      id: "mewvis.collaboration",
       contributionId: "progress",
     });
     const waitActivity = async (state, view = status) => {
@@ -265,7 +265,7 @@ test(
         ),
       );
     };
-    await run("slash-flow", "/isle.collaboration/review 设计一个任务方案");
+    await run("slash-flow", "/mewvis.collaboration/review 设计一个任务方案");
     await done("slash-flow");
     assert.equal(
       requests.length,
@@ -328,7 +328,7 @@ test(
     assert.ok(
       requests.some((r) =>
         r.tools?.some(
-          (item) => item.function?.name === "ext_isle_collaboration__review",
+          (item) => item.function?.name === "ext_mewvis_collaboration__review",
         ),
       ),
     );
@@ -337,7 +337,7 @@ test(
     const modelTarget = { ...target, chatId: "model-pausing" };
     const modelStatus = await call("open_extension_view", {
       ...modelTarget,
-      id: "isle.collaboration",
+      id: "mewvis.collaboration",
       contributionId: "progress",
     });
     await run("model-pause-flow", "请按自定义评审流程完成任务", modelTarget);
@@ -362,7 +362,7 @@ test(
       "completed",
     );
     const previous = await query(status, "activity.read");
-    await run("pause-flow", "/isle.collaboration/review 步骤之间暂停");
+    await run("pause-flow", "/mewvis.collaboration/review 步骤之间暂停");
     await waitChild();
     const first = await query(status, "activity.read");
     assert.equal(first.pausable, true);
@@ -429,7 +429,7 @@ test(
     );
     await query(status, "activity.resume", { id: first.id }, 409);
 
-    await run("withdraw-pause", "/isle.collaboration/review 撤回暂停");
+    await run("withdraw-pause", "/mewvis.collaboration/review 撤回暂停");
     await waitChild();
     const withdrawn = await query(status, "activity.read");
     await query(status, "activity.pause", { id: withdrawn.id });
@@ -440,7 +440,7 @@ test(
     gates.shift()();
     await done("withdraw-pause");
 
-    await run("cancel-paused", "/isle.collaboration/review 暂停后取消");
+    await run("cancel-paused", "/mewvis.collaboration/review 暂停后取消");
     await waitChild();
     const cancelPaused = await query(status, "activity.read");
     await query(status, "activity.pause", { id: cancelPaused.id });
@@ -473,7 +473,7 @@ test(
     );
     assert.equal(requests.length, beforeCancel);
 
-    await run("cancel-flow", "/isle.collaboration/review 等待取消");
+    await run("cancel-flow", "/mewvis.collaboration/review 等待取消");
     await waitChild();
     const running = await query(status, "activity.read");
     assert.equal(running.state, "running");

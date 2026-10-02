@@ -9,6 +9,6 @@
     "noEmit": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "types": ["node", "react", "react-dom", "@isle/app-dev/client"]
+    "types": ["node", "react", "react-dom", "@mewvis/app-dev/client"]
   }
 }

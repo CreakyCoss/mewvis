@@ -1,10 +1,10 @@
-export type * from "@isle/chat-contracts";
+export type * from "@mewvis/chat-contracts";
 import type {
   ChatSession,
   ChatSnapshot,
   ChatContext,
   OperationResult,
-} from "@isle/chat-contracts";
+} from "@mewvis/chat-contracts";
 
 /** Serializable scene data. Identity, credentials and filesystem paths belong to the host. */
 export type ApplicationModelOption = {

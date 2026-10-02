@@ -3,11 +3,11 @@ import assert from "node:assert/strict";
 import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createSessionHostAdapter } from "@isle/extension-host/services/session";
+import { createSessionHostAdapter } from "@mewvis/extension-host/services/session";
 import { Extensions } from "../../dist/modules/extensions/service.js";
 
 test("UI view leases bind session reads, filter private data, and revoke pending results", async (t) => {
-  const root = await mkdtemp(join(tmpdir(), "isle-ui-views-"));
+  const root = await mkdtemp(join(tmpdir(), "mewvis-ui-views-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const pkg = join(root, "plugin");
   await mkdir(pkg);
@@ -15,7 +15,7 @@ test("UI view leases bind session reads, filter private data, and revoke pending
     name: "test.ui",
     version: "1.0.0",
     type: "module",
-    "isle.plugin": {
+    "mewvis.plugin": {
       schemaVersion: 1,
       protocolVersion: 1,
       id: "test.ui",
@@ -187,7 +187,7 @@ test("UI view leases bind session reads, filter private data, and revoke pending
   );
   await commands.close_extension_view({ token: view.token });
   await assert.rejects(query(), /停用或过期/);
-  manifest["isle.plugin"].host.required = [];
+  manifest["mewvis.plugin"].host.required = [];
   await save();
   view = await open();
   await assert.rejects(query(), /未获得/);
@@ -196,7 +196,7 @@ test("UI view leases bind session reads, filter private data, and revoke pending
 });
 
 test("text contributions are discoverable without a JS entry and cannot open executable views", async (t) => {
-  const root = await mkdtemp(join(tmpdir(), "isle-text-views-"));
+  const root = await mkdtemp(join(tmpdir(), "mewvis-text-views-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const pkg = join(root, "plugin");
   await mkdir(pkg);
@@ -206,7 +206,7 @@ test("text contributions are discoverable without a JS entry and cannot open exe
       name: "test.text",
       version: "1.0.0",
       type: "module",
-      "isle.plugin": {
+      "mewvis.plugin": {
         schemaVersion: 1,
         protocolVersion: 1,
         id: "test.text",

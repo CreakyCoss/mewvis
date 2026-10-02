@@ -1,5 +1,5 @@
 {
-  "name": "@isle/fixture-dsh-portable-application",
+  "name": "@mewvis/fixture-dsh-portable-application",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -9,12 +9,12 @@
       "patch": "./cordis.patch.yml"
     }
   },
-  "isle": {
+  "mewvis": {
     "ui": {
       "version": 1,
       "kind": "sandbox",
-      "entry": "./isle-ui.js",
-      "style": "./isle-ui.css",
+      "entry": "./mewvis-ui.js",
+      "style": "./mewvis-ui.css",
       "title": "Portable UI Fixture"
     }
   }

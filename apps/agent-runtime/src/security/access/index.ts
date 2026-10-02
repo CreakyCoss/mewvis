@@ -1,7 +1,7 @@
 import { Ajv } from "ajv";
 import { homedir, tmpdir } from "node:os";
 import schema from "../../../protocol/v1/schema/access.schema.json" with { type: "json" };
-import type { AgentAccess, AgentAccessBase, AgentAccessPaths } from "@isle/chat-contracts";
+import type { AgentAccess, AgentAccessBase, AgentAccessPaths } from "@mewvis/chat-contracts";
 import { canonicalPath, containsPath, getPathPlatform, networkAllowed } from "../platforms/resources.js";
 import type { OperationAnalysis } from "../safety/types.js";
 

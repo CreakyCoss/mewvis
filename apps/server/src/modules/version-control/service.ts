@@ -420,7 +420,7 @@ export class VersionControl {
       "Mewvis";
     const email =
       (await this.git(base, ["config", "user.email"], [1])).stdout.trim() ||
-      "isle-claw@local";
+      "mewvis@local";
     const id = (
       await this.git(base, [
         "-c",

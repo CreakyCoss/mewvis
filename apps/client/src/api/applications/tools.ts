@@ -1,5 +1,5 @@
 import { invoke } from "@/transport";
-import type { ApplicationTool } from "@isle/app-sdk/tools";
+import type { ApplicationTool } from "@mewvis/app-sdk/tools";
 import { listAgentRuntimeTools } from "@/api/agent-runtime";
 import { listApplicationUi } from "@/api/applications";
 

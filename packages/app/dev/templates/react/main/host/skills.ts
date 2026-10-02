@@ -1,4 +1,4 @@
-import { defineSkill } from "@isle/app-sdk";
+import { defineSkill } from "@mewvis/app-sdk";
 
 // The toolchain registers this array with the host. React never imports this file.
 export default [

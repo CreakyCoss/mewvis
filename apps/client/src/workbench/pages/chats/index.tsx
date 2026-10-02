@@ -7,7 +7,7 @@ import { WorkspaceFileWatcher } from "./workspace-files";
 import { WorkspaceChatPanels } from "./panels";
 import { workspaceChatProfile } from "./profile";
 import { ModelSetupDialog } from "./components/model-setup-dialog";
-import { ComposerActionSlot, HeaderActionSlot } from "@isle/extension-host/ui/slots/action";
+import { ComposerActionSlot, HeaderActionSlot } from "@mewvis/extension-host/ui/slots/action";
 
 function WorkspaceChat({ workspaceId, chatId, isActive }: { workspaceId: string; chatId: string; isActive: boolean }) {
   const store = useWorkspaceStore();

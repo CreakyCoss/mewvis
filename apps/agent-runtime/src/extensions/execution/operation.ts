@@ -1,19 +1,19 @@
 import { createActiveDeadline } from "./deadline.js";
 import { runExtensionTask } from "./task.js";
-import { ExtensionHost } from "@isle/extension-host/services/runtime";
+import { ExtensionHost } from "@mewvis/extension-host/services/runtime";
 import {
   createActivityStore,
   createActivityExecution,
   activityExecution,
-} from "@isle/extension-host/services/activity";
+} from "@mewvis/extension-host/services/activity";
 import { isJsonValue } from "@earendil-works/chord";
 import type {
   ExtensionSource,
   ExtensionToolResult,
   JsonValue,
-} from "@isle/extension-host";
-import type { ExtensionBindings } from "@isle/extension-host";
-import { extensionToolName } from "@isle/extension-host";
+} from "@mewvis/extension-host";
+import type { ExtensionBindings } from "@mewvis/extension-host";
+import { extensionToolName } from "@mewvis/extension-host";
 import { Ajv } from "ajv";
 import { statSync } from "node:fs";
 import { dirname } from "node:path";
@@ -38,19 +38,19 @@ import {
   validateExtensionState,
   type ExtensionState,
 } from "../session/state.js";
-import { validateExtensionResult } from "@isle/extension-host/agent/resources";
-import type { ExtensionCatalog } from "@isle/extension-host";
+import { validateExtensionResult } from "@mewvis/extension-host/agent/resources";
+import type { ExtensionCatalog } from "@mewvis/extension-host";
 import { ExtensionSessionPool } from "../session/pool.js";
 import {
   validateMiddlewareOutcome,
   validateMiddlewareData,
-} from "@isle/extension-host/agent/middleware";
-import { validateExtensionEvent } from "@isle/extension-host/agent/events";
+} from "@mewvis/extension-host/agent/middleware";
+import { validateExtensionEvent } from "@mewvis/extension-host/agent/events";
 import type {
   ExtensionMiddlewareType,
   ExtensionMiddlewareData,
   ExtensionMiddlewareOutcome,
-} from "@isle/extension-host";
+} from "@mewvis/extension-host";
 
 export interface ExtensionRunResources extends ExtensionBindings {
   readonly available: boolean;

@@ -1,5 +1,5 @@
 import { platform } from "@/platform";
-import type { PathDialogOptions, PathSelection } from "@isle/client-platform";
+import type { PathDialogOptions, PathSelection } from "@mewvis/client-platform";
 import { invokeNode } from "@/transport/http";
 
 /** Open the OS chooser through the active backend. */

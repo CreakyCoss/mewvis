@@ -21,12 +21,12 @@ const cli = async (...args) =>
   JSON.parse((await exec(process.execPath, [cliPath, ...args])).stdout);
 
 test("build optional browser module separately, without Node bootstrap or host imports", async (t) => {
-  const root = await mkdtemp(join(tmpdir(), "isle-ui-build-"));
+  const root = await mkdtemp(join(tmpdir(), "mewvis-ui-build-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const project = join(root, "plugin");
   await cli("create", project, "--id", "test.ui");
   const pkg = JSON.parse(await readFile(join(project, "package.json"), "utf8"));
-  pkg["isle.extension"].modules.ui = {
+  pkg["mewvis.extension"].modules.ui = {
     entry: "./ui.js",
     contributions: [
       {
@@ -42,14 +42,14 @@ test("build optional browser module separately, without Node bootstrap or host i
   await writeFile(join(project, "package.json"), JSON.stringify(pkg));
   await writeFile(
     join(project, "src/ui.ts"),
-    `import { defineUIExtension } from '@isle/extension-sdk/ui';
+    `import { defineUIExtension } from '@mewvis/extension-sdk/ui';
      export default defineUIExtension({id:'test.ui',apiVersion:1,mount(root){root.textContent='UI'}});`,
   );
   let built = await buildExtensionPackage(project);
   const source = await readFile(built.modules.ui.entry, "utf8");
   assert.doesNotMatch(source, /node:module|createRequire/);
   assert.ok(built.modules.agent);
-  delete pkg["isle.extension"].modules.agent;
+  delete pkg["mewvis.extension"].modules.agent;
   await writeFile(join(project, "package.json"), JSON.stringify(pkg));
   await rm(join(project, "src/index.ts"));
   built = await buildExtensionPackage(project);
@@ -65,7 +65,7 @@ test("build optional browser module separately, without Node bootstrap or host i
 });
 
 test("real CLI: scaffold → bundle → validate → archive → registration and enablement", async (t) => {
-  const root = await mkdtemp(join(tmpdir(), "isle-plugin-cli-"));
+  const root = await mkdtemp(join(tmpdir(), "mewvis-plugin-cli-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const project = join(root, "hello"),
     settings = join(root, "settings.json");
@@ -102,7 +102,7 @@ test("real CLI: scaffold → bundle → validate → archive → registration an
 });
 
 test("build does not evaluate code, rejects Pi coupling and preserves unrelated output", async (t) => {
-  const root = await mkdtemp(join(tmpdir(), "isle-plugin-boundary-"));
+  const root = await mkdtemp(join(tmpdir(), "mewvis-plugin-boundary-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const project = join(root, "project");
   await cli("create", project, "--id", "test.build");
@@ -134,12 +134,12 @@ test("build does not evaluate code, rejects Pi coupling and preserves unrelated 
 });
 
 test("plain text contributions build without source files or a runtime entry", async (t) => {
-  const root = await mkdtemp(join(tmpdir(), "isle-text-ui-build-"));
+  const root = await mkdtemp(join(tmpdir(), "mewvis-text-ui-build-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const project = join(root, "plugin");
   await cli("create", project, "--id", "test.text");
   const pkg = JSON.parse(await readFile(join(project, "package.json"), "utf8"));
-  pkg["isle.extension"].modules = {
+  pkg["mewvis.extension"].modules = {
     ui: {
       contributions: [
         { id: "ready", slot: "session.status", type: "text", text: "Ready" },
@@ -152,7 +152,7 @@ test("plain text contributions build without source files or a runtime entry", a
   assert.equal(built.modules.ui.entry, undefined);
   assert.deepEqual(
     built.manifest.modules.ui.contributions,
-    pkg["isle.extension"].modules.ui.contributions,
+    pkg["mewvis.extension"].modules.ui.contributions,
   );
   await assert.rejects(readFile(join(built.root, "ui.js")), { code: "ENOENT" });
 });

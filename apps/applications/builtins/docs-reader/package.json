@@ -1,14 +1,14 @@
 {
-  "name": "@isle/docs-reader",
+  "name": "@mewvis/docs-reader",
   "version": "0.1.0",
   "description": "离线中文文档中心，提供章节目录、全文搜索和 Markdown 阅读。",
   "type": "module",
   "main": "./index.js",
   "exports": "./index.js",
   "dependencies": {
-    "@isle/app-sdk": "^0.1.0"
+    "@mewvis/app-sdk": "^0.1.0"
   },
-  "isle": {
+  "mewvis": {
     "app": {
       "version": 1,
       "entry": "./index.js"
@@ -21,8 +21,8 @@
     "ui": {
       "version": 1,
       "kind": "sandbox",
-      "entry": "./isle-ui.js",
-      "style": "./isle-ui.css",
+      "entry": "./mewvis-ui.js",
+      "style": "./mewvis-ui.css",
       "title": "文档中心"
     }
   }

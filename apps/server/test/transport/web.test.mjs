@@ -12,7 +12,7 @@ const cliPath = fileURLToPath(
   new URL("../support/fixtures/runtime.mjs", import.meta.url),
 );
 test("Web assets and authenticated APIs share one listener without exposing the bearer credential", async (t) => {
-  const root = await mkdtemp(join(tmpdir(), "isle-static-web-"));
+  const root = await mkdtemp(join(tmpdir(), "mewvis-static-web-"));
   let server;
   t.after(async () => {
     await server?.close();
@@ -143,7 +143,7 @@ test("Web assets and authenticated APIs share one listener without exposing the 
 });
 
 test("missing Web build fails explicitly and releases the data directory", async (t) => {
-  const root = await mkdtemp(join(tmpdir(), "isle-missing-web-"));
+  const root = await mkdtemp(join(tmpdir(), "mewvis-missing-web-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const options = {
     port: 0,

@@ -1,4 +1,4 @@
-import type { JsonObject } from "@isle/extension-sdk";
+import type { JsonObject } from "@mewvis/extension-sdk";
 import { avatarIds, type AvatarId } from "./avatars";
 
 export type Role = {

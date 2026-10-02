@@ -1,5 +1,5 @@
 {
-  "name": "@isle/app-workshop",
+  "name": "@mewvis/app-workshop",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -7,12 +7,12 @@
   "scripts": {
     "prepare:runtime": "node scripts/runtime.mjs",
     "dev": "node scripts/preview.mjs",
-    "check": "pnpm prepare:runtime && isle-app check",
-    "build": "pnpm prepare:runtime && isle-app build",
-    "test": "pnpm --filter @isle/app-host build && pnpm build && node --test test/*.test.mjs"
+    "check": "pnpm prepare:runtime && mewvis-app check",
+    "build": "pnpm prepare:runtime && mewvis-app build",
+    "test": "pnpm --filter @mewvis/app-host build && pnpm build && node --test test/*.test.mjs"
   },
   "dependencies": {
-    "@isle/app-sdk": "workspace:*",
+    "@mewvis/app-sdk": "workspace:*",
     "design-system": "workspace:*",
     "lucide-react": "^0.500.0",
     "react": "^19.1.0",
@@ -21,7 +21,7 @@
     "typescript": "~5.8.3"
   },
   "devDependencies": {
-    "@isle/app-dev": "workspace:*",
+    "@mewvis/app-dev": "workspace:*",
     "@types/node": "^22.0.0",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",

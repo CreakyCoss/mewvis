@@ -1,5 +1,5 @@
 {
-  "name": "@isle/agent-runtime-protocol",
+  "name": "@mewvis/agent-runtime-protocol",
   "private": true,
   "version": "1.0.0",
   "type": "module",

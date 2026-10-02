@@ -1,4 +1,4 @@
-import type { ActivityExecution } from "@isle/extension-host/services/activity";
+import type { ActivityExecution } from "@mewvis/extension-host/services/activity";
 import { randomUUID } from "node:crypto";
 import type { ChildProcessWithoutNullStreams } from "node:child_process";
 import type { RuntimeConfig } from "../../../config/runtime.js";

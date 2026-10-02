@@ -15,7 +15,7 @@ const servicePath = resolve(
     : "../../packages/app/host/dist/service.mjs",
 );
 const fixtureRoot = resolve(root, "../../packages/app/host/fixtures/dsh-portable-application");
-const tempDir = mkdtempSync(join(tmpdir(), "isle-app-ui-service-"));
+const tempDir = mkdtempSync(join(tmpdir(), "mewvis-app-ui-service-"));
 const child = spawn(process.execPath, [servicePath], {
   cwd: root,
   stdio: ["pipe", "pipe", "pipe"],
@@ -61,7 +61,7 @@ try {
     applications: [
       {
         kind: "dsh",
-        id: "@isle/fixture-dsh-portable-application",
+        id: "@mewvis/fixture-dsh-portable-application",
         name: "Portable DSH fixture",
         version: "0.0.0",
         description: "Application UI service fixture",
@@ -79,7 +79,7 @@ try {
   assert.equal(configured.applications[0].error, null);
   assert.deepEqual(
     configured.applications[0].tools.map((tool) => tool.name),
-    ["isle_dsh_echo"],
+    ["mewvis_dsh_echo"],
   );
   assert.deepEqual(configured.applications[0].ui, {
     kind: "sandbox",
@@ -95,33 +95,33 @@ try {
   assert.deepEqual(catalog, configured);
 
   const document = await request("uiDocument", {
-    applicationId: "@isle/fixture-dsh-portable-application",
+    applicationId: "@mewvis/fixture-dsh-portable-application",
   });
-  assert.match(document.script, /window\.isleApplication\.executeTool/);
+  assert.match(document.script, /window\.mewvisApplication\.executeTool/);
   assert.match(document.style, /max-width:\s*32rem/);
   assert.equal("entry" in configured.applications[0].ui, false, "UI 目录不得泄露沙箱入口路径。");
 
   const executed = await request("execute", {
-    applicationId: "@isle/fixture-dsh-portable-application",
-    toolName: "isle_dsh_echo",
+    applicationId: "@mewvis/fixture-dsh-portable-application",
+    toolName: "mewvis_dsh_echo",
     arguments: { message: "hello", prefix: "ui" },
   });
   assert.equal(executed.value, "ui:hello");
   assert.deepEqual(executed.content, [{ type: "text", text: "ui:hello" }]);
 
-  const owner = "@isle/fixture-dsh-portable-application";
-  const settingsFile = join(configuration.settingsPath, "@isle", "fixture-dsh-portable-application", "settings.yaml");
+  const owner = "@mewvis/fixture-dsh-portable-application";
+  const settingsFile = join(configuration.settingsPath, "@mewvis", "fixture-dsh-portable-application", "settings.yaml");
   assert.equal(await request("toolPolicy.get", { applicationId: owner }), null);
   const beforePolicy = loadYaml(readFileSync(settingsFile, "utf8"));
   await request("toolPolicy.set", { applicationId: owner, policy: { allowedToolNames: [] } });
   assert.deepEqual(await request("toolPolicy.get", { applicationId: owner }), { allowedToolNames: [] });
   const deniedDoc = loadYaml(readFileSync(settingsFile, "utf8"));
-  assert.deepEqual(deniedDoc["isle-fixture-portable"], beforePolicy["isle-fixture-portable"]);
-  assert.deepEqual(deniedDoc.$isleHost.tools, { allowedToolNames: [] });
+  assert.deepEqual(deniedDoc["mewvis-fixture-portable"], beforePolicy["mewvis-fixture-portable"]);
+  assert.deepEqual(deniedDoc.$mewvisHost.tools, { allowedToolNames: [] });
   await assert.rejects(
     request("execute", {
       applicationId: owner,
-      toolName: "isle_dsh_echo",
+      toolName: "mewvis_dsh_echo",
       arguments: { message: "blocked", prefix: "must-not-save" },
     }),
     /用户已禁用工具/,
@@ -133,23 +133,23 @@ try {
     "host restart retains revocation",
   );
   await assert.rejects(
-    request("execute", { applicationId: owner, toolName: "isle_dsh_echo", arguments: { message: "still blocked" } }),
+    request("execute", { applicationId: owner, toolName: "mewvis_dsh_echo", arguments: { message: "still blocked" } }),
     /用户已禁用工具/,
   );
-  await request("toolPolicy.set", { applicationId: owner, policy: { allowedToolNames: ["isle_dsh_echo", "read"] } });
+  await request("toolPolicy.set", { applicationId: owner, policy: { allowedToolNames: ["mewvis_dsh_echo", "read"] } });
   await Promise.all([
     request("execute", {
       applicationId: owner,
-      toolName: "isle_dsh_echo",
+      toolName: "mewvis_dsh_echo",
       arguments: { message: "ok", prefix: "after-policy" },
     }),
-    request("toolPolicy.set", { applicationId: owner, policy: { allowedToolNames: ["isle_dsh_echo"] } }),
+    request("toolPolicy.set", { applicationId: owner, policy: { allowedToolNames: ["mewvis_dsh_echo"] } }),
   ]);
   const updatedDoc = loadYaml(readFileSync(settingsFile, "utf8"));
-  assert.equal(updatedDoc["isle-fixture-portable"].prefix, "after-policy");
+  assert.equal(updatedDoc["mewvis-fixture-portable"].prefix, "after-policy");
   assert.deepEqual(
-    updatedDoc.$isleHost.tools.allowedToolNames,
-    ["isle_dsh_echo"],
+    updatedDoc.$mewvisHost.tools.allowedToolNames,
+    ["mewvis_dsh_echo"],
     "business writes preserve user grants",
   );
   await assert.rejects(
@@ -158,9 +158,9 @@ try {
   );
   await assert.rejects(request("toolPolicy.get", { applicationId: "another-application" }), /未启用或不存在/);
   const validSettings = readFileSync(settingsFile, "utf8");
-  writeFileSync(settingsFile, "$isleHost:\n  tools:\n    allowedToolNames: all\n");
+  writeFileSync(settingsFile, "$mewvisHost:\n  tools:\n    allowedToolNames: all\n");
   await assert.rejects(
-    request("execute", { applicationId: owner, toolName: "isle_dsh_echo", arguments: { message: "fail closed" } }),
+    request("execute", { applicationId: owner, toolName: "mewvis_dsh_echo", arguments: { message: "fail closed" } }),
     /配置无效/,
   );
   writeFileSync(settingsFile, validSettings);
@@ -179,7 +179,7 @@ try {
   );
   const badRisk = {
     ...configuration.applications[0],
-    kind: "isle",
+    kind: "mewvis",
     id: "bad-risk",
     packageRoot: badRiskRoot,
     entry: pathToFileURL(join(badRiskRoot, "index.js")).href,
@@ -201,7 +201,7 @@ try {
       (
         await request("execute", {
           applicationId: owner,
-          toolName: "isle_dsh_echo",
+          toolName: "mewvis_dsh_echo",
           arguments: { message: "after-bad-risk" },
         })
       ).value,
@@ -214,7 +214,7 @@ try {
   cpSync(fixtureRoot, legacyFixtureRoot, { recursive: true });
   const legacyManifestPath = join(legacyFixtureRoot, "package.json");
   const legacyManifest = JSON.parse(readFileSync(legacyManifestPath, "utf8"));
-  legacyManifest.isle.ui = { version: 1, kind: "host", renderer: "tool-workbench" };
+  legacyManifest.mewvis.ui = { version: 1, kind: "host", renderer: "tool-workbench" };
   writeFileSync(legacyManifestPath, `${JSON.stringify(legacyManifest, null, 2)}\n`);
 
   const legacyConfigured = await request("configure", {
@@ -222,7 +222,7 @@ try {
     applications: [
       {
         kind: "dsh",
-        id: "@isle/fixture-dsh-portable-application",
+        id: "@mewvis/fixture-dsh-portable-application",
         name: "Legacy host UI fixture",
         version: "0.0.0",
         description: "Legacy host renderer fixture",
@@ -235,13 +235,13 @@ try {
   });
   assert.equal(legacyConfigured.applications[0].error, null);
   assert.equal(legacyConfigured.applications[0].ui, null);
-  assert.match(legacyConfigured.applications[0].uiError, /isle\.ui\.kind 不受支持：host/);
+  assert.match(legacyConfigured.applications[0].uiError, /mewvis\.ui\.kind 不受支持：host/);
 
   const invalidFixtureRoot = join(tempDir, "invalid-ui-application");
   cpSync(fixtureRoot, invalidFixtureRoot, { recursive: true });
   const invalidManifestPath = join(invalidFixtureRoot, "package.json");
   const invalidManifest = JSON.parse(readFileSync(invalidManifestPath, "utf8"));
-  invalidManifest.isle.ui.entry = "../outside.js";
+  invalidManifest.mewvis.ui.entry = "../outside.js";
   invalidManifest.dsh.client = { platform: "web" };
   writeFileSync(invalidManifestPath, `${JSON.stringify(invalidManifest, null, 2)}\n`);
 
@@ -250,7 +250,7 @@ try {
     applications: [
       {
         kind: "dsh",
-        id: "@isle/fixture-dsh-portable-application",
+        id: "@mewvis/fixture-dsh-portable-application",
         name: "Invalid UI fixture",
         version: "0.0.0",
         description: "Invalid Application UI service fixture",
@@ -266,7 +266,7 @@ try {
   assert.match(invalidConfigured.applications[0].uiError, /必须是以 \.\/ 开头的包内相对路径/);
   assert.deepEqual(invalidConfigured.applications[0].compatibility, [{ adapter: "dsh", clientPlatform: "web" }]);
   await assert.rejects(
-    request("uiDocument", { applicationId: "@isle/fixture-dsh-portable-application" }),
+    request("uiDocument", { applicationId: "@mewvis/fixture-dsh-portable-application" }),
     /UI 声明无效/,
   );
 
@@ -282,7 +282,7 @@ try {
 
   const largeRoot = join(tempDir, "large-ui-application");
   cpSync(fixtureRoot, largeRoot, { recursive: true });
-  writeFileSync(join(largeRoot, "isle-ui.js"), `/*${"x".repeat(5 * 1024 * 1024)}*/`);
+  writeFileSync(join(largeRoot, "mewvis-ui.js"), `/*${"x".repeat(5 * 1024 * 1024)}*/`);
   writeFileSync(join(largeRoot, "index.js"), `
     export default { name: "large-response", inject: ["tools"], apply(ctx) {
       ctx.tools.register({ name: "large_response", description: "Response limit fixture", risk: "low",

@@ -1,6 +1,6 @@
 # 文档中心
 
-`@isle/docs-reader` 是内置中文文档阅读应用，默认启用；用户保存的禁用状态优先。正常构建应用后，在应用列表打开「文档中心」。
+`@mewvis/docs-reader` 是内置中文文档阅读应用，默认启用；用户保存的禁用状态优先。正常构建应用后，在应用列表打开「文档中心」。
 
 打开后占满常驻导航栏之外的应用工作区，不显示宿主应用详情栏或全屏切换按钮。导航栏和窗口顶部拖动区域始终保留。目录和正文各自在固定高度区域内滚动，始终保留滚动条轨道，内容超出时显示可拖动滑块。
 
@@ -18,9 +18,9 @@
 
 ## 工具与权限
 
-- `isle_docs_catalog`：返回章节和文档元数据。
-- `isle_docs_read`：按目录中的文档 ID 返回正文和页内目录。
-- `isle_docs_search`：按标题、路径与正文搜索，最多返回 30 项。
+- `mewvis_docs_catalog`：返回章节和文档元数据。
+- `mewvis_docs_read`：按目录中的文档 ID 返回正文和页内目录。
+- `mewvis_docs_search`：按标题、路径与正文搜索，最多返回 30 项。
 
 仅声明 `open-external`，用于用户点击外部 HTTP(S) 链接。宿主工具只访问已打包的不可变文档索引，不接受文件路径读取请求。
 
@@ -31,7 +31,7 @@
 ```sh
 pnpm docs:build
 pnpm docs:test
-pnpm --filter client app:pack -- ../applications/builtins/docs-reader --target isle
+pnpm --filter client app:pack -- ../applications/builtins/docs-reader --target mewvis
 ```
 
 内置应用打包脚本会自动重新生成 docs 索引，并按 `apps/applications/registry.json` 登记打包这个应用。单独打包前需先运行 `docs:build`。

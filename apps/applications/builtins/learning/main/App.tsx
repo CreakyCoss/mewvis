@@ -8,8 +8,8 @@ import {
   Plus,
   Upload,
 } from "lucide-react";
-import { getApplicationDataClient } from "@isle/app-sdk/data";
-import { getApplicationHost, writeClipboardText } from "@isle/app-sdk/browser";
+import { getApplicationDataClient } from "@mewvis/app-sdk/data";
+import { getApplicationHost, writeClipboardText } from "@mewvis/app-sdk/browser";
 import {
   createCourse,
   emptyProgress,
@@ -207,8 +207,8 @@ export default function App() {
     const update = () =>
       setTheme(getApplicationHost().getHost()?.theme ?? "light");
     update();
-    window.addEventListener("isle:theme", update);
-    return () => window.removeEventListener("isle:theme", update);
+    window.addEventListener("mewvis:theme", update);
+    return () => window.removeEventListener("mewvis:theme", update);
   }, []);
   const run = async (action: () => Promise<void>) => {
     if (lock.current) return;
@@ -349,7 +349,7 @@ export default function App() {
               <BookOpen size={30} strokeWidth={2.1} aria-hidden="true" />
             </span>
             <span>
-              学习工坊<small>ISLE LEARNING</small>
+              学习工坊<small>MEWVIS LEARNING</small>
             </span>
           </button>
           <div className="learn-nav-links">

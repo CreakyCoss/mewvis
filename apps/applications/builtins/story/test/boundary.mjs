@@ -41,7 +41,7 @@ const hostAssets = join(repo, "apps/client/src/assets");
 assert.equal(existsSync(join(app, "main/assets/avatars/cats")), false);
 assert.equal(walk(join(hostAssets, "avatars/cats")).length, 8);
 assert.equal(walk(join(app, "main/assets/avatars/portraits")).length, 40);
-assert.equal(walk(join(app, "main/assets/backgrounds")).length, 3);
+assert.equal(walk(join(app, "main/assets/backgrounds")).length, 8);
 assert.doesNotMatch(
   readFileSync(join(hostAssets, "avatars/index.ts"), "utf8"),
   /portraits|tavernAvatar/,

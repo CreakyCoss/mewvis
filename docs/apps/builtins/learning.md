@@ -1,7 +1,7 @@
 # 学习工坊
 
-`@isle/learning` 是独立的 Isle 内置应用，源码位于 `apps/applications/builtins/learning`。
-它使用公开的 `@isle/app-sdk` 聊天、数据和工作区接口，已登记在 `apps/applications/registry.json` 中，随内置应用构建打包；默认启用。
+`@mewvis/learning` 是独立的 Mewvis 内置应用，源码位于 `apps/applications/builtins/learning`。
+它使用公开的 `@mewvis/app-sdk` 聊天、数据和工作区接口，已登记在 `apps/applications/registry.json` 中，随内置应用构建打包；默认启用。
 
 ## 使用
 
@@ -59,7 +59,7 @@
 
 ## 存储与边界
 
-应用通过数据 SDK 写入自己的 `~/.isle-claw/apps/@isle/learning/storage.sqlite`；默认工作区位于同目录的 `workspace/`，生成、导师及评阅聊天位于该工作区的 `.isle-claw/chats/`。设置 `ISLE_SERVER_DATA_DIR` 时，根目录随之改变。无需 OpenMAIC 服务，也不写入宿主全局业务数据库。
+应用通过数据 SDK 写入自己的 `~/.mewvis/apps/@mewvis/learning/storage.sqlite`；默认工作区位于同目录的 `workspace/`，生成、导师及评阅聊天位于该工作区的 `.mewvis/chats/`。设置 `MEWVIS_SERVER_DATA_DIR` 时，根目录随之改变。无需 OpenMAIC 服务，也不写入宿主全局业务数据库。
 
 当前仍是小型文本课程，每门课程独立保存：已完成课程上限 180 KB，暂存课程上限 240 KB，低于桥接请求的 256 KiB 限制。数据库读取逐门进行。课程采用版本 2，保留稳定课时 ID 和多题型数据。首次打开此版本时，应用会清空学习工坊旧版本的全部业务存储（包括课程、进度、项目、导师会话引用及旧暂存记录），并删除该应用名下的历史聊天会话，然后写入数据版本标记。后续打开不会再次清空新数据；旧数据不迁移、不兼容。
 
@@ -80,9 +80,9 @@
 
 参考版本：THU-MAIC/OpenMAIC `ebf665f316372d6ee875bd50dac1e04662d5a519`。
 
-- 复用并适配 `lib/quiz/grading.ts`，位于应用的 `main/vendor/grading.ts`。保留精确选项匹配逻辑，支持单选、多选的精确答案匹配；简答单独通过 Isle Chat 评阅；MIT 版权与许可位于应用根目录 `LICENSE`，构建时一起分发。
-- 采用课程分场景、学习目标、讲解、测验相结合的产品结构。课程 JSON、大纲与分课任务、生成提示词、界面、存储和 Isle Chat 接入由本应用实现。分课流程参考 OpenMAIC 的两阶段生成设计，尚未引入 `@openmaic/generation` 运行时。
-- 没有引入 OpenMAIC 全站、Next.js 服务、生成 SDK 或完整课堂运行时。暂不包含 PPT 导入／编辑／导出、图片生成、语音、白板、生成式 HTML 实验和多人课堂；受控翻卡组件由 Isle 应用实现，PBL 仅参考角色、里程碑与交付物设计，实现文字实训，未迁移完整 PBL 运行时。
+- 复用并适配 `lib/quiz/grading.ts`，位于应用的 `main/vendor/grading.ts`。保留精确选项匹配逻辑，支持单选、多选的精确答案匹配；简答单独通过 Mewvis Chat 评阅；MIT 版权与许可位于应用根目录 `LICENSE`，构建时一起分发。
+- 采用课程分场景、学习目标、讲解、测验相结合的产品结构。课程 JSON、大纲与分课任务、生成提示词、界面、存储和 Mewvis Chat 接入由本应用实现。分课流程参考 OpenMAIC 的两阶段生成设计，尚未引入 `@openmaic/generation` 运行时。
+- 没有引入 OpenMAIC 全站、Next.js 服务、生成 SDK 或完整课堂运行时。暂不包含 PPT 导入／编辑／导出、图片生成、语音、白板、生成式 HTML 实验和多人课堂；受控翻卡组件由 Mewvis 应用实现，PBL 仅参考角色、里程碑与交付物设计，实现文字实训，未迁移完整 PBL 运行时。
 
 ## 开发与验证
 
@@ -91,14 +91,14 @@
 ```sh
 pnpm install
 pnpm --filter client build:chat-ui
-pnpm --filter @isle/learning dev --port 5178
-pnpm --filter @isle/learning build
-pnpm --filter @isle/learning test
+pnpm --filter @mewvis/learning dev --port 5178
+pnpm --filter @mewvis/learning build
+pnpm --filter @mewvis/learning test
 ```
 
-开发预览使用工具链提供的内存工作区和模拟聊天，顶部明确标示，刷新清空数据；模拟模型不会生成真实课程。AI 生成需要在实际 Isle 宿主中使用已配置模型验证。示例课程可完整体验阅读、测验和页面间进度恢复。
+开发预览使用工具链提供的内存工作区和模拟聊天，顶部明确标示，刷新清空数据；模拟模型不会生成真实课程。AI 生成需要在实际 Mewvis 宿主中使用已配置模型验证。示例课程可完整体验阅读、测验和页面间进度恢复。
 
-构建生成 `apps/applications/builtins/learning/dist/isle`，可作为 Isle 应用安装；`pnpm --filter @isle/builtin-applications build` 将其与其他内置应用一起打包。运行中的旧客户端需要重新构建／加载内置应用，单独构建本应用不会自动改动用户的安装目录。
+构建生成 `apps/applications/builtins/learning/dist/mewvis`，可作为 Mewvis 应用安装；`pnpm --filter @mewvis/builtin-applications build` 将其与其他内置应用一起打包。运行中的旧客户端需要重新构建／加载内置应用，单独构建本应用不会自动改动用户的安装目录。
 
 测试覆盖课程结构、大小限制、最新一轮生成完成判定、失败与截断输出、判分、作答历史与局部修改校验、进度恢复、旧数据一次性清理、存储失败、幂等保存，以及安装包权限、许可和大小。存储测试使用 SDK 同形的内存适配器验证应用逻辑，不替代宿主数据库或真实模型端到端测试。
 

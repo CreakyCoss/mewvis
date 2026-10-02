@@ -11,9 +11,9 @@ import resultSchemaJson from "../../protocol/v1/schema/result.schema.json" with 
 import {
   agentRuntimeJsonRpcMethods,
   agentRuntimeProtocolVersion,
-  type IsleAgentRuntimeJSONRPCNotification as JsonRpcNotification,
-  type IsleAgentRuntimeJSONRPCRequest as JsonRpcRequest,
-  type IsleAgentRuntimeJSONRPCResponse as JsonRpcResponse,
+  type MewvisAgentRuntimeJSONRPCNotification as JsonRpcNotification,
+  type MewvisAgentRuntimeJSONRPCRequest as JsonRpcRequest,
+  type MewvisAgentRuntimeJSONRPCResponse as JsonRpcResponse,
 } from "../engines/protocol/wire.js";
 import type { AgentRuntimeCommand } from "../engines/protocol/index.js";
 
@@ -25,11 +25,11 @@ type ParamsMode = "flat" | "input";
 
 type OpenRpcMethod = {
   name: string;
-  "x-isle-command"?: {
+  "x-mewvis-command"?: {
     type: string;
     paramsMode: ParamsMode;
   };
-  "x-isle-params-schema"?: string;
+  "x-mewvis-params-schema"?: string;
 };
 
 type OpenRpcDocument = {
@@ -51,14 +51,14 @@ const requestSchemaNameByMethod = new Map(
 
 const commandMethods = new Map(
   openRpcDocument.methods.flatMap((method) => {
-    const command = method["x-isle-command"];
+    const command = method["x-mewvis-command"];
     if (!command) return [];
     return [
       [
         method.name,
         {
           ...command,
-          paramsSchemaName: method["x-isle-params-schema"]?.split("#/definitions/")[1] ?? null,
+          paramsSchemaName: method["x-mewvis-params-schema"]?.split("#/definitions/")[1] ?? null,
           requestSchemaName: requestSchemaNameByMethod.get(method.name) ?? null,
         },
       ] as const,

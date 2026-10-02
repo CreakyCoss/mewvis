@@ -733,7 +733,7 @@ pub struct AgentRuntimeApplication {
 pub enum AgentRuntimeApplicationKind {
     Dsh,
 
-    Isle,
+    Mewvis,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

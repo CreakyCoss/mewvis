@@ -15,7 +15,7 @@ test("Windows ARM64 resolves the bundled DLL from resources or the development r
   assert.equal(
     sqliteVecPath("win32", "arm64"),
     join(
-      process.env.ISLE_SERVER_RESOURCES ??
+      process.env.MEWVIS_SERVER_RESOURCES ??
         fileURLToPath(new URL("../../../agent-runtime/dist/", import.meta.url)),
       "server/native/vec0.dll",
     ),

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getApplicationChatClient, type ApplicationChatOpenInput, type ApplicationChatSession } from "@isle/app-sdk/chat";
+import { getApplicationChatClient, type ApplicationChatOpenInput, type ApplicationChatSession } from "@mewvis/app-sdk/chat";
 
 /** The transport and shared client are supplied once by the sandbox host. */
 export function useApplicationChatSession(input: ApplicationChatOpenInput | null) {

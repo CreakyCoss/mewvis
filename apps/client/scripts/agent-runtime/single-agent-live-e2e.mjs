@@ -7,8 +7,8 @@ import { runtimePayloadFromJsonRpcMessage, writeAgentRuntimeCommand } from "./st
 
 const workspaceRoot = process.cwd();
 const runtimePath = join(workspaceRoot, "../agent-runtime/dist", entries.cli.output);
-const configDbPath = process.env.ISLE_CLAW_CONFIG_DB?.trim() || join(homedir(), ".isle-claw", "config.db");
-const workspacePath = mkdtempSync(join(tmpdir(), "isle-claw-runtime-live-e2e-"));
+const configDbPath = process.env.MEWVIS_CONFIG_DB?.trim() || join(homedir(), ".mewvis", "config.db");
+const workspacePath = mkdtempSync(join(tmpdir(), "mewvis-runtime-live-e2e-"));
 const sessionRootDir = join(workspacePath, "standalone-session-store", "chats", "live-e2e-session", "session");
 const sessionDirPath = sessionRootDir;
 const ledgerPath = join(sessionDirPath, "ledger.jsonl");
@@ -21,7 +21,7 @@ const LIVE_MODEL_TEMPLATE = Object.freeze({
   modelId: "MiniMax-M3-highspeed",
   apiEndpoint: "https://api.minimaxi.com/anthropic",
   reasoning: true,
-  thinkingLevel: process.env.ISLE_CLAW_LIVE_THINKING?.trim() || undefined,
+  thinkingLevel: process.env.MEWVIS_LIVE_THINKING?.trim() || undefined,
   input: ["text", "image"],
   cost: {
     input: 0.6,
@@ -33,11 +33,11 @@ const LIVE_MODEL_TEMPLATE = Object.freeze({
   maxTokens: 128_000,
 });
 
-const LIVE_TIMEOUT_MS = Number(process.env.ISLE_CLAW_LIVE_TIMEOUT_MS ?? 30 * 60 * 1000);
-const CHAT_TIMEOUT_MS = Number(process.env.ISLE_CLAW_LIVE_CHAT_TIMEOUT_MS ?? 10 * 60 * 1000);
-const AGENT_TIMEOUT_MS = Number(process.env.ISLE_CLAW_LIVE_AGENT_TIMEOUT_MS ?? 30 * 60 * 1000);
-const COMPACT_TIMEOUT_MS = Number(process.env.ISLE_CLAW_LIVE_COMPACT_TIMEOUT_MS ?? 30 * 60 * 1000);
-const STRESS_TURNS = Number(process.env.ISLE_CLAW_LIVE_STRESS_TURNS ?? 3);
+const LIVE_TIMEOUT_MS = Number(process.env.MEWVIS_LIVE_TIMEOUT_MS ?? 30 * 60 * 1000);
+const CHAT_TIMEOUT_MS = Number(process.env.MEWVIS_LIVE_CHAT_TIMEOUT_MS ?? 10 * 60 * 1000);
+const AGENT_TIMEOUT_MS = Number(process.env.MEWVIS_LIVE_AGENT_TIMEOUT_MS ?? 30 * 60 * 1000);
+const COMPACT_TIMEOUT_MS = Number(process.env.MEWVIS_LIVE_COMPACT_TIMEOUT_MS ?? 30 * 60 * 1000);
+const STRESS_TURNS = Number(process.env.MEWVIS_LIVE_STRESS_TURNS ?? 3);
 
 if (!existsSync(runtimePath)) {
   throw new Error(`${runtimePath} 不存在，请先运行 pnpm build:agent-runtime`);
@@ -85,7 +85,7 @@ const loadMiniMaxRuntimeModel = () => {
     stdio: ["ignore", "pipe", "pipe"],
   });
   const [row] = JSON.parse(output || "[]");
-  assert(row, "未在 ~/.isle-claw/config.db 中找到 MiniMax-M3-highspeed 配置");
+  assert(row, "未在 ~/.mewvis/config.db 中找到 MiniMax-M3-highspeed 配置");
   assert(row.apiKey?.trim(), "MiniMax-M3-highspeed provider 未配置 API Key", row);
 
   return {
@@ -225,7 +225,7 @@ const cleanup = async () => {
   await new Promise((resolve) => {
     runtime.once("close", resolve);
   });
-  if (process.env.ISLE_CLAW_KEEP_LIVE_E2E_WORKSPACE !== "1") {
+  if (process.env.MEWVIS_KEEP_LIVE_E2E_WORKSPACE !== "1") {
     rmSync(workspacePath, { recursive: true, force: true });
   }
 };
@@ -729,7 +729,7 @@ try {
       ledgerLines: finalLedger.entries.length + 1,
     },
     autoAnsweredQuestions: autoAnsweredQuestions.length,
-    workspacePath: process.env.ISLE_CLAW_KEEP_LIVE_E2E_WORKSPACE === "1" ? workspacePath : "<removed>",
+    workspacePath: process.env.MEWVIS_KEEP_LIVE_E2E_WORKSPACE === "1" ? workspacePath : "<removed>",
   };
 
   await shutdown();

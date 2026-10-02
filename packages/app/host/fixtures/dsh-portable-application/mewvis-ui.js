@@ -14,7 +14,7 @@ const output = document.querySelector("output");
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
   const data = new FormData(form);
-  const result = await window.isleApplication.executeTool("isle_dsh_echo", {
+  const result = await window.mewvisApplication.executeTool("mewvis_dsh_echo", {
     message: String(data.get("message") || ""),
     prefix: "ui",
   });

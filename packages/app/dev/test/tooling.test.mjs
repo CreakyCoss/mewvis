@@ -23,14 +23,14 @@ import { checkApplication } from "../src/check.mjs";
 import { createDevHost, toolMiddleware } from "../src/dev-host.mjs";
 import { createDevServer } from "../src/dev.mjs";
 import { createPreviewChat } from "../dist/chat-host.js";
-import { createApplicationChatClient } from "@isle/app-sdk/chat";
-import { createApplicationDataClient } from "@isle/app-sdk/data";
+import { createApplicationChatClient } from "@mewvis/app-sdk/chat";
+import { createApplicationDataClient } from "@mewvis/app-sdk/data";
 
 let temporary, source;
 const toolName = "example_scaffold_inspect_text";
 const skillName = "example-scaffold-text-inspection";
 before(async () => {
-  temporary = await mkdtemp(join(tmpdir(), "isle-react-scaffold-"));
+  temporary = await mkdtemp(join(tmpdir(), "mewvis-react-scaffold-"));
   source = join(temporary, "my-application");
   await createApplication({
     destination: source,
@@ -52,7 +52,7 @@ after(async () => {
   if (temporary) await rm(temporary, { recursive: true, force: true });
 });
 
-test("native applications require isle.app and never infer legacy or extension entries", async () => {
+test("native applications require mewvis.app and never infer legacy or extension entries", async () => {
   const directory = join(temporary, "native-application-contract");
   await createApplication({
     destination: directory,
@@ -62,20 +62,20 @@ test("native applications require isle.app and never infer legacy or extension e
   const path = join(directory, "package.json");
   const manifest = JSON.parse(await readFile(path, "utf8"));
   await validateApplication(directory);
-  const entry = manifest.isle.app;
-  delete manifest.isle.app;
+  const entry = manifest.mewvis.app;
+  delete manifest.mewvis.app;
   for (const unsupported of ["plugin", "extension"]) {
-    manifest.isle[unsupported] = entry;
+    manifest.mewvis[unsupported] = entry;
     await writeFile(path, JSON.stringify(manifest));
     await assert.rejects(
       validateApplication(directory),
-      /缺少 isle\.app 原生入口声明/,
+      /缺少 mewvis\.app 原生入口声明/,
     );
-    delete manifest.isle[unsupported];
+    delete manifest.mewvis[unsupported];
   }
 });
 
-test("React scaffold checks and builds outside the Isle repository", async () => {
+test("React scaffold checks and builds outside the Mewvis repository", async () => {
   const readme = await readFile(join(source, "README.md"), "utf8");
   assert.match(readme, /请使用 example-scaffold-text-inspection 技能/);
   assert.doesNotMatch(
@@ -87,17 +87,17 @@ test("React scaffold checks and builds outside the Isle repository", async () =>
     source,
     quiet: true,
   });
-  assert.equal(manifest.isle.ui.entry, "./isle-ui.js");
-  assert.deepEqual(manifest.isle.agentAccess.filesystem.read, [
+  assert.equal(manifest.mewvis.ui.entry, "./mewvis-ui.js");
+  assert.deepEqual(manifest.mewvis.agentAccess.filesystem.read, [
     { base: "workspace" },
   ]);
-  assert.deepEqual(manifest.isle.agentAccess.filesystem.write, [
+  assert.deepEqual(manifest.mewvis.agentAccess.filesystem.write, [
     { base: "workspace" },
   ]);
   assert.equal(manifest.dependencies, undefined);
-  const ui = await readFile(join(outputRoot, "isle-ui.js"), "utf8");
-  assert.match(ui, /isle-app-root/);
-  assert.match(ui, /isleApplicationChatUI/);
+  const ui = await readFile(join(outputRoot, "mewvis-ui.js"), "utf8");
+  assert.match(ui, /mewvis-app-root/);
+  assert.match(ui, /mewvisApplicationChatUI/);
   assert.doesNotMatch(ui, /node:crypto|createHash/);
   const host = await import(pathToFileURL(join(outputRoot, "index.js")).href);
   const registered = [];
@@ -110,13 +110,13 @@ test("React scaffold checks and builds outside the Isle repository", async () =>
   assert.equal(skills[0].source, "bundled");
   assert.match(skills[0].content, new RegExp(toolName));
   assert.doesNotMatch(ui, /不要自行编造字符数/);
-  const result = await registered[0].execute({ text: "Isle 👋" });
+  const result = await registered[0].execute({ text: "Mewvis 👋" });
   assert.equal(registered[0].risk, "low");
   assert.equal(
     result.sha256,
-    createHash("sha256").update("Isle 👋").digest("hex"),
+    createHash("sha256").update("Mewvis 👋").digest("hex"),
   );
-  assert.equal(result.bytes, 9);
+  assert.equal(result.bytes, 11);
   assert.equal(result.runtime, "node");
   await assert.rejects(
     packApplication({ source, target: "dsh", quiet: true }),
@@ -131,19 +131,19 @@ test("React scaffold checks and builds outside the Isle repository", async () =>
 
 test("React application UI is packaged without configurable layouts", async () => {
   const { manifest } = await packApplication({ source, quiet: true });
-  assert.equal(manifest.isle.ui.kind, "sandbox");
-  assert.equal(Object.hasOwn(manifest.isle.ui, "layout"), false);
+  assert.equal(manifest.mewvis.ui.kind, "sandbox");
+  assert.equal(Object.hasOwn(manifest.mewvis.ui, "layout"), false);
 });
 
 test("embedded-views is declared in the built manifest and its browser SDK bundles outside the repository", async () => {
-  const configFile = join(source, "isle.config.ts");
+  const configFile = join(source, "mewvis.config.ts");
   const appFile = join(source, "main/App.tsx");
   const originalConfig = await readFile(configFile, "utf8");
   const originalApp = await readFile(appFile, "utf8");
   try {
     await writeFile(configFile, 'export default { displayName: "View owner", permissions: ["embedded-views"] };');
     await writeFile(appFile, `import { useEffect, useRef } from "react";
-import { mountApplicationView } from "@isle/app-sdk/views";
+import { mountApplicationView } from "@mewvis/app-sdk/views";
 export default function App() {
   const container = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -154,8 +154,8 @@ export default function App() {
 }`);
     await checkApplication(source);
     const result = await packApplication({ source, quiet: true });
-    assert.deepEqual(result.manifest.isle.permissions, ["embedded-views"]);
-    assert.match(await readFile(join(result.outputRoot, "isle-ui.js"), "utf8"), /embedded-views/);
+    assert.deepEqual(result.manifest.mewvis.permissions, ["embedded-views"]);
+    assert.match(await readFile(join(result.outputRoot, "mewvis-ui.js"), "utf8"), /embedded-views/);
   } finally {
     await writeFile(configFile, originalConfig);
     await writeFile(appFile, originalApp);
@@ -163,12 +163,12 @@ export default function App() {
 });
 
 test("a full host entry captures the existing application workspace context", async () => {
-  const configFile = join(source, "isle.config.ts");
+  const configFile = join(source, "mewvis.config.ts");
   const entryFile = join(source, "main/host/index.ts");
   const original = await readFile(configFile, "utf8");
   const dev = createDevHost({ hostEntry: entryFile });
   try {
-    await writeFile(entryFile, `import { defineApplication, defineTool } from "@isle/app-sdk";
+    await writeFile(entryFile, `import { defineApplication, defineTool } from "@mewvis/app-sdk";
 export default defineApplication({
   name: "@example/scaffold", inject: ["tools", "workspaces"],
   apply(ctx) {
@@ -205,7 +205,7 @@ export default defineApplication({
 });
 
 test("agentAccess uses the protocol schema and rejects typos or invalid ranges before packaging", async () => {
-  const file = join(source, "isle.config.ts");
+  const file = join(source, "mewvis.config.ts");
   const original = await readFile(file, "utf8");
   try {
     for (const agentAccess of [
@@ -226,9 +226,9 @@ test("agentAccess uses the protocol schema and rejects typos or invalid ranges b
 });
 
 test("SDK browser entry reports a missing bridge and preserves host errors", async () => {
-  const { getApplicationHost } = await import("@isle/app-sdk/browser");
+  const { getApplicationHost } = await import("@mewvis/app-sdk/browser");
   assert.throws(getApplicationHost, /未连接/);
-  globalThis.isleApplication = {
+  globalThis.mewvisApplication = {
     version: 1,
     executeTool: async () => {
       throw new Error("permission denied");
@@ -240,12 +240,12 @@ test("SDK browser entry reports a missing bridge and preserves host errors", asy
       /permission denied/,
     );
   } finally {
-    delete globalThis.isleApplication;
+    delete globalThis.mewvisApplication;
   }
 });
 
-test("skills-only hosts build for Isle and DSH and reload definitions without tool access", async () => {
-  const configFile = join(source, "isle.config.ts");
+test("skills-only hosts build for Mewvis and DSH and reload definitions without tool access", async () => {
+  const configFile = join(source, "mewvis.config.ts");
   const skillsEntry = join(source, "main/host/skills.ts");
   const config = await readFile(configFile, "utf8");
   const original = await readFile(skillsEntry, "utf8");
@@ -256,7 +256,7 @@ test("skills-only hosts build for Isle and DSH and reload definitions without to
       'export default { displayName: "Skills only", permissions: [], ui: false, host: { skills: "./main/host/skills.ts" } };',
     );
     await checkApplication(source);
-    for (const target of ["isle", "dsh"]) {
+    for (const target of ["mewvis", "dsh"]) {
       const { outputRoot } = await packApplication({
         source,
         target,
@@ -299,7 +299,7 @@ test("skills-only hosts build for Isle and DSH and reload definitions without to
 });
 
 test("skill validation rejects invalid definitions and paths before replacing a build", async () => {
-  const configFile = join(source, "isle.config.ts");
+  const configFile = join(source, "mewvis.config.ts");
   const skillsFile = join(source, "main/host/skills.ts");
   const appFile = join(source, "main/App.tsx");
   const [config, skills, app] = await Promise.all(
@@ -415,7 +415,7 @@ test("ordinary React JSON and image imports typecheck and embed in the sandbox b
     await checkApplication(source);
     const { outputRoot } = await packApplication({ source, quiet: true });
     assert.match(
-      await readFile(join(outputRoot, "isle-ui.js"), "utf8"),
+      await readFile(join(outputRoot, "mewvis-ui.js"), "utf8"),
       /data:image\/svg/,
     );
   } finally {
@@ -431,8 +431,8 @@ test("Node development tools enforce schema, ownership, timeout and reload", asy
   const runtime = createDevHost({ toolsEntry: toolsFile }, 1500);
   try {
     assert.equal((await runtime.describe()).tools[0].name, toolName);
-    const result = await runtime.execute(toolName, { text: "Isle 👋" });
-    assert.equal(result.value.bytes, 9);
+    const result = await runtime.execute(toolName, { text: "Mewvis 👋" });
+    assert.equal(result.value.bytes, 11);
     assert.equal(result.value.sha256.length, 64);
     await assert.rejects(runtime.execute(toolName, {}), /text/);
     await assert.rejects(runtime.execute(toolName, { text: "" }), /characters/);
@@ -484,7 +484,7 @@ test("HTTP tool bridge rejects unauthenticated and oversized requests without op
     req.method = method;
     req.headers = {
       "content-type": "application/json",
-      "x-isle-dev-token": token,
+      "x-mewvis-dev-token": token,
     };
     let data;
     const res = {
@@ -544,7 +544,7 @@ test("browser code cannot import a host module, even one using browser-compatibl
 });
 
 test("plain React and host-only projects need no chat permission; duplicate metadata is rejected", async () => {
-  const configFile = join(source, "isle.config.ts"),
+  const configFile = join(source, "mewvis.config.ts"),
     appFile = join(source, "main/App.tsx"),
     pkgFile = join(source, "package.json");
   const originals = await Promise.all(
@@ -562,8 +562,8 @@ test("plain React and host-only projects need no chat permission; duplicate meta
     await checkApplication(source);
     const result = await packApplication({ source, quiet: true });
     assert.doesNotMatch(
-      await readFile(join(result.outputRoot, "isle-ui.js"), "utf8"),
-      /isleApplicationChatUI/,
+      await readFile(join(result.outputRoot, "mewvis-ui.js"), "utf8"),
+      /mewvisApplicationChatUI/,
     );
     await writeFile(
       configFile,
@@ -574,10 +574,10 @@ test("plain React and host-only projects need no chat permission; duplicate meta
       target: "dsh",
       quiet: true,
     });
-    assert.equal(portable.manifest.isle.ui, undefined);
+    assert.equal(portable.manifest.mewvis.ui, undefined);
     assert.equal(portable.manifest.dsh.bundle.patch, "./cordis.patch.yml");
     const manifest = JSON.parse(originals[2]);
-    manifest.isle = {};
+    manifest.mewvis = {};
     await writeFile(pkgFile, JSON.stringify(manifest));
     await assert.rejects(validateApplication(source), /重复声明/);
   } finally {
@@ -593,14 +593,14 @@ test("Vite generates the HTML and React entry in middleware mode without startin
   const server = await createDevServer(source, { middlewareMode: true });
   try {
     assert.equal(server.httpServer, null);
-    const entry = await server.transformRequest("virtual:isle-app-entry");
+    const entry = await server.transformRequest("virtual:mewvis-app-entry");
     assert.match(entry.code, /mountPreview/);
     assert.match(entry.code, /main\/App.tsx/);
     const app = await server.transformRequest("/main/App.tsx");
     assert.match(app.code, /jsxDEV/);
     const html = await server.transformIndexHtml(
       "/",
-      '<html><body><script type="module" src="/@id/virtual:isle-app-entry"></script></body></html>',
+      '<html><body><script type="module" src="/@id/virtual:mewvis-app-entry"></script></body></html>',
     );
 
     assert.match(html, /@vite\/client/);
@@ -688,7 +688,7 @@ test("preview data uses declared permissions and virtual workspaces that Chat ca
     assert.equal("listWorkspaces" in chat, false);
     await assert.rejects(
       host.transport.request({ method: "workspaces" }),
-      /@isle\/app-sdk\/data/,
+      /@mewvis\/app-sdk\/data/,
     );
     await assert.rejects(deniedChat.listSessions({ workspaceId: "preview" }), {
       code: "PERMISSION_DENIED",

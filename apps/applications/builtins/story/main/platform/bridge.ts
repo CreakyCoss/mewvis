@@ -1,8 +1,8 @@
-import { getApplicationHost } from "@isle/app-sdk/browser";
+import { getApplicationHost } from "@mewvis/app-sdk/browser";
 import {
   getApplicationDataClient,
   type ApplicationWorkspace,
-} from "@isle/app-sdk/data";
+} from "@mewvis/app-sdk/data";
 
 let running = 0;
 const queue: Array<() => void> = [];

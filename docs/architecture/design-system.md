@@ -40,7 +40,7 @@ Mewvis 是一个需要长时间停留的 AI 创作工作台。界面采用“冷
 
 浅色与暗色必须同时使用语义变量，不在内容组件里写 `bg-white`、`bg-black/*` 或页面私有灰色；浮层遮罩使用 `bg-overlay/45`。分类颜色不借用成功或警告语义，改用 `chart-*`。
 
-应用 iframe 由宿主注入 `tokens.css` 作为默认值，并在 `host:init`、`host:theme` 中传递宿主已解析的 `themeTokens`，自动应用到 iframe 根节点。宿主根节点的 `class`、`style`、`data-theme` 变化都会同步，因此仅修改主色也能更新已打开的应用，无需应用各自维护深浅两套颜色。原有 `isle:theme` 事件仍以浅色/深色字符串为 detail。普通 CSS 应用直接使用 `var(--primary)` 等变量；应用内不要覆盖共享语义变量为固定颜色。
+应用 iframe 由宿主注入 `tokens.css` 作为默认值，并在 `host:init`、`host:theme` 中传递宿主已解析的 `themeTokens`，自动应用到 iframe 根节点。宿主根节点的 `class`、`style`、`data-theme` 变化都会同步，因此仅修改主色也能更新已打开的应用，无需应用各自维护深浅两套颜色。原有 `mewvis:theme` 事件仍以浅色/深色字符串为 detail。普通 CSS 应用直接使用 `var(--primary)` 等变量；应用内不要覆盖共享语义变量为固定颜色。
 
 本轮统一范围包括应用管理/市场、聊天任务与文件状态、共享浮层与提示、故事通用场景、文档中心、RSS、学习工坊和调试台。森林、赛博、武侠等明确的场景主题，以及办公室和学习首页插画保留独立艺术配色。
 

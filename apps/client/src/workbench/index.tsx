@@ -5,8 +5,8 @@ import { AppChatIntegration } from "@/workbench/shell/chat-integration";
 import { HashRouter } from "react-router";
 import { StartupGate } from "@/workbench/shell/startup";
 import { AppRoutes } from "@/workbench/routes";
-import { DialogSlot } from "@isle/extension-host/ui/slots/dialog";
-import { PluginUIProvider } from "@isle/extension-host/ui/react";
+import { DialogSlot } from "@mewvis/extension-host/ui/slots/dialog";
+import { PluginUIProvider } from "@mewvis/extension-host/ui/react";
 import { extensionUICatalog, extensionViewTransport } from "@/api/extensions";
 
 const executionSource = createChatExecutionSource(chatService);

@@ -1,5 +1,5 @@
 {
-  "name": "@isle/server",
+  "name": "@mewvis/server",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -7,16 +7,16 @@
     "node": ">=22.13.0"
   },
   "scripts": {
-    "build": "pnpm --filter @isle/extension-host build && node scripts/build.mjs",
+    "build": "pnpm --filter @mewvis/extension-host build && node scripts/build.mjs",
     "start": "node dist/cli.js",
     "dev": "pnpm build && node dist/cli.js",
     "test": "pnpm build && node scripts/test.mjs",
     "test:runtime": "pnpm build && node --test test/integration/runtime.e2e.mjs",
-    "test:extensions": "pnpm --filter @isle/agent-runtime build && pnpm build && node --test test/integration/extensions.e2e.mjs test/integration/extension-summary.e2e.mjs test/integration/extension-collaboration.e2e.mjs test/integration/extension-decisions.e2e.mjs",
+    "test:extensions": "pnpm --filter @mewvis/agent-runtime build && pnpm build && node --test test/integration/extensions.e2e.mjs test/integration/extension-summary.e2e.mjs test/integration/extension-collaboration.e2e.mjs test/integration/extension-decisions.e2e.mjs",
     "test:interop": "pnpm build && node scripts/test-interop.mjs"
   },
   "dependencies": {
-    "@isle/extension-host": "workspace:*",
+    "@mewvis/extension-host": "workspace:*",
     "ajv": "^8.20.0",
     "fs-native-extensions": "1.5.1",
     "sqlite-vec": "0.1.9",

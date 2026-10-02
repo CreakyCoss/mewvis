@@ -1,5 +1,5 @@
 {
-  "name": "@isle/extension-sdk",
+  "name": "@mewvis/extension-sdk",
   "version": "0.1.0",
   "private": true,
   "type": "module",

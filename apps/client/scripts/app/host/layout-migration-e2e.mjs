@@ -6,9 +6,9 @@ import { dirname, join, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { pathToFileURL } from "node:url";
 import { load } from "js-yaml";
-import { dshBundleCompatibilityPlugin } from "@isle/app-dev/dsh";
+import { dshBundleCompatibilityPlugin } from "@mewvis/app-dev/dsh";
 
-const temp = await realpath(await mkdtemp(join(tmpdir(), "isle-app-layout-")));
+const temp = await realpath(await mkdtemp(join(tmpdir(), "mewvis-app-layout-")));
 const put = async (path, value) => {
   await mkdir(dirname(path), { recursive: true });
   await writeFile(path, value);
@@ -50,7 +50,7 @@ try {
     pathToFileURL(bundle)
   );
   for (const [id, name] of [
-    ["@isle/chat-playground", "@isle/chat-playground"],
+    ["@mewvis/chat-playground", "@mewvis/chat-playground"],
     ["dsh-rss", "dsh-rss"],
     ["../data", "%2e%2e%2fdata"],
     ["data", "%64ata"],
@@ -59,7 +59,7 @@ try {
     assert.equal(applicationDirectory(temp, id), join(temp, name));
   }
   const root = join(temp, "apps"),
-    owner = "@isle/chat-playground";
+    owner = "@mewvis/chat-playground";
   const old = legacyApplicationDirectory(root, owner),
     next = applicationDirectory(root, owner);
   const external = join(temp, "external"),
@@ -72,8 +72,8 @@ try {
     applications: [owner, "other"],
     extra: { preserved: true },
   });
-  await put(join(oldWorkspace, ".isle/workspace.json"), marker);
-  await put(join(oldWorkspace, ".isle-claw/chats/chat-1/messages.json"), '[{"text":"original"}]');
+  await put(join(oldWorkspace, ".mewvis/workspace.json"), marker);
+  await put(join(oldWorkspace, ".mewvis/chats/chat-1/messages.json"), '[{"text":"original"}]');
   await put(join(external, "keep.txt"), "external");
   await mkdir(shared, { recursive: true });
   database(join(old, "storage.sqlite"), [
@@ -93,7 +93,7 @@ try {
     "CREATE TRIGGER blocked BEFORE UPDATE ON application_workspaces BEGIN SELECT RAISE(FAIL, 'fixture interruption'); END",
   );
   blocker.close();
-  await assert.rejects(migrateApplicationLayout(root, [owner, "@isle/rss-reader"]), /fixture interruption/);
+  await assert.rejects(migrateApplicationLayout(root, [owner, "@mewvis/rss-reader"]), /fixture interruption/);
   assert.equal((await stat(join(root, ".layout-migration.json"))).isFile(), true);
   assert.equal(
     await readFile(join(root, "settings.yaml"), "utf8"),
@@ -103,7 +103,7 @@ try {
   const unblock = new DatabaseSync(join(shared, "storage.sqlite"));
   unblock.exec("DROP TRIGGER blocked");
   unblock.close();
-  await migrateApplicationLayout(root, [owner, "@isle/rss-reader"]);
+  await migrateApplicationLayout(root, [owner, "@mewvis/rss-reader"]);
   for (const name of [
     "data",
     "packages",
@@ -113,9 +113,9 @@ try {
     ".layout-migration.json",
   ])
     await missing(join(root, name));
-  assert.equal(await readFile(join(workspace, ".isle/workspace.json"), "utf8"), marker);
+  assert.equal(await readFile(join(workspace, ".mewvis/workspace.json"), "utf8"), marker);
   assert.equal(
-    await readFile(join(workspace, ".isle-claw/chats/chat-1/messages.json"), "utf8"),
+    await readFile(join(workspace, ".mewvis/chats/chat-1/messages.json"), "utf8"),
     '[{"text":"original"}]',
   );
   await missing(join(next, "data"));
@@ -132,13 +132,13 @@ try {
       assert.equal(db.prepare("SELECT path FROM application_workspaces WHERE id='external-id'").get().path, external);
     db.close();
   }
-  const settings = join(root, "@isle/rss-reader/settings.yaml");
+  const settings = join(root, "@mewvis/rss-reader/settings.yaml");
   assert.deepEqual(load(await readFile(settings, "utf8")), {
-    $isleApplicationSettings: 1,
+    $mewvisApplicationSettings: 1,
     "dsh-rss": { $version: 1, feeds: ["current"] },
   });
   const before = (await stat(settings)).mtimeMs;
-  await migrateApplicationLayout(root, [owner, "@isle/rss-reader"]);
+  await migrateApplicationLayout(root, [owner, "@mewvis/rss-reader"]);
   assert.equal((await stat(settings)).mtimeMs, before, "repeated startup leaves migrated configuration untouched");
 
   const conflict = join(temp, "conflict");
@@ -155,7 +155,7 @@ try {
   // Settings with the same logical namespace are physically isolated by application identity.
   const isolated = join(temp, "isolated");
   for (const id of ["one", "two"])
-    await put(join(isolated, id, "settings.yaml"), `$isleApplicationSettings: 1\nshared:\n  value: ${id}\n`);
+    await put(join(isolated, id, "settings.yaml"), `$mewvisApplicationSettings: 1\nshared:\n  value: ${id}\n`);
   const host = await CordisApplicationHost.create({ applicationSettingsRoot: isolated });
   const providers = [];
   try {

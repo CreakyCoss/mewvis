@@ -12,15 +12,15 @@ import {
   Wallet,
   X,
 } from "lucide-react";
-import { getApplicationDataClient } from "@isle/app-sdk/data";
+import { getApplicationDataClient } from "@mewvis/app-sdk/data";
 import {
   getApplicationHost,
   type ApplicationHeaderHost,
-} from "@isle/app-sdk/browser";
+} from "@mewvis/app-sdk/browser";
 import {
   mountApplicationView,
   type ApplicationViewValue,
-} from "@isle/app-sdk/views";
+} from "@mewvis/app-sdk/views";
 import type { BuildArtifact, ProjectSummary } from "./contracts";
 import { errorText } from "./api";
 import { previewInteractionGuard } from "./preview";

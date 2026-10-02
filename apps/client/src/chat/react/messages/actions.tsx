@@ -1,4 +1,4 @@
-import { writeClipboardText } from "@isle/app-sdk/browser";
+import { writeClipboardText } from "@mewvis/app-sdk/browser";
 import { useEffect, useState } from "react";
 import { CheckIcon, CopyIcon } from "lucide-react";
 import { Button } from "design-system/components/ui/button";

@@ -37,7 +37,7 @@ const parseSkill = async (directory) => {
   ) {
     throw new Error(`技能名称、目录或描述无效：${directory}`);
   }
-  const privateTool = meta.metadata?.["isle-claw"]?.["required-private-tool"];
+  const privateTool = meta.metadata?.["mewvis"]?.["required-private-tool"];
   if (typeof privateTool !== "string" || !privateTool.trim())
     throw new Error(`技能未声明 required-private-tool：${name}`);
   const body = source.slice(block[0].length).trim();
@@ -62,8 +62,8 @@ const parseSkill = async (directory) => {
     tools: [
       ...new Set([
         privateTool,
-        "isle_story_skill",
-        "isle_story_skill_resource",
+        "mewvis_story_skill",
+        "mewvis_story_skill_resource",
       ]),
     ],
     skills: [

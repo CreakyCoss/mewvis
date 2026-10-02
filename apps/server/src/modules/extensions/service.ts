@@ -1,15 +1,15 @@
-import { PluginError } from "@isle/extension-host/services/error";
+import { PluginError } from "@mewvis/extension-host/services/error";
 import { join } from "node:path";
 import {
   createExtensionPackageManager,
   readExtensionPackage,
   resolveExtensionConfig,
-} from "@isle/extension-host/management";
+} from "@mewvis/extension-host/management";
 import {
   ExtensionViews,
   type ExtensionViewServices,
-} from "@isle/extension-host/ui/server";
-import type { JsonObject as ExtensionConfig } from "@isle/extension-host";
+} from "@mewvis/extension-host/ui/server";
+import type { JsonObject as ExtensionConfig } from "@mewvis/extension-host";
 import {
   object,
   onlyKeys,

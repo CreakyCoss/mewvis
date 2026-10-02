@@ -2,7 +2,7 @@ import {
   getApplicationChatClient,
   type ApplicationChatClient,
   type ApplicationChatSession,
-} from "@isle/app-sdk/chat";
+} from "@mewvis/app-sdk/chat";
 import type {
   TavernAgentFlowRunAgentInput,
   TavernAgentFlowRunAgentOutput,

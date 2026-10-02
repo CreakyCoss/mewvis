@@ -95,7 +95,7 @@ export const ImportApplicationDialog = ({ open, onOpenChange, onInstalled }: Imp
       <DialogContent className="!flex max-h-[calc(100dvh-2rem)] w-[520px] flex-col gap-0 overflow-hidden p-0 sm:max-w-[520px]">
         <DialogHeader className="border-b border-border/60 bg-surface-raised/85 px-6 py-5 pr-14 text-left">
           <DialogTitle>导入本地应用</DialogTitle>
-          <DialogDescription>从本地目录安装 Isle 原生应用或受支持的兼容应用。</DialogDescription>
+          <DialogDescription>从本地目录安装 Mewvis 原生应用或受支持的兼容应用。</DialogDescription>
         </DialogHeader>
 
         <div className="app-canvas min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5">
@@ -117,7 +117,7 @@ export const ImportApplicationDialog = ({ open, onOpenChange, onInstalled }: Imp
                 {isInspecting ? "正在检查应用" : sourcePath ? directoryName : "选择包含 package.json 的应用目录"}
               </span>
               <span className="mt-1 max-w-full truncate text-xs text-muted-foreground">
-                {sourcePath || "目录需要声明 isle.app，或受支持的兼容应用格式"}
+                {sourcePath || "目录需要声明 mewvis.app，或受支持的兼容应用格式"}
               </span>
             </button>
           </div>
@@ -127,7 +127,7 @@ export const ImportApplicationDialog = ({ open, onOpenChange, onInstalled }: Imp
               <div className="flex flex-wrap items-center gap-2">
                 <span className="font-semibold">{inspection.name}</span>
                 <Badge variant="secondary">v{inspection.version || "0.0.0"}</Badge>
-                <Badge variant="outline">{inspection.runtimeKind === "isle" ? "Isle 原生" : "DSH 兼容"}</Badge>
+                <Badge variant="outline">{inspection.runtimeKind === "mewvis" ? "Mewvis 原生" : "DSH 兼容"}</Badge>
               </div>
               <p className="text-sm leading-5 text-muted-foreground">
                 {inspection.description || "该应用没有提供描述。"}

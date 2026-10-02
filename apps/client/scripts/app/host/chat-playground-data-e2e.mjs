@@ -4,13 +4,13 @@ import { mkdtempSync, readFileSync, writeFileSync, existsSync, mkdirSync, rmSync
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { pathToFileURL } from "node:url";
-import { createApplicationChatClient } from "@isle/app-sdk/chat";
-import { createApplicationDataClient } from "@isle/app-sdk/data";
+import { createApplicationChatClient } from "@mewvis/app-sdk/chat";
+import { createApplicationDataClient } from "@mewvis/app-sdk/data";
 
 // Real application Chat, SDK, directory resolver and playground preferences.
 // Only native IO and model execution are replaced; no user files or models are touched.
-const temp = mkdtempSync(join(tmpdir(), "isle-playground-data-"));
-const applicationId = "@isle/chat-playground";
+const temp = mkdtempSync(join(tmpdir(), "mewvis-playground-data-"));
+const applicationId = "@mewvis/chat-playground";
 const permissions = ["chat", "workspace-files", "chat-knowledge", "application-workspaces", "application-data"];
 const own = { id: "own", name: "应用目录", path: join(temp, "own"), isDefault: true };
 const other = { id: "other", name: "其他应用", path: join(temp, "other"), isDefault: false };
@@ -136,7 +136,7 @@ try {
               path === "@/transport"
                 ? "export const invoke = (...args) => globalThis.__playgroundFixture.invoke(...args);"
                 : path === "@/api/applications"
-                  ? "export const listApplications = async () => globalThis.__playgroundFixture.applications(); export const listApplicationUi = async () => ({applications: [{id: '@isle/chat-playground', tools: [{name:'own', description:'Own tool', risk:'low'}]}, {id:'other-application',tools:[{name:'foreign-tool'}]}]});"
+                  ? "export const listApplications = async () => globalThis.__playgroundFixture.applications(); export const listApplicationUi = async () => ({applications: [{id: '@mewvis/chat-playground', tools: [{name:'own', description:'Own tool', risk:'low'}]}, {id:'other-application',tools:[{name:'foreign-tool'}]}]});"
                   : path === "@/api/workspace"
                     ? "export const listWorkspaces = async () => globalThis.__playgroundFixture.workspaces();"
                     : path === "@/api/agent-runtime"
@@ -185,7 +185,7 @@ try {
   assert.equal("listWorkspaces" in chat, false, "workspace lookup belongs only to the data SDK");
   assert.deepEqual(await data.workspaces.list(), [own], "application listing must not expose the host default");
   const raw = bundle.applicationChatHost.connect(applicationId, [], () => {});
-  await assert.rejects(raw.request({ method: "workspaces" }), /@isle\/app-sdk\/data/);
+  await assert.rejects(raw.request({ method: "workspaces" }), /@mewvis\/app-sdk\/data/);
   raw.dispose();
   const nativeReads = () =>
     state.calls.filter(({ command }) => ["list_chats", "load_chat", "save_chat"].includes(command)).length;

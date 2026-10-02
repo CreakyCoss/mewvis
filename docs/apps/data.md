@@ -1,6 +1,6 @@
 # 应用数据与工作区 SDK
 
-`@isle/app-sdk/data` 为应用提供标准持久化接口：工作区新增与查询，以及通用业务数据的增删改查。桌面应用页面和原生 Node ApplicationHost 已接入，实际落库由宿主负责，应用无需知道后端使用 YAML 还是 SQLite。
+`@mewvis/app-sdk/data` 为应用提供标准持久化接口：工作区新增与查询，以及通用业务数据的增删改查。桌面应用页面和原生 Node ApplicationHost 已接入，实际落库由宿主负责，应用无需知道后端使用 YAML 还是 SQLite。
 
 ## 职责边界
 
@@ -18,18 +18,18 @@ SDK 管理持久化数据和工作区登记。应用自行选择当前工作区�
 
 ```json
 {
-  "isle": {
+  "mewvis": {
     "permissions": ["application-data", "application-workspaces"]
   }
 }
 ```
 
-使用 `isle.config.ts` 的应用在 `permissions` 中填写同样的名称。安装页面会分别展示「读写应用数据」和「创建和查询应用工作区」。
+使用 `mewvis.config.ts` 的应用在 `permissions` 中填写同样的名称。安装页面会分别展示「读写应用数据」和「创建和查询应用工作区」。
 
 应用页面使用当前沙箱中宿主提供的连接：
 
 ```ts
-import { getApplicationDataClient } from "@isle/app-sdk/data";
+import { getApplicationDataClient } from "@mewvis/app-sdk/data";
 
 const { storage, workspaces } = getApplicationDataClient();
 const workspace = await workspaces.create({ name: "小说 A" });
@@ -47,11 +47,11 @@ const selected = id ? await workspaces.get(id) : null;
 const registered = await workspaces.list();
 ```
 
-原生 Node 应用在 `inject` 中声明 `storage`、`workspaces`，通过 `ctx.storage`、`ctx.workspaces` 使用相同接口。`IsleApplicationContext` 的字段保持可选，以兼容未接入的自定义宿主。
+原生 Node 应用在 `inject` 中声明 `storage`、`workspaces`，通过 `ctx.storage`、`ctx.workspaces` 使用相同接口。`MewvisApplicationContext` 的字段保持可选，以兼容未接入的自定义宿主。
 
 纯 JavaScript 客户端 `createApplicationDataClient(transport)` 不依赖 Node、DOM、Tauri 或数据库驱动。自定义宿主可提供自己的 transport。独立 Agent 运行环境及 DSH 兼容适配器没有自动接入本服务；无宿主连接时明确报告能力不可用，不回退到浏览器存储或内存，也不自动重试。
 
-`@isle/app-dev` 的浏览器开发预览显式注入内存数据适配，按声明检查权限，支持业务键和虚拟工作区，整页刷新即清空。它不连接原生数据库，不打开真实目录选择器；持久化、共享确认和目录访问需在 Isle 中验证。[调试台](builtins/chat-playground.md)提供完整接入示例。
+`@mewvis/app-dev` 的浏览器开发预览显式注入内存数据适配，按声明检查权限，支持业务键和虚拟工作区，整页刷新即清空。它不连接原生数据库，不打开真实目录选择器；持久化、共享确认和目录访问需在 Mewvis 中验证。[调试台](builtins/chat-playground.md)提供完整接入示例。
 
 ## 通用业务数据
 
@@ -128,7 +128,7 @@ interface ApplicationWorkspaces {
 
 ### 隐藏标识与共享
 
-宿主在工作区中维护 `.isle/workspace.json`，记录格式版本、工作区 ID、应用列表、创建时间，并保留已有扩展元数据。具体文件格式由宿主管理，不作为应用业务接口。SDK 使用本机登记和标识共同判断是否已加入，不能仅靠编辑标识获得已有登记。
+宿主在工作区中维护 `.mewvis/workspace.json`，记录格式版本、工作区 ID、应用列表、创建时间，并保留已有扩展元数据。具体文件格式由宿主管理，不作为应用业务接口。SDK 使用本机登记和标识共同判断是否已加入，不能仅靠编辑标识获得已有登记。
 
 成员更新使用文件锁和原子替换；并发加入时如果确认的成员快照已变化，拒绝本次登记，避免丢失其他应用的成员记录。标识损坏或版本不支持时保留原文件，不按新目录处理。当前应用复制或移动目录造成同 ID、不同路径时，不静默重新绑定，需先处理原登记及目录；本版不提供移动和重新关联接口。
 
@@ -145,7 +145,7 @@ SDK 导出 `APPLICATION_DATA_PERMISSIONS` 映射。调用方身份由宿主连�
 
 父页面固定 iframe 的应用身份，连接令牌不会交给 iframe；原生 ApplicationHost 使用宿主签发的令牌。请求不能通过应用 ID、数据库名、SQL 或文件路径切换到其他应用的业务键空间。禁用、卸载和关闭连接会撤销旧连接。
 
-当前后端把每个应用的数据统一放在应用数据目录的 `apps/<namespace>/` 下。namespace 使用完整应用 ID，例如 `@isle/chat-playground`；特殊字符会转义，避免不同应用重名或路径越界。
+当前后端把每个应用的数据统一放在应用数据目录的 `apps/<namespace>/` 下。namespace 使用完整应用 ID，例如 `@mewvis/chat-playground`；特殊字符会转义，避免不同应用重名或路径越界。
 
 「应用 → 管理」在应用 ID 后显示数据目录，对应上述 namespace 根目录，包含配置、SDK 数据库和默认工作区。两者通过竖线分隔，目录使用较浅的文字；长路径截断显示，悬停可查看完整路径，并支持选中复制。路径由后端按当前数据根目录计算。应用尚未使用时，目录可能还未创建。该字段随已登记应用返回，安装前检查应用包时不提供数据目录。
 
@@ -153,13 +153,13 @@ SDK 导出 `APPLICATION_DATA_PERMISSIONS` 映射。调用方身份由宿主连�
 apps/
   registry.json                    # 宿主维护的启用状态
   pnpm-store/                      # 安装器共享缓存
-  @isle/chat-playground/
+  @mewvis/chat-playground/
     settings.yaml                  # defineSettings 配置（按需创建）
     storage.sqlite                 # SDK 业务键与工作区登记
     workspace/                     # 默认工作区
       workspace.db
-      .isle/workspace.json          # 工作区 ID、应用成员及元数据
-      .isle-claw/chats/             # 聊天保存后创建
+      .mewvis/workspace.json          # 工作区 ID、应用成员及元数据
+      .mewvis/chats/             # 聊天保存后创建
   @vendor/example/
     package/                       # 外部安装包及其依赖
     settings.yaml
@@ -171,7 +171,7 @@ apps/
 
 宿主在启动应用服务之前迁移旧的 `data/<十六进制应用 ID>/` 中的 SDK 数据库与默认工作区，以及 `packages/` 和共享配置。默认工作区移动时保留 ID、标识及文件，并同步更新各应用的共享登记；SDK 业务值保持不变，不改写应用自定义 JSON 中的任意路径。旧 namespace 配置优先于共享配置及其备份，写入新配置并核验数据库成功后才删除旧文件和空目录。迁移使用持久记录，可在失败后重试；目标冲突、文件损坏或无法确定旧设置所属应用时停止启动，保留数据供处理。现有应用按包 ID、历史 namespace 名及内置 RSS 的 `dsh-rss` 别名匹配。
 
-`settings.yaml` 按设置 namespace 保存用户覆盖和 `$version`，并包含宿主格式标记 `$isleApplicationSettings`。它不自动转换成 SDK 业务键。SQLite 中业务键和工作区登记属于不同表；宿主自动升级旧表结构。后端布局和表结构不是 SDK 承诺，应用只使用公开接口。
+`settings.yaml` 按设置 namespace 保存用户覆盖和 `$version`，并包含宿主格式标记 `$mewvisApplicationSettings`。它不自动转换成 SDK 业务键。SQLite 中业务键和工作区登记属于不同表；宿主自动升级旧表结构。后端布局和表结构不是 SDK 承诺，应用只使用公开接口。
 
 单次请求上限为 256 KiB，存储键上限为 4096 UTF-8 字节，响应上限为 4 MiB。工作区名称上限为 512 UTF-8 字节；隐藏标识上限为 64 KiB。超出上限明确失败，本版没有列表分页。空 storage 的读取、删除和清空不会创建数据库；工作区登记可独立初始化它自己的表。
 
@@ -210,9 +210,9 @@ apps/
 在仓库根目录运行：
 
 ```sh
-pnpm --filter @isle/app-sdk test
-pnpm --filter @isle/app-dev exec tsc -p ../sdk/test/tsconfig.json
-pnpm --filter @isle/app-dev exec node --test test/data-sdk.test.mjs
+pnpm --filter @mewvis/app-sdk test
+pnpm --filter @mewvis/app-dev exec tsc -p ../sdk/test/tsconfig.json
+pnpm --filter @mewvis/app-dev exec node --test test/data-sdk.test.mjs
 pnpm --filter client test:app-host:data
 ```
 

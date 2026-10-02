@@ -1,7 +1,7 @@
 import { workspaceForPath } from "@/platform/bridge";
 import { useEffect, useState } from "react";
-import { Chat } from "@isle/app-sdk/chat/react";
-import { getApplicationChatClient, type ApplicationChatSession } from "@isle/app-sdk/chat";
+import { Chat } from "@mewvis/app-sdk/chat/react";
+import { getApplicationChatClient, type ApplicationChatSession } from "@mewvis/app-sdk/chat";
 import type { StoryLibraryItem } from "../../../storage";
 
 export function StoryChat({ story, chatId }: { story: StoryLibraryItem; chatId: string }) {

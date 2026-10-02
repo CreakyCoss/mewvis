@@ -1,6 +1,6 @@
 import type { ComponentType } from "react";
-import type { ApplicationConfig } from "@isle/app-dev";
-import type { IsleToolRisk } from "@isle/app-sdk";
+import type { ApplicationConfig } from "@mewvis/app-dev";
+import type { MewvisToolRisk } from "@mewvis/app-sdk";
 export declare function mountPreview(
   App: ComponentType,
   options: Pick<ApplicationConfig, "displayName" | "permissions"> & {
@@ -13,7 +13,7 @@ export declare function mountPreview(
       name: string;
       description: string;
       parameters: Record<string, unknown>;
-      risk?: IsleToolRisk;
+      risk?: MewvisToolRisk;
     }[];
     /** Serialized host definitions for static previews; never import host modules into UI. */
     skills?: { name: string; description: string; content: string }[];

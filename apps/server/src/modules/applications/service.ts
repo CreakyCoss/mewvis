@@ -100,7 +100,7 @@ export class Applications {
   async search(i: JsonObject) {
     if (i.provider !== "dsh-community") invalid("不支持的应用市场");
     const url = new URL(
-      this.config.env.ISLE_CLAW_DSH_MARKETPLACE_URL ??
+      this.config.env.MEWVIS_DSH_MARKETPLACE_URL ??
         "https://dshmarketplace.dev/api/v1/plugins",
     );
     url.search = new URLSearchParams({
@@ -125,7 +125,7 @@ export class Applications {
     const temp = await fs.mkdtemp(join(this.packages.path, ".marketplace-"));
     try {
       await jsonWrite(join(temp, "package.json"), {
-        name: "isle-server-application-install",
+        name: "mewvis-server-application-install",
         private: true,
         type: "module",
       });
@@ -172,7 +172,7 @@ export class Applications {
         join(temp, "node_modules"),
         join(staging, "node_modules"),
       );
-      await jsonWrite(join(staging, ".isle-origin.json"), {
+      await jsonWrite(join(staging, ".mewvis-origin.json"), {
         kind: "marketplace",
         marketplace: "dsh-community",
         fullName,

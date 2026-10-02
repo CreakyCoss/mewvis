@@ -1,1 +1,1 @@
-export * from "@isle/app-sdk";
+export * from "@mewvis/app-sdk";

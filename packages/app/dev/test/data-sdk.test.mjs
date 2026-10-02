@@ -8,7 +8,7 @@ import { build } from "esbuild";
 import { packApplication } from "../src/tooling.mjs";
 
 test("data SDK is browser-safe and can be packaged from a application outside the monorepo", async () => {
-  const root = await mkdtemp(join(tmpdir(), "isle-data-sdk-"));
+  const root = await mkdtemp(join(tmpdir(), "mewvis-data-sdk-"));
   try {
     await writeFile(
       join(root, "package.json"),
@@ -16,7 +16,7 @@ test("data SDK is browser-safe and can be packaged from a application outside th
         name: "@example/data-sdk",
         version: "1.0.0",
         type: "module",
-        isle: {
+        mewvis: {
           app: { version: 1, entry: "./index.js" },
           permissions: ["application-data", "application-workspaces"],
         },
@@ -25,7 +25,7 @@ test("data SDK is browser-safe and can be packaged from a application outside th
     await writeFile(
       join(root, "index.js"),
       `
-      import { createApplicationDataClient } from "@isle/app-sdk/data";
+      import { createApplicationDataClient } from "@mewvis/app-sdk/data";
       export const connect = createApplicationDataClient;
       export default function apply() {}
     `,
@@ -42,7 +42,7 @@ test("data SDK is browser-safe and can be packaged from a application outside th
 
     const result = await build({
       stdin: {
-        contents: 'export * from "@isle/app-sdk/data";',
+        contents: 'export * from "@mewvis/app-sdk/data";',
         resolveDir: process.cwd(),
       },
       bundle: true,
@@ -62,7 +62,7 @@ test("data SDK is browser-safe and can be packaged from a application outside th
       await readFile(join(outputRoot, "package.json"), "utf8"),
     );
     assert.equal(manifest.dependencies, undefined);
-    assert.deepEqual(manifest.isle.permissions, [
+    assert.deepEqual(manifest.mewvis.permissions, [
       "application-data",
       "application-workspaces",
     ]);

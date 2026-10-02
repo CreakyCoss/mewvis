@@ -1,13 +1,13 @@
-import { defineExtension } from "@isle/extension-sdk/agent";
+import { defineExtension } from "@mewvis/extension-sdk/agent";
 import {
   decisionRequestSchema,
   type DecisionRequest,
-} from "@isle/extension-sdk/host";
+} from "@mewvis/extension-sdk/host";
 import { readRules } from "./rules";
 import { evaluate, formatDecision } from "./evaluate";
 
 export default defineExtension({
-  id: "isle.decisions",
+  id: "mewvis.decisions",
   apiVersion: 1,
   setup(ctx) {
     const rules = readRules(ctx.config);

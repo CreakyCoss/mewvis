@@ -9,7 +9,7 @@ import {
   type RefObject,
 } from "react";
 import { PlusIcon, SearchIcon } from "lucide-react";
-import type { ChatResources } from "@isle/chat-contracts";
+import type { ChatResources } from "@mewvis/chat-contracts";
 import { InputGroupButton } from "design-system/components/ui/input-group";
 import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from "design-system/components/ui/popover";
 import type { ChatInputSkillOption } from "@/chat/react/types";

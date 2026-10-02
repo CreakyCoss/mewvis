@@ -14,18 +14,18 @@ import {
   type CordisApplicationHostOptions,
 } from "./cordis-host.js";
 import { DshApplicationAdapter } from "./dsh-compat/adapter.js";
-import { IsleApplicationAdapter } from "./isle-adapter.js";
+import { MewvisApplicationAdapter } from "./mewvis-adapter.js";
 
 export type ApplicationHostOptions = CordisApplicationHostOptions;
 
 const createAdapters = (cordis: CordisApplicationHost): readonly ApplicationAdapter[] => [
-  new IsleApplicationAdapter(cordis),
+  new MewvisApplicationAdapter(cordis),
   new DshApplicationAdapter(cordis),
 ];
 
 /**
- * Isle's application runtime facade. Cordis owns lifecycle and dependency injection;
- * package formats stay behind this boundary. Native Isle applications are ordinary
+ * Mewvis's application runtime facade. Cordis owns lifecycle and dependency injection;
+ * package formats stay behind this boundary. Native Mewvis applications are ordinary
  * Cordis entry modules, while DSH bundles are loaded through the compatibility
  * adapter.
  */

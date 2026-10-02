@@ -198,7 +198,7 @@ test("authenticated discovery accepts unsaved drafts and leaves persisted LLM se
   const s = await upstream(t, (_request, response) =>
     json(response, { data: [{ id: "unsaved-model" }] }),
   );
-  const root = await mkdtemp(join(tmpdir(), "isle-model-discovery-"));
+  const root = await mkdtemp(join(tmpdir(), "mewvis-model-discovery-"));
   const server = await startServer({
     token,
     port: 0,

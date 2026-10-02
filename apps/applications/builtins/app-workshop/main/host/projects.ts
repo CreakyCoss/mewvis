@@ -14,7 +14,7 @@ import { randomUUID } from "node:crypto";
 import type {
   ApplicationWorkspace,
   ApplicationWorkspaces,
-} from "@isle/app-sdk/data";
+} from "@mewvis/app-sdk/data";
 import {
   APPLICATION_ID,
   APP_ENTRY,
@@ -113,7 +113,7 @@ const projectFiles = (): FileMap => ({
         dependencies: {
           react: "19.1.0",
           "react-dom": "19.1.0",
-          "@isle/app-sdk": "0.1.0",
+          "@mewvis/app-sdk": "0.1.0",
         },
         devDependencies: { typescript: "5.8.3" },
       },
@@ -166,7 +166,7 @@ export function createProjectService(workspaces: ApplicationWorkspaces) {
       // existing membership marker, exactly as other builtin applications do.
       path = await realpath(process.cwd());
       const marker = await readJson<{ id: string; applications: string[] }>(
-        join(path, ".isle", "workspace.json"),
+        join(path, ".mewvis", "workspace.json"),
         64 * 1024,
       );
       if (
@@ -743,8 +743,8 @@ export function previewWorkspaces(path: string): ApplicationWorkspaces {
         path: input.path,
         isDefault: false,
       };
-      await mkdir(join(input.path, ".isle"));
-      await atomicJson(join(input.path, ".isle", "workspace.json"), {
+      await mkdir(join(input.path, ".mewvis"));
+      await atomicJson(join(input.path, ".mewvis", "workspace.json"), {
         version: 1,
         id: item.id,
         applications: [APPLICATION_ID],

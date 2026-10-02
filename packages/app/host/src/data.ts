@@ -1,4 +1,4 @@
-import { createApplicationDataClient, type ApplicationDataRequest, type ApplicationDataResponse } from "@isle/app-sdk/data";
+import { createApplicationDataClient, type ApplicationDataRequest, type ApplicationDataResponse } from "@mewvis/app-sdk/data";
 import { randomUUID } from "node:crypto";
 
 /** Reverse calls on a host-owned pipe. Only an opaque, host-issued binding crosses this channel. */

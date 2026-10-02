@@ -5,11 +5,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
 import { pathToFileURL } from "node:url";
-import { packApplication } from "@isle/app-dev/tooling";
+import { packApplication } from "@mewvis/app-dev/tooling";
 import { repositoryRoot } from "../../../applications/scripts/docs/book.mjs";
 
 const desktop = join(repositoryRoot, "apps/client");
-const temporary = await mkdtemp(join(tmpdir(), "isle-docs-reader-"));
+const temporary = await mkdtemp(join(tmpdir(), "mewvis-docs-reader-"));
 let child;
 let output;
 const pending = new Map();
@@ -20,8 +20,8 @@ try {
     outDir: join(temporary, "application"),
     quiet: true,
   });
-  assert.equal(manifest.isle.defaultEnabled, true);
-  assert.deepEqual(manifest.isle.permissions, ["open-external"]);
+  assert.equal(manifest.mewvis.defaultEnabled, true);
+  assert.deepEqual(manifest.mewvis.permissions, ["open-external"]);
   const bundledSource = await readFile(join(outputRoot, "index.js"), "utf8");
   assert.doesNotMatch(bundledSource, /from ["'][^"']*book\.json/);
   child = spawn(
@@ -83,13 +83,13 @@ try {
     settingsPath: join(temporary, "settings"),
     applications: [
       {
-        kind: "isle",
+        kind: "mewvis",
         id: manifest.name,
         name: "文档中心",
         version: manifest.version,
         description: manifest.description,
         source: "bundled",
-        permissions: manifest.isle.permissions,
+        permissions: manifest.mewvis.permissions,
         entry: pathToFileURL(join(outputRoot, "index.js")).href,
         packageRoot: outputRoot,
       },
@@ -101,21 +101,21 @@ try {
   assert.equal(configured.applications[0].tools.length, 3);
   const tool = async (toolName, args = {}) =>
     (await rpc("execute", { applicationId: manifest.name, toolName, arguments: args })).value;
-  const catalog = await tool("isle_docs_catalog");
+  const catalog = await tool("mewvis_docs_catalog");
   assert.ok(catalog.entries.length >= 30);
-  const document = await tool("isle_docs_read", { id: "README.md" });
-  assert.match(document.html, /Isle 中文文档/);
-  assert.ok((await tool("isle_docs_search", { query: "沙箱" })).total > 0);
-  assert.equal((await tool("isle_docs_search", { query: "zzzz不存在zzzz" })).total, 0);
-  await assert.rejects(tool("isle_docs_read", { id: "../../package.json" }), /不存在/);
-  await assert.rejects(tool("isle_docs_search", { query: "a".repeat(201) }));
+  const document = await tool("mewvis_docs_read", { id: "README.md" });
+  assert.match(document.html, /Mewvis 中文文档/);
+  assert.ok((await tool("mewvis_docs_search", { query: "沙箱" })).total > 0);
+  assert.equal((await tool("mewvis_docs_search", { query: "zzzz不存在zzzz" })).total, 0);
+  await assert.rejects(tool("mewvis_docs_read", { id: "../../package.json" }), /不存在/);
+  await assert.rejects(tool("mewvis_docs_search", { query: "a".repeat(201) }));
   assert.deepEqual(
-    await tool("isle_docs_read", { id: "README.md", path: "/etc/passwd" }),
+    await tool("mewvis_docs_read", { id: "README.md", path: "/etc/passwd" }),
     document,
     "额外路径不能改变读取目标",
   );
   const ui = await rpc("uiDocument", { applicationId: manifest.name });
-  assert.match(ui.script, /isle_docs_search/);
+  assert.match(ui.script, /mewvis_docs_search/);
   assert.match(ui.style, /\.docs-app/);
   assert.ok(Buffer.byteLength(ui.script) <= 512 * 1024);
   await rpc("shutdown");

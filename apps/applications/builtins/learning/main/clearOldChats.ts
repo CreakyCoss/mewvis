@@ -1,11 +1,11 @@
 import {
   getApplicationChatClient,
   type ApplicationChatClient,
-} from "@isle/app-sdk/chat";
+} from "@mewvis/app-sdk/chat";
 import {
   getApplicationDataClient,
   type ApplicationDataClient,
-} from "@isle/app-sdk/data";
+} from "@mewvis/app-sdk/data";
 
 export async function clearOldChats(
   data: ApplicationDataClient = getApplicationDataClient(),

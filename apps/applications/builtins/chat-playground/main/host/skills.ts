@@ -1,4 +1,4 @@
-import { defineSkill } from "@isle/app-sdk";
+import { defineSkill } from "@mewvis/app-sdk";
 
 // 业务只声明技能内容；注册和 Pi 接入由脚手架与宿主处理。
 export default [

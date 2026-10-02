@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
-const temp = await mkdtemp(join(tmpdir(), "isle-ui-slot-test-"));
+const temp = await mkdtemp(join(tmpdir(), "mewvis-ui-slot-test-"));
 try {
   const tests = (await readdir(new URL(".", import.meta.url))).filter((file) => /\.test\.tsx?$/.test(file));
   await build({

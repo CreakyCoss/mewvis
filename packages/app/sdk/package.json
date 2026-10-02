@@ -1,7 +1,7 @@
 {
-  "name": "@isle/app-sdk",
+  "name": "@mewvis/app-sdk",
   "version": "0.1.0",
-  "description": "Stable authoring contract for Isle Cordis applications.",
+  "description": "Stable authoring contract for Mewvis Cordis applications.",
   "type": "module",
   "exports": {
     ".": {
@@ -51,7 +51,7 @@
   },
   "dependencies": {
     "@deepseek-ai/schemastery": "3.18.1",
-    "@isle/chat-contracts": "workspace:*"
+    "@mewvis/chat-contracts": "workspace:*"
   },
   "sideEffects": false,
   "license": "MIT",

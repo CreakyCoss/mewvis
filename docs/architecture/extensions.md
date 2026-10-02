@@ -1,10 +1,10 @@
 # 插件协议与能力映射
 
-宿主拥有独立于外部 SDK 的插件协议、注册机制和扩展点。内部插件直接使用宿主协议；Isle SDK 插件经过独立映射后成为内部插件。宿主通用模块不认识 Pi/Mock，具体 Agent 自己将内部 Agent 插件转换成原生插件并注册。
+宿主拥有独立于外部 SDK 的插件协议、注册机制和扩展点。内部插件直接使用宿主协议；Mewvis SDK 插件经过独立映射后成为内部插件。宿主通用模块不认识 Pi/Mock，具体 Agent 自己将内部 Agent 插件转换成原生插件并注册。
 
 ```text
 宿主原生插件 ───────────────────────────┐
-Isle SDK 插件 → Isle SDK 映射器 ─────────┤
+Mewvis SDK 插件 → Mewvis SDK 映射器 ─────────┤
                                       ↓
                             宿主原生插件协议与注册
                               ├─ UI → 宿主插槽
@@ -28,9 +28,9 @@ Isle SDK 插件 → Isle SDK 映射器 ─────────┤
 - `host/management/`：原生包的发现、清单与配置校验、启停及设置持久化。
 - `adapters/`：SDK 包元数据、执行入口、注册回调、UI 上下文及服务的双向映射。
 - `sdk/`：外部插件作者协议，与宿主内部协议分别维护。
-- `dev/`：源包构建；原生包直接打包，SDK 包注入 Isle 映射器，产物统一为原生包。
+- `dev/`：源包构建；原生包直接打包，SDK 包注入 Mewvis 映射器，产物统一为原生包。
 
-原生包使用 `isle.plugin`、`schemaVersion: 1`、`protocolVersion: 1`；SDK 源包使用 `isle.extension`、`schemaVersion: 2`、`apiVersion: 1`。宿主加载只处理原生包，不猜测插件格式，也不提供旧清单兼容分支。SDK 定义在隔离执行环境内经入口包装器转成原生定义，构建工具不执行插件代码。
+原生包使用 `mewvis.plugin`、`schemaVersion: 1`、`protocolVersion: 1`；SDK 源包使用 `mewvis.extension`、`schemaVersion: 2`、`apiVersion: 1`。宿主加载只处理原生包，不猜测插件格式，也不提供旧清单兼容分支。SDK 定义在隔离执行环境内经入口包装器转成原生定义，构建工具不执行插件代码。
 
 ## UI 消费点
 
@@ -58,7 +58,7 @@ Client 装配 PluginUIProvider（注入目录和传输）
 
 ## Host 服务消费点
 
-原生 UI 使用 `ctx.services`；SDK UI 使用 `ctx.host`，由 Isle 适配器转换。宿主服务目前接入 UI，Agent worker 尚未注入此服务客户端。服务需求声明不等同于可执行的 Host 插件模块。
+原生 UI 使用 `ctx.services`；SDK UI 使用 `ctx.host`，由 Mewvis 适配器转换。宿主服务目前接入 UI，Agent worker 尚未注入此服务客户端。服务需求声明不等同于可执行的 Host 插件模块。
 
 `host/services/dispatch.ts` 统一协商能力、校验请求、处理错误与取消，`host/ui/server/views.ts` 管理作用域和视图租约。Server 的 `bootstrap/extensions.ts` 仅将现有会话和模型服务注入宿主接口；业务存储和模型实现仍留在原模块。
 

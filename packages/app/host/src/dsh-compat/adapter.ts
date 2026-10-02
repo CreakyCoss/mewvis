@@ -1,7 +1,7 @@
 import type { ApplicationAdapter, RuntimeApplication } from "../contracts.js";
 import type { CordisApplicationHost } from "../cordis-host.js";
 
-/** Converts a standard DSH bundle into applications mounted on Isle's Cordis host. */
+/** Converts a standard DSH bundle into applications mounted on Mewvis's Cordis host. */
 export class DshApplicationAdapter implements ApplicationAdapter {
   readonly kind = "dsh" as const;
 

@@ -5,7 +5,7 @@ import { createInterface } from "node:readline";
 import type { ExecutionTransport, TransportCallbacks, WorkerConnection } from "../../execution/types.js";
 
 export async function createTransport(callbacks: TransportCallbacks): Promise<ExecutionTransport> {
-  const path = `\\\\.\\pipe\\isle-agent-${randomUUID()}`;
+  const path = `\\\\.\\pipe\\mewvis-agent-${randomUUID()}`;
   const token = randomBytes(32).toString("hex");
   const pending: string[] = [];
   let channel: Socket | undefined;
@@ -50,7 +50,7 @@ export async function createTransport(callbacks: TransportCallbacks): Promise<Ex
   server.listen({ path, readableAll: true, writableAll: true });
   await once(server, "listening");
   return {
-    args: ["--isle-channel", path, "--isle-token", token],
+    args: ["--mewvis-channel", path, "--mewvis-token", token],
     stdio: ["ignore", "pipe", "pipe"],
     attach() {},
     send(line) {
@@ -67,8 +67,8 @@ export async function createTransport(callbacks: TransportCallbacks): Promise<Ex
 }
 
 export function connectWorker(): WorkerConnection {
-  const channelIndex = process.argv.indexOf("--isle-channel");
-  const tokenIndex = process.argv.indexOf("--isle-token");
+  const channelIndex = process.argv.indexOf("--mewvis-channel");
+  const tokenIndex = process.argv.indexOf("--mewvis-token");
   if (channelIndex < 0 || tokenIndex < 0 || !process.argv[channelIndex + 1] || !process.argv[tokenIndex + 1])
     throw new Error("缺少 Windows 执行通道参数。");
   const channel = createConnection(process.argv[channelIndex + 1]);

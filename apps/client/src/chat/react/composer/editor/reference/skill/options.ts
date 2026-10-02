@@ -1,4 +1,4 @@
-import type { ChatResources } from "@isle/chat-contracts";
+import type { ChatResources } from "@mewvis/chat-contracts";
 import type { ChatInputSkillOption } from "@/chat/react/types";
 
 export type Command = NonNullable<ChatResources["commands"]>[number];

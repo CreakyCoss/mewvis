@@ -13,7 +13,7 @@ for (const mode of ["dev", "web"])
     `${mode} launcher serves UI/API and SIGTERM releases runtime children and storage`,
     { timeout: 20000 },
     async (t) => {
-      const dataDir = await mkdtemp(join(tmpdir(), "isle-web-launcher-"));
+      const dataDir = await mkdtemp(join(tmpdir(), "mewvis-web-launcher-"));
       const reservation = createServer();
       reservation.listen(0, "127.0.0.1");
       await once(reservation, "listening");
@@ -28,10 +28,10 @@ for (const mode of ["dev", "web"])
           cwd: fileURLToPath(new URL("../../", import.meta.url)),
           env: {
             ...process.env,
-            ISLE_WEB_PORT: String(webPort),
-            ISLE_SERVER_PORT: "0",
-            ISLE_SERVER_DATA_DIR: dataDir,
-            ISLE_SERVER_RUNTIME_CLI: fileURLToPath(
+            MEWVIS_WEB_PORT: String(webPort),
+            MEWVIS_SERVER_PORT: "0",
+            MEWVIS_SERVER_DATA_DIR: dataDir,
+            MEWVIS_SERVER_RUNTIME_CLI: fileURLToPath(
               new URL("../../../server/test/support/fixtures/runtime.mjs", import.meta.url),
             ),
           },

@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { defineExtensionAdapter } from "@isle/extension-host";
-import type { ExtensionMiddlewareType, ExtensionMiddlewareData, JsonValue, JsonObject } from "@isle/extension-host";
+import { defineExtensionAdapter } from "@mewvis/extension-host";
+import type { ExtensionMiddlewareType, ExtensionMiddlewareData, JsonValue, JsonObject } from "@mewvis/extension-host";
 import { projectPiContext } from "./context.js";
 import { registerPiConversationEvents } from "./events.js";
 import { registerPiCompactionHooks } from "./compaction.js";
@@ -57,7 +57,7 @@ export function installPiExtensionGuards(session: AgentSession, healthy: () => v
   };
 }
 
-/** Produces an ordinary Pi extension factory; all executable contributions call the Isle host ports. */
+/** Produces an ordinary Pi extension factory; all executable contributions call the Mewvis host ports. */
 export type PiExtensionFactory = ExtensionFactory & { assertHealthy(): void };
 export const piExtensionAdapter = defineExtensionAdapter<PiExtensionFactory>({
   id: "pi",
@@ -76,9 +76,9 @@ export const piExtensionAdapter = defineExtensionAdapter<PiExtensionFactory>({
     "middleware.session_compact": { mode: "direct" },
     "events.run": {
       mode: "simulate",
-      reason: "由 Isle 运行边界提供成功、失败与取消终态",
+      reason: "由 Mewvis 运行边界提供成功、失败与取消终态",
     },
-    "session.state": { mode: "simulate", reason: "调用 Isle 会话状态事务服务" },
+    "session.state": { mode: "simulate", reason: "调用 Mewvis 会话状态事务服务" },
     "middleware.input": { mode: "direct" },
     "middleware.system_prompt": { mode: "direct" },
     "middleware.context": { mode: "simulate", reason: "原生 context 钩子投影文本和消息引用，保留 Pi 原生元数据" },
@@ -135,7 +135,7 @@ export const piExtensionAdapter = defineExtensionAdapter<PiExtensionFactory>({
               signal: context.signal,
             });
             pi.sendMessage({
-              customType: "isle.extension.command",
+              customType: "mewvis.extension.command",
               content: JSON.stringify(value),
               display: true,
               details: { commandId: command.id, value },

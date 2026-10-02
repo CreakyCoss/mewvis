@@ -1,13 +1,13 @@
 # 插件中间件
 
-Isle 插件通过 `ctx.use(type, handler)` 注册可改变执行的数据管道；`ctx.on` 仍只用于观察。处理器在隔离 worker 中运行，公共类型位于 `@isle/extension-sdk` 的 `ExtensionMiddlewareData`、`ExtensionMiddlewareResult` 和 `ExtensionMiddlewareHandler`，不依赖 Pi 类型。
+Mewvis 插件通过 `ctx.use(type, handler)` 注册可改变执行的数据管道；`ctx.on` 仍只用于观察。处理器在隔离 worker 中运行，公共类型位于 `@mewvis/extension-sdk` 的 `ExtensionMiddlewareData`、`ExtensionMiddlewareResult` 和 `ExtensionMiddlewareHandler`，不依赖 Pi 类型。
 
 ## 已实现接口
 
 | 类型 | 清单能力 | 输入与替换值 | 触发时机 |
 | --- | --- | --- | --- |
 | `input` | `middleware.input` | `{ text }` | Agent 开始处理输入时；可改写文本或阻断本轮 |
-| `system_prompt` | `middleware.system_prompt` | `{ text }` | 组装系统提示后、发送模型请求前，包含宿主及 Isle 内联技能 |
+| `system_prompt` | `middleware.system_prompt` | `{ text }` | 组装系统提示后、发送模型请求前，包含宿主及 Mewvis 内联技能 |
 | `context` | `middleware.context` | `{ messages }` | 每次模型请求前；可以修改文本、筛选消息或插入 user 文本 |
 | `tool_call` | `middleware.tool_call` | `{ callId, toolName, input }` | 原生工具执行前；可以替换参数或阻止执行 |
 | `tool_result` | `middleware.tool_result` | `{ callId, toolName, result }` | 已调用工具返回或抛错后、结果进入模型上下文前 |
@@ -37,7 +37,7 @@ Isle 插件通过 `ctx.use(type, handler)` 注册可改变执行的数据管道�
 
 ## 最终执行检查
 
-中间件可以修改参数，不能扩大工具目录、改变调用身份或跳过审批。Isle 插件工具使用修改后的完整参数，重新执行 JSON Schema 校验，再进行宿主权限与风险检查；未启用的工具不会执行。Pi 内置工具在原生扩展钩子之后重新按 Pi 工具 schema 校验，接着执行现有安全检查。Pi 的原生参数规范化与 Isle 的严格 JSON Schema 校验分别保留各自语义。
+中间件可以修改参数，不能扩大工具目录、改变调用身份或跳过审批。Mewvis 插件工具使用修改后的完整参数，重新执行 JSON Schema 校验，再进行宿主权限与风险检查；未启用的工具不会执行。Pi 内置工具在原生扩展钩子之后重新按 Pi 工具 schema 校验，接着执行现有安全检查。Pi 的原生参数规范化与 Mewvis 的严格 JSON Schema 校验分别保留各自语义。
 
 结果修改发生在工具调用之后，无法撤销已经完成的文件、网络等副作用。`details: null` 表示明确清空，Pi 适配层会保留这个含义，不让底层的空值合并恢复旧 details。
 
@@ -64,7 +64,7 @@ interface ExtensionContextMessage {
 清单声明 `middleware.system_prompt`、`middleware.tool_call`：
 
 ```ts
-import { defineExtension } from "@isle/extension-sdk/agent";
+import { defineExtension } from "@mewvis/extension-sdk/agent";
 
 export default defineExtension({
   id: "example.policy",
@@ -91,4 +91,4 @@ export default defineExtension({
 
 Pi 使用原生 input、before_agent_start、context、tool_call、tool_result 钩子，并补充失败检查、参数复检及 null 结果语义。Mock 注册到自己的输入、系统提示、上下文和工具前后处理器；新增 `{ type: "request" }` 脚本步骤可输出实际准备好的请求，便于验证中间件，不模拟模型推理。
 
-`extensions-middleware-test.mjs` 通过实际 worker、本地 SSE 模型服务、真实 Pi SDK 和 Mock，验证多插件串联、模型请求内容、调用阻断、最终参数/权限检查、无效结果、事务回滚及取消；`extensions-adapter-test.mjs` 验证非文本原生消息保留。运行 `pnpm --filter @isle/agent-runtime test:extensions`。
+`extensions-middleware-test.mjs` 通过实际 worker、本地 SSE 模型服务、真实 Pi SDK 和 Mock，验证多插件串联、模型请求内容、调用阻断、最终参数/权限检查、无效结果、事务回滚及取消；`extensions-adapter-test.mjs` 验证非文本原生消息保留。运行 `pnpm --filter @mewvis/agent-runtime test:extensions`。

@@ -1,6 +1,6 @@
 # 应用与宿主插件边界
 
-Isle 将具有独立业务界面、设置、数据和会话的功能称为**应用（Application）**。RSS 阅读器、酒馆、文档中心、场景卡和调试台都属于应用。
+Mewvis 将具有独立业务界面、设置、数据和会话的功能称为**应用（Application）**。RSS 阅读器、酒馆、文档中心、场景卡和调试台都属于应用。
 
 **宿主插件（Extension）**用于向宿主现有工作流程贡献工具、技能、命令、上下文或界面扩展。当前已有[宿主插件 SDK 闭环](../runtime/extensions.md)，支持工具、技能、显式命令、会话状态和 Agent 事件订阅，复用 Chord 装配生命周期，支持 Pi 和脚本 Mock；[独立包](../extensions/development.md)已支持清单、本地注册、配置、启停和开发 CLI。桌面已有插件管理，以及独立 iframe 承载的会话侧栏 UI 插槽；插件清单按 `modules.agent/ui` 分入口，UI 使用受控的会话读取接口。网络安装尚未实现。该机制不复用应用协议。
 
@@ -9,10 +9,10 @@ Isle 将具有独立业务界面、设置、数据和会话的功能称为**应�
 | 层次              | 名称                                                                   |
 | ----------------- | ---------------------------------------------------------------------- |
 | 导航与路由        | 应用；`/apps`、`/apps/manage`、`/apps/:applicationId`                  |
-| 公共开发包        | `@isle/app-sdk`、`@isle/app-dev`                                       |
-| CLI               | `isle-app`；桌面工程中的 `app:create`、`app:validate`、`app:pack`      |
-| SDK 工厂与类型    | `defineApplication`、`IsleApplicationContext`、`ApplicationChatClient` |
-| 原生安装清单      | `isle.app`；`isle.ui` 继续声明应用界面                                 |
+| 公共开发包        | `@mewvis/app-sdk`、`@mewvis/app-dev`                                       |
+| CLI               | `mewvis-app`；桌面工程中的 `app:create`、`app:validate`、`app:pack`      |
+| SDK 工厂与类型    | `defineApplication`、`MewvisApplicationContext`、`ApplicationChatClient` |
+| 原生安装清单      | `mewvis.app`；`mewvis.ui` 继续声明应用界面                                 |
 | Node 宿主与内置包 | `packages/app/host`、`apps/applications/builtins`              |
 | 身份与协议        | `applicationId`、`application` 来源、`application:*` 桥接消息          |
 | 数据根目录        | 产品数据目录下的 `apps/`                                               |
@@ -30,9 +30,9 @@ Tauri、Vite、Lexical、React Markdown、Cordis 等依赖自身的 plugin API�
 ```text
 packages/
   app/
-    sdk/                    # @isle/app-sdk：应用公共契约
-    dev/                    # @isle/app-dev：创建、预览和打包
-    host/                   # @isle/app-host：Node 应用宿主、协议与构建
+    sdk/                    # @mewvis/app-sdk：应用公共契约
+    dev/                    # @mewvis/app-dev：创建、预览和打包
+    host/                   # @mewvis/app-host：Node 应用宿主、协议与构建
   chat-contracts/            # 跨宿主与应用共享的聊天契约
 apps/applications/
   builtins/                 # 内置应用源码
@@ -55,7 +55,7 @@ apps/server/src/modules/applications/ # 应用管理、数据、路径、UI 和�
 
 ## 后续接入边界
 
-宿主插件使用独立的 `@isle/extension-sdk` 和 `isle.extension` 清单，由自己的加载入口校验。应用加载器不能把缺少 `isle.app` 的原生包推断为宿主插件；也不能把应用中可执行的 Node 入口直接授予宿主扩展权限。
+宿主插件使用独立的 `@mewvis/extension-sdk` 和 `mewvis.extension` 清单，由自己的加载入口校验。应用加载器不能把缺少 `mewvis.app` 的原生包推断为宿主插件；也不能把应用中可执行的 Node 入口直接授予宿主扩展权限。
 
 应用会话归属与宿主插件启用列表是不同概念。前者决定谁可以管理会话，后者决定会话可以使用哪些扩展能力。后续应分别建模，保留宿主对权限、工具调用和会话持久化的管理。
 

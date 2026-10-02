@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://mewvis.app/schemas/isle-app-v1.json",
-  "title": "Isle Application Manifest",
+  "$id": "https://mewvis.app/schemas/mewvis-app-v1.json",
+  "title": "Mewvis Application Manifest",
   "type": "object",
   "properties": {
     "version": { "const": 1 },

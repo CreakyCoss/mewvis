@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { getApplicationDataClient } from "@isle/app-sdk/data";
+import { getApplicationDataClient } from "@mewvis/app-sdk/data";
 import type { Brief } from "./course";
 import type { Course } from "./course";
 import { Icon, Notice, errorText } from "./components";

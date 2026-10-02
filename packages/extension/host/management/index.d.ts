@@ -29,7 +29,7 @@ export interface ExtensionPackage {
     name: string;
     version: string;
     type: "module";
-    "isle.plugin": ExtensionManifest;
+    "mewvis.plugin": ExtensionManifest;
     [key: string]: unknown;
   };
 }

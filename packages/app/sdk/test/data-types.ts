@@ -1,5 +1,5 @@
-import type { IsleApplicationContext } from "@isle/app-sdk";
-import type { ApplicationChatClient } from "@isle/app-sdk/chat";
+import type { MewvisApplicationContext } from "@mewvis/app-sdk";
+import type { ApplicationChatClient } from "@mewvis/app-sdk/chat";
 import {
   createApplicationDataClient,
   getApplicationDataClient,
@@ -7,7 +7,7 @@ import {
   type ApplicationDataTransport,
   type ApplicationStorageValue,
   type ApplicationWorkspace,
-} from "@isle/app-sdk/data";
+} from "@mewvis/app-sdk/data";
 
 const transport: ApplicationDataTransport = {
   version: 1,
@@ -26,7 +26,7 @@ function chatUsesRegisteredWorkspace(
 }
 void chatUsesRegisteredWorkspace;
 
-async function example(ctx: IsleApplicationContext) {
+async function example(ctx: MewvisApplicationContext) {
   if (!ctx.storage || !ctx.workspaces) return;
   const created = await ctx.workspaces.create({ name: "小说 A" });
   if (created) await ctx.storage.setItem("activeWorkspaceId", created.id);

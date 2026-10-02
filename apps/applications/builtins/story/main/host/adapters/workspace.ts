@@ -1,19 +1,19 @@
 import { readFile, realpath } from "node:fs/promises";
 import { join } from "node:path";
-import type { IsleApplicationContext, IsleToolDefinition } from "@isle/app-sdk";
+import type { MewvisApplicationContext, MewvisToolDefinition } from "@mewvis/app-sdk";
 
 export function bindWorkspaceTools(
-  ctx: IsleApplicationContext,
-  tools: readonly IsleToolDefinition[],
+  ctx: MewvisApplicationContext,
+  tools: readonly MewvisToolDefinition[],
 ) {
   return tools.map((tool) => ({
     ...tool,
     async execute(args: unknown) {
       if (
         [
-          "isle_story_types",
-          "isle_story_skill",
-          "isle_story_skill_resource",
+          "mewvis_story_types",
+          "mewvis_story_skill",
+          "mewvis_story_skill_resource",
         ].includes(tool.name)
       )
         return tool.execute(args);
@@ -35,7 +35,7 @@ export function bindWorkspaceTools(
         workspacePath = await realpath(process.cwd());
         const marker = JSON.parse(
           await readFile(
-            join(workspacePath, ".isle", "workspace.json"),
+            join(workspacePath, ".mewvis", "workspace.json"),
             "utf8",
           ),
         ) as {
@@ -45,7 +45,7 @@ export function bindWorkspaceTools(
         if (
           marker.id !== input.workspaceId ||
           !Array.isArray(marker.applications) ||
-          !marker.applications.includes("@isle/story")
+          !marker.applications.includes("@mewvis/story")
         )
           throw new Error("当前应用未登记在该工作区");
       }

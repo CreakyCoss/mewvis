@@ -1,5 +1,5 @@
 import { isJsonValue } from "@earendil-works/chord";
-import type { ExtensionAgentEvent } from "@isle/extension-host";
+import type { ExtensionAgentEvent } from "@mewvis/extension-host";
 import { z } from "zod";
 
 const id = z.string().min(1);

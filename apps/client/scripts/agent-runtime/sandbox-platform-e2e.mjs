@@ -7,10 +7,10 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import entries from "../../../agent-runtime/build-entries.json" with { type: "json" };
-const temp = realpathSync(mkdtempSync(join(tmpdir(), "isle-platform-test-")));
+const temp = realpathSync(mkdtempSync(join(tmpdir(), "mewvis-platform-test-")));
 const children = [];
-const previousSettingsPath = process.env.ISLE_SANDBOX_SETTINGS_PATH;
-process.env.ISLE_SANDBOX_SETTINGS_PATH = join(temp, "settings", "sandbox.json");
+const previousSettingsPath = process.env.MEWVIS_SANDBOX_SETTINGS_PATH;
+process.env.MEWVIS_SANDBOX_SETTINGS_PATH = join(temp, "settings", "sandbox.json");
 try {
   const bundle = join(temp, "api.mjs");
   await build({
@@ -85,7 +85,7 @@ try {
   assert.equal(api.readExecutionConfig("win32").enabled, true, "saved preference overrides Windows default");
   const isolated = api.resolveExecutionPolicy("ask", temp);
   assert.ok(isolated.sandbox);
-  assert.ok(isolated.sandbox.filesystem.denyWrite.includes(process.env.ISLE_SANDBOX_SETTINGS_PATH));
+  assert.ok(isolated.sandbox.filesystem.denyWrite.includes(process.env.MEWVIS_SANDBOX_SETTINGS_PATH));
   assert.equal(plain.sandbox, null, "existing run snapshots remain unchanged");
   await api.setSandboxEnabled(false);
   assert.equal(api.resolveExecutionPolicy("ask", temp).sandbox, null);
@@ -99,7 +99,7 @@ try {
   assert.equal(applicationPlain.sandbox, null);
   assert.deepEqual(applicationPlain.access, access, "application access checks survive disabled OS isolation");
   assert.throws(() => api.saveSandboxEnabled("false"), /boolean/);
-  writeFileSync(process.env.ISLE_SANDBOX_SETTINGS_PATH, '{"enabled":"false"}');
+  writeFileSync(process.env.MEWVIS_SANDBOX_SETTINGS_PATH, '{"enabled":"false"}');
   assert.throws(() => api.readExecutionConfig(), /boolean/, "invalid settings cannot silently disable isolation");
   await api.setSandboxEnabled(true);
   console.log("PASS manual sandbox control: defaults, persistence, live reload, snapshots and access constraints");
@@ -192,7 +192,7 @@ try {
   assert.equal(resolvedWindows.backend.options.platform.srtWinPath, "C:\\Runtime\\vendor\\srt-win\\x64\\srt-win.exe");
   assert.equal(
     resolvedWindows.backend.options.platform.policyStore,
-    "C:\\ProgramData\\sandbox-runtime\\isle-policy.sqlite",
+    "C:\\ProgramData\\sandbox-runtime\\mewvis-policy.sqlite",
   );
   const invalidWindows = structuredClone(api.EXECUTION_CONFIG.backend);
   invalidWindows.platforms.windows.proxyPortRange = [60089, 60080];
@@ -220,7 +220,7 @@ try {
   assert.equal(windows.quoteArgument("C:\\O'Brien\\worker.js"), "'C:\\O''Brien\\worker.js'");
   const windowsCommand = windows.programCommand(
     { executable: "C:\\Program Files\\node.exe", args: ["C:\\O'Brien\\worker.js"] },
-    ["--isle-token", "abc"],
+    ["--mewvis-token", "abc"],
     "C:\\Temp",
   );
   assert.ok(windowsCommand.includes("& 'C:\\Program Files\\node.exe' 'C:\\O''Brien\\worker.js'"));
@@ -362,8 +362,8 @@ try {
   for (const { output } of Object.values(entries)) assert.ok(existsSync(resolve("../agent-runtime/dist", output)));
   console.log("PASS packaged Windows x64/ARM64 helpers and setup entry point");
 } finally {
-  if (previousSettingsPath === undefined) delete process.env.ISLE_SANDBOX_SETTINGS_PATH;
-  else process.env.ISLE_SANDBOX_SETTINGS_PATH = previousSettingsPath;
+  if (previousSettingsPath === undefined) delete process.env.MEWVIS_SANDBOX_SETTINGS_PATH;
+  else process.env.MEWVIS_SANDBOX_SETTINGS_PATH = previousSettingsPath;
   for (const child of children) if (child.exitCode === null && child.signalCode === null) child.kill("SIGKILL");
   rmSync(temp, { recursive: true, force: true });
 }

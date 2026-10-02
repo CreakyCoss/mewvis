@@ -1,6 +1,6 @@
 import type { RuntimeAgentRegistry } from "./agent/runtimes/registry.js";
 import { randomUUID } from "node:crypto";
-import { resolveExtensionAdaptation, type ExtensionSource } from "@isle/extension-host";
+import { resolveExtensionAdaptation, type ExtensionSource } from "@mewvis/extension-host";
 import type { ExtensionRuntime } from "../../../extensions/index.js";
 import type {
   AgentRuntimeAgent,
@@ -274,7 +274,7 @@ class NativeAgentRuntimeAgentSessionSurface implements AgentRuntimeAgentSession 
     const signal = AbortSignal.any([this.deps.extensionRuntime.signal, ...(options?.signal ? [options.signal] : [])]);
     signal.throwIfAborted();
     if (sources.length) {
-      if (!implementation.extensionAdapter) throw new Error(`${runtimeId} 不支持 Isle 插件能力`);
+      if (!implementation.extensionAdapter) throw new Error(`${runtimeId} 不支持 Mewvis 插件能力`);
       this.deps.runtimeCallbacks.onExtensionAdaptation?.(
         resolveExtensionAdaptation(implementation.extensionAdapter, sources),
       );

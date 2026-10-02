@@ -5,7 +5,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { getApplicationDataClient } from "@isle/app-sdk/data";
+import { getApplicationDataClient } from "@mewvis/app-sdk/data";
 import { Notice, Text, errorText } from "./components";
 import { ModelTask, createModelTask, closeModelTask } from "./ModelTask";
 import {

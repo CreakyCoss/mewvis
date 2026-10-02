@@ -3,19 +3,19 @@ import { randomUUID } from "node:crypto";
 import type {
   ExtensionAgentEvent,
   ExtensionSource,
-} from "@isle/extension-host";
+} from "@mewvis/extension-host";
 import {
   createExtensionHostClient,
   extensionHostMethods,
   type ExtensionHostCapability,
   type ExtensionHostMethods,
-} from "@isle/extension-host/services";
+} from "@mewvis/extension-host/services";
 import type { ExtensionState } from "../session/state.js";
 import {
   serveWorker,
   type WorkerContext,
 } from "../../security/execution/index.js";
-import { createExtensionHost } from "@isle/extension-host/agent/registration";
+import { createExtensionHost } from "@mewvis/extension-host/agent/registration";
 
 let host: Awaited<ReturnType<typeof createExtensionHost>> | undefined;
 let initialized = false;

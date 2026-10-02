@@ -6,7 +6,7 @@ import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 const workspaceRoot = fileURLToPath(new URL("..", import.meta.url));
-const tempDir = mkdtempSync(join(tmpdir(), "isle-claw-tavern-agent-protocol-"));
+const tempDir = mkdtempSync(join(tmpdir(), "mewvis-tavern-agent-protocol-"));
 const entryPath = join(tempDir, "runner.ts");
 const bundledPath = join(tempDir, "runner.mjs");
 const parsePath = resolve(

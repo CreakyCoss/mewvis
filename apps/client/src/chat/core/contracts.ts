@@ -8,7 +8,7 @@ import type {
   ChatRecord,
   ChatSnapshot,
   ChatMessage,
-} from "@isle/chat-contracts";
+} from "@mewvis/chat-contracts";
 export const sessionKey = ({ scope, id }: SessionIdentity) => JSON.stringify([scope, id]);
 export interface ChatCatalog {
   load(options?: { refresh?: boolean }): Promise<ChatResources>;

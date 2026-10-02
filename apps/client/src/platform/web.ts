@@ -1,4 +1,4 @@
-import type { ClientPlatform } from "@isle/client-platform";
+import type { ClientPlatform } from "@mewvis/client-platform";
 
 export const platform: ClientPlatform = {
   kind: "web",

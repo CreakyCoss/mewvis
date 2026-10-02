@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { projectAliases } from "../src/dev.mjs";
 test("development aliases follow inherited TypeScript paths with exact package boundaries", async (t) => {
-  const root = await mkdtemp(join(tmpdir(), "isle-alias-"));
+  const root = await mkdtemp(join(tmpdir(), "mewvis-alias-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   await writeFile(
     join(root, "base.json"),

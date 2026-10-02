@@ -1,11 +1,11 @@
 import { createSyntheticSourceInfo, type ExtensionAPI, type Skill } from "@earendil-works/pi-coding-agent";
 import type { TextContent, TSchema } from "@earendil-works/pi-ai";
-import type { RiskLevel } from "@isle/chat-contracts";
+import type { RiskLevel } from "@mewvis/chat-contracts";
 import { existsSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
-import { ApplicationHost, type RuntimeApplication } from "@isle/app-host";
+import { ApplicationHost, type RuntimeApplication } from "@mewvis/app-host";
 import type { AgentRuntimeApplication } from "../../../../../../protocol/wire.js";
 import type { RuntimeAgentCommand } from "../../types.js";
 import { runtimeResourcesFor } from "../../resources.js";
@@ -148,7 +148,7 @@ const materializeApplicationSkills = async (host: ApplicationHost, cwd: string) 
 
       let filePath = definition.path && existsSync(definition.path) ? definition.path : null;
       if (!filePath) {
-        temporaryRoot ??= await mkdtemp(join(tmpdir(), "isle-app-skills-"));
+        temporaryRoot ??= await mkdtemp(join(tmpdir(), "mewvis-app-skills-"));
         const skillDir = join(temporaryRoot, definition.name);
         await mkdir(skillDir, { recursive: true });
         filePath = join(skillDir, "SKILL.md");

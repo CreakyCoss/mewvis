@@ -1,8 +1,8 @@
 import { roles } from "./roles";
-import { defineExtension } from "@isle/extension-sdk/agent";
+import { defineExtension } from "@mewvis/extension-sdk/agent";
 import { workflows, runWorkflow } from "./workflows";
 export default defineExtension({
-  id: "isle.collaboration",
+  id: "mewvis.collaboration",
   apiVersion: 1,
   setup(ctx) {
     const flows = workflows(ctx.config);

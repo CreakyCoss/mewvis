@@ -1,8 +1,8 @@
 {
-  "name": "@isle/chat-contracts",
+  "name": "@mewvis/chat-contracts",
   "version": "0.1.0",
   "type": "module",
-  "description": "UI-independent session and semantic message contracts shared by Isle and its application SDK.",
+  "description": "UI-independent session and semantic message contracts shared by Mewvis and its application SDK.",
   "exports": {
     "./agent-access.schema.json": "./agent-access.schema.json",
     ".": {

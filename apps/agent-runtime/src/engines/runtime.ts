@@ -1,6 +1,6 @@
 import type { RuntimeExtensions, ExtensionDiagnostic } from "../extensions/index.js";
-import type { ExtensionSource, ExtensionAdaptationReport } from "@isle/extension-host";
-import type { ExtensionPackageRegistration } from "@isle/extension-host/management";
+import type { ExtensionSource, ExtensionAdaptationReport } from "@mewvis/extension-host";
+import type { ExtensionPackageRegistration } from "@mewvis/extension-host/management";
 import type { RuntimeAgent } from "./drivers/native/agent/runtimes/types.js";
 import type {
   AgentRuntimeEvent,

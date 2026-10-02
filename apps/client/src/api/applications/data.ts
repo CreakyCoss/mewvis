@@ -1,5 +1,5 @@
 import { invoke } from "@/transport";
-import type { ApplicationDataResponse, ApplicationDataTransport } from "@isle/app-sdk/data";
+import type { ApplicationDataResponse, ApplicationDataTransport } from "@mewvis/app-sdk/data";
 
 /** The parent frame binds identity; the iframe never receives this connection token. */
 export function createBackendApplicationDataTransport(

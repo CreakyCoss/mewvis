@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { join } from "node:path";
-import { buildExtensionPackage } from "@isle/extension-dev";
+import { buildExtensionPackage } from "@mewvis/extension-dev";
 
 export async function verifyExtensionCollaboration({
   api,
@@ -45,7 +45,7 @@ export async function verifyExtensionCollaboration({
   const mock = api.createScriptedMockRuntime("workflow-mock", [
     {
       type: "tool",
-      name: "ext_isle_collaboration__review",
+      name: "ext_mewvis_collaboration__review",
       input: { text: "测试任务" },
     },
   ]);
@@ -107,7 +107,7 @@ export async function verifyExtensionCollaboration({
     const slash = await sdk.agent.run({
       ...command,
       taskId: "workflow-mock-slash",
-      userMessage: "/isle.collaboration/review 明确选择流程",
+      userMessage: "/mewvis.collaboration/review 明确选择流程",
     });
     assert.equal(slash.success, true, JSON.stringify(slash));
     assert.equal(children.length, 4);
@@ -118,7 +118,7 @@ export async function verifyExtensionCollaboration({
     const missing = await invalidSdk.agent.run({
       ...command,
       taskId: "workflow-mock-missing",
-      userMessage: "/isle.collaboration/review 角色已删除",
+      userMessage: "/mewvis.collaboration/review 角色已删除",
     });
     await invalidSdk.shutdown();
     assert.equal(missing.success, false);

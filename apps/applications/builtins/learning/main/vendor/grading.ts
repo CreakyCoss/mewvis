@@ -1,6 +1,6 @@
 // Adapted from THU-MAIC/OpenMAIC, commit ebf665f316372d6ee875bd50dac1e04662d5a519.
 // Copyright (c) 2026 THU-MAIC. MIT; see ../../LICENSE.
-// Isle validates choice questions and sends short answers to a separate AI grading flow.
+// Mewvis validates choice questions and sends short answers to a separate AI grading flow.
 import type { Question as QuizQuestion } from "../course";
 
 export interface QuestionResult {

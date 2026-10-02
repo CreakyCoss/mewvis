@@ -1,4 +1,4 @@
-import type { IsleToolRisk } from "../index.js";
+import type { MewvisToolRisk } from "../index.js";
 import type { ApplicationChatClient } from "../chat/index.js";
 
 /** A tool name grant does not grant filesystem, network or process access. */
@@ -8,7 +8,7 @@ export type ApplicationTool = Readonly<{
   description: string;
   source: "host" | "application";
   /** Absent for tools without a declaration; host file tools are assessed from their actual arguments. */
-  risk?: IsleToolRisk;
+  risk?: MewvisToolRisk;
   enabled: boolean;
 }>;
 

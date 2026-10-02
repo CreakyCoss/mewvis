@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import type { ExtensionUIContext } from "@isle/extension-sdk/ui";
-import type { JsonObject } from "@isle/extension-sdk";
+import type { ExtensionUIContext } from "@mewvis/extension-sdk/ui";
+import type { JsonObject } from "@mewvis/extension-sdk";
 import { roles as readRoles, type Role } from "./roles";
 import { RoleEditor } from "./roles/editor";
 import { Library } from "./library";

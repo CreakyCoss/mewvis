@@ -1,7 +1,7 @@
 import { build } from "esbuild";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { dshBundleCompatibilityPlugin } from "@isle/app-dev/dsh";
+import { dshBundleCompatibilityPlugin } from "@mewvis/app-dev/dsh";
 
 const applicationHostRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 

@@ -1,7 +1,7 @@
 import type {
   ApplicationStorage,
   ApplicationStorageValue,
-} from "@isle/app-sdk/data";
+} from "@mewvis/app-sdk/data";
 import { object, text, list, validId } from "./course";
 export type ProjectSource = {
   id: string;

@@ -1,5 +1,5 @@
-import type { MessagePart } from "@isle/chat-contracts";
-export type { SkillOption as ChatInputSkillOption, MessagePart as ChatInputSubmitBlock } from "@isle/chat-contracts";
+import type { MessagePart } from "@mewvis/chat-contracts";
+export type { SkillOption as ChatInputSkillOption, MessagePart as ChatInputSubmitBlock } from "@mewvis/chat-contracts";
 export type ChatInputFile = { path: string; name: string; isDirectory: boolean };
 export type ChatDisplayOptions = { showThinkingProcess: boolean; showToolCallProcess: boolean };
 export type ComposerDraft = { text: string; blocks: MessagePart[] };

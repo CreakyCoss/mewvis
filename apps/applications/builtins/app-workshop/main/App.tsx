@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { ApplicationChatSession } from "@isle/app-sdk/chat";
-import { getApplicationDataClient } from "@isle/app-sdk/data";
+import type { ApplicationChatSession } from "@mewvis/app-sdk/chat";
+import { getApplicationDataClient } from "@mewvis/app-sdk/data";
 import {
   api,
   closeProjectSessions,

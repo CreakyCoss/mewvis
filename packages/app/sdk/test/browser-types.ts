@@ -1,9 +1,9 @@
-import type { ApplicationBrowserHost } from "@isle/app-sdk/browser";
-import type { ApplicationDataTransport } from "@isle/app-sdk/data";
+import type { ApplicationBrowserHost } from "@mewvis/app-sdk/browser";
+import type { ApplicationDataTransport } from "@mewvis/app-sdk/data";
 import {
   getApplicationViewClient,
   mountApplicationView,
-} from "@isle/app-sdk/views";
+} from "@mewvis/app-sdk/views";
 
 const transport: ApplicationDataTransport = {
   version: 1,

@@ -78,16 +78,16 @@ export async function readPackage(
   const manifest = await jsonOptional(join(path, "package.json"));
   if (!manifest) invalid("应用缺少 package.json");
   const id = nonempty(manifest.name, "name"),
-    isle = manifest.isle ?? {},
-    declared = Array.isArray(isle.permissions);
-  if (isle.permissions != null && !declared)
-    invalid("isle.permissions 必须是数组");
-  const list = isle.permissions ?? [];
+    mewvis = manifest.mewvis ?? {},
+    declared = Array.isArray(mewvis.permissions);
+  if (mewvis.permissions != null && !declared)
+    invalid("mewvis.permissions 必须是数组");
+  const list = mewvis.permissions ?? [];
   if (
     new Set(list).size !== list.length ||
     list.some((p: unknown) => !permissions.includes(String(p)))
   )
-    invalid("isle.permissions 无效或重复");
+    invalid("mewvis.permissions 无效或重复");
   async function file(value: string) {
     const p = await safePath(path, value);
     if (!(await fs.stat(p)).isFile()) invalid("应用入口必须是文件");
@@ -98,10 +98,10 @@ export async function readPackage(
   let patchPath: string | null = null;
   if (manifest.dsh?.bundle?.patch)
     patchPath = await file(manifest.dsh.bundle.patch);
-  if (isle.app) {
-    if (isle.app.version !== 1) invalid("不支持的 Isle 应用协议版本");
-    runtimeKind = "isle";
-    entry = await file(nonempty(isle.app.entry, "isle.app.entry"));
+  if (mewvis.app) {
+    if (mewvis.app.version !== 1) invalid("不支持的 Mewvis 应用协议版本");
+    runtimeKind = "mewvis";
+    entry = await file(nonempty(mewvis.app.entry, "mewvis.app.entry"));
   } else if (patchPath) {
     runtimeKind = "dsh";
     const resolveExport = (value: any): string | undefined =>
@@ -114,29 +114,29 @@ export async function readPackage(
           : undefined;
     const main = manifest.main ?? resolveExport(manifest.exports);
     if (main) entry = await file(main);
-  } else invalid("应用缺少 isle.app 或 DSH bundle 声明");
+  } else invalid("应用缺少 mewvis.app 或 DSH bundle 声明");
   const permissionStatus = declared
     ? "declared"
-    : runtimeKind === "isle"
-      ? "isle-upgrade-required"
+    : runtimeKind === "mewvis"
+      ? "mewvis-upgrade-required"
       : "dsh-unsupported";
   return {
     id,
-    name: isle.displayName ?? id,
+    name: mewvis.displayName ?? id,
     version: manifest.version ?? "",
     description: manifest.description ?? "",
     source,
     enabled: false,
-    defaultEnabled: isle.defaultEnabled ?? false,
+    defaultEnabled: mewvis.defaultEnabled ?? false,
     path,
     runtimeKind,
     entry,
     patchPath,
     compatibility: patchPath ? [{ adapter: "dsh" }] : [],
     permissions: list,
-    agentAccess: isle.agentAccess ?? null,
+    agentAccess: mewvis.agentAccess ?? null,
     permissionStatus,
-    origin: await jsonOptional(join(path, ".isle-origin.json")),
+    origin: await jsonOptional(join(path, ".mewvis-origin.json")),
   };
 }
 export function descriptor(application: Application) {
@@ -144,8 +144,8 @@ export function descriptor(application: Application) {
   return value;
 }
 export function installable(a: Application) {
-  if (a.permissionStatus === "isle-upgrade-required")
-    invalid("请为 Isle 应用声明 isle.permissions，没有额外权限时声明空数组");
+  if (a.permissionStatus === "mewvis-upgrade-required")
+    invalid("请为 Mewvis 应用声明 mewvis.permissions，没有额外权限时声明空数组");
 }
 export async function copyPackage(
   source: string,
@@ -250,7 +250,7 @@ export class Packages {
         ...p,
         dataDirectory: applicationDirectory(this.path, p.id),
         enabled:
-          p.permissionStatus !== "isle-upgrade-required" &&
+          p.permissionStatus !== "mewvis-upgrade-required" &&
           (r.enabled[p.id] ?? p.defaultEnabled),
       }))
       .sort(
@@ -317,7 +317,7 @@ export class Packages {
       try {
         return await this.enable(
           p.id,
-          p.runtimeKind === "isle" && (enable ?? true),
+          p.runtimeKind === "mewvis" && (enable ?? true),
         );
       } catch (error) {
         await fs.rm(dest, { recursive: true, force: true });

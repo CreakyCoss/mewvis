@@ -1,4 +1,4 @@
-import { defineTool } from "@isle/app-sdk";
+import { defineTool } from "@mewvis/app-sdk";
 import { STORY_TOOL } from "./definition.js";
 import { toolSchema } from "../../adapters/schema.js";
 import {

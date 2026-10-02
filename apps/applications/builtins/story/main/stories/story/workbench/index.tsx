@@ -43,7 +43,7 @@ import { Input } from "design-system/components/ui/input";
 import { Label } from "design-system/components/ui/label";
 import type { StoryDocument } from "@story/project/types";
 import { toast } from "sonner";
-import { writeClipboardText } from "@isle/app-sdk/browser";
+import { writeClipboardText } from "@mewvis/app-sdk/browser";
 import { storyDocumentData, storyDocumentKey } from "../../story-document";
 import { useStoryState } from "../use-story-state";
 import { StoryDocumentDetail } from "../modules/detail";

@@ -1,4 +1,4 @@
-import { defineApplication, defineTool } from "@isle/app-sdk";
+import { defineApplication, defineTool } from "@mewvis/app-sdk";
 import book from "../../../../docs/.generated/book.json" with { type: "json" };
 import { createLibrary } from "./library.js";
 
@@ -14,15 +14,15 @@ const entry = { id: string, title: string, group: string, depth: { type: "intege
 const array = (items) => ({ type: "array", items });
 const definitions = [
   [
-    "isle_docs_catalog",
-    "列出 Isle 中文文档的章节与页面。",
+    "mewvis_docs_catalog",
+    "列出 Mewvis 中文文档的章节与页面。",
     object({}),
     object({ title: string, language: string, entries: array(object(entry)) }),
     () => library.catalog(),
   ],
   [
-    "isle_docs_read",
-    "读取目录中的一篇 Isle 中文文档。",
+    "mewvis_docs_read",
+    "读取目录中的一篇 Mewvis 中文文档。",
     object({ id: { ...string, minLength: 1, maxLength: 240 } }),
     object({
       ...entry,
@@ -32,8 +32,8 @@ const definitions = [
     ({ id }) => library.read(id),
   ],
   [
-    "isle_docs_search",
-    "全文搜索 Isle 中文文档，最多返回 30 项。",
+    "mewvis_docs_search",
+    "全文搜索 Mewvis 中文文档，最多返回 30 项。",
     object({ query: { ...string, maxLength: 200 } }),
     object({
       total: { type: "integer" },
@@ -44,7 +44,7 @@ const definitions = [
 ];
 
 export default defineApplication({
-  name: "@isle/docs-reader",
+  name: "@mewvis/docs-reader",
   inject: ["tools"],
   apply(ctx) {
     for (const [name, description, parameters, schema, execute] of definitions) {

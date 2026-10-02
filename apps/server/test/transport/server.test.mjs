@@ -15,7 +15,7 @@ const fixture = fileURLToPath(
   new URL("../support/fixtures/runtime.mjs", import.meta.url),
 );
 async function serve(t) {
-  const root = await mkdtemp(join(tmpdir(), "isle-server-http-"));
+  const root = await mkdtemp(join(tmpdir(), "mewvis-server-http-"));
   const server = await startServer({
     port: 0,
     token,
@@ -141,7 +141,7 @@ test("invalid inputs are rejected before worker creation, unavailable applicatio
     assert.equal((await s.run("invalid", "ok", extra)).status, 400);
   }
   assert.equal(
-    (await s.run("application", "ok", { applicationId: "@isle/rss-reader" }))
+    (await s.run("application", "ok", { applicationId: "@mewvis/rss-reader" }))
       .status,
     404,
   );
@@ -265,17 +265,17 @@ test("event replay is bounded by both count and bytes", () => {
 });
 
 test("CLI starts without Tauri and SIGTERM cleans up worker children", async (t) => {
-  const root = await mkdtemp(join(tmpdir(), "isle-server-cli-"));
+  const root = await mkdtemp(join(tmpdir(), "mewvis-server-cli-"));
   const child = spawn(
     process.execPath,
     [fileURLToPath(new URL("../../dist/cli.js", import.meta.url))],
     {
       env: {
         ...process.env,
-        ISLE_SERVER_PORT: "0",
-        ISLE_SERVER_TOKEN: token,
-        ISLE_SERVER_RUNTIME_CLI: fixture,
-        ISLE_SERVER_DATA_DIR: root,
+        MEWVIS_SERVER_PORT: "0",
+        MEWVIS_SERVER_TOKEN: token,
+        MEWVIS_SERVER_RUNTIME_CLI: fixture,
+        MEWVIS_SERVER_DATA_DIR: root,
       },
       stdio: ["ignore", "pipe", "pipe"],
     },

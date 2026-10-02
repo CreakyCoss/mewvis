@@ -14,11 +14,11 @@ import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { readExtensionPackage } from "@isle/extension-host/management";
+import { readExtensionPackage } from "@mewvis/extension-host/management";
 
-import { adaptIslePackage } from "@isle/extension-adapters/package";
+import { adaptMewvisPackage } from "@mewvis/extension-adapters/package";
 const exec = promisify(execFile);
-const sdkEntry = fileURLToPath(import.meta.resolve("@isle/extension-sdk"));
+const sdkEntry = fileURLToPath(import.meta.resolve("@mewvis/extension-sdk"));
 
 export async function createExtensionPackage(directory, id) {
   if (!/^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)*$/.test(id))
@@ -33,13 +33,13 @@ export async function createExtensionPackage(directory, id) {
     private: true,
     type: "module",
     scripts: {
-      build: "isle-extension build",
-      validate: "isle-extension validate dist/plugin",
-      pack: "isle-extension pack",
+      build: "mewvis-extension build",
+      validate: "mewvis-extension validate dist/plugin",
+      pack: "mewvis-extension pack",
     },
-    dependencies: { "@isle/extension-sdk": "workspace:*" },
-    devDependencies: { "@isle/extension-dev": "workspace:*" },
-    "isle.extension": {
+    dependencies: { "@mewvis/extension-sdk": "workspace:*" },
+    devDependencies: { "@mewvis/extension-dev": "workspace:*" },
+    "mewvis.extension": {
       schemaVersion: 2,
       id,
       apiVersion: 1,
@@ -52,7 +52,7 @@ export async function createExtensionPackage(directory, id) {
   );
   await writeFile(
     join(root, "src/index.ts"),
-    `import { defineExtension } from "@isle/extension-sdk/agent";
+    `import { defineExtension } from "@mewvis/extension-sdk/agent";
 
 export default defineExtension({
   id: ${JSON.stringify(id)},
@@ -62,7 +62,7 @@ export default defineExtension({
       name: "hello",
       description: "问候命令",
       parameters: { type: "object", properties: {}, additionalProperties: false },
-      async execute() { return { message: "你好，Isle！" }; },
+      async execute() { return { message: "你好，Mewvis！" }; },
     });
   },
 });
@@ -76,18 +76,18 @@ export async function buildExtensionPackage(directory, { outputDir } = {}) {
   const metadata = JSON.parse(
     await readFile(join(resolve(directory), "package.json"), "utf8"),
   );
-  if (metadata["isle.plugin"] && metadata["isle.extension"])
+  if (metadata["mewvis.plugin"] && metadata["mewvis.extension"])
     throw new Error("不能同时声明原生与 SDK 插件清单");
-  const external = Boolean(metadata["isle.extension"]);
+  const external = Boolean(metadata["mewvis.extension"]);
   const pkg = readExtensionPackage(resolve(directory), {
     checkEntry: false,
-    ...(external && { decode: adaptIslePackage }),
+    ...(external && { decode: adaptMewvisPackage }),
   });
   const output = resolve(outputDir ?? join(pkg.root, "dist/plugin"));
   if (output === pkg.root || !relative(output, pkg.root).startsWith(".."))
     throw new Error("构建输出不能覆盖项目或其父目录");
   // Custom output must be absent. Replace dist/plugin only after building succeeds.
-  const staging = await mkdtemp(join(tmpdir(), "isle-extension-build-"));
+  const staging = await mkdtemp(join(tmpdir(), "mewvis-extension-build-"));
   try {
     for (const [kind, declaration] of Object.entries(pkg.manifest.modules)) {
       if (!declaration.entry) continue;
@@ -96,9 +96,9 @@ export async function buildExtensionPackage(directory, { outputDir } = {}) {
         ...(external
           ? {
               stdin: {
-                contents: `import definition from ${JSON.stringify(join(pkg.root, browser ? "src/ui.ts" : "src/index.ts"))}; import { ${browser ? "adaptUIExtension" : "adaptAgentExtension"} as adapt } from ${JSON.stringify(fileURLToPath(import.meta.resolve("@isle/extension-adapters")))}; export default adapt(definition);`,
+                contents: `import definition from ${JSON.stringify(join(pkg.root, browser ? "src/ui.ts" : "src/index.ts"))}; import { ${browser ? "adaptUIExtension" : "adaptAgentExtension"} as adapt } from ${JSON.stringify(fileURLToPath(import.meta.resolve("@mewvis/extension-adapters")))}; export default adapt(definition);`,
                 resolveDir: pkg.root,
-                sourcefile: "isle-adapter-entry.js",
+                sourcefile: "mewvis-adapter-entry.js",
               },
             }
           : {
@@ -113,42 +113,42 @@ export async function buildExtensionPackage(directory, { outputDir } = {}) {
         target: browser ? "es2022" : "node22",
         ...(browser && { jsx: "automatic", minify: true, define: { "process.env.NODE_ENV": '"production"' } }),
         alias: {
-          "@isle/extension-sdk/agent": fileURLToPath(
-            import.meta.resolve("@isle/extension-sdk/agent"),
+          "@mewvis/extension-sdk/agent": fileURLToPath(
+            import.meta.resolve("@mewvis/extension-sdk/agent"),
           ),
-          "@isle/extension-sdk/ui": fileURLToPath(
-            import.meta.resolve("@isle/extension-sdk/ui"),
+          "@mewvis/extension-sdk/ui": fileURLToPath(
+            import.meta.resolve("@mewvis/extension-sdk/ui"),
           ),
-          "@isle/extension-sdk/host": fileURLToPath(
-            import.meta.resolve("@isle/extension-sdk/host"),
+          "@mewvis/extension-sdk/host": fileURLToPath(
+            import.meta.resolve("@mewvis/extension-sdk/host"),
           ),
-          "@isle/extension-sdk": sdkEntry,
+          "@mewvis/extension-sdk": sdkEntry,
           ...(!external &&
             Object.fromEntries(
               ["", "/agent", "/ui", "/services"].map((suffix) => [
-                `@isle/extension-host${suffix}`,
+                `@mewvis/extension-host${suffix}`,
                 fileURLToPath(
-                  import.meta.resolve(`@isle/extension-host${suffix}`),
+                  import.meta.resolve(`@mewvis/extension-host${suffix}`),
                 ),
               ]),
             )),
         },
         ...(!browser && {
           banner: {
-            js: "import { createRequire as __isleRequire } from 'node:module'; const require = __isleRequire(import.meta.url);",
+            js: "import { createRequire as __mewvisRequire } from 'node:module'; const require = __mewvisRequire(import.meta.url);",
           },
         }),
         plugins: [
           {
-            name: "isle-plugin-boundary",
+            name: "mewvis-plugin-boundary",
             setup(builder) {
               builder.onResolve(
                 {
                   filter:
-                    /^@(?:earendil-works\/pi-|isle\/(?:agent-runtime|app-host|extension-host))/,
+                    /^@(?:earendil-works\/pi-|mewvis\/(?:agent-runtime|app-host|extension-host))/,
                 },
                 (args) =>
-                  !external && args.path.startsWith("@isle/extension-host")
+                  !external && args.path.startsWith("@mewvis/extension-host")
                     ? undefined
                     : {
                         errors: [
@@ -167,7 +167,7 @@ export async function buildExtensionPackage(directory, { outputDir } = {}) {
       name: pkg.packageJson.name,
       version: pkg.packageJson.version,
       type: "module",
-      "isle.plugin": pkg.manifest,
+      "mewvis.plugin": pkg.manifest,
     };
     for (const key of ["description", "license", "keywords"]) {
       if (pkg.packageJson[key] !== undefined)
@@ -213,7 +213,7 @@ export async function buildExtensionPackage(directory, { outputDir } = {}) {
 
 export async function packExtensionPackage(directory, { outputDir } = {}) {
   const root = resolve(directory);
-  const temp = await mkdtemp(join(tmpdir(), "isle-extension-pack-"));
+  const temp = await mkdtemp(join(tmpdir(), "mewvis-extension-pack-"));
   try {
     const pkg = await buildExtensionPackage(root, {
       outputDir: join(temp, "package"),

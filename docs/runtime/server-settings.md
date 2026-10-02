@@ -78,7 +78,7 @@
 
 ## 存储与错误处理
 
-配置直接使用原来的 `~/.isle-claw/config.db`，也可通过 `ISLE_SERVER_DATA_DIR` 指定根目录。模型、智能体、工作区、故事、技能和知识库配置共用同一份数据库；切换后端不需要复制或导入数据。
+配置默认使用 `~/.mewvis/config.db`，也可通过 `MEWVIS_SERVER_DATA_DIR` 指定根目录。模型、智能体、工作区、故事、技能和知识库配置共用同一份数据库；桌面与 Web 共用该数据目录。
 
 配置库当前为 schema v27，不设置 Node 专属 `application_id`。v26 用 `agent_definitions` 保存“我的智能体”的完整定义，配置来源 ID 保存在定义 JSON 中；系统配置库从服务端读取，不自动写入用户数据。旧 `ai_agents` 表直接删除，旧角色不兼容、不迁移，原 `get_ai_agent_settings`、`save_ai_agent`、`delete_ai_agent` 命令已移除。旧会话中失效的角色选择会清空，聊天记录仍保留。
 

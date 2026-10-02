@@ -4,11 +4,11 @@ import type {
   ApplicationChatRequest,
   ApplicationChatSummary,
   ApplicationModelOption,
-} from "@isle/app-sdk/chat";
+} from "@mewvis/app-sdk/chat";
 import type { ChatContext, ChatSession } from "../core";
 import type { DesktopChatService, DesktopSessionInput } from "./service";
 import type { ChatProfile } from "./catalog";
-import type { ApplicationTool } from "@isle/app-sdk/tools";
+import type { ApplicationTool } from "@mewvis/app-sdk/tools";
 
 type Access = { workspacePath: string; knowledge: boolean };
 type SessionInput = ApplicationChatCreateInput & { chatId: string };
@@ -260,7 +260,7 @@ export function createApplicationChatHost(service: DesktopChatService, options: 
             if (disposed) throw new Error("应用连接已断开");
             return catalog;
           }
-          if (request.method === "workspaces") throw new Error("请通过 @isle/app-sdk/data 查询应用工作区");
+          if (request.method === "workspaces") throw new Error("请通过 @mewvis/app-sdk/data 查询应用工作区");
           if (request.method === "list") {
             const input = record(request.input);
             only(input, ["workspaceId"]);

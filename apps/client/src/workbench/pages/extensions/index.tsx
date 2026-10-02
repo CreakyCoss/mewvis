@@ -1,4 +1,4 @@
-import { SettingsSlot } from "@isle/extension-host/ui/slots/settings";
+import { SettingsSlot } from "@mewvis/extension-host/ui/slots/settings";
 import { useEffect, useState } from "react";
 import { AlertCircle, FolderOpen, Loader2, Plus, Puzzle, RefreshCw, Search, Settings2, Trash2 } from "lucide-react";
 import { Button } from "design-system/components/ui/button";

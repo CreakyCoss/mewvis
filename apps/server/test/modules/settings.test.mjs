@@ -37,7 +37,7 @@ const provider = (extra = {}) => ({
 });
 
 async function setup(t) {
-  const root = await mkdtemp(join(tmpdir(), "isle-server-settings-"));
+  const root = await mkdtemp(join(tmpdir(), "mewvis-server-settings-"));
   const options = {
     token,
     port: 0,
@@ -435,7 +435,7 @@ test("database locks return a bounded retryable error and leave settings intact"
 });
 
 test("database initialization rejects foreign and future schemas without rebuilding them", async (t) => {
-  const root = await mkdtemp(join(tmpdir(), "isle-settings-schema-"));
+  const root = await mkdtemp(join(tmpdir(), "mewvis-settings-schema-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const path = join(root, "config.db");
   let db = new DatabaseSync(path);

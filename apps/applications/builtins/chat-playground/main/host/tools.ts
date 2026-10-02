@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { Buffer } from "node:buffer";
-import { defineTool } from "@isle/app-sdk";
+import { defineTool } from "@mewvis/app-sdk";
 import type { TextInspection } from "../contracts";
 
 const inspectText = defineTool({

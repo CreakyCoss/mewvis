@@ -1,7 +1,7 @@
 import { rm, mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { buildExtensionPackage } from "@isle/extension-dev";
+import { buildExtensionPackage } from "@mewvis/extension-dev";
 import { loadRegistrations } from "../../scripts/registrations.mjs";
 
 const sources = fileURLToPath(new URL("../../extensions/", import.meta.url));

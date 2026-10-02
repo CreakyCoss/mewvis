@@ -5,13 +5,13 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from "react";
-import { Chat } from "@isle/app-sdk/chat/react";
+import { Chat } from "@mewvis/app-sdk/chat/react";
 import {
   getApplicationChatClient,
   type ApplicationChatProfile,
   type ApplicationChatSession,
-} from "@isle/app-sdk/chat";
-import { getApplicationDataClient } from "@isle/app-sdk/data";
+} from "@mewvis/app-sdk/chat";
+import { getApplicationDataClient } from "@mewvis/app-sdk/data";
 import { finalText } from "./generation";
 import type { SessionRef } from "./workflow";
 import { Notice, errorText } from "./components";

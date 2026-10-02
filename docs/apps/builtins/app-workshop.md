@@ -1,6 +1,6 @@
 # 应用工坊
 
-应用工坊位于 `apps/applications/builtins/app-workshop`，以普通内置应用接入 Isle。小应用先创建项目，再进入编辑页修改或让 AI 生成源码；构建完成后，用户保存版本并在应用工坊中使用。
+应用工坊位于 `apps/applications/builtins/app-workshop`，以普通内置应用接入 Mewvis。小应用先创建项目，再进入编辑页修改或让 AI 生成源码；构建完成后，用户保存版本并在应用工坊中使用。
 
 ## 页面与流程
 
@@ -42,11 +42,11 @@
 │   └── builds/
 │       ├── <project-uuid>.json  # 草稿构建，重复构建覆盖
 │       └── <version-uuid>.json  # 当前版本重复保存覆盖，创建新版本才新增
-├── .isle/workspace.json
-└── .isle-claw/chats/
+├── .mewvis/workspace.json
+└── .mewvis/chats/
 ```
 
-`.workshop/project.json` 使用 format 2，仅保存项目说明、revision、源码摘要和版本索引，不再保存工作源码。构建产物及源码快照保存在 `.workshop/builds`。每次成功构建覆盖固定的 `<project-uuid>.json` 草稿文件；「保存版本」将当前草稿复制到当前版本的 `<version-uuid>.json`，首次保存才分配版本 UUID。「创建新版本」会分配新的版本 UUID 并加入版本列表，即使内容相同也会创建。保存不再根据源码或产物是否变化自动决定新增版本。历史恢复会将快照写回真实源码目录，并复制到固定草稿文件中供预览，后续构建仍覆盖该草稿文件。版本列表时间表示创建时间，覆盖保存更新该版本的 sourceRevision 和产物，其他版本保留。聊天继续由宿主保存在 `.isle-claw/chats`，工坊不移动或改写该目录。
+`.workshop/project.json` 使用 format 2，仅保存项目说明、revision、源码摘要和版本索引，不再保存工作源码。构建产物及源码快照保存在 `.workshop/builds`。每次成功构建覆盖固定的 `<project-uuid>.json` 草稿文件；「保存版本」将当前草稿复制到当前版本的 `<version-uuid>.json`，首次保存才分配版本 UUID。「创建新版本」会分配新的版本 UUID 并加入版本列表，即使内容相同也会创建。保存不再根据源码或产物是否变化自动决定新增版本。历史恢复会将快照写回真实源码目录，并复制到固定草稿文件中供预览，后续构建仍覆盖该草稿文件。版本列表时间表示创建时间，覆盖保存更新该版本的 sourceRevision 和产物，其他版本保留。聊天继续由宿主保存在 `.mewvis/chats`，工坊不移动或改写该目录。
 
 工坊工具的文件路径均相对于 `source/`，例如 `src/App.tsx`，不能访问 `.workshop` 或聊天目录。源码提交使用 revision 检查、文件锁和逐文件原子替换；多文件修改通过 `.workshop/source-transaction.json` 记录事务，进程中断后继续恢复。宿主进程退出遗留的锁只在确认原进程不存在后回收。读取拒绝符号链接、硬链接、越界路径及超过限制的文件；`source/.git`、`node_modules` 和 `dist` 不作为源码读取或随版本恢复删除。删除项目只允许当前应用登记的专属工作区。
 
@@ -64,18 +64,18 @@ AI 会话通过公共 `Chat` 组件与 `ApplicationChatSession` 接入，每个�
 
 ## 当前支持范围
 
-支持项目内 JS、JSX、TS、TSX、CSS、JSON 模块，以及 React、`react/jsx-runtime`、`react-dom/client`、`@isle/app-sdk/views`。入口为 `source/src/main.tsx`；源码目录还可保存 Markdown、文本和 HTML 文档，`public/` 为预留资源目录，目前不作为静态资源服务器发布。构建产物附带 Isle 公共主题令牌；宿主主题更新仍通过视图 SDK 传递。
+支持项目内 JS、JSX、TS、TSX、CSS、JSON 模块，以及 React、`react/jsx-runtime`、`react-dom/client`、`@mewvis/app-sdk/views`。入口为 `source/src/main.tsx`；源码目录还可保存 Markdown、文本和 HTML 文档，`public/` 为预留资源目录，目前不作为静态资源服务器发布。构建产物附带 Mewvis 公共主题令牌；宿主主题更新仍通过视图 SDK 传递。
 
 暂不支持任意 npm 依赖、Node 后端、外部资源或网络。CSS 的 `@import` 和 `url()` 会产生构建诊断。每个项目最多 64 个文件、1 MiB 源码，每个文件最多 128 KiB；每个构建最多 3 MiB，保存版本最多 100 个。
 
 ## 开发与验证
 
 ```sh
-pnpm --filter @isle/app-workshop check
-pnpm --filter @isle/app-workshop test
-pnpm --filter @isle/app-workshop dev -- --seed
+pnpm --filter @mewvis/app-workshop check
+pnpm --filter @mewvis/app-workshop test
+pnpm --filter @mewvis/app-workshop dev -- --seed
 ```
 
-本地预览位于 `http://127.0.0.1:5183/`。预览在显式隔离的临时目录执行真实 Node 项目工具；`--seed` 仅为预览创建示例项目，不会为安装后的应用自动添加示例。预览聊天使用 SDK 内存模拟，不调用真实模型；最终模型行为须在 Isle 中验证。停止并重新启动预览会创建新的临时目录；同一次预览中的页面刷新保留源码，聊天及运行状态为内存数据。
+本地预览位于 `http://127.0.0.1:5183/`。预览在显式隔离的临时目录执行真实 Node 项目工具；`--seed` 仅为预览创建示例项目，不会为安装后的应用自动添加示例。预览聊天使用 SDK 内存模拟，不调用真实模型；最终模型行为须在 Mewvis 中验证。停止并重新启动预览会创建新的临时目录；同一次预览中的页面刷新保留源码，聊天及运行状态为内存数据。
 
 内置应用统一打包入口会先生成编译器、React 浏览器运行时与主题资源，再打包工坊。构建生成文件不纳入版本管理。

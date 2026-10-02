@@ -10,9 +10,9 @@ export async function prepareRuntime() {
       contents: `import * as React from 'react';
 import * as JSX from 'react/jsx-runtime';
 import * as DOM from 'react-dom/client';
-import { getApplicationViewClient } from '@isle/app-sdk/views';
+import { getApplicationViewClient } from '@mewvis/app-sdk/views';
 export const modules = {react: React, 'react/jsx-runtime': JSX, 'react-dom/client': DOM,
-  '@isle/app-sdk/views': {getApplicationViewClient}};`,
+  '@mewvis/app-sdk/views': {getApplicationViewClient}};`,
       resolveDir: root,
     },
     bundle: true,
@@ -51,7 +51,7 @@ export const modules = {react: React, 'react/jsx-runtime': JSX, 'react-dom/clien
   );
   await writeFile(
     join(output, "theme.ts"),
-    `// Generated Isle theme defaults.\nexport default ${JSON.stringify(theme)};\n`,
+    `// Generated Mewvis theme defaults.\nexport default ${JSON.stringify(theme)};\n`,
   );
   await writeFile(
     join(output, "runtime.ts"),

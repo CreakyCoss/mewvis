@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { ExtensionUIContext } from "@isle/extension-sdk/ui";
+import type { ExtensionUIContext } from "@mewvis/extension-sdk/ui";
 import { readRules, type Rule } from "./rules";
 import { Library } from "./library";
 import { RuleEditor } from "./rule-editor";

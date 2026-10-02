@@ -171,7 +171,7 @@ export function createApplicationChatClient(transport) {
 let browserClient;
 export function getApplicationChatClient() {
   if (!browserClient) {
-    const transport = globalThis.isleApplication?.chat;
+    const transport = globalThis.mewvisApplication?.chat;
     if (!transport) throw new Error("当前宿主未提供应用聊天能力");
     browserClient = createApplicationChatClient(transport);
   }

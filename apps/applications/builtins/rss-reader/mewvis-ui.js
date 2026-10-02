@@ -240,7 +240,7 @@ const loadFeeds = async (preferredUrl = "") => {
   setError("#feed-error", "");
   renderFeeds(true);
   try {
-    const value = record(responseValue(await window.isleApplication.executeTool("rss_list")));
+    const value = record(responseValue(await window.mewvisApplication.executeTool("rss_list")));
     if (request !== state.feedRequest) return;
     state.feeds = Array.isArray(value.feeds)
       ? value.feeds.map(record).filter((feed) => typeof feed.url === "string")
@@ -273,7 +273,7 @@ const fetchFeed = async () => {
   renderEntries(true);
   try {
     const value = record(
-      responseValue(await window.isleApplication.executeTool("rss_fetch", { url: state.selectedUrl, limit: 40 })),
+      responseValue(await window.mewvisApplication.executeTool("rss_fetch", { url: state.selectedUrl, limit: 40 })),
     );
     if (request !== state.fetchRequest) return;
     state.entries = Array.isArray(value.entries) ? value.entries.map(record) : [];
@@ -342,7 +342,7 @@ $("#add-form").addEventListener("submit", async (event) => {
   setBusy(button, true, "正在校验…", "添加订阅");
   setError("#add-error", "");
   try {
-    await window.isleApplication.executeTool("rss_add", {
+    await window.mewvisApplication.executeTool("rss_add", {
       url,
       name: text(data.get("name")).trim(),
       category: text(data.get("category")).trim(),
@@ -363,7 +363,7 @@ $("#remove-submit").addEventListener("click", async () => {
   const button = $("#remove-submit");
   setBusy(button, true, "正在移除…", "移除订阅");
   try {
-    await window.isleApplication.executeTool("rss_remove", { url: state.removal.url });
+    await window.mewvisApplication.executeTool("rss_remove", { url: state.removal.url });
     state.removal = null;
     $("#remove-dialog").close();
     showPane("feeds");
@@ -380,7 +380,7 @@ $("#open-article").addEventListener("click", async (event) => {
   const url = event.currentTarget.dataset.url;
   if (!url) return;
   try {
-    await window.isleApplication.openExternal(url);
+    await window.mewvisApplication.openExternal(url);
   } catch (error) {
     setError("#fetch-error", error instanceof Error ? error.message : String(error));
   }

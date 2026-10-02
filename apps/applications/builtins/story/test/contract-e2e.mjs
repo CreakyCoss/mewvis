@@ -67,7 +67,7 @@ const expectedPaths = {
   "story-import": "story/imports/{id}.json",
 };
 
-assert.equal(StoryDefinition.format, "isle-claw.story-type-definition");
+assert.equal(StoryDefinition.format, "mewvis.story-type-definition");
 assert.equal(StoryDefinition.formatVersion, 3);
 assert.equal(storyType.$format, StoryDefinition.format);
 assert.equal(storyType.formatVersion, StoryDefinition.formatVersion);

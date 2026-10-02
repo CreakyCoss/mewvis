@@ -14,7 +14,7 @@ const fixture = fileURLToPath(
 );
 async function setup(t, runtimeOverrides = {}) {
   const root = await fs.realpath(
-    await fs.mkdtemp(join(tmpdir(), "isle-migration-")),
+    await fs.mkdtemp(join(tmpdir(), "mewvis-migration-")),
   );
   const server = await startServer({
     port: 0,
@@ -355,7 +355,7 @@ test("application data ownership, workspace confirmation, revocation and package
     name: "@test/app",
     version: "1.0.0",
     type: "module",
-    isle: {
+    mewvis: {
       app: { version: 1, entry: "index.js" },
       permissions: ["application-data", "application-workspaces", "chat", "embedded-views"],
       agentAccess: { process: { execute: false } },
@@ -413,9 +413,9 @@ test("application data ownership, workspace confirmation, revocation and package
     true,
   );
   const shared = join(s.root, "shared");
-  await fs.mkdir(join(shared, ".isle"), { recursive: true });
+  await fs.mkdir(join(shared, ".mewvis"), { recursive: true });
   await fs.writeFile(
-    join(shared, ".isle", "workspace.json"),
+    join(shared, ".mewvis", "workspace.json"),
     JSON.stringify({
       version: 1,
       id: "11111111-1111-4111-8111-111111111111",
@@ -488,7 +488,7 @@ test("application data ownership, workspace confirmation, revocation and package
   );
   assert.equal((await request("workspaces.remove", { id: sharedId })).ok, true);
   assert.deepEqual(
-    JSON.parse(await fs.readFile(join(shared, ".isle/workspace.json"), "utf8"))
+    JSON.parse(await fs.readFile(join(shared, ".mewvis/workspace.json"), "utf8"))
       .applications,
     ["other"],
   );
@@ -539,7 +539,7 @@ test("application data ownership, workspace confirmation, revocation and package
 });
 test("real Node application host forwards SDK storage and tools, policies, UI and invalidates chat connections", async (t) => {
   const root = await fs.realpath(
-    await fs.mkdtemp(join(tmpdir(), "isle-apphost-")),
+    await fs.mkdtemp(join(tmpdir(), "mewvis-apphost-")),
   );
   const cli = fileURLToPath(
     new URL("../../../agent-runtime/dist/cli.js", import.meta.url),
@@ -569,7 +569,7 @@ test("real Node application host forwards SDK storage and tools, policies, UI an
       name: "fixture",
       version: "1",
       type: "module",
-      isle: {
+      mewvis: {
         app: { version: 1, entry: "index.js" },
         permissions: ["application-data"],
         ui: { version: 1, kind: "sandbox", entry: "./ui.js" },
@@ -622,7 +622,7 @@ test("real Node application host forwards SDK storage and tools, policies, UI an
   );
 });
 test("bundled skills share one generic system group", async (t) => {
-  const bundled = await fs.mkdtemp(join(tmpdir(), "isle-bundled-skills-"));
+  const bundled = await fs.mkdtemp(join(tmpdir(), "mewvis-bundled-skills-"));
   t.after(() => fs.rm(bundled, { recursive: true, force: true }));
   for (const name of ["story-long-write", "bazi", "another-skill"]) {
     const path = join(bundled, name);
@@ -690,7 +690,7 @@ test("skills zip installation, persisted groups and removal use the shared comma
 });
 test("sandbox commands validate toggles and share persisted runtime settings", async (t) => {
   const root = await fs.realpath(
-    await fs.mkdtemp(join(tmpdir(), "isle-sandbox-")),
+    await fs.mkdtemp(join(tmpdir(), "mewvis-sandbox-")),
   );
   t.after(() => fs.rm(root, { recursive: true, force: true }));
   await fs.writeFile(
@@ -728,7 +728,7 @@ test("sandbox commands validate toggles and share persisted runtime settings", a
   }
   await fs.writeFile(
     join(root, "sandbox-control.js"),
-    "console.log(JSON.stringify({settingsPath:process.env.ISLE_SANDBOX_SETTINGS_PATH}));",
+    "console.log(JSON.stringify({settingsPath:process.env.MEWVIS_SANDBOX_SETTINGS_PATH}));",
   );
   assert.deepEqual(await commands.get_agent_runtime_sandbox_status({}), {
     settingsPath: join(root, "sandbox.json"),
@@ -747,7 +747,7 @@ test("sandbox commands validate toggles and share persisted runtime settings", a
 });
 test("corrupt configuration can be inspected and rebuilt without preventing Server startup", async (t) => {
   const root = await fs.realpath(
-    await fs.mkdtemp(join(tmpdir(), "isle-db-recovery-")),
+    await fs.mkdtemp(join(tmpdir(), "mewvis-db-recovery-")),
   );
   const dataDir = join(root, "data");
   await fs.mkdir(dataDir);
@@ -788,7 +788,7 @@ test("application Agent binding injects only its owner permissions and disable c
       name: "owner",
       version: "1",
       type: "module",
-      isle: {
+      mewvis: {
         app: { version: 1, entry: "index.js" },
         permissions: ["chat"],
         agentAccess: { process: { execute: false } },
@@ -905,7 +905,7 @@ test("generic Node helpers bound timeout and spawn failures", async () => {
     { code: "COMMAND_TIMEOUT" },
   );
   assert.ok(Date.now() - begin < 2000);
-  await assert.rejects(command("/nonexistent/isle-fixture-command", []), {
+  await assert.rejects(command("/nonexistent/mewvis-fixture-command", []), {
     code: "COMMAND_UNAVAILABLE",
   });
 });

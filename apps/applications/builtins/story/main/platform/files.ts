@@ -6,7 +6,7 @@ const file = async <T>(
   content?: string,
 ): Promise<T> => {
   const location = await locationForPath(workspacePath);
-  return call<T>("isle_story_file", {
+  return call<T>("mewvis_story_file", {
     workspaceId: location.workspace.id,
     path: [location.relativePath, path].filter(Boolean).join("/"),
     action,

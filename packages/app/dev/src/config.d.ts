@@ -1,9 +1,9 @@
-import type { AgentAccess } from "@isle/chat-contracts";
+import type { AgentAccess } from "@mewvis/chat-contracts";
 export type {
   AgentAccess,
   AgentAccessPath,
   AgentAccessBase,
-} from "@isle/chat-contracts";
+} from "@mewvis/chat-contracts";
 
 export type ApplicationPermission =
   | "network"

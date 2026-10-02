@@ -1,4 +1,4 @@
-import { getApplicationChatClient } from "@isle/app-sdk/chat";
+import { getApplicationChatClient } from "@mewvis/app-sdk/chat";
 import { workspaceForPath } from "@/platform/bridge";
 import type { StoryLibraryItem } from "../../../storage";
 import { prepareStoryChatProfile } from "./resources";

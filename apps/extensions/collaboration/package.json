@@ -1,29 +1,29 @@
 {
-  "name": "@isle/extension-collaboration",
+  "name": "@mewvis/extension-collaboration",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "description": "用户自定义角色协作流程，支持斜杠命令、模型调用和实时步骤状态。",
   "scripts": {
-    "build": "isle-extension build",
+    "build": "mewvis-extension build",
     "check": "tsc --noEmit"
   },
   "dependencies": {
-    "@isle/extension-sdk": "workspace:*",
+    "@mewvis/extension-sdk": "workspace:*",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
   },
   "devDependencies": {
-    "@isle/extension-dev": "workspace:*",
+    "@mewvis/extension-dev": "workspace:*",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "typescript": "~5.8.3"
   },
-  "isle.extension": {
+  "mewvis.extension": {
     "displayName": "角色协作",
     "schemaVersion": 2,
     "apiVersion": 1,
-    "id": "isle.collaboration",
+    "id": "mewvis.collaboration",
     "configuration": {
       "schema": {
         "type": "object",

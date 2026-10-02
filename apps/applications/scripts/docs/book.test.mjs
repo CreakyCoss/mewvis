@@ -32,7 +32,7 @@ test("真实文档可编译，中文和英文 API 可搜索，读取不可越界
 });
 
 test("渲染保留 GFM、重复标题锚点，阻止原始 HTML 和危险链接", async () => {
-  const root = await mkdtemp(join(tmpdir(), "isle-docs-"));
+  const root = await mkdtemp(join(tmpdir(), "mewvis-docs-"));
   try {
     await writeFile(join(root, "SUMMARY.md"), "# 目录\n\n- [首页](README.md)\n");
     await writeFile(

@@ -16,7 +16,7 @@ export type NativePicker = (
 // Options are data in the child environment, never interpolated into executable source.
 export const macScript = String.raw`
 ObjC.import('Foundation');
-const options = JSON.parse(ObjC.unwrap($.NSProcessInfo.processInfo.environment.objectForKey('ISLE_DIALOG_OPTIONS')));
+const options = JSON.parse(ObjC.unwrap($.NSProcessInfo.processInfo.environment.objectForKey('MEWVIS_DIALOG_OPTIONS')));
 const app = Application.currentApplication();
 app.includeStandardAdditions = true;
 const args = { withPrompt: options.title || (options.directory ? '选择目录' : '选择文件'), multipleSelectionsAllowed: !!options.multiple };
@@ -37,7 +37,7 @@ $ErrorActionPreference = 'Stop'
 [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false)
 Add-Type -AssemblyName System.Windows.Forms
 [System.Windows.Forms.Application]::EnableVisualStyles()
-$options = $env:ISLE_DIALOG_OPTIONS | ConvertFrom-Json
+$options = $env:MEWVIS_DIALOG_OPTIONS | ConvertFrom-Json
 $dialog = $null
 try {
   if ($options.directory) {
@@ -76,7 +76,7 @@ export function createNativePicker(
 ): NativePicker {
   return async (options, signal) => {
     const childOptions = {
-      env: { ...env, ISLE_DIALOG_OPTIONS: JSON.stringify(options) },
+      env: { ...env, MEWVIS_DIALOG_OPTIONS: JSON.stringify(options) },
       signal,
       timeout: 300_000,
       allow: [1],

@@ -3,7 +3,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
-const root = await mkdtemp(join(tmpdir(), "isle-decisions-test-"));
+const root = await mkdtemp(join(tmpdir(), "mewvis-decisions-test-"));
 try {
   const outfile = join(root, "decisions.cjs");
   await build({

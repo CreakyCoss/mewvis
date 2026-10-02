@@ -14,8 +14,8 @@ import { RuntimeSessionRecorder } from "../../session/recorder.js";
 import { messageFromError } from "../../error.js";
 import type { RuntimeSessionProviderId } from "../../session/providers/types.js";
 
-import type { ExtensionSource } from "@isle/extension-host";
-import { resolveExtensionAdaptation } from "@isle/extension-host";
+import type { ExtensionSource } from "@mewvis/extension-host";
+import { resolveExtensionAdaptation } from "@mewvis/extension-host";
 import type { RuntimeAgentRegistry } from "../runtimes/registry.js";
 import {
   createExtensionRuntime,
@@ -93,7 +93,7 @@ const executeAgentRunCommandWithRecording = async (
     options.registry,
   );
   if (options.extensions?.length) {
-    if (!implementation.extensionAdapter) throw new Error(`${runtimeId} 不支持 Isle 插件能力`);
+    if (!implementation.extensionAdapter) throw new Error(`${runtimeId} 不支持 Mewvis 插件能力`);
     const report = resolveExtensionAdaptation(implementation.extensionAdapter, options.extensions);
     context.callbacks.onExtensionAdaptation?.(report);
   }

@@ -1,10 +1,10 @@
-// Generated from Isle's public Chat components; shares the project's React.
+// Generated from Mewvis's public Chat components; shares the project's React.
 import "../dist/chat-ui.js";
 import "../dist/chat-ui.css";
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { createPreviewChat } from "../dist/chat-host.js";
-import { createApplicationViewHost } from "@isle/app-sdk/views/runtime";
+import { createApplicationViewHost } from "@mewvis/app-sdk/views/runtime";
 
 let environment;
 export async function mountPreview(App, options) {
@@ -14,13 +14,13 @@ export async function mountPreview(App, options) {
     const request = async (method, input) => {
       if (!options.endpoint)
         throw new Error(
-          "当前是静态预览，未连接 Node 开发宿主。请在 Isle 中调用工具，或在应用目录运行 pnpm dev",
+          "当前是静态预览，未连接 Node 开发宿主。请在 Mewvis 中调用工具，或在应用目录运行 pnpm dev",
         );
       const response = await fetch(options.endpoint, {
         method,
         headers: {
           "Content-Type": "application/json",
-          "x-isle-dev-token": options.token,
+          "x-mewvis-dev-token": options.token,
         },
         ...(input ? { body: JSON.stringify(input) } : {}),
       });
@@ -53,7 +53,7 @@ export async function mountPreview(App, options) {
     const views = options.permissions?.includes("embedded-views")
       ? createApplicationViewHost({ getTheme: () => info })
       : undefined;
-    Object.defineProperty(globalThis, "isleApplication", {
+    Object.defineProperty(globalThis, "mewvisApplication", {
       configurable: true,
       value: Object.freeze({
         version: 1,
@@ -63,7 +63,7 @@ export async function mountPreview(App, options) {
         executeTool,
         getHost: () => info,
         openExternal: async () => {
-          throw new Error("外部链接需要在 Isle 中验证");
+          throw new Error("外部链接需要在 Mewvis 中验证");
         },
       }),
     });
@@ -120,7 +120,7 @@ export async function mountPreview(App, options) {
       ? "dark"
       : "light";
     theme.textContent = dark ? "浅色预览" : "深色预览";
-    dispatchEvent(new CustomEvent("isle:theme", { detail: info.theme }));
+    dispatchEvent(new CustomEvent("mewvis:theme", { detail: info.theme }));
   };
   bar.append(label, stats, pause, theme);
   if (skills.length) {
@@ -138,12 +138,12 @@ export async function mountPreview(App, options) {
     });
     const note = document.createElement("p");
     note.textContent =
-      "仅展示宿主加载的定义；模型是否使用技能需在 Isle 中验证。";
+      "仅展示宿主加载的定义；模型是否使用技能需在 Mewvis 中验证。";
     details.append(summary, note, content);
     bar.append(details);
   }
   const container = document.createElement("div");
-  container.id = "isle-app-root";
+  container.id = "mewvis-app-root";
   Object.assign(container.style, { flex: "1", minHeight: "0" });
   document.body.append(bar, container);
   const root = createRoot(container);

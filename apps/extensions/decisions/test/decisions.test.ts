@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { evaluate, parseAnswer, requestSchema } from "../src/evaluate";
 import { readRules, type Rule } from "../src/rules";
 import extension from "../src/index";
-import type { DecisionRequest } from "@isle/extension-sdk/host";
+import type { DecisionRequest } from "@mewvis/extension-sdk/host";
 const request: DecisionRequest = {
   input: "已经完成测试",
   question: "是否可以实施？",

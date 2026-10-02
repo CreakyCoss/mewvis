@@ -40,7 +40,7 @@ export function webBackendConfig(url, token) {
     },
   };
   return {
-    plugins: [{ name: "isle-local-backend", configureServer: guard }],
+    plugins: [{ name: "mewvis-local-backend", configureServer: guard }],
     server: { host: "127.0.0.1", proxy },
   };
 }

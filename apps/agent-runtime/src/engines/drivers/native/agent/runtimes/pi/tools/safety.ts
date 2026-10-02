@@ -99,7 +99,7 @@ export function installPiSafety(
   session.agent.beforeToolCall = async (context, signal) => {
     const prior = await previous?.(context, signal);
     if (prior?.block) return prior;
-    // Isle proxies validate their final arguments without native coercion, before host approval.
+    // Mewvis proxies validate their final arguments without native coercion, before host approval.
     if (delegated.has(context.toolCall.name)) return prior;
     signal?.throwIfAborted();
     if (!context.args || typeof context.args !== "object" || Array.isArray(context.args))

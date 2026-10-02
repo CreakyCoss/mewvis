@@ -28,15 +28,15 @@ function ownLifecycle(server) {
 }
 
 try {
-  backend = await startServer({ token, port: Number(process.env.ISLE_SERVER_PORT ?? 1422) });
+  backend = await startServer({ token, port: Number(process.env.MEWVIS_SERVER_PORT ?? 1422) });
   const config = {
     ...webBackendConfig(backend.url, token),
     root,
     configFile: fileURLToPath(new URL("../../vite.config.ts", import.meta.url)),
   };
-  if (process.env.ISLE_WEB_PORT) {
-    const port = Number(process.env.ISLE_WEB_PORT);
-    if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error("ISLE_WEB_PORT 不合法");
+  if (process.env.MEWVIS_WEB_PORT) {
+    const port = Number(process.env.MEWVIS_WEB_PORT);
+    if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error("MEWVIS_WEB_PORT 不合法");
     config.server.port = port;
   }
   ownLifecycle(await createServer(config));

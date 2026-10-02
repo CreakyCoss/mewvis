@@ -2,7 +2,7 @@ import { workspaceForPath } from "@/platform/bridge";
 import { useEffect, useMemo, useState } from "react";
 import { Bot, Plus, ShieldCheck } from "lucide-react";
 import { orderBy } from "lodash-es";
-import { getApplicationChatClient } from "@isle/app-sdk/chat";
+import { getApplicationChatClient } from "@mewvis/app-sdk/chat";
 import { prepareStoryChatProfile } from "./resources";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "design-system/components/ui/dialog";
 import { Badge } from "design-system/components/ui/badge";

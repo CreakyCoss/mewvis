@@ -10,7 +10,7 @@ const versionRequirePattern =
  * points at the package, so inline the package version while loading the source.
  */
 export const dshBundleCompatibilityPlugin = {
-  name: "isle-dsh-bundle-compatibility",
+  name: "mewvis-dsh-bundle-compatibility",
   setup(build) {
     build.onLoad(
       { filter: /[\\/]@deepseek-ai[\\/]dsh-llm[\\/]lib[\\/]index\.js$/ },

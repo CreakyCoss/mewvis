@@ -123,7 +123,7 @@ export function readExtensionPackage(
   );
   const packageJson = decode(JSON.parse(readFileSync(manifestPath, "utf8")));
   assertValid(validateManifest, packageJson, "插件清单无效或能力尚不支持");
-  const manifest = packageJson["isle.plugin"];
+  const manifest = packageJson["mewvis.plugin"];
   const modules = {};
   const paths = new Set();
   for (const [kind, declaration] of Object.entries(manifest.modules)) {

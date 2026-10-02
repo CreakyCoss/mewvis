@@ -37,7 +37,7 @@ No actionable P0, P1 or P2 visual issues remain in the reviewed states. The edit
 ## Interaction checks and limits
 
 - Verified in the browser: partial outline/project edits can be stashed and restored; closing without stashing discards local edits; adding a lesson opens the three-tab popup; required-field validation moves to the correct tab; the right assistant remains available while the lesson popup is open.
-- `pnpm --filter @isle/learning test` passed 39 tests; `pnpm --filter @isle/learning check` passed; `git diff --check` passed.
+- `pnpm --filter @mewvis/learning test` passed 39 tests; `pnpm --filter @mewvis/learning check` passed; `git diff --check` passed.
 - The local preview's chat connection was closed, so model generation and response adoption were not end-to-end tested in that preview. The error state appeared without crashing the editor.
 
 ## Course library: selected concept 2, historical comparison (2026-09-29)
@@ -71,7 +71,7 @@ No actionable P0, P1 or P2 differences remain. The two-column grid, card width a
 - Verified a ready course can open for study, a new course can be stashed without leaving the editor, and its home card opens continued editing.
 - Verified both ready and stashed course menus open the same removal dialog. Cancel retains the course and returns focus to the menu. Confirm removes the course and returns to the empty state.
 - Verified completing a one-lesson course changes its home state to `已学完` and its action to `回顾课程`.
-- Checked desktop, 390 px mobile, light and dark previews, and the browser console. `pnpm --filter @isle/learning test` passed 40 tests; `pnpm --filter @isle/learning check`, TypeScript and `git diff --check` passed.
+- Checked desktop, 390 px mobile, light and dark previews, and the browser console. `pnpm --filter @mewvis/learning test` passed 40 tests; `pnpm --filter @mewvis/learning check`, TypeScript and `git diff --check` passed.
 
 ## Course library: editor-aligned visual revision, superseded (2026-09-29)
 
@@ -218,9 +218,9 @@ final result: passed
 - `implementation/editor-dark.jpg`：1280 × 720 内容区域的深色模式；恢复浅色后交付。
 - 已验证实际计时器开始 / 暂停 / 重置，刷新与扩大预览；修改源码后更新预览，保存当前版本；收起代码保留未保存修改，再展开仍可继续编辑。测试修改已恢复。
 - 已验证建议仅填入草稿、Ctrl+Enter 发送、停止生成、共享追问与回答、过程显示选项、设置关闭及键盘隔离。模型和权限控制仍由共享会话提供。
-- 浏览器 error 日志检查为空。未测试真实模型生成：此独立开发预览使用内存会话；实际模型需在 Isle 宿主中调用。没有将模拟回复当作真实生成成功的证据。
-- `pnpm --filter @isle/app-workshop check`：通过。
-- `pnpm --filter @isle/app-workshop test`：15 / 15 通过，包含实际打包、编辑 / 构建 / 保存 / 恢复版本及宿主边界检查。
+- 浏览器 error 日志检查为空。未测试真实模型生成：此独立开发预览使用内存会话；实际模型需在 Mewvis 宿主中调用。没有将模拟回复当作真实生成成功的证据。
+- `pnpm --filter @mewvis/app-workshop check`：通过。
+- `pnpm --filter @mewvis/app-workshop test`：15 / 15 通过，包含实际打包、编辑 / 构建 / 保存 / 恢复版本及宿主边界检查。
 - `git diff --check`：通过。
 
 **Open Questions**
@@ -248,7 +248,7 @@ final result: passed
 - 按用户要求，对照故事应用 `workbench/assistant.tsx` 与 `workbench.css` 调整输入区；上方截图及视觉验收记录对应调整前版本。
 - 输入框改为故事助手的 12 px 圆角、12 px 内距、柔和阴影及焦点描边；多行输入最小高度 76 px、最大高度 180 px、行高 1.75。
 - 底部同步模型下拉、权限图标与共享圆形发送／停止按钮；思考等级与过程显示保留在创作设置中。
-- 本轮 `pnpm --filter @isle/app-workshop check`、格式与 `git diff --check` 通过。按用户指示，未进行浏览器效果验收，由用户自行验证。
+- 本轮 `pnpm --filter @mewvis/app-workshop check`、格式与 `git diff --check` 通过。按用户指示，未进行浏览器效果验收，由用户自行验证。
 - 随后按用户要求移除「创作设置」按钮、弹窗及对应样式；输入框底部仅保留模型、权限与发送／停止按钮。类型与变更格式检查通过，效果仍由用户自行验证。
 - 根据最新要求，将 AI 助手移至右侧、应用预览移至左侧，保持原有栏宽比例、输入框及会话样式；代码展开区随预览移至左侧，窄屏仍先预览后会话。同步调整分隔线、DOM 顺序及方向性说明文案。类型与变更格式检查通过，浏览器效果由用户自行验证。
 - 预览标题栏移除「可以试用」标签及对应样式；展开使用 `Maximize2`，收起使用方向相反的 `Minimize2`，按钮名称与提示继续随状态切换。类型与变更格式检查通过，浏览器效果由用户自行验证。
@@ -259,7 +259,7 @@ final result: passed
 - 保留顶部返回入口与应用名，运行页和继续开发页共用 `ApplicationHeader`，高度统一为 56 px。
 - 左侧预览 header 与右侧助手 header 共用 54 px 高度，位于代码与预览内容上方；保存状态、版本管理、保存版本、更新预览和查看代码集中于该区域。窄屏使用带名称和提示的图标操作。
 - 更新预览继续保存源码并重新构建，移除代码区及空态的重复更新按钮；展开／收起预览按钮浮动在预览容器右上角，保留相反图标。固定外框及内部绘制隔离继续保留。
-- `pnpm --filter @isle/app-workshop check` 与 `git diff --check` 通过。沿用用户自行验证视觉效果的安排，本轮未进行浏览器视觉验收；此前截图对应旧 header。
+- `pnpm --filter @mewvis/app-workshop check` 与 `git diff --check` 通过。沿用用户自行验证视觉效果的安排，本轮未进行浏览器视觉验收；此前截图对应旧 header。
 
 ## 应用工坊并排工作区与紧凑操作（2026-10-02）
 
@@ -292,7 +292,7 @@ final result: passed
 - 已验证文件树折叠 / 展开，窄代码区域保留左侧浮动文件树。分隔条键盘调整 64 → 69 → 64，实际拖动到约 60% 后恢复；指针释放后 resizing 状态清除。
 - 已验证放大预览隐藏代码与助手、收起后恢复同时显示；模式选择同步显示正确的选中状态。
 - 已验证紧凑更新按钮实际完成构建、V1 按钮打开版本管理。计时器开始后切换到仅代码再返回，仍显示「暂停」，运行实例状态保留；随后重置至 25:00。
-- 浏览器 error 日志为空。`pnpm --filter @isle/app-workshop check`、Prettier 检查与 `git diff --check` 通过。
+- 浏览器 error 日志为空。`pnpm --filter @mewvis/app-workshop check`、Prettier 检查与 `git diff --check` 通过。
 - 本轮验证使用隔离开发工作区与内存会话；未重新测试真实模型生成、原生宿主滚动细微闪动或深色全部交互。最终观感仍可由用户在宿主中自行验证。
 
 **Open Questions / Follow-up Polish**
@@ -365,7 +365,7 @@ final result: passed
 
 - 已验证更新完成真实构建、图标保存完成当前版本保存，V1 打开版本管理；最新 DOM 顺序为版本管理、更新预览、保存版本，版本位于右侧 `.wk-preview-tools` 内。
 - Tab 从更新进入保存，焦点轮廓 2 px 未被容器裁切，证据 `04-save-focus-raw.png`。窄屏截图 `05-mobile-raw.png` 为 390 × 878 px，保留了保存焦点状态；动作区约 212 px，版本仍在刷新旁，无横向溢出。
-- 浏览器 error 日志为空；`pnpm --filter @isle/app-workshop check`、最终 `pnpm --filter @isle/app-workshop exec isle-app check`、Prettier 与 `git diff --check` 通过。
+- 浏览器 error 日志为空；`pnpm --filter @mewvis/app-workshop check`、最终 `pnpm --filter @mewvis/app-workshop exec mewvis-app check`、Prettier 与 `git diff --check` 通过。
 - 交互验证使用隔离工作区，未重新测试真实模型生成或全部版本恢复流程。实际宿主观感继续由用户核对。
 
 **Implementation Checklist**
@@ -433,7 +433,7 @@ final result: passed
 - 新增通用的公共 SDK header 接口，由宿主渲染纯文本标题与返回入口，并将返回动作传回当前应用；不引入工坊专用宿主命令或窗口拖动接口。
 - 运行页优先复用宿主既有的 40 px 顶栏，成功接入后移除页面内的 56 px header；返回入口可交互，其余区域继续由宿主管理窗口拖动。
 - 顶栏绑定当前 frame，释放、重新加载、离开应用或沙箱导航失效时清理；旧宿主与独立开发预览回退到原页面 header，继续开发页保留现有布局。
-- 本轮涉及宿主和 SDK 接入，按用户安排未做浏览器、测试、类型或效果验证；实际效果需在接入新接口的 Isle 宿主中核对。
+- 本轮涉及宿主和 SDK 接入，按用户安排未做浏览器、测试、类型或效果验证；实际效果需在接入新接口的 Mewvis 宿主中核对。
 
 ## 运行与继续开发共用右侧顶栏（2026-10-02）
 

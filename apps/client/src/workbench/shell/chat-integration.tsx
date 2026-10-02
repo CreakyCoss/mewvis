@@ -1,7 +1,7 @@
 import { openSystemDialog } from "@/api/native";
 import { confirmWorkspaceShare } from "./feedback";
 import { invoke, listen } from "@/transport";
-import type { ApplicationChatRequest } from "@isle/app-sdk/chat";
+import type { ApplicationChatRequest } from "@mewvis/app-sdk/chat";
 import { platform } from "@/platform";
 import { toast } from "sonner";
 import { useCallback, useEffect, type PropsWithChildren } from "react";

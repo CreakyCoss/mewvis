@@ -1,4 +1,4 @@
-import type { ApplicationChatSummary } from "@isle/app-sdk/chat";
+import type { ApplicationChatSummary } from "@mewvis/app-sdk/chat";
 
 export type TutorSessionIndex = {
   workspaceId: string;

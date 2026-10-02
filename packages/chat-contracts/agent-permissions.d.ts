@@ -8,7 +8,7 @@
  * and run json-schema-to-typescript to regenerate this file.
  */
 
-export type IsleAgentPermissionsProtocol = AgentPermissions | AgentPermissionOption;
+export type MewvisAgentPermissionsProtocol = AgentPermissions | AgentPermissionOption;
 export type AgentPermissionMode = "ask" | "auto" | "full";
 
 export interface AgentPermissions {

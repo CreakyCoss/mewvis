@@ -3,7 +3,7 @@
   "id": "run-invalid",
   "method": "agent/run",
   "params": {
-    "workspacePath": "/tmp/isle-workspace",
+    "workspacePath": "/tmp/mewvis-workspace",
     "userMessage": "This request is missing taskId."
   }
 }

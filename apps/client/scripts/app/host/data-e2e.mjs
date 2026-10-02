@@ -5,9 +5,9 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { runInNewContext } from "node:vm";
-import { createApplicationDataClient } from "@isle/app-sdk/data";
+import { createApplicationDataClient } from "@mewvis/app-sdk/data";
 
-const temp = realpathSync(mkdtempSync(join(tmpdir(), "isle-app-data-")));
+const temp = realpathSync(mkdtempSync(join(tmpdir(), "mewvis-app-data-")));
 try {
   const desktopApi = join(temp, "desktop.mjs");
   await build({
@@ -86,7 +86,7 @@ try {
     clearTimeout,
     addEventListener: (type, callback) => listeners.set(type, callback),
   });
-  const iframe = createApplicationDataClient(window.isleApplication.data);
+  const iframe = createApplicationDataClient(window.mewvisApplication.data);
   const pending = iframe.storage.getItem("cursor");
   const outgoing = sent.at(-1);
   assert.equal(outgoing.type, "data:request");

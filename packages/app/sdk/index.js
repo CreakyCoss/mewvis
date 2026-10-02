@@ -1,5 +1,5 @@
 import Schema from "@deepseek-ai/schemastery";
-import { isRiskLevel } from "@isle/chat-contracts";
+import { isRiskLevel } from "@mewvis/chat-contracts";
 
 export { Schema as schema };
 
@@ -139,7 +139,7 @@ export const defineSettings = (definition) => {
 };
 
 /**
- * Isle applications use Cordis lifecycle semantics. Tool authoring validates the
+ * Mewvis applications use Cordis lifecycle semantics. Tool authoring validates the
  * risk declaration used by the host's approval policy.
  */
 export const defineApplication = (application) => application;

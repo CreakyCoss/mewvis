@@ -1,4 +1,4 @@
-import { defineExtensionAdapter } from "@isle/extension-host";
+import { defineExtensionAdapter } from "@mewvis/extension-host";
 import type { MockPlugin } from "./registry.js";
 
 export const mockExtensionAdapter = defineExtensionAdapter<MockPlugin>({
@@ -18,9 +18,9 @@ export const mockExtensionAdapter = defineExtensionAdapter<MockPlugin>({
     "middleware.session_compact": { mode: "direct" },
     "events.run": {
       mode: "simulate",
-      reason: "由 Isle 运行边界提供成功、失败与取消终态",
+      reason: "由 Mewvis 运行边界提供成功、失败与取消终态",
     },
-    "session.state": { mode: "simulate", reason: "调用 Isle 会话状态事务服务" },
+    "session.state": { mode: "simulate", reason: "调用 Mewvis 会话状态事务服务" },
     "middleware.input": { mode: "direct" },
     "middleware.system_prompt": { mode: "direct" },
     "middleware.context": { mode: "direct" },

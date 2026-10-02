@@ -3,7 +3,7 @@ import type {
   ExtensionMiddlewareData,
   ExtensionMiddlewareOutcome,
   ExtensionMiddlewareType,
-} from "@isle/extension-host";
+} from "@mewvis/extension-host";
 import { z } from "zod";
 
 const object = z.record(z.string(), z.custom(isJsonValue));

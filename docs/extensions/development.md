@@ -33,7 +33,7 @@ pnpm extension pack apps/extensions/my-feature
   "name": "example.feature",
   "version": "0.1.0",
   "type": "module",
-  "isle.extension": {
+  "mewvis.extension": {
     "schemaVersion": 2,
     "id": "example.feature",
     "apiVersion": 1,
@@ -56,7 +56,7 @@ pnpm extension pack apps/extensions/my-feature
 }
 ```
 
-可执行模块的 `entry` 相对于构建产物根目录，只接受包内 `.js/.mjs`；越界路径与指向包外的入口符号链接会被拒绝。源码工程的入口产物可以尚不存在，`build` 完成后再检查。清单标准定义于 `@isle/extension-sdk/manifest.schema.json`。
+可执行模块的 `entry` 相对于构建产物根目录，只接受包内 `.js/.mjs`；越界路径与指向包外的入口符号链接会被拒绝。源码工程的入口产物可以尚不存在，`build` 完成后再检查。清单标准定义于 `@mewvis/extension-sdk/manifest.schema.json`。
 
 清单只接受 v2 的模块化结构，`entry` 与 `capabilities` 必须放在对应模块内。`modules.agent` 使用以下 API v1 能力声明；注册函数和状态 API 会检查它们：
 
@@ -80,7 +80,7 @@ pnpm extension pack apps/extensions/my-feature
 
 中间件的返回值、顺序、阻断和错误语义见[插件中间件](middleware.md)。观察器只观察，改写输入或结果必须注册中间件并声明对应能力。消息快照、流式更新、回合身份与取消语义见[消息与回合观察事件](events.md)。
 
-SDK 源包使用下文的 `isle.extension` 清单。构建产物统一转换成宿主原生 `isle.plugin` 清单和 `protocolVersion: 1` 入口，宿主不直接加载旧 SDK 构建产物；修改后重新构建即可。直接编写原生插件见[宿主原生插件系统](native-host.md)。
+SDK 源包使用下文的 `mewvis.extension` 清单。构建产物统一转换成宿主原生 `mewvis.plugin` 清单和 `protocolVersion: 1` 入口，宿主不直接加载旧 SDK 构建产物；修改后重新构建即可。直接编写原生插件见[宿主原生插件系统](native-host.md)。
 
 ## UI 模块与会话插槽
 
@@ -110,10 +110,10 @@ SDK 源包使用下文的 `isle.extension` 清单。构建产物统一转换成�
 }
 ```
 
-上述内容放入 `package.json` 的 `isle.extension` 字段。`src/ui.ts` 使用浏览器专用 SDK，不依赖 React 或具体 Agent：
+上述内容放入 `package.json` 的 `mewvis.extension` 字段。`src/ui.ts` 使用浏览器专用 SDK，不依赖 React 或具体 Agent：
 
 ```ts
-import { defineUIExtension } from "@isle/extension-sdk/ui";
+import { defineUIExtension } from "@mewvis/extension-sdk/ui";
 
 export default defineUIExtension({
   id: "example.session-info",
@@ -137,7 +137,7 @@ export default defineUIExtension({
 });
 ```
 
-插槽定义由 `@isle/extension-sdk/ui` 提供，不在桌面页面内定义。当前常用位置如下：
+插槽定义由 `@mewvis/extension-sdk/ui` 提供，不在桌面页面内定义。当前常用位置如下：
 
 | 插槽 key | 类型 | 贡献内容 | 当前桌面状态 |
 | --- | --- | --- | --- |
@@ -154,7 +154,7 @@ export default defineUIExtension({
 import {
   defineUIContribution,
   uiSlotDefinitions,
-} from "@isle/extension-sdk/ui";
+} from "@mewvis/extension-sdk/ui";
 const contribution = defineUIContribution(uiSlotDefinitions.sessionSidebar, {
   id: "overview",
   title: "会话信息",
@@ -251,7 +251,7 @@ const runtime = createAgentRuntime({
 
 需要通过代码管理设置时，SDK 导出 `createExtensionPackageManager(settingsPath, { bundledPath })`，提供 `list/add/configure/remove/resolve`；第二个参数可省略。list 返回的 source 区分 bundled 与 local。`add` 和 `configure` 的配置也可包含宿主审核后的风险映射。
 
-直接使用公共 SDK 时，在创建 runtime 时解析启用的包并快照配置；修改设置后应关闭旧 runtime、重新创建实例。桌面使用的 stdio CLI 由宿主设置 `ISLE_EXTENSION_SETTINGS_PATH` 和 `ISLE_BUNDLED_EXTENSIONS_PATH`，每次操作合并内置包、用户覆盖配置与外部登记，允许复用进程。同一会话的 Agent 和命令执行复用插件实例；新配置在下一操作替换实例，不修改执行中的快照。
+直接使用公共 SDK 时，在创建 runtime 时解析启用的包并快照配置；修改设置后应关闭旧 runtime、重新创建实例。桌面使用的 stdio CLI 由宿主设置 `MEWVIS_EXTENSION_SETTINGS_PATH` 和 `MEWVIS_BUNDLED_EXTENSIONS_PATH`，每次操作合并内置包、用户覆盖配置与外部登记，允许复用进程。同一会话的 Agent 和命令执行复用插件实例；新配置在下一操作替换实例，不修改执行中的快照。
 
 包目录是开发用本地引用，文件变化不受哈希锁定。宿主会在下一操作检测入口 stat 变化并重建插件实例，不递归监视依赖；升级或重建应在停止使用后进行。插件的 `onActivate` 和 `own` 对应实例激活与释放，不能依赖每轮重新运行 setup。退出时调用 `runtime.shutdown()`；需要提前释放单个会话时调用 `runtime.extensions.releaseSession(target)`，它保留已提交状态。更完整的约定见[Pi 兼容基准与协议规格](pi-compatibility.md)。
 
@@ -261,7 +261,7 @@ const runtime = createAgentRuntime({
 
 ```sh
 pnpm test:extensions
-pnpm --filter @isle/server test:extensions
+pnpm --filter @mewvis/server test:extensions
 ```
 
 测试涵盖真实 CLI 构建与打包、清单和路径边界、设置并发与回滚，以及临时插件在真实 Pi SDK 和脚本 Mock 中的工具调用。Pi 使用本地 SSE 模型桩，无需模型账号。完整可运行宿主示例见[宿主插件最小闭环](../runtime/extensions.md)。

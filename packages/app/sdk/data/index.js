@@ -222,8 +222,8 @@ export function createApplicationDataClient(transport) {
 
 /** Resolve on every call so a reconnected bridge cannot reuse another connection's client. */
 export function getApplicationDataClient() {
-  const host = globalThis.isleApplication;
+  const host = globalThis.mewvisApplication;
   if (!host || host.version !== 1)
-    fail("CAPABILITY_UNAVAILABLE", "当前页面未连接支持应用数据的 Isle 宿主");
+    fail("CAPABILITY_UNAVAILABLE", "当前页面未连接支持应用数据的 Mewvis 宿主");
   return createApplicationDataClient(host.data);
 }

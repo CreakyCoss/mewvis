@@ -1,4 +1,4 @@
-/** Protocol source. Run `pnpm --filter @isle/extension-host generate` after editing. */
+/** Protocol source. Run `pnpm --filter @mewvis/extension-host generate` after editing. */
 const identifier = {
   type: "string",
   pattern: "^[a-z][a-z0-9-]*$",

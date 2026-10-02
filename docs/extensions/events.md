@@ -1,6 +1,6 @@
 # 消息与回合观察事件
 
-插件使用 `ctx.on(type, handler)` 订阅事件，在清单中声明 `events.run`、`events.tool`、`events.turn` 或 `events.message`。事件携带 Isle 自有 JSON 快照，公共 SDK 不引用 Pi 类型。Pi 通过原生扩展钩子驱动，脚本 Mock 通过自身消息与回合观察器驱动；没有从桌面显示事件再次转发。
+插件使用 `ctx.on(type, handler)` 订阅事件，在清单中声明 `events.run`、`events.tool`、`events.turn` 或 `events.message`。事件携带 Mewvis 自有 JSON 快照，公共 SDK 不引用 Pi 类型。Pi 通过原生扩展钩子驱动，脚本 Mock 通过自身消息与回合观察器驱动；没有从桌面显示事件再次转发。
 
 ## 事件与身份
 
@@ -13,7 +13,7 @@
 | `events.message` | `message_started` / `message_finished` | `taskId`、消息快照 `message` |
 | `events.message` | `message_updated` | `taskId`、完整快照 `message`、更新提示 `change` |
 
-一个回合表示一次助手响应及其工具结果。一次运行可以包含多个回合；Pi 在询问用户后再次执行 prompt 时，Isle 回合编号继续递增。`taskId + turnIndex` 在本次运行内标识回合。
+一个回合表示一次助手响应及其工具结果。一次运行可以包含多个回合；Pi 在询问用户后再次执行 prompt 时，Mewvis 回合编号继续递增。`taskId + turnIndex` 在本次运行内标识回合。
 
 `message.id` 在消息开始、更新、结束以及回合结果之间保持一致。它只用于本次运行的事件关联，不是持久会话条目 ID，也不是 context 中间件的消息引用。新运行生成新 ID，历史消息不自动重放。消息不带回合编号；用 `turn_finished` 中的 ID 关联最终助手响应与工具结果。
 
@@ -39,7 +39,7 @@ Agent 等待观察器完成后再继续。同一次事件按插件来源顺序�
 清单声明 `events.turn`、`session.state` 和 `commands`，即可在同一会话切换 Pi / Mock 后继续统计：
 
 ```ts
-import { defineExtension } from "@isle/extension-sdk/agent";
+import { defineExtension } from "@mewvis/extension-sdk/agent";
 
 export default defineExtension({
   id: "example.turns",
@@ -73,4 +73,4 @@ export default defineExtension({
 
 消息与回合事件覆盖当前接入插件的主 Agent 运行；维护操作中的摘要生成、子 Agent 和历史回放没有自动接入这些事件。手动与自动压缩另有[会话压缩钩子](session-control.md)。会话切换、分叉及插件主动投递消息仍待实现，不能通过观察器返回值隐式触发。
 
-`extensions-events-test.mjs` 使用实际 Pi SDK、本地流式模型服务和真实 worker，验证消息顺序、消息 ID、工具结果关联、跨运行隔离、快照修改隔离、异常回滚和执行中取消。适配器测试另覆盖 thinking、image、opaque 内容和多次 prompt 的回合编号。运行 `pnpm --filter @isle/agent-runtime test:extensions`。
+`extensions-events-test.mjs` 使用实际 Pi SDK、本地流式模型服务和真实 worker，验证消息顺序、消息 ID、工具结果关联、跨运行隔离、快照修改隔离、异常回滚和执行中取消。适配器测试另覆盖 thinking、image、opaque 内容和多次 prompt 的回合编号。运行 `pnpm --filter @mewvis/agent-runtime test:extensions`。

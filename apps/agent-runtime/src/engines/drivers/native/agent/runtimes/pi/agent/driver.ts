@@ -1,4 +1,4 @@
-import type { ExtensionBindings } from "@isle/extension-host";
+import type { ExtensionBindings } from "@mewvis/extension-host";
 import { AgentRuntimeEventType } from "../../../../../../protocol/wire.js";
 import type {
   AgentRunResult,

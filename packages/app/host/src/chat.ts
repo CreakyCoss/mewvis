@@ -3,7 +3,7 @@ import {
   type ApplicationChatClient,
   type ApplicationChatEvent,
   type ApplicationChatRequest,
-} from "@isle/app-sdk/chat";
+} from "@mewvis/app-sdk/chat";
 
 /** Bidirectional stdio transport. Desktop owns execution even when the application has no UI. */
 export function createNativeApplicationChat(send: (message: unknown) => void, tools: (applicationId: string) => string[]) {

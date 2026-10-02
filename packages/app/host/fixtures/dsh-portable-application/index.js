@@ -1,19 +1,19 @@
 import { defineTool } from "@deepseek-ai/dsh-tools";
 import z from "@deepseek-ai/schemastery";
 
-export const name = "isle-fixture-portable";
+export const name = "mewvis-fixture-portable";
 export const inject = ["tools", "skills", "settings"];
 
 const skill = {
-  name: "isle-dsh-echo",
-  description: "Exercise an embedded DSH skill inside the Isle compatibility host.",
-  content: "Call the isle_dsh_echo tool and preserve the user's message.",
+  name: "mewvis-dsh-echo",
+  description: "Exercise an embedded DSH skill inside the Mewvis compatibility host.",
+  content: "Call the mewvis_dsh_echo tool and preserve the user's message.",
   source: "bundled",
 };
 
 export function apply(ctx) {
   const settings = ctx.settings.register(
-    "isle-fixture-portable",
+    "mewvis-fixture-portable",
     z.object({
       prefix: z.string().default("echo"),
     }),
@@ -22,7 +22,7 @@ export function apply(ctx) {
   ctx.skills.register(skill);
   ctx.tools.register(
     defineTool({
-      name: "isle_dsh_echo",
+      name: "mewvis_dsh_echo",
       description: "Echo a message through a real DeepSeek Harness tool definition.",
       parameters: {
         message: {

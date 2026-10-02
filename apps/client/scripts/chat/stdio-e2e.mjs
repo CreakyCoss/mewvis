@@ -23,7 +23,7 @@ const bundle = await build({
 const { createChatSession, agentPermissionOptions } = await import(
   `data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString("base64")}`
 );
-const workspacePath = await mkdtemp(join(tmpdir(), "isle-chat-core-"));
+const workspacePath = await mkdtemp(join(tmpdir(), "mewvis-chat-core-"));
 const sessionRootDir = join(workspacePath, "runtime-session");
 const history = join(workspacePath, "history.json");
 const child = spawn(process.execPath, [`../agent-runtime/dist/${entries.cli.output}`], {

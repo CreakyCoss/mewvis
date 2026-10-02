@@ -1,10 +1,10 @@
-import type { ExtensionUICatalogSource } from "@isle/extension-host/ui/react";
+import type { ExtensionUICatalogSource } from "@mewvis/extension-host/ui/react";
 import type {
   ExtensionUIContribution,
   ExtensionViewInput,
   ExtensionViewLease,
   ExtensionViewTransport,
-} from "@isle/extension-host/ui/transport";
+} from "@mewvis/extension-host/ui/transport";
 import { invokeNode } from "@/transport/http";
 import { listenNode, observeConnection } from "@/transport/events";
 

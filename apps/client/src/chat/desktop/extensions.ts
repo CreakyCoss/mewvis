@@ -1,4 +1,4 @@
-import type { UIExecutionSource } from "@isle/extension-host/ui/react";
+import type { UIExecutionSource } from "@mewvis/extension-host/ui/react";
 import type { DesktopChatService } from "./service";
 
 /** Translate the desktop session into the native UI execution port. No plugin-specific state. */

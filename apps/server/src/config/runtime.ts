@@ -43,7 +43,7 @@ export function runtimeConfig(
   const runtime = fileURLToPath(
     new URL("../../../agent-runtime/", import.meta.url),
   );
-  const resources = process.env.ISLE_SERVER_RESOURCES;
+  const resources = process.env.MEWVIS_SERVER_RESOURCES;
   const product = JSON.parse(
     readFileSync(
       resources
@@ -55,7 +55,7 @@ export function runtimeConfig(
   const config: RuntimeConfig = {
     nodeBinary: process.env[`${product.envPrefix}_NODE`] ?? process.execPath,
     cliPath: resolve(
-      process.env.ISLE_SERVER_RUNTIME_CLI ??
+      process.env.MEWVIS_SERVER_RUNTIME_CLI ??
         process.env[`${product.envPrefix}_AGENT_RUNTIME`] ??
         join(resources ?? join(runtime, "dist"), "cli.js"),
     ),
@@ -63,7 +63,7 @@ export function runtimeConfig(
       ? join(resources, "protocol/v1")
       : join(runtime, "protocol/v1"),
     dataDir: resolve(
-      process.env.ISLE_SERVER_DATA_DIR ??
+      process.env.MEWVIS_SERVER_DATA_DIR ??
         join(homedir(), product.appDataDirName),
     ),
     bundledSkillsPath: resources
@@ -94,8 +94,8 @@ export function runtimeConfig(
     ...overrides,
   };
   config.runtimeDataDir ??= resolve(
-    process.env.ISLE_SERVER_RUNTIME_DATA_DIR ??
-      (overrides.dataDir || process.env.ISLE_SERVER_DATA_DIR
+    process.env.MEWVIS_SERVER_RUNTIME_DATA_DIR ??
+      (overrides.dataDir || process.env.MEWVIS_SERVER_DATA_DIR
         ? config.dataDir
         : desktopRuntimeDirectory(product.bundleIdentifier)),
   );
@@ -144,9 +144,9 @@ export function assertRuntimeAvailable(config: RuntimeConfig) {
 export function runtimeEnvironment(config: RuntimeConfig): NodeJS.ProcessEnv {
   return {
     ...config.env,
-    ISLE_SANDBOX_SETTINGS_PATH: join(config.dataDir, "sandbox.json"),
-    ISLE_EXTENSION_SETTINGS_PATH: join(config.dataDir, "extensions.json"),
-    ISLE_BUNDLED_EXTENSIONS_PATH: config.bundledExtensionsPath,
+    MEWVIS_SANDBOX_SETTINGS_PATH: join(config.dataDir, "sandbox.json"),
+    MEWVIS_EXTENSION_SETTINGS_PATH: join(config.dataDir, "extensions.json"),
+    MEWVIS_BUNDLED_EXTENSIONS_PATH: config.bundledExtensionsPath,
     PI_PACKAGE_DIR: dirname(config.cliPath),
     PI_CODING_AGENT_DIR: join(
       config.runtimeDataDir ?? config.dataDir,

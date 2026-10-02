@@ -7,7 +7,7 @@ import { createChatSession, createChatService, type ChatRuntime } from "../../..
 import { createApplicationChatHost } from "../../../src/chat/desktop/application";
 import type { DesktopChatService, DesktopSessionInput } from "../../../src/chat/desktop/service";
 import type { ApplicationUiApplication } from "../../../src/api/applications/index";
-import script from "./fixtures/application/dist/isle/isle-ui.js?raw";
+import script from "./fixtures/application/dist/mewvis/mewvis-ui.js?raw";
 import "../../../src/App.css";
 
 if (platform.kind !== "web") throw new Error("仅允许 Web 内存测试，不连接真实宿主");
@@ -123,7 +123,7 @@ const host = createApplicationChatHost(service, {
   },
 });
 const application: ApplicationUiApplication = {
-  runtimeKind: "isle",
+  runtimeKind: "mewvis",
   id: "fixture",
   name: "Chat integration fixture",
   version: "0.0.0",

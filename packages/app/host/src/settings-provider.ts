@@ -49,9 +49,9 @@ const renderObject = (value: JsonObject) =>
   });
 
 /**
- * Isle's namespaced settings provider for Cordis applications.
+ * Mewvis's namespaced settings provider for Cordis applications.
  *
- * Applications own ordinary kebab-case settings namespaces. Isle maps
+ * Applications own ordinary kebab-case settings namespaces. Mewvis maps
  * each namespace to `<root>/<namespace>/settings.yaml`, keeping the DSH
  * the settings contract to physically isolated application data.
  */

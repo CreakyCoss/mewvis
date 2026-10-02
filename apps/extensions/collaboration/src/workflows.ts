@@ -1,12 +1,12 @@
 import { rolePrompt, type Role } from "./roles";
 import { avatarSource } from "./roles/avatars";
-import type { JsonObject } from "@isle/extension-sdk";
+import type { JsonObject } from "@mewvis/extension-sdk";
 import type {
   ExtensionHostServices,
   ExtensionActivity,
   DecisionOutput,
   DecisionResult,
-} from "@isle/extension-sdk/host";
+} from "@mewvis/extension-sdk/host";
 export type Step = {
   id: string;
   name: string;

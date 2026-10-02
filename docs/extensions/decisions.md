@@ -55,11 +55,11 @@ const result = await ctx.host.decisions.evaluate({
 ## 验证
 
 ```sh
-pnpm --filter @isle/extension-decisions check
-pnpm --filter @isle/extension-decisions test
-pnpm --filter @isle/extension-host test
-pnpm --filter @isle/agent-runtime test:extensions
-pnpm --filter @isle/server test:extensions
+pnpm --filter @mewvis/extension-decisions check
+pnpm --filter @mewvis/extension-decisions test
+pnpm --filter @mewvis/extension-host test
+pnpm --filter @mewvis/agent-runtime test:extensions
+pnpm --filter @mewvis/server test:extensions
 ```
 
 测试覆盖分层匹配、优先级、输出约束、弃答与取消、原生宿主实现、跨插件提供者路由及状态隔离、递归和重复提供者，以及真实协作插件 → SDK → 宿主 → 判断插件 → Pi 的链路。使用本地模型桩，不调用付费模型。

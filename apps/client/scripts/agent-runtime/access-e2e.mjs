@@ -17,7 +17,7 @@ import { createServer } from "node:http";
 import { once } from "node:events";
 import entries from "../../../agent-runtime/build-entries.json" with { type: "json" };
 
-const temp = realpathSync(mkdtempSync(join(tmpdir(), "isle-access-")));
+const temp = realpathSync(mkdtempSync(join(tmpdir(), "mewvis-access-")));
 const workspace = join(temp, "workspace"),
   runtime = join(temp, "runtime"),
   outside = join(temp, "outside");

@@ -5,7 +5,7 @@ import * as JSXRuntime from "react/jsx-runtime";
 import * as chat from "./index";
 import { useApplicationChatSession } from "./application";
 
-Object.defineProperty(globalThis, "isleApplicationChatUI", { value: Object.freeze({ ...chat, useApplicationChatSession }) });
-Object.defineProperty(globalThis, "isleApplicationReact", {
+Object.defineProperty(globalThis, "mewvisApplicationChatUI", { value: Object.freeze({ ...chat, useApplicationChatSession }) });
+Object.defineProperty(globalThis, "mewvisApplicationReact", {
   value: Object.freeze({ React, ReactDOM, ReactDOMClient, JSXRuntime }),
 });

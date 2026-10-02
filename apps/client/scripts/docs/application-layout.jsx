@@ -6,8 +6,8 @@ import { platform } from "../../src/platform";
 import { AppWorkspace } from "../../src/workbench/shell/layout/workspace";
 import { ApplicationUiPage } from "../../src/workbench/pages/applications";
 import { useApplicationCatalogStore } from "../../src/workbench/pages/applications/catalog-store";
-import script from "../../../applications/builtins/docs-reader/isle-ui.js?raw";
-import style from "../../../applications/builtins/docs-reader/isle-ui.css?raw";
+import script from "../../../applications/builtins/docs-reader/mewvis-ui.js?raw";
+import style from "../../../applications/builtins/docs-reader/mewvis-ui.css?raw";
 import book from "../../../../docs/.generated/book.json";
 import { createLibrary } from "../../../applications/builtins/docs-reader/library.js";
 import "../../src/App.css";
@@ -15,16 +15,16 @@ import "../../src/App.css";
 if (platform.kind !== "web") throw new Error("仅允许浏览器内存验证");
 const library = createLibrary(book);
 const tools = {
-  isle_docs_catalog: () => library.catalog(),
-  isle_docs_read: ({ id }) => library.read(id),
-  isle_docs_search: ({ query }) => library.search(query),
+  mewvis_docs_catalog: () => library.catalog(),
+  mewvis_docs_read: ({ id }) => library.read(id),
+  mewvis_docs_search: ({ query }) => library.search(query),
 };
 const applications = ["bundled", "installed"].map((source) => ({
-  id: `@isle/docs-${source}`,
+  id: `@mewvis/docs-${source}`,
   name: `文档中心 ${source}`,
   version: "0.1.0",
   description: "应用工作区验证",
-  runtimeKind: "isle",
+  runtimeKind: "mewvis",
   source,
   error: null,
   uiError: null,

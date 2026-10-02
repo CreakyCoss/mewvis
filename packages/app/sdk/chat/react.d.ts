@@ -7,7 +7,7 @@ import {
   ComponentProps,
   HTMLAttributes,
 } from "react";
-import * as _isle_chat_contracts from "@isle/chat-contracts";
+import * as _mewvis_chat_contracts from "@mewvis/chat-contracts";
 import {
   MessagePart,
   ChatRunConfig,
@@ -15,11 +15,11 @@ import {
   ChatMessage,
   SendResult,
   ChatPendingQuestion,
-} from "@isle/chat-contracts";
+} from "@mewvis/chat-contracts";
 import {
   ApplicationChatOpenInput,
   ApplicationChatSession,
-} from "@isle/app-sdk/chat";
+} from "@mewvis/app-sdk/chat";
 
 type ChatInputFile = {
   path: string;
@@ -60,7 +60,7 @@ declare function ChatProvider({
   viewId?: string;
 }>): react_jsx_runtime.JSX.Element;
 declare function useChatSession(): ChatSession;
-declare function useChatSnapshot(): Readonly<_isle_chat_contracts.ChatSnapshot>;
+declare function useChatSnapshot(): Readonly<_mewvis_chat_contracts.ChatSnapshot>;
 declare function useChatActions(): ChatSession;
 declare function useChatViewState(): {
   updatePreferences: (value: Partial<ChatDisplayOptions>) => void;
@@ -78,7 +78,7 @@ declare function useChatViewState(): {
 };
 declare function useChatComposer(): {
   controls: {
-    resources: _isle_chat_contracts.ChatResources;
+    resources: _mewvis_chat_contracts.ChatResources;
     options: {
       showThinkingProcess: boolean;
       showToolCallProcess: boolean;
@@ -87,7 +87,7 @@ declare function useChatComposer(): {
       selectedAgentId: string;
       selectedSkillKeys: string[];
       selectedKnowledgeCollectionIds: string[];
-      permissionMode: _isle_chat_contracts.ChatPermissionMode | null;
+      permissionMode: _mewvis_chat_contracts.ChatPermissionMode | null;
     };
     updateOptions(patch: Partial<ChatRunConfig & ChatDisplayOptions>): void;
   };
@@ -99,21 +99,21 @@ declare function useChatComposer(): {
     description: string;
     pluginName?: string;
   }[];
-  skills: _isle_chat_contracts.SkillOption[];
+  skills: _mewvis_chat_contracts.SkillOption[];
   busy: boolean;
-  execution: _isle_chat_contracts.ChatExecution | undefined;
-  resume: (() => Promise<_isle_chat_contracts.OperationResult>) | undefined;
+  execution: _mewvis_chat_contracts.ChatExecution | undefined;
+  resume: (() => Promise<_mewvis_chat_contracts.OperationResult>) | undefined;
   disabled: boolean;
   canSubmit: boolean;
   setDraft: (draft: ComposerDraft) => void;
   submit: () => Promise<
-    | _isle_chat_contracts.SendResult
+    | _mewvis_chat_contracts.SendResult
     | {
         readonly status: "rejected";
         readonly reason: string;
       }
   >;
-  stop: () => Promise<_isle_chat_contracts.OperationResult>;
+  stop: () => Promise<_mewvis_chat_contracts.OperationResult>;
   draft: ComposerDraft;
   revision: number;
   clearVersion: number;
@@ -126,7 +126,7 @@ declare function useChatComposer(): {
   };
 };
 declare function useChatControls(): {
-  resources: _isle_chat_contracts.ChatResources;
+  resources: _mewvis_chat_contracts.ChatResources;
   options: {
     showThinkingProcess: boolean;
     showToolCallProcess: boolean;
@@ -135,7 +135,7 @@ declare function useChatControls(): {
     selectedAgentId: string;
     selectedSkillKeys: string[];
     selectedKnowledgeCollectionIds: string[];
-    permissionMode: _isle_chat_contracts.ChatPermissionMode | null;
+    permissionMode: _mewvis_chat_contracts.ChatPermissionMode | null;
   };
   updateOptions(patch: Partial<ChatRunConfig & ChatDisplayOptions>): void;
 };

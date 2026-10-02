@@ -1,5 +1,5 @@
 export const focusSource = `import { useEffect, useState } from 'react';
-import { getApplicationViewClient } from '@isle/app-sdk/views';
+import { getApplicationViewClient } from '@mewvis/app-sdk/views';
 export default function App() {
   const [seconds, setSeconds] = useState(25 * 60);
   const [running, setRunning] = useState(false);

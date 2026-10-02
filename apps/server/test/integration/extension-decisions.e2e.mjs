@@ -12,7 +12,7 @@ test(
   "decision templates cross SDK, host and Pi with no tools, strict results and bounded repair",
   { timeout: 120000 },
   async (t) => {
-    const root = await mkdtemp(join(tmpdir(), "isle-decisions-"));
+    const root = await mkdtemp(join(tmpdir(), "mewvis-decisions-"));
     const requests = [],
       replies = [],
       events = [];
@@ -56,7 +56,7 @@ test(
     });
     const target = { workspacePath: workspace.path, chatId: "decision-test" };
     const settings = await call("open_extension_view", {
-      id: "isle.decisions",
+      id: "mewvis.decisions",
       contributionId: "settings",
       viewId: "settings",
     });
@@ -70,9 +70,9 @@ test(
       });
     // Settings dialogs work without a workspace/session and share plugin configuration.
     for (const [id, viewId] of [
-      ["isle.decisions", "rule-editor"],
-      ["isle.collaboration", "role-editor"],
-      ["isle.collaboration", "workflow-editor"],
+      ["mewvis.decisions", "rule-editor"],
+      ["mewvis.collaboration", "role-editor"],
+      ["mewvis.collaboration", "workflow-editor"],
     ]) {
       const dialog = await call("open_extension_view", {
         id,
@@ -86,7 +86,7 @@ test(
         requestId: 1,
       });
       assert.ok(
-        id === "isle.decisions"
+        id === "mewvis.decisions"
           ? Array.isArray(config.rules)
           : Array.isArray(config.roles),
       );
@@ -111,7 +111,7 @@ test(
     });
     const catalog = await call("list_extension_commands", target);
     const command = catalog.commands.find(
-      (item) => item.id === "isle.decisions/ready",
+      (item) => item.id === "mewvis.decisions/ready",
     );
     assert.equal(command.label, "执行条件判断");
     assert.equal(command.inputMode, "text");
@@ -122,7 +122,7 @@ test(
         taskId,
         sessionRootDir: `chats/${target.chatId}/session`,
         agentRoleId: "main",
-        userMessage: "/isle.decisions/ready 已完成验证，请判断是否可以上线",
+        userMessage: "/mewvis.decisions/ready 已完成验证，请判断是否可以上线",
         permissions: { mode: "full" },
         resources: {
           tools: { allowed: ["read", "bash", "ask_user"] },
@@ -196,7 +196,7 @@ test(
       "slash calls bypass parent inference; only invalid output is retried once",
     );
     const collabView = await call("open_extension_view", {
-      id: "isle.collaboration",
+      id: "mewvis.collaboration",
       contributionId: "settings",
       viewId: "settings",
     });
@@ -243,7 +243,7 @@ test(
       taskId: "consumer",
       sessionRootDir: `chats/${target.chatId}/session`,
       agentRoleId: "main",
-      userMessage: "/isle.collaboration/assess 准备上线方案",
+      userMessage: "/mewvis.collaboration/assess 准备上线方案",
       permissions: { mode: "full" },
       resources: { tools: { allowed: [] }, skills: { enabled: [] } },
       runtimeModel: {

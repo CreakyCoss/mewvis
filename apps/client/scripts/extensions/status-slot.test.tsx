@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
-import { DefaultStatus, type StatusSlotItem } from "@isle/extension-host/ui/slots/status";
-import { defineUIContribution, uiSlotDefinitions } from "@isle/extension-host/ui";
+import { DefaultStatus, type StatusSlotItem } from "@mewvis/extension-host/ui/slots/status";
+import { defineUIContribution, uiSlotDefinitions } from "@mewvis/extension-host/ui";
 
 const item: StatusSlotItem = {
   ...defineUIContribution(uiSlotDefinitions.composerStatus, { id: "progress", title: "Progress" }),

@@ -30,8 +30,8 @@ import {
 } from "../../src/workbench/pages/settings/llm/options";
 import { buildRuntimeModelInputs, buildRuntimeModelOptions } from "../../src/agent-client/runtime-model";
 import { createApplicationChatHost } from "../../src/chat/desktop/application";
-import { createApplicationChatClient, type ApplicationChatEvent } from "@isle/app-sdk/chat";
-import { createApplicationToolClient } from "@isle/app-sdk/tools";
+import { createApplicationChatClient, type ApplicationChatEvent } from "@mewvis/app-sdk/chat";
+import { createApplicationToolClient } from "@mewvis/app-sdk/tools";
 import { createAgentDraft } from "../../src/workbench/pages/agents/draft";
 import type { AgentTemplate } from "../../src/workbench/pages/agents/types";
 

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { ApplicationChatSummary } from "@isle/app-sdk/chat";
+import type { ApplicationChatSummary } from "@mewvis/app-sdk/chat";
 import { History, Plus } from "lucide-react";
 import {
   DropdownMenu,

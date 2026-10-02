@@ -1,5 +1,5 @@
 {
-  "name": "@isle/extension-adapters",
+  "name": "@mewvis/extension-adapters",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -15,8 +15,8 @@
     "check": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@isle/extension-host": "workspace:*",
-    "@isle/extension-sdk": "workspace:*",
+    "@mewvis/extension-host": "workspace:*",
+    "@mewvis/extension-sdk": "workspace:*",
     "ajv": "^8.20.0"
   },
   "devDependencies": {

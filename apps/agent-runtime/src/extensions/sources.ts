@@ -1,10 +1,10 @@
-import { extensionProvidedCapabilities } from "@isle/extension-host/services";
+import { extensionProvidedCapabilities } from "@mewvis/extension-host/services";
 import { isJsonValue } from "@earendil-works/chord";
 import {
   extensionCapabilities,
   type ExtensionSource,
   type JsonValue,
-} from "@isle/extension-host";
+} from "@mewvis/extension-host";
 import { realpathSync, statSync } from "node:fs";
 import { isAbsolute } from "node:path";
 import { z } from "zod";

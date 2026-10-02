@@ -121,17 +121,17 @@ fn start(app: &AppHandle, stopping: &AtomicBool) -> Result<BackendProcess, Strin
     command
         .arg(runtime.join("server/cli.mjs"))
         .arg("--desktop")
-        .env("ISLE_SERVER_RESOURCES", &runtime)
-        .env("ISLE_SERVER_PORT", "0")
-        .env_remove("ISLE_SERVER_TOKEN")
-        .env_remove("ISLE_DESKTOP_DEV_ORIGIN")
+        .env("MEWVIS_SERVER_RESOURCES", &runtime)
+        .env("MEWVIS_SERVER_PORT", "0")
+        .env_remove("MEWVIS_SERVER_TOKEN")
+        .env_remove("MEWVIS_DESKTOP_DEV_ORIGIN")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::inherit());
     if cfg!(debug_assertions) {
         if let Some(url) = app.config().build.dev_url.as_ref() {
             command.env(
-                "ISLE_DESKTOP_DEV_ORIGIN",
+                "MEWVIS_DESKTOP_DEV_ORIGIN",
                 url.origin().ascii_serialization(),
             );
         }

@@ -1,13 +1,13 @@
 import { useState } from "react";
-import { getApplicationHost } from "@isle/app-sdk/browser";
-import { getApplicationToolClient, type ApplicationTool } from "@isle/app-sdk/tools";
+import { getApplicationHost } from "@mewvis/app-sdk/browser";
+import { getApplicationToolClient, type ApplicationTool } from "@mewvis/app-sdk/tools";
 import type { TextInspection } from "../contracts";
 
 const riskLabels = { low: "低", medium: "中", high: "高" };
 
 /** Ordinary React business UI. The SDK transports the call to this application's Node tool. */
 export function HostTools() {
-  const [text, setText] = useState("Hello Isle 👋");
+  const [text, setText] = useState("Hello Mewvis 👋");
   const [result, setResult] = useState<TextInspection>();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");

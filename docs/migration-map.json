@@ -13,7 +13,7 @@
   "apps/desktop/agent-runtime/src/security/safety/README.md": "docs/runtime/security/approval.md",
   "apps/desktop/agent-runtime/src/security/execution/README.md": "docs/runtime/security/execution.md",
   "apps/desktop/applications/host/README.md": "docs/apps/host.md",
-  "apps/desktop/applications/host/ISLE_UI.md": "docs/apps/ui.md",
+  "apps/desktop/applications/host/MEWVIS_UI.md": "docs/apps/ui.md",
   "packages/app/dev/README.md": "docs/apps/development.md",
   "packages/app/sdk/README.md": "docs/apps/sdk.md",
   "packages/app/sdk/chat/README.md": "docs/apps/chat.md",

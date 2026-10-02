@@ -1,8 +1,8 @@
 {
-  "name": "@isle-test/chat-client",
+  "name": "@mewvis-test/chat-client",
   "version": "0.0.0",
   "type": "module",
-  "isle": {
+  "mewvis": {
     "app": {
       "version": 1,
       "entry": "./index.js"

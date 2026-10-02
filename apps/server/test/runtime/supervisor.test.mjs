@@ -128,7 +128,7 @@ test("idle pong traffic does not extend lifetime; unresponsive shutdown is kille
 
 test("release stops ordinary agent worker and queued tasks, preserves session files", async (t) => {
   const s = await setup(t);
-  const path = join(s.root, ".isle-claw/sessions/test");
+  const path = join(s.root, ".mewvis/sessions/test");
   await mkdir(path, { recursive: true });
   await writeFile(join(path, "keep.txt"), "keep");
   await s.run("active", "hold");
@@ -144,13 +144,13 @@ test("release stops ordinary agent worker and queued tasks, preserves session fi
 
 test("delete checks path boundary including symlinks and stops worker before removal", async (t) => {
   const s = await setup(t);
-  const path = join(s.root, ".isle-claw/sessions/test");
+  const path = join(s.root, ".mewvis/sessions/test");
   await mkdir(path, { recursive: true });
   await writeFile(join(path, "data.txt"), "data");
-  await symlink(s.root, join(s.root, ".isle-claw/escape"), "dir");
+  await symlink(s.root, join(s.root, ".mewvis/escape"), "dir");
   for (const sessionRootDir of [
     "../escape",
-    join(s.root, ".isle-claw"),
+    join(s.root, ".mewvis"),
     "escape/server-data",
   ]) {
     await assert.rejects(
@@ -185,7 +185,7 @@ test("late result for another task cannot complete current task or advance queue
 });
 
 test("spawn failure, protocol size bound, and worker/queue limits are explicit", async (t) => {
-  const missing = await setup(t, { nodeBinary: "/missing-isle-node" });
+  const missing = await setup(t, { nodeBinary: "/missing-mewvis-node" });
   await missing.run("spawn");
   await missing.done("spawn", "failed");
   assert.equal(missing.supervisor.status().workers.length, 0);

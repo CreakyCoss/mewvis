@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { JsonObject, ExtensionMessage } from "@isle/extension-host";
+import type { JsonObject, ExtensionMessage } from "@mewvis/extension-host";
 import { mockExtensionAdapter } from "./extensions/index.js";
 import { createMockPluginRegistry } from "./extensions/registry.js";
 import { AgentRuntimeEventType as Event } from "../../../../../protocol/wire.js";

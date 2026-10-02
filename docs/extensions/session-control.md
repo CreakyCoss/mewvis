@@ -1,6 +1,6 @@
 # 会话压缩钩子
 
-当前开放压缩前决策和压缩结果观察。插件面向 Isle 类型开发，Pi 适配器注册原生 session_before_compact / session_compact / session_compact_failed 钩子，Mock 注册自身的 beforeCompact / onCompact 钩子。切换、分叉、树导航和插件主动发起压缩尚未开放。
+当前开放压缩前决策和压缩结果观察。插件面向 Mewvis 类型开发，Pi 适配器注册原生 session_before_compact / session_compact / session_compact_failed 钩子，Mock 注册自身的 beforeCompact / onCompact 钩子。切换、分叉、树导航和插件主动发起压缩尚未开放。
 
 ## 压缩前决策
 

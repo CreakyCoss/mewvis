@@ -157,7 +157,7 @@ export async function compileBook(docsRoot = defaultDocsRoot) {
     if (link.anchor && !target.headings.some((heading) => heading.id === link.anchor))
       throw new Error(`锚点不存在：${link.from} → ${link.id}#${link.anchor}`);
   }
-  return { version: 1, language: "zh-CN", title: "Isle 文档中心", entries, pages };
+  return { version: 1, language: "zh-CN", title: "Mewvis 文档中心", entries, pages };
 }
 
 export async function checkReadmeLocations() {

@@ -1,7 +1,7 @@
-# Isle 应用工程
+# Mewvis 应用工程
 
-`@isle/app-dev` 管理 React 启动、开发预览、宿主工具与技能注册、类型检查和安装包构建。
-应用业务使用 `@isle/app-sdk`，无需导入 desktop 源码或维护 Vite 配置、iframe、postMessage。
+`@mewvis/app-dev` 管理 React 启动、开发预览、宿主工具与技能注册、类型检查和安装包构建。
+应用业务使用 `@mewvis/app-sdk`，无需导入 desktop 源码或维护 Vite 配置、iframe、postMessage。
 
 ## 在当前仓库创建项目
 
@@ -14,14 +14,14 @@ pnpm install
 pnpm dev
 ```
 
-`--local` 写入当前 SDK 和工具链的 link 依赖，适合本机开发。项目可以位于 Isle 仓库外。
+`--local` 写入当前 SDK 和工具链的 link 依赖，适合本机开发。项目可以位于 Mewvis 仓库外。
 发布工具包后可不传 `--local`，模板使用版本依赖；这里不假设 npm 上已经存在这些包。
 创建命令不会覆盖已有目录，也不会自动安装依赖或启动服务。
 
 ```text
 my-application/
 ├── package.json          # 身份、版本、依赖和命令
-├── isle.config.ts        # 权限、UI 和宿主能力配置
+├── mewvis.config.ts        # 权限、UI 和宿主能力配置
 ├── tsconfig.json         # 继承工具链提供的配置
 └── main/
     ├── App.tsx           # 默认导出 React 页面
@@ -34,18 +34,18 @@ my-application/
 
 页面可以自由拆分为 components、hooks、services；由宿主加载的工具实现和技能定义放在 host。
 纯 UI 应用可删除 host 配置及目录；纯工具或技能应用设置 `ui: false`；`host.tools` 和 `host.skills` 可以单独使用。
-package.json 不再维护一份重复的 `isle` 清单，构建时从 `isle.config.ts` 生成。
+package.json 不再维护一份重复的 `mewvis` 清单，构建时从 `mewvis.config.ts` 生成。
 
 ## 页面与宿主工具
 
 ```tsx
-import { getApplicationHost } from "@isle/app-sdk/browser";
-import { Chat } from "@isle/app-sdk/chat/react";
+import { getApplicationHost } from "@mewvis/app-sdk/browser";
+import { Chat } from "@mewvis/app-sdk/chat/react";
 import type { TextInspection } from "./contracts";
 
 const result = await getApplicationHost().executeTool<TextInspection>(
   "example_my_application_inspect_text",
-  { text: "Hello Isle 👋" },
+  { text: "Hello Mewvis 👋" },
 );
 ```
 
@@ -60,8 +60,8 @@ SDK 提供完整的发送、停止、能力选择、流式事件、保存和多�
 
 ## Agent 访问范围
 
-`isle.config.ts` 的 `agentAccess` 与 `permissions` 同级，打包后原样写入
-`package.json` 的 `isle.agentAccess`。`defineConfig` 直接使用协议生成的
+`mewvis.config.ts` 的 `agentAccess` 与 `permissions` 同级，打包后原样写入
+`package.json` 的 `mewvis.agentAccess`。`defineConfig` 直接使用协议生成的
 `AgentAccess` 类型；打包检查、后端解析使用同一份协议 schema。
 
 `permissions: ["chat"]` 开放对话入口，不隐含文件、网络和进程权限。
@@ -90,8 +90,8 @@ SDK 提供完整的发送、停止、能力选择、流式事件、保存和多�
 ## 应用技能
 
 ```ts
-// isle.config.ts
-import { defineConfig } from "@isle/app-dev";
+// mewvis.config.ts
+import { defineConfig } from "@mewvis/app-dev";
 
 export default defineConfig({
   displayName: "文本助手",
@@ -113,7 +113,7 @@ export default defineConfig({
 
 ```ts
 // main/host/skills.ts
-import { defineSkill } from "@isle/app-sdk";
+import { defineSkill } from "@mewvis/app-sdk";
 
 export default [
   defineSkill({
@@ -140,20 +140,20 @@ export default [
 宿主将选择保存在 `apps/<完整应用 ID>/settings.yaml` 的保留项中：
 
 ```yaml
-$isleApplicationSettings: 1
-$isleHost:
+$mewvisApplicationSettings: 1
+$mewvisHost:
   tools:
     allowedToolNames:
       - read
       - chat_playground_echo
 ```
 
-此项只能由宿主管理界面修改。普通 `defineSettings` 命名空间不接受 `$isleHost`；`storage` 的业务增删改查和清空也不会修改它。宿主写入授权与应用写入业务设置使用同一文件锁，保留彼此的数据。应用不需要知道文件路径或 YAML 格式。
+此项只能由宿主管理界面修改。普通 `defineSettings` 命名空间不接受 `$mewvisHost`；`storage` 的业务增删改查和清空也不会修改它。宿主写入授权与应用写入业务设置使用同一文件锁，保留彼此的数据。应用不需要知道文件路径或 YAML 格式。
 
 声明了 `chat` 权限的应用可以通过只读 SDK 查询最新目录及用户选择，无需创建工作区，也不需要额外申请 `application-data`：
 
 ```ts
-import { getApplicationToolClient } from "@isle/app-sdk/tools";
+import { getApplicationToolClient } from "@mewvis/app-sdk/tools";
 
 const tools = await getApplicationToolClient().list();
 // [{ name, label, description, source: "host" | "application", enabled }]
@@ -172,19 +172,19 @@ Node 应用确认 `context.chat` 可用后，使用 `createApplicationToolClient
 
 默认模板包含完整的文本分析技能和对应工具。安装并启用应用后新建对话，发送页面给出的技能示例请求。现有 Pi 接入会加载应用技能，并按需向模型提供内容；它与技能页维护的可选文件技能目录不同，目前不在 Chat 的技能选择菜单中单独显示。 没有 `read` 工具的会话由宿主把已解析且允许模型使用的应用技能内容加入本轮模型上下文；有 `read` 时继续使用 Pi 原有的按需加载机制，不额外授予文件权限。
 
-`pnpm dev` 从 Node Worker 读取实际技能定义，预览顶部可展开“应用技能定义”。这用于核对名称和内容，不模拟模型遵循技能；模型执行效果需在 Isle 中验证。
+`pnpm dev` 从 Node Worker 读取实际技能定义，预览顶部可展开“应用技能定义”。这用于核对名称和内容，不模拟模型遵循技能；模型执行效果需在 Mewvis 中验证。
 
 ## 开发与构建
 
 - `pnpm dev`：只监听本机 `127.0.0.1:5173`，端口被占用时退出，不替换已有服务。可传 `--port 5174`。
 - `pnpm check`：检查配置和 TypeScript，分别检查浏览器与 Node 类型环境，并禁止 UI 导入 host 实现。
-- `pnpm build`：先检查，再生成 `dist/isle`，包含宿主 JS、沙箱 UI JS/CSS 和安装清单。不会自动安装、启用或发布。
+- `pnpm build`：先检查，再生成 `dist/mewvis`，包含宿主 JS、沙箱 UI JS/CSS 和安装清单。不会自动安装、启用或发布。
 
-开发页面自动提供 React Refresh、主题切换和内存聊天宿主。聊天核心与 UI 来自 Isle 的同一份实现，仅模型和存储使用测试适配。页面上会标明“内存聊天预览”，刷新清空记录，不调用真实模型、不访问真实工作区。
+开发页面自动提供 React Refresh、主题切换和内存聊天宿主。聊天核心与 UI 来自 Mewvis 的同一份实现，仅模型和存储使用测试适配。页面上会标明“内存聊天预览”，刷新清空记录，不调用真实模型、不访问真实工作区。
 
-宿主工具在开发服务的 Node Worker 内执行原始业务代码。页面通过带开发连接令牌的本机接口调用，校验工具归属、输入和输出；最多四个并发请求，超时释放 Worker，下一次请求可以恢复。修改 host 模块会清理旧 Worker 并刷新预览、工具目录和技能定义；修改共享 TS/JS 业务模块会让下次调用加载新代码。React 页面和样式使用热更新。修改 isle.config.ts 后需要手动重启应用开发命令。
+宿主工具在开发服务的 Node Worker 内执行原始业务代码。页面通过带开发连接令牌的本机接口调用，校验工具归属、输入和输出；最多四个并发请求，超时释放 Worker，下一次请求可以恢复。修改 host 模块会清理旧 Worker 并刷新预览、工具目录和技能定义；修改共享 TS/JS 业务模块会让下次调用加载新代码。React 页面和样式使用热更新。修改 mewvis.config.ts 后需要手动重启应用开发命令。
 
-开发宿主只加载这里声明的工具与技能数组，不模拟完整 Cordis settings/services 生命周期，也不提供生产权限隔离。真实模型、文件权限和安装沙箱应在 Isle 中验证。
+开发宿主只加载这里声明的工具与技能数组，不模拟完整 Cordis settings/services 生命周期，也不提供生产权限隔离。真实模型、文件权限和安装沙箱应在 Mewvis 中验证。
 
 CSS 可以直接 import；图片和字体使用模块导入或 CSS 相对引用，打包为 data URL 以符合沙箱 CSP。不要依赖 `/public/...` 地址或浏览器直接访问网络、Node、Tauri。前端可使用普通 React 库，但产物仍受宿主 8 MiB JS / 2 MiB CSS 限制。
 
@@ -202,4 +202,4 @@ CSS 可以直接 import；图片和字体使用模块导入或 CSS 相对引用�
 
 开发预览与生产打包都支持 `tsconfig.json` 的精确别名和 `/*` 后缀别名。应用可提供 `postcss.config.mjs`，默认导出 `{ plugins: [...] }`；生产构建和 Vite 预览使用同一配置，插件及 `postcss` 由应用声明依赖。例如故事应用保留原 Tailwind 样式表，通过 `@tailwindcss/postcss` 编译，图片和字体继续内联。
 
-独立预览的虚拟工作区不能代替真实文件系统。依赖项目文件和数据迁移的完整流程，应在隔离数据目录的 Isle 宿主中验证。
+独立预览的虚拟工作区不能代替真实文件系统。依赖项目文件和数据迁移的完整流程，应在隔离数据目录的 Mewvis 宿主中验证。

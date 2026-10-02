@@ -26,7 +26,7 @@ test("native adapters use fixed scripts and data-only options; cancellation and 
     });
     assert.deepEqual(await pick(options, signal()), ["/tmp/中文\n目录"]);
     assert.equal(JSON.stringify(calls[0][1]).includes(options.title), false);
-    assert.deepEqual(JSON.parse(calls[0][2].env.ISLE_DIALOG_OPTIONS), options);
+    assert.deepEqual(JSON.parse(calls[0][2].env.MEWVIS_DIALOG_OPTIONS), options);
     assert.equal(calls[0][2].timeout, 300000);
     assert.equal(
       await createNativePicker(platform, {}, async () => ok("null"))(
@@ -94,7 +94,7 @@ test("native adapters use fixed scripts and data-only options; cancellation and 
 });
 
 test("dialog service preserves selected paths, rejects invalid input and serializes native windows", async (t) => {
-  const root = await mkdtemp(join(tmpdir(), "isle-dialog-"));
+  const root = await mkdtemp(join(tmpdir(), "mewvis-dialog-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const file = join(root, "中文 file.zip");
   await writeFile(file, "test");
@@ -172,8 +172,8 @@ test("command abort waits for a real child process to exit", async () => {
 });
 
 test("authenticated HTTP picker returns real paths, cancels on disconnect and closes with the server", async (t) => {
-  const root = await mkdtemp(join(tmpdir(), "isle-dialog-http-"));
-  const token = "isle-dialog-test-private-token";
+  const root = await mkdtemp(join(tmpdir(), "mewvis-dialog-http-"));
+  const token = "mewvis-dialog-test-private-token";
   let hold = false,
     active = 0,
     canceled = 0;

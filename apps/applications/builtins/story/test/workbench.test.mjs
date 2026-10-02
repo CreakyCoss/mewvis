@@ -139,7 +139,7 @@ test("persist request targets with conversation messages, parse only explicit su
   };
   const encoded = encodeWritingRequest("续写，保持悬疑感。", request);
   assert.equal(
-    conversationTitle("续写，保持悬疑感。 <isle-writing-co"),
+    conversationTitle("续写，保持悬疑感。 <mewvis-writing-co"),
     "续写，保持悬疑感。",
   );
   assert.deepEqual(decodeWritingRequest(encoded), {

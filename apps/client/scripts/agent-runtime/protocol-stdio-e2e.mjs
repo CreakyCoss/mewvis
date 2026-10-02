@@ -10,7 +10,7 @@ const desktopRoot = process.cwd();
 const runtimePath = join(desktopRoot, "../agent-runtime/dist", entries.cli.output);
 const fixturesRoot = join(desktopRoot, "../agent-runtime/protocol/v1/fixtures");
 const protocolRoot = join(desktopRoot, "../agent-runtime/protocol/v1");
-const workspacePath = mkdtempSync(join(tmpdir(), "isle-agent-runtime-protocol-"));
+const workspacePath = mkdtempSync(join(tmpdir(), "mewvis-agent-runtime-protocol-"));
 
 if (!existsSync(runtimePath)) {
   throw new Error(`${runtimePath} 不存在，请先运行 pnpm build:agent-runtime`);
@@ -57,7 +57,7 @@ const requestSchema = JSON.parse(readFileSync(join(protocolRoot, "schema/request
 const eventSchema = JSON.parse(readFileSync(join(protocolRoot, "schema/event.schema.json"), "utf8"));
 const resultSchema = JSON.parse(readFileSync(join(protocolRoot, "schema/result.schema.json"), "utf8"));
 const documentedCommandMethods = openRpcDocument.methods
-  .filter((method) => method["x-isle-command"])
+  .filter((method) => method["x-mewvis-command"])
   .map((method) => method.name)
   .sort();
 const validatedCommandMethods = Object.values(requestSchema.definitions)

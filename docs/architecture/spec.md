@@ -63,7 +63,7 @@
 - npm 会自动解析到本地 workspace 包
 
 ```json
-// isle-claw/package.json
+// mewvis/package.json
 {
   "workspaces": ["ai/pi/packages/*"],
   "dependencies": {
@@ -108,7 +108,7 @@
 
 ### 4.2 数据库架构
 
-#### 全局数据库 (`~/.isle-claw/config.db`)
+#### 全局数据库 (`~/.mewvis/config.db`)
 
 ```sql
 -- 工作区列表
@@ -307,7 +307,7 @@ src/                             # React 前端
 ## 7. 验证方案
 
 1. **数据库验证**
-   - 启动应用后检查 `~/.isle-claw/config.db` 是否创建
+   - 启动应用后检查 `~/.mewvis/config.db` 是否创建
    - 创建工作区后检查指定目录下 `workspace.db` 是否创建
 
 2. **工作区目录验证**

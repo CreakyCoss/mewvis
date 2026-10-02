@@ -130,7 +130,7 @@ export class WorkspaceFiles {
           invalid("事务包含指向同一文件的路径");
         targets.set(rel, target);
       }
-      const stage = await fs.mkdtemp(join(base, ".isle-claw-txn-"));
+      const stage = await fs.mkdtemp(join(base, ".mewvis-txn-"));
       let preserve = false;
       const changed: string[] = [],
         backups = new Map<string, string>();

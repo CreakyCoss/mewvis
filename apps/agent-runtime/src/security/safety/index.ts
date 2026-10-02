@@ -1,7 +1,7 @@
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
-import { RISK_LEVELS } from "@isle/chat-contracts";
+import { RISK_LEVELS } from "@mewvis/chat-contracts";
 import { checkAgentAccess, type ResolvedAgentAccess } from "../access/index.js";
 import { SAFETY_CONFIG as configuredPolicy } from "./policy.js";
 import { canonicalPath, createResourcePathResolver } from "../platforms/resources.js";

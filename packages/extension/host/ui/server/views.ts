@@ -1,11 +1,11 @@
-import { uiSlotDefinitions } from "@isle/extension-host/ui";
+import { uiSlotDefinitions } from "@mewvis/extension-host/ui";
 import { createHash, randomUUID } from "node:crypto";
 import { readFileSync, statSync } from "node:fs";
 import {
   createExtensionPackageManager,
   readExtensionPackage,
   resolveExtensionConfig,
-} from "@isle/extension-host/management";
+} from "@mewvis/extension-host/management";
 import {
   ExtensionHost,
   type ExtensionHostAdapter,

@@ -2,7 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { open } from "@tauri-apps/plugin-dialog";
 import { openUrl, revealItemInDir } from "@tauri-apps/plugin-opener";
-import type { BackendConnection, ClientPlatform } from "@isle/client-platform";
+import type { BackendConnection, ClientPlatform } from "@mewvis/client-platform";
 
 let connection: Promise<BackendConnection> | undefined;
 
@@ -40,7 +40,7 @@ export const platform: ClientPlatform = {
     await revealItemInDir(path);
   },
   window: {
-    titleBarStyle: import.meta.env.ISLE_TITLE_BAR_STYLE,
+    titleBarStyle: import.meta.env.MEWVIS_TITLE_BAR_STYLE,
     startDragging: () => getCurrentWindow().startDragging(),
     async onCloseRequested(canClose, onError) {
       const window = getCurrentWindow();

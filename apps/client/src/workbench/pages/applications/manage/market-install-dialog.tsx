@@ -94,7 +94,7 @@ export const MarketplaceInstallDialog = ({ application, onOpenChange, onInstalle
             <AlertTitle>安全安装模式</AlertTitle>
             <AlertDescription>
               使用固定 npm registry 下载，并保留精确版本锁文件；安装期间不会执行 preinstall、install、postinstall
-              等脚本。安装成功只代表包格式有效；依赖完整 DSH Profile、客户端或 Isle
+              等脚本。安装成功只代表包格式有效；依赖完整 DSH Profile、客户端或 Mewvis
               尚未提供服务的应用，会在启用时明确报错。
             </AlertDescription>
           </Alert>
@@ -113,7 +113,7 @@ export const MarketplaceInstallDialog = ({ application, onOpenChange, onInstalle
             <TriangleAlert />
             <AlertTitle>安装后保持停用</AlertTitle>
             <AlertDescription>
-              社区目录本身不提供权限信息。安装后 Isle 会读取包内声明；若 DSH
+              社区目录本身不提供权限信息。安装后 Mewvis 会读取包内声明；若 DSH
               格式不支持，会明确标记为受信任模式，再由你确认启用。
             </AlertDescription>
           </Alert>

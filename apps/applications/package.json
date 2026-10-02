@@ -1,5 +1,5 @@
 {
-  "name": "@isle/builtin-applications",
+  "name": "@mewvis/builtin-applications",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -10,8 +10,8 @@
     "docs:test": "node --test scripts/docs/book.test.mjs"
   },
   "devDependencies": {
-    "@isle/app-dev": "workspace:*",
-    "@isle/app-sdk": "workspace:*",
+    "@mewvis/app-dev": "workspace:*",
+    "@mewvis/app-sdk": "workspace:*",
     "dsh-rss": "0.2.0",
     "esbuild": "^0.28.0",
     "react": "^19.1.0",

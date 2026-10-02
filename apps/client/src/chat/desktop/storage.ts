@@ -1,6 +1,6 @@
 import { loadChat, saveChat, setChatUnread, type ChatRecord as ApiRecord, type ChatOrigin } from "@/api/chat";
 import type { ChatRecord, ChatRunConfig, ChatStorage } from "../core";
-import type { ApplicationChatProfile } from "@isle/app-sdk/chat";
+import type { ApplicationChatProfile } from "@mewvis/app-sdk/chat";
 
 export type ChatRecordSource = { workspaceId: string; origin: ChatOrigin; profile?: ApplicationChatProfile };
 export const sameOrigin = (a: ChatOrigin | undefined, b: ChatOrigin) =>

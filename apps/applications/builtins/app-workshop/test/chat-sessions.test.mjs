@@ -14,7 +14,7 @@ const bundle = await build({
       name: "chat-session-fixture",
       setup(builder) {
         builder.onResolve(
-          { filter: /^@isle\/app-sdk\/(chat|data|browser)$/ },
+          { filter: /^@mewvis\/app-sdk\/(chat|data|browser)$/ },
           ({ path }) => ({ path, namespace: "fixture" }),
         );
         builder.onLoad({ filter: /.*/, namespace: "fixture" }, ({ path }) => ({

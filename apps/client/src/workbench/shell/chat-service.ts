@@ -5,7 +5,7 @@ import type { DesktopSessionInput } from "@/chat/desktop";
 import { listApplications, type ApplicationPermission } from "@/api/applications";
 import { createApplicationChatHost } from "@/chat/desktop/application";
 import { listApplicationTools } from "@/api/applications/tools";
-import { createApplicationDataClient, ApplicationDataError } from "@isle/app-sdk/data";
+import { createApplicationDataClient, ApplicationDataError } from "@mewvis/app-sdk/data";
 import { createBackendApplicationDataTransport } from "@/api/applications/data";
 
 // Owned by the application. Resolvers return scene configuration; the service owns sessions.

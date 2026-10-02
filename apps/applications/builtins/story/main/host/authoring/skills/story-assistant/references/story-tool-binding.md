@@ -21,5 +21,5 @@
 - 创建文档前按 kind 查 `structure.schemas.documents[kind].fields`，只提交其中声明的业务字段；嵌套对象按 `definition` / `itemDefinition` 查 `structure.schemas.objectDefinitions`。字段 label、描述、路径、默认值、只读字段和校验规则均由故事类型维护。
 - 磁盘中的结构化资料是普通 JSON。章节正文使用 `chapterContent` 角色指向的 Markdown 文档，章节摘要、引用和状态变化使用 `chapterResult` 角色指向的结构化文档；实际 kind 和路径只从本轮结构描述解析。
 - `validate_changes` 只用于用户明确要求预览或诊断，不作为每批固定前置步骤。
-- 不使用普通文件工具维护正式故事内容，也不自行修改 manifest 或 `story/.isle-claw/project.json`。
+- 不使用普通文件工具维护正式故事内容，也不自行修改 manifest 或 `story/.mewvis/project.json`。
 - 技能不定义、复制或升级具体故事类型。Stories 创建工作区时选择故事类型，工具按工作区定义实现统一处理。新增文档只要已进入故事类型定义，技能就按 `describe_structure` 使用；`validationMode` 只能选择 `structure.validationModes` 已声明的值。

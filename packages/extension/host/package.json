@@ -1,5 +1,5 @@
 {
-  "name": "@isle/extension-host",
+  "name": "@mewvis/extension-host",
   "version": "0.1.0",
   "private": true,
   "type": "module",

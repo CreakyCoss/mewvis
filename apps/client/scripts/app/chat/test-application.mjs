@@ -15,7 +15,7 @@ const result = await build({
 for (const input of Object.keys(result.metafile.inputs))
   if (/node_modules\/(react|lexical)|@tauri-apps|src\/workbench|src\/api\//.test(input))
     throw new Error(`Headless application boundary violation: ${input}`);
-const directory = await mkdtemp(join(tmpdir(), "isle-app-chat-"));
+const directory = await mkdtemp(join(tmpdir(), "mewvis-app-chat-"));
 try {
   const file = join(directory, "test.mjs");
   await writeFile(file, result.outputFiles[0].contents);

@@ -1,4 +1,4 @@
-import type { ApplicationStorage, ApplicationStorageValue } from "@isle/app-sdk/data";
+import type { ApplicationStorage, ApplicationStorageValue } from "@mewvis/app-sdk/data";
 import { object, text, validId } from "./course";
 
 export type AssistantOutcome = "accepted" | "viewed" | "discarded" | "revised" | "retried";

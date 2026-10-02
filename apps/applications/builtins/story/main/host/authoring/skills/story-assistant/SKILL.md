@@ -3,7 +3,7 @@ name: story-assistant
 description: >-
   Mewvis 故事弹窗的专属路由技能。只在故事创作助手中使用；当用户提出开书、长短篇写作、拆文分析、导入、审稿或去 AI 味请求时，必须从 story-assistant-* 技能中选择匹配流程。不要路由到普通 story-* 技能，也不提供扫榜、扫版或浏览器采集。
 metadata:
-  isle-claw:
+  mewvis:
     assistant-only: true
     builtin-bundle: story-authoring
     required-private-tool: story

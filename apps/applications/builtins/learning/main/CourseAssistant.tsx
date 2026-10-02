@@ -3,7 +3,7 @@ import {
   getApplicationChatClient,
   type ApplicationChatSession,
   type ApplicationModelOption,
-} from "@isle/app-sdk/chat";
+} from "@mewvis/app-sdk/chat";
 import type { Brief } from "./course";
 import { Icon, Notice, errorText } from "./components";
 import { createModelTask, closeModelTask, openModelTask } from "./ModelTask";

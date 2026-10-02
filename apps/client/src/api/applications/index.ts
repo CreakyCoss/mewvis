@@ -1,8 +1,8 @@
 import { invoke } from "@/transport";
-import type { AgentAccess } from "@isle/chat-contracts";
-import type { IsleToolRisk } from "@isle/app-sdk";
+import type { AgentAccess } from "@mewvis/chat-contracts";
+import type { MewvisToolRisk } from "@mewvis/app-sdk";
 
-export type ApplicationRuntimeKind = "isle" | "dsh";
+export type ApplicationRuntimeKind = "mewvis" | "dsh";
 
 export type ApplicationPermission =
   | "network"
@@ -14,7 +14,7 @@ export type ApplicationPermission =
   | "chat"
   | "chat-knowledge"
   | "embedded-views";
-export type ApplicationPermissionStatus = "declared" | "isle-upgrade-required" | "dsh-unsupported";
+export type ApplicationPermissionStatus = "declared" | "mewvis-upgrade-required" | "dsh-unsupported";
 
 export type ApplicationDescriptor = {
   id: string;
@@ -82,7 +82,7 @@ export type RemovedApplication = {
 };
 
 export type ApplicationUiTool = {
-  risk?: IsleToolRisk;
+  risk?: MewvisToolRisk;
   name: string;
   description: string;
   parameters: {

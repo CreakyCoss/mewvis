@@ -11,7 +11,7 @@ import { createInterface } from "node:readline";
 import { desktopPlatformFixture } from "../platform/desktop-fixture.mjs";
 
 const resources =
-  process.env.ISLE_TEST_DESKTOP_RESOURCES ?? fileURLToPath(new URL("../../../agent-runtime/dist/", import.meta.url));
+  process.env.MEWVIS_TEST_DESKTOP_RESOURCES ?? fileURLToPath(new URL("../../../agent-runtime/dist/", import.meta.url));
 const waitFor = (promise, label, ms = 20_000) => {
   let timer;
   return Promise.race([
@@ -30,14 +30,14 @@ async function launch(root, runtime, earlyClose = false) {
       cwd: root,
       env: {
         ...process.env,
-        ISLE_SERVER_RESOURCES: runtime,
-        ISLE_SERVER_DATA_DIR: join(root, "data"),
-        ISLE_SERVER_RUNTIME_DATA_DIR: join(root, "data"),
-        ISLE_SERVER_RUNTIME_CLI: join(runtime, "cli.js"),
-        ISLE_SERVER_TOKEN: "a".repeat(64),
-        ISLE_SERVER_PORT: "0",
+        MEWVIS_SERVER_RESOURCES: runtime,
+        MEWVIS_SERVER_DATA_DIR: join(root, "data"),
+        MEWVIS_SERVER_RUNTIME_DATA_DIR: join(root, "data"),
+        MEWVIS_SERVER_RUNTIME_CLI: join(runtime, "cli.js"),
+        MEWVIS_SERVER_TOKEN: "a".repeat(64),
+        MEWVIS_SERVER_PORT: "0",
         AGENT_RUNTIME_PROFILE_ID: "mock",
-        ISLE_DESKTOP_DEV_ORIGIN: "http://localhost:1420",
+        MEWVIS_DESKTOP_DEV_ORIGIN: "http://localhost:1420",
       },
       stdio: ["pipe", "pipe", "pipe"],
     },
@@ -71,7 +71,7 @@ async function launch(root, runtime, earlyClose = false) {
 }
 
 test("desktop startup reports a data directory conflict and can retry after the owner exits", async (t) => {
-  const root = await mkdtemp(join(tmpdir(), "isle desktop conflict "));
+  const root = await mkdtemp(join(tmpdir(), "mewvis desktop conflict "));
   const sessions = [];
   t.after(async () => {
     for (const session of sessions) {
@@ -99,16 +99,16 @@ test("desktop startup reports a data directory conflict and can retry after the 
 });
 
 test("packaged desktop backend runs outside the repository, authenticates HTTP/SSE and closes on parent EOF", async (t) => {
-  const root = await mkdtemp(join(tmpdir(), "isle desktop backend "));
+  const root = await mkdtemp(join(tmpdir(), "mewvis desktop backend "));
   const runtime = join(root, "runtime");
   await cp(resources, runtime, { recursive: true, dereference: true });
   t.after(() => rm(root, { recursive: true, force: true }));
-  // The mock engine has no Isle extension adapter; isolate this transport/lifecycle fixture.
+  // The mock engine has no Mewvis extension adapter; isolate this transport/lifecycle fixture.
   const bundled = Object.fromEntries(
     await Promise.all(
       (await readdir(join(runtime, "extensions"))).map(async (name) => {
         const pkg = JSON.parse(await readFile(join(runtime, "extensions", name, "package.json"), "utf8"));
-        return [pkg["isle.plugin"].id, { enabled: false }];
+        return [pkg["mewvis.plugin"].id, { enabled: false }];
       }),
     ),
   );

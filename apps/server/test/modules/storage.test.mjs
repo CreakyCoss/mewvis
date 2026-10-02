@@ -28,11 +28,11 @@ const norm = (s) => s.replace(/\s+/g, " ").trim();
 
 test("Node uses original product and Tauri runtime paths without creating files", () => {
   const config = runtimeConfig({ env: {} });
-  if (!process.env.ISLE_SERVER_DATA_DIR)
-    assert.equal(config.dataDir, join(homedir(), ".isle-claw"));
+  if (!process.env.MEWVIS_SERVER_DATA_DIR)
+    assert.equal(config.dataDir, join(homedir(), ".mewvis"));
   assert.equal(
-    desktopRuntimeDirectory("com.isle-claw.desktop", "darwin", "/home", {}),
-    "/home/Library/Application Support/com.isle-claw.desktop",
+    desktopRuntimeDirectory("com.mewvis.desktop", "darwin", "/home", {}),
+    "/home/Library/Application Support/com.mewvis.desktop",
   );
   assert.equal(
     desktopRuntimeDirectory("app", "linux", "/home", { XDG_DATA_HOME: "/xdg" }),
@@ -44,12 +44,12 @@ test("Node uses original product and Tauri runtime paths without creating files"
     "/temporary/test/pi-agent",
   );
   if (
-    !process.env.ISLE_SERVER_DATA_DIR &&
-    !process.env.ISLE_SERVER_RUNTIME_DATA_DIR
+    !process.env.MEWVIS_SERVER_DATA_DIR &&
+    !process.env.MEWVIS_SERVER_RUNTIME_DATA_DIR
   )
     assert.equal(
       config.runtimeDataDir,
-      desktopRuntimeDirectory("com.isle-claw.desktop"),
+      desktopRuntimeDirectory("com.mewvis.desktop"),
     );
 });
 
@@ -147,7 +147,7 @@ export function legacyFixture(db, version) {
 }
 
 test("every Rust schema version v3–v25 upgrades without losing skill memberships and preserves physical column order", async (t) => {
-  const root = await mkdtemp(join(tmpdir(), "isle-shared-schema-"));
+  const root = await mkdtemp(join(tmpdir(), "mewvis-shared-schema-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   for (let version = 3; version <= 25; version++) {
     const dir = join(root, String(version));
@@ -210,7 +210,7 @@ test("every Rust schema version v3–v25 upgrades without losing skill membershi
 });
 
 test("retiring model enablement preserves every configured model and its settings", async (t) => {
-  const root = await mkdtemp(join(tmpdir(), "isle-model-enable-upgrade-"));
+  const root = await mkdtemp(join(tmpdir(), "mewvis-model-enable-upgrade-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   for (const version of [0, 26]) {
     const dir = join(root, String(version));
@@ -262,7 +262,7 @@ test("retiring model enablement preserves every configured model and its setting
 });
 
 test("failed historical upgrade rolls back all changes and leaves version/data intact", async (t) => {
-  const root = await mkdtemp(join(tmpdir(), "isle-shared-rollback-"));
+  const root = await mkdtemp(join(tmpdir(), "mewvis-shared-rollback-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   let raw = new DatabaseSync(join(root, "config.db"));
   legacyFixture(raw, 14);

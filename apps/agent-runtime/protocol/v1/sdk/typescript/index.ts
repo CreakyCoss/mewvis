@@ -12,8 +12,8 @@
  * Any JSON-RPC message crossing the agent runtime stdio boundary.
  */
 export type AgentRuntimeMessage =
-  IsleAgentRuntimeJSONRPCRequest | IsleAgentRuntimeJSONRPCResponse | IsleAgentRuntimeJSONRPCNotification;
-export type IsleAgentRuntimeJSONRPCRequest = {
+  MewvisAgentRuntimeJSONRPCRequest | MewvisAgentRuntimeJSONRPCResponse | MewvisAgentRuntimeJSONRPCNotification;
+export type MewvisAgentRuntimeJSONRPCRequest = {
   jsonrpc: "2.0";
   id?: string | number;
   method: string;
@@ -51,7 +51,7 @@ export type IsleAgentRuntimeJSONRPCRequest = {
 export type AgentRuntimeApplication = {
   [k: string]: unknown;
 } & {
-  kind: "isle" | "dsh";
+  kind: "mewvis" | "dsh";
   id: string;
   entry: string;
   packageRoot: string;
@@ -61,7 +61,7 @@ export type AgentRuntimeApplication = {
   } | null;
 };
 export type StringArray = string[];
-export type IsleAgentRuntimeJSONRPCResponse =
+export type MewvisAgentRuntimeJSONRPCResponse =
   | {
       jsonrpc: "2.0";
       id: string | number;
@@ -94,7 +94,7 @@ export type AgentRuntimeResult =
   | TaskResult
   | ExtensionCommandsResult
   | ExtensionCommandResult;
-export type IsleAgentRuntimeJSONRPCNotification =
+export type MewvisAgentRuntimeJSONRPCNotification =
   | {
       jsonrpc: "2.0";
       method: "runtime/event";
@@ -1140,7 +1140,7 @@ export const agentPermissionOptions = [
   },
 ] as const satisfies readonly AgentPermissionOption[];
 export type AgentRuntimeRequestFor<TMethod extends AgentRuntimeJsonRpcMethod> = Extract<
-  IsleAgentRuntimeJSONRPCRequest,
+  MewvisAgentRuntimeJSONRPCRequest,
   { method?: TMethod }
 >;
 export type AgentRuntimeRequestParams<TMethod extends AgentRuntimeJsonRpcMethod> = NonNullable<

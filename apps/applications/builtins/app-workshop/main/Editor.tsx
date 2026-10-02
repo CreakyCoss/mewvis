@@ -5,7 +5,7 @@ import {
   useState,
   type CSSProperties,
 } from "react";
-import type { ApplicationChatSession } from "@isle/app-sdk/chat";
+import type { ApplicationChatSession } from "@mewvis/app-sdk/chat";
 import { toast } from "sonner";
 import {
   ChevronDown,

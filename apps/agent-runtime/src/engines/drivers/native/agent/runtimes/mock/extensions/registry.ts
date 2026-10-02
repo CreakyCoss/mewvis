@@ -8,7 +8,7 @@ import type {
   ExtensionMessageChange,
   ExtensionCompactionRequest,
   ExtensionCompactionResult,
-} from "@isle/extension-host";
+} from "@mewvis/extension-host";
 import { randomUUID } from "node:crypto";
 
 export interface MockCall {
@@ -50,7 +50,7 @@ export interface MockPluginAPI {
 }
 export type MockPlugin = (api: MockPluginAPI) => void;
 
-/** Mock's own registration and dispatch API; it does not know Isle bindings or worker RPC. */
+/** Mock's own registration and dispatch API; it does not know Mewvis bindings or worker RPC. */
 export function createMockPluginRegistry() {
   const tools = new Map<string, (call: MockCall) => Promise<ExtensionToolResult>>();
   const commands = new Map<string, (call: MockCall) => Promise<JsonValue>>();

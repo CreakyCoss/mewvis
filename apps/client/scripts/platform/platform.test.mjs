@@ -62,7 +62,7 @@ test("desktop title bar follows the Tauri target rather than the build host", as
       { command: "build", mode: "production" },
       join(root, "../desktop/vite.config.ts"),
     );
-    const titleBarStyle = JSON.parse(config.define["import.meta.env.ISLE_TITLE_BAR_STYLE"]);
+    const titleBarStyle = JSON.parse(config.define["import.meta.env.MEWVIS_TITLE_BAR_STYLE"]);
     assert.equal(titleBarStyle, expected, target);
     const desktop = await bundle(true, titleBarStyle);
     assert.equal(desktop.platform.window.titleBarStyle, expected, target);

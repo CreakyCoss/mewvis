@@ -13,7 +13,7 @@ const cli = fileURLToPath(
   new URL("../../dist/maintenance.js", import.meta.url),
 );
 test("Node maintenance CLI preserves custom database paths, backups and the running backend lock", async (t) => {
-  const root = await mkdtemp(join(tmpdir(), "isle-maintenance-"));
+  const root = await mkdtemp(join(tmpdir(), "mewvis-maintenance-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const path = join(root, "custom.sqlite");
   const run = (...args) => execute(process.execPath, [cli, ...args, path]);

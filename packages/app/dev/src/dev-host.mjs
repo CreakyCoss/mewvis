@@ -78,7 +78,7 @@ export function toolMiddleware(runtime, token) {
     response.setHeader("Content-Type", "application/json; charset=utf-8");
     response.setHeader("Cache-Control", "no-store");
     try {
-      if (request.headers["x-isle-dev-token"] !== token)
+      if (request.headers["x-mewvis-dev-token"] !== token)
         throw new Error("开发宿主连接无效，请刷新预览页面");
       if (request.method === "GET") {
         response.end(JSON.stringify(await runtime.describe()));

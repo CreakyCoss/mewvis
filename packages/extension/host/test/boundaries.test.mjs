@@ -25,7 +25,7 @@ test("host and consuming applications are independent from SDK; the host knows n
   const pkg = JSON.parse(
     await readFile(join(hostRoot, "package.json"), "utf8"),
   );
-  assert.equal(pkg.dependencies["@isle/extension-sdk"], undefined);
+  assert.equal(pkg.dependencies["@mewvis/extension-sdk"], undefined);
   for (const directory of [
     hostRoot,
     ...["client", "server", "agent-runtime"].map((name) =>
@@ -40,7 +40,7 @@ test("host and consuming applications are independent from SDK; the host knows n
       for (const { fileName } of imports) {
         assert.doesNotMatch(
           fileName,
-          /^@isle\/extension-(sdk|adapters)(\/|$)/,
+          /^@mewvis\/extension-(sdk|adapters)(\/|$)/,
           relative(root, file),
         );
         if (directory === hostRoot)

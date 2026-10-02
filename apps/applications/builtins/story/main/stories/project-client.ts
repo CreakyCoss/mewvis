@@ -5,7 +5,7 @@ import { call, workspaceForPath } from "@/platform/bridge";
 /** Keep the original project facade; only transport crosses the application boundary. */
 const request = async <T>(path: string, action: string, input?: unknown): Promise<T> => {
   const workspace = await workspaceForPath(path);
-  return call<T>("isle_story_project", { workspaceId: workspace.id, action, ...(input === undefined ? {} : { input }) });
+  return call<T>("mewvis_story_project", { workspaceId: workspace.id, action, ...(input === undefined ? {} : { input }) });
 };
 const workspace = (projectKey: string): StoryWorkspace => ({
   projectKey,

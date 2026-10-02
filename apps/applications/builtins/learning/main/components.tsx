@@ -3,14 +3,14 @@ import {
   getApplicationChatClient,
   type ApplicationChatSession,
   type ApplicationChatSummary,
-} from "@isle/app-sdk/chat";
-import { getApplicationDataClient } from "@isle/app-sdk/data";
+} from "@mewvis/app-sdk/chat";
+import { getApplicationDataClient } from "@mewvis/app-sdk/data";
 import {
   Chat,
   useChatComposer,
   useChatSession,
   useChatSnapshot,
-} from "@isle/app-sdk/chat/react";
+} from "@mewvis/app-sdk/chat/react";
 import {
   History,
   Plus,
@@ -211,7 +211,7 @@ export function Tutor({
       const workspaces = await data.workspaces.list();
       const workspace = workspaces.find((w) => w.isDefault) ?? workspaces[0];
       if (!workspace)
-        throw new Error("尚无学习工作区，请在 Isle 中重新打开应用");
+        throw new Error("尚无学习工作区，请在 Mewvis 中重新打开应用");
       const key = tutorSessionKey(course.id, lesson.id);
       const previous = readTutorSessionIndex(await data.storage.getItem(key));
       const client = getApplicationChatClient();

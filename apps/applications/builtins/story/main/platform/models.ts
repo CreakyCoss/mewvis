@@ -1,7 +1,7 @@
 import {
   getApplicationChatClient,
   type ApplicationModelOption,
-} from "@isle/app-sdk/chat";
+} from "@mewvis/app-sdk/chat";
 export type RuntimeModelOption = ApplicationModelOption;
 export type RuntimeModelInput = { modelId: string };
 export type RuntimeSessionRef = { id: string };

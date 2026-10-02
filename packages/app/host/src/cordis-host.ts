@@ -1,7 +1,7 @@
-import type { IsleToolRisk } from "@isle/app-sdk";
-import { isRiskLevel } from "@isle/chat-contracts";
-import { createApplicationChatClient, type ApplicationChatClient } from "@isle/app-sdk/chat";
-import { createApplicationDataClient, type ApplicationDataClient } from "@isle/app-sdk/data";
+import type { MewvisToolRisk } from "@mewvis/app-sdk";
+import { isRiskLevel } from "@mewvis/chat-contracts";
+import { createApplicationChatClient, type ApplicationChatClient } from "@mewvis/app-sdk/chat";
+import { createApplicationDataClient, type ApplicationDataClient } from "@mewvis/app-sdk/data";
 import { Context, Inject, type Fiber, type Plugin } from "@deepseek-ai/cordis";
 import { SkillRegistry, type SkillDefinition, type SkillSummary, type SkillViewOptions } from "@deepseek-ai/dsh-skill";
 import { SettingsProvider, type SettingsNamespace } from "@deepseek-ai/dsh-settings";
@@ -17,7 +17,7 @@ import { NamespacedFileSettingsProvider } from "./settings-provider.js";
 import { applicationDirectory } from "./application-paths.js";
 
 export type CordisToolSchema = ReturnType<ToolRuntime["schemas"]>[number] & {
-  risk?: IsleToolRisk;
+  risk?: MewvisToolRisk;
 };
 
 export type CordisApplicationId = string;
@@ -33,7 +33,7 @@ export type CordisApplicationHostOptions = Readonly<{
   chat?: (applicationId: string) => ApplicationChatClient | undefined;
   data?: (applicationId: string) => ApplicationDataClient;
   toolPresentation?: "native" | "code" | "both";
-  /** A YAML/JSON file keeps DSH's monolithic mode; a directory enables Isle namespace isolation. */
+  /** A YAML/JSON file keeps DSH's monolithic mode; a directory enables Mewvis namespace isolation. */
   settingsPath?: string;
   /** Desktop-owned settings, isolated by full application identity. Layout migration must run before opening the host. */
   applicationSettingsRoot?: string;
@@ -86,7 +86,7 @@ class ApplicationFileSettingsProvider extends FileSettingsProvider {
     const path = this.documentPath;
     await mkdir(dirname(path), { recursive: true, mode: 0o700 });
     try {
-      await writeFile(path, "$isleApplicationSettings: 1\n", { flag: "wx", mode: 0o600 });
+      await writeFile(path, "$mewvisApplicationSettings: 1\n", { flag: "wx", mode: 0o600 });
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
       const info = await lstat(path);
@@ -118,7 +118,7 @@ const awaitApplicationStart = async (task: PromiseLike<unknown>, label: string) 
       task,
       new Promise<never>((_, reject) => {
         timer = setTimeout(
-          () => reject(new Error(`应用启动超时：${label}。它可能依赖 Isle 尚未提供的宿主服务。`)),
+          () => reject(new Error(`应用启动超时：${label}。它可能依赖 Mewvis 尚未提供的宿主服务。`)),
           APPLICATION_START_TIMEOUT_MS,
         );
         timer.unref?.();
@@ -138,7 +138,7 @@ const parseBundleEntries = async (patchPath: string): Promise<BundleEntry[]> => 
     parsed = loadYaml(await readFile(patchPath, "utf8"), { schema: JSON_SCHEMA });
   } catch (error) {
     throw new Error(
-      `无法解析 DSH bundle patch（Isle 不执行 !!js 表达式）：${error instanceof Error ? error.message : String(error)}`,
+      `无法解析 DSH bundle patch（Mewvis 不执行 !!js 表达式）：${error instanceof Error ? error.message : String(error)}`,
     );
   }
   if (!Array.isArray(parsed)) throw new Error("DSH bundle patch 顶层必须是数组。");
@@ -165,11 +165,11 @@ const parseBundleEntries = async (patchPath: string): Promise<BundleEntry[]> => 
   for (const candidate of parsed) {
     if (!isObject(candidate)) throw new Error("DSH bundle patch 必须由对象组成。");
     const patch = candidate as BundlePatch;
-    // A bundle is applied over Isle's intentionally small empty profile. Rows
+    // A bundle is applied over Mewvis's intentionally small empty profile. Rows
     // that only override a full DSH base entry have no target here.
     if (patch.insert !== undefined && patch.id === undefined) appendEntries(patch.insert);
   }
-  if (entries.length === 0) throw new Error("DSH bundle 没有可注入 Isle 宿主的顶层 insert entry。");
+  if (entries.length === 0) throw new Error("DSH bundle 没有可注入 Mewvis 宿主的顶层 insert entry。");
   return entries;
 };
 
@@ -215,8 +215,8 @@ export const resolveCordisApplicationModule = (module: object): Plugin => {
 };
 
 /**
- * Cordis-backed runtime kernel shared by native Isle applications and compatibility
- * adapters. Isle owns the package protocol; Cordis owns application lifecycle and
+ * Cordis-backed runtime kernel shared by native Mewvis applications and compatibility
+ * adapters. Mewvis owns the package protocol; Cordis owns application lifecycle and
  * dependency injection.
  */
 export class CordisApplicationHost {
@@ -267,7 +267,7 @@ export class CordisApplicationHost {
       const tools = context.get("tools");
       const skills = context.get("skills");
       if (!(tools instanceof ToolRuntime) || !(skills instanceof SkillRegistry) || !context.get("settings")) {
-        throw new Error("Isle 应用 tools/skills/settings 服务没有完成初始化。");
+        throw new Error("Mewvis 应用 tools/skills/settings 服务没有完成初始化。");
       }
       return new CordisApplicationHost(context, tools, skills, options.chat, options.data, options.applicationSettingsRoot);
     } catch (error) {
@@ -371,7 +371,7 @@ export class CordisApplicationHost {
   /**
    * Load the host-side entries inserted by a standard `dsh.bundle.patch`.
    *
-   * Isle deliberately supports the portable tools/skills subset here. Patch
+   * Mewvis deliberately supports the portable tools/skills subset here. Patch
    * overrides that target the full DSH base profile are ignored, and `!!js`
    * expressions are rejected instead of evaluated.
    */
@@ -502,7 +502,7 @@ export class CordisApplicationHost {
     if (entryInject !== undefined) Inject.resolve(entryInject as never, required);
     const missing = Object.keys(required).filter((name) => scope.get(name as never) === undefined);
     if (missing.length > 0) {
-      throw new Error(`应用 ${id} 依赖 Isle 尚未提供的服务：${missing.join("、")}`);
+      throw new Error(`应用 ${id} 依赖 Mewvis 尚未提供的服务：${missing.join("、")}`);
     }
   }
 }

@@ -1,4 +1,4 @@
-import type { AgentAccess } from "@isle/chat-contracts";
+import type { AgentAccess } from "@mewvis/chat-contracts";
 import { createNativeApplicationChat } from "./chat.js";
 import { createNativeApplicationData } from "./data.js";
 import { readToolPolicy, writeToolPolicy } from "./tool-policy.js";
@@ -28,7 +28,7 @@ type RuntimeApplication = Readonly<{
   patchPath?: string | null;
   permissions: readonly string[];
   agentAccess?: AgentAccess | null;
-  permissionStatus: "declared" | "isle-upgrade-required" | "dsh-unsupported";
+  permissionStatus: "declared" | "mewvis-upgrade-required" | "dsh-unsupported";
   dataConnection?: string | null;
 }>;
 
@@ -57,7 +57,7 @@ type UiApplication = Readonly<{
   compatibility: readonly ApplicationCompatibilityInfo[];
   permissions: readonly string[];
   agentAccess?: AgentAccess | null;
-  permissionStatus: "declared" | "isle-upgrade-required" | "dsh-unsupported";
+  permissionStatus: "declared" | "mewvis-upgrade-required" | "dsh-unsupported";
 }>;
 
 const MAX_RESPONSE_BYTES = 4 * 1024 * 1024;
@@ -177,12 +177,12 @@ const configure = async (value: unknown) => {
         agentAccess: application.agentAccess,
         permissionStatus:
           application.permissionStatus === "declared" ||
-          application.permissionStatus === "isle-upgrade-required" ||
+          application.permissionStatus === "mewvis-upgrade-required" ||
           application.permissionStatus === "dsh-unsupported"
             ? application.permissionStatus
             : application.kind === "dsh"
               ? "dsh-unsupported"
-              : "isle-upgrade-required",
+              : "mewvis-upgrade-required",
       });
     }
     host = nextHost;

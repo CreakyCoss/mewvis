@@ -41,7 +41,7 @@ export const EXECUTION_CONFIG: ExecutionConfig = {
         proxyPortRange: [60080, 60089],
         readGrantPaths: ["${workspace}", "${home}", "${runtime}", "${nodeDirectory}"],
         privateAccountProfile: true,
-        policyStore: "${programData}/sandbox-runtime/isle-policy.sqlite",
+        policyStore: "${programData}/sandbox-runtime/mewvis-policy.sqlite",
         mandatorySearchDepth: 3,
       },
     },
@@ -64,7 +64,7 @@ export const EXECUTION_CONFIG: ExecutionConfig = {
       filesystem: {
         allowWrite: ["${workspace}", "${temp}"],
         denyRead: [],
-        denyWrite: ["${workspace}/.env", "${workspace}/.pi", "${workspace}/.git", "${workspace}/.isle"],
+        denyWrite: ["${workspace}/.env", "${workspace}/.pi", "${workspace}/.git", "${workspace}/.mewvis"],
       },
       network: {
         allow: "all",
@@ -76,7 +76,7 @@ export const EXECUTION_CONFIG: ExecutionConfig = {
       filesystem: {
         allowWrite: ["${workspace}", "${temp}"],
         denyRead: [],
-        denyWrite: ["${workspace}/.env", "${workspace}/.pi", "${workspace}/.git", "${workspace}/.isle"],
+        denyWrite: ["${workspace}/.env", "${workspace}/.pi", "${workspace}/.git", "${workspace}/.mewvis"],
       },
       network: {
         allow: "all",

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { createApplicationChatClient } from "../chat/index.js";
 import { createApplicationToolClient } from "../tools/index.js";
 import { defineSettings, defineTool, schema } from "../index.js";
-import { RISK_LEVELS, isRiskLevel } from "@isle/chat-contracts";
+import { RISK_LEVELS, isRiskLevel } from "@mewvis/chat-contracts";
 
 test("shared risk levels are immutable and reject undeclared values", () => {
   assert.deepEqual(RISK_LEVELS, ["low", "medium", "high"]);
@@ -49,7 +49,7 @@ test("tool catalog uses the authenticated chat transport with no workspace or wr
   assert.throws(
     () =>
       defineSettings({
-        namespace: "$isleHost",
+        namespace: "$mewvisHost",
         version: 1,
         schema: schema.object({}),
       }),

@@ -1,6 +1,6 @@
 # 文档维护
 
-Isle 自有说明统一维护在仓库根目录 `docs/`。目录按主题分组，页面使用稳定的英文文件名与中文标题。
+Mewvis 自有说明统一维护在仓库根目录 `docs/`。目录按主题分组，页面使用稳定的英文文件名与中文标题。
 
 ## 新增与修改
 
@@ -22,7 +22,7 @@ pnpm docs:test
 
 - `ai/pi/` 属于上游依赖，其 README 与文档随上游维护。
 - `apps/client/resources/skills/` 和运行时内置技能中的文档是技能资源；前者只打包 `apps/client/resources/registry.json` 登记的目录。
-- `packages/app/dev/templates/` 内的 README 是生成新应用时使用的模板资源，随工具包分发，不是 Isle 的重复文档入口。
+- `packages/app/dev/templates/` 内的 README 是生成新应用时使用的模板资源，随工具包分发，不是 Mewvis 的重复文档入口。
 - `THIRD_PARTY_NOTICES.md`、LICENSE 等许可文件保持原位置和原文。
 - 已暂存的 `CHAT_FOUNDATION_DRAFT.md` 保留原位置和内容，目录中标记为历史草案。
 

@@ -1,8 +1,8 @@
 # Pi 接入、沙箱与子 Agent
 
-Isle 在 `tools/worker.ts` 装配工具实现，构建为 `pi-tool-worker.js`。`tools/index.ts` 将该可执行入口交给通用执行器，注册基于 RPC 的工具；`agent/resources.ts` 加载工具与技能。仓库内 Pi 版本为 0.85.1，实现参考其 [sandbox 示例](https://github.com/earendil-works/pi/tree/main/packages/coding-agent/examples/extensions/sandbox)与 [subagent 示例](https://github.com/earendil-works/pi/tree/main/packages/coding-agent/examples/extensions/subagent)。
+Mewvis 在 `tools/worker.ts` 装配工具实现，构建为 `pi-tool-worker.js`。`tools/index.ts` 将该可执行入口交给通用执行器，注册基于 RPC 的工具；`agent/resources.ts` 加载工具与技能。仓库内 Pi 版本为 0.85.1，实现参考其 [sandbox 示例](https://github.com/earendil-works/pi/tree/main/packages/coding-agent/examples/extensions/sandbox)与 [subagent 示例](https://github.com/earendil-works/pi/tree/main/packages/coding-agent/examples/extensions/subagent)。
 
-`model/index.ts` 使用内存凭据和 Isle 提供的模型／端点创建异步 `ModelRuntime`，Agent 会话与普通聊天共用模型／认证适配器。升级后的 API 保留 Anthropic 缺失 usage 的修复，并有 SSE 回归测试。运行时打包显式使用 Isle tsconfig，避免 Pi 开发别名混用源码与 `dist` 包导出。
+`model/index.ts` 使用内存凭据和 Mewvis 提供的模型／端点创建异步 `ModelRuntime`，Agent 会话与普通聊天共用模型／认证适配器。升级后的 API 保留 Anthropic 缺失 usage 的修复，并有 SSE 回归测试。运行时打包显式使用 Mewvis tsconfig，避免 Pi 开发别名混用源码与 `dist` 包导出。
 
 `tools/shell.ts` 使用 Pi Bash 或 PowerShell 工厂。POSIX 保留 Bash；Windows 优先原生 Bash，其后 PowerShell 7、Windows PowerShell。检测属于 `security/platforms/*/process.ts`。模型收到实际工具名与语言。两者均为默认能力，但只注册选中 shell；显式白名单和子 Agent 能力上限仍适用。
 
@@ -28,7 +28,7 @@ Isle 在 `tools/worker.ts` 装配工具实现，构建为 `pi-tool-worker.js`。
 
 ## 子 Agent
 
-Isle 在同一进程创建独立的内存 Pi SDK 会话，无需另装 Pi CLI。子 Agent 继承父级模型凭据、工作区、安全／执行快照（含禁用状态）、已启用技能，以及父工具与角色工具的交集。不继承父消息历史、不续写父会话文件、不将工具记录写入其中，委派任务必须明确提供相关上下文。
+Mewvis 在同一进程创建独立的内存 Pi SDK 会话，无需另装 Pi CLI。子 Agent 继承父级模型凭据、工作区、安全／执行快照（含禁用状态）、已启用技能，以及父工具与角色工具的交集。不继承父消息历史、不续写父会话文件、不将工具记录写入其中，委派任务必须明确提供相关上下文。
 
 | 角色     | 工具                         | 用途               |
 | -------- | ---------------------------- | ------------------ |

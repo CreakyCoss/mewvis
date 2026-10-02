@@ -1,12 +1,12 @@
 # 宿主服务协议与适配
 
-SDK 插件通过 `ctx.host` 请求宿主能力，原生插件通过独立宿主协议的 `ctx.services` 请求相同能力。Isle 适配器转换上下文和服务调用；插件不导入应用 API、会话存储类型或模型配置。UI 视图和 Agent worker 都可以消费服务，由当前执行环境决定可用能力。`host` 不代表一个新的可执行插件模块。
+SDK 插件通过 `ctx.host` 请求宿主能力，原生插件通过独立宿主协议的 `ctx.services` 请求相同能力。Mewvis 适配器转换上下文和服务调用；插件不导入应用 API、会话存储类型或模型配置。UI 视图和 Agent worker 都可以消费服务，由当前执行环境决定可用能力。`host` 不代表一个新的可执行插件模块。
 
 ## 协议入口
 
 [host/services.d.ts](../../packages/extension/sdk/host/services.d.ts) 定义方法、输入输出、能力与错误类型；[host/services.js](../../packages/extension/sdk/host/services.js) 提供请求 Schema 和与传输无关的客户端。
 
-在 `package.json` 的 `isle.extension` 下声明：
+在 `package.json` 的 `mewvis.extension` 下声明：
 
 ```json
 "host": {
@@ -80,7 +80,7 @@ if (ctx.host.supports("session.summarize")) {
 
 ## 验证
 
-`pnpm --filter @isle/server test:extensions` 包括真实 Runtime 闭环：本地模型桩生成会话与运行摘要，核对账本快照及全部会话文件保持不变。模块测试覆盖可选能力缺失、权限与参数校验、不同宿主实现、取消先于查询、视图关闭和插件停用。
+`pnpm --filter @mewvis/server test:extensions` 包括真实 Runtime 闭环：本地模型桩生成会话与运行摘要，核对账本快照及全部会话文件保持不变。模块测试覆盖可选能力缺失、权限与参数校验、不同宿主实现、取消先于查询、视图关闭和插件停用。
 
 `tasks.run` 的正文、模型返回的思考和工具事件由宿主以独立子任务事件转发到父会话；`title` 仅提供显示名称，`avatar` 使用插件自己的图片 URL 或 data URI，不引用宿主角色和头像 ID。子任务完成或失败只结束自己的消息，父任务继续由自身生命周期管理。桌面按子任务显示并保存消息，取消时保留已输出内容。
 

@@ -1,6 +1,6 @@
 import type { ApplicationUiDocument } from "@/api/applications";
 import themeTokensCss from "design-system/tokens.css?raw";
-import { createApplicationViewHost } from "@isle/app-sdk/views/runtime";
+import { createApplicationViewHost } from "@mewvis/app-sdk/views/runtime";
 
 // Only the public design-system tokens cross the sandbox boundary.
 const themeTokenNames = [...new Set([...themeTokensCss.matchAll(/(--[\w-]+)\s*:/g)].map((match) => match[1]))];
@@ -15,7 +15,7 @@ export const readApplicationTheme = () => {
 
 const BRIDGE_SOURCE = String.raw`
 (() => {
-  const channel = "isle-app-ui-v1";
+  const channel = "mewvis-app-ui-v1";
   const pending = new Map();
   let nextId = 1;
   let host = null;
@@ -104,7 +104,7 @@ const BRIDGE_SOURCE = String.raw`
       return host;
     },
   });
-  Object.defineProperty(window, "isleApplication", { value: api, enumerable: true });
+  Object.defineProperty(window, "mewvisApplication", { value: api, enumerable: true });
   addEventListener("message", (event) => {
     if (event.source !== parent) return;
     const message = event.data;
@@ -114,13 +114,13 @@ const BRIDGE_SOURCE = String.raw`
     if (message.type === "host:init") {
       host = Object.freeze(message.host);
       applyTheme(host.theme, host.themeTokens);
-      dispatchEvent(new CustomEvent("isle:ready", { detail: host }));
+      dispatchEvent(new CustomEvent("mewvis:ready", { detail: host }));
       return;
     }
     if (message.type === "host:theme") {
       if (host) host = Object.freeze({ ...host, theme: message.theme, themeTokens: message.themeTokens });
       applyTheme(message.theme, message.themeTokens);
-      dispatchEvent(new CustomEvent("isle:theme", { detail: message.theme }));
+      dispatchEvent(new CustomEvent("mewvis:theme", { detail: message.theme }));
       return;
     }
     if (message.type !== "host:result" || typeof message.id !== "string") return;
@@ -164,6 +164,6 @@ export const sandboxDocument = (
       ? `const views = (${createApplicationViewHost.toString()})({ getTheme: () => host });`
       : "const views = null;"))}</script>
     ${chat ? `<script>${escapeScript(chat.script)}</script>` : ""}
-    <script>${escapeScript(document.script)}\n//# sourceURL=isle-app-ui.js</script>
+    <script>${escapeScript(document.script)}\n//# sourceURL=mewvis-app-ui.js</script>
   </body>
 </html>`;

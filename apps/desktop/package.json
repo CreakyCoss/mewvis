@@ -1,5 +1,5 @@
 {
-  "name": "@isle/desktop",
+  "name": "@mewvis/desktop",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -17,7 +17,7 @@
     "build:agent-runtime": "pnpm --filter client build:agent-runtime"
   },
   "dependencies": {
-    "@isle/client-platform": "workspace:*",
+    "@mewvis/client-platform": "workspace:*",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-dialog": "^2",
     "@tauri-apps/plugin-opener": "^2"

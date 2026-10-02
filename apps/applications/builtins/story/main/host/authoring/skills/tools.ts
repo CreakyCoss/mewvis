@@ -1,4 +1,4 @@
-import { defineTool } from "@isle/app-sdk";
+import { defineTool } from "@mewvis/app-sdk";
 import { output } from "../../tools/shared.js";
 import { STORY_AUTHORING_SKILL } from "./definition.js";
 
@@ -6,7 +6,7 @@ const { definitions: storySkillDefinitions, resources: storySkillResources } =
   STORY_AUTHORING_SKILL;
 const skillResource = defineTool({
   risk: "low",
-  name: "isle_story_skill_resource",
+  name: "mewvis_story_skill_resource",
   description: "读取内置故事技能引用的参考资料或检查脚本。",
   parameters: {
     type: "object",
@@ -38,7 +38,7 @@ const skillResource = defineTool({
 });
 const storySkill = defineTool({
   risk: "low",
-  name: "isle_story_skill",
+  name: "mewvis_story_skill",
   description:
     "列出或加载故事助手的专属工作流技能。开始故事创作任务时先加载 story-assistant，再按其路由加载一个子技能。",
   parameters: {

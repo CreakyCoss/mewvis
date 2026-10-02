@@ -1,4 +1,4 @@
-import { defineConfig } from "@isle/app-dev";
+import { defineConfig } from "@mewvis/app-dev";
 
 export default defineConfig({
   displayName: "应用工坊",

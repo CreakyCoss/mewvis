@@ -271,7 +271,7 @@ const ApplicationDetail = ({
                       <AlertCircle />
                       <AlertTitle>检测到 DeepSeek Web Client</AlertTitle>
                       <AlertDescription>
-                        该界面依赖 DeepSeek 自己的 Client Runtime；Isle 当前使用通用工具页面。应用可以同时声明 isle.ui
+                        该界面依赖 DeepSeek 自己的 Client Runtime；Mewvis 当前使用通用工具页面。应用可以同时声明 mewvis.ui
                         以提供可移植界面。
                       </AlertDescription>
                     </Alert>

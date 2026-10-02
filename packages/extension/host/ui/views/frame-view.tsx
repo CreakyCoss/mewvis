@@ -199,7 +199,7 @@ export function ExtensionView({
           });
           frame.contentWindow?.postMessage(
             {
-              type: "isle.extension.connect",
+              type: "mewvis.extension.connect",
               source: view.source,
               id: view.id,
               contributionId: view.contributionId,

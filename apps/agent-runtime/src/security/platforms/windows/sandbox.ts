@@ -36,7 +36,7 @@ export function createSandbox(policy: SandboxPolicy): SandboxLifecycle {
           {
             filesystem: windowsFilesystem(policy),
             network: {
-              allowedDomains: policy.network.allow === "all" ? ["isle-proxy.invalid"] : policy.network.allow,
+              allowedDomains: policy.network.allow === "all" ? ["mewvis-proxy.invalid"] : policy.network.allow,
               deniedDomains: policy.network.deny,
             },
             windows: { srtWin: { path: windows.srtWinPath }, proxyPortRange: windows.proxyPortRange },

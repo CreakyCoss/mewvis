@@ -6,9 +6,9 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { build } from "esbuild";
-import { dshBundleCompatibilityPlugin } from "@isle/app-dev/dsh";
+import { dshBundleCompatibilityPlugin } from "@mewvis/app-dev/dsh";
 
-const temp = mkdtempSync(join(tmpdir(), "isle-pi-chat-"));
+const temp = mkdtempSync(join(tmpdir(), "mewvis-pi-chat-"));
 const requests = [];
 const server = createServer(async (request, response) => {
   let body = "";
@@ -66,7 +66,7 @@ try {
   // Concurrent calls to the same provider must retain separate credentials/endpoints.
   await Promise.all(
     [true, false].flatMap((stream) =>
-      ["openai", "isle-custom", "anthropic"].map(async (provider) => {
+      ["openai", "mewvis-custom", "anthropic"].map(async (provider) => {
         const id = `${provider}-${stream}`;
         const events = [];
         const anthropic = provider === "anthropic";
@@ -84,7 +84,7 @@ try {
               modelId: `model-${id}`,
               catalogModelId: "not-in-catalog",
               reasoning: false,
-              headers: { "x-isle-request": id },
+              headers: { "x-mewvis-request": id },
             },
           },
           { emit: (event) => events.push(event), maxRetries: 0 },
@@ -98,7 +98,7 @@ try {
           stream ? result.text : "",
         );
         assert.ok(events.every((event) => event.taskId === id));
-        const request = requests.find((item) => item.headers["x-isle-request"] === id);
+        const request = requests.find((item) => item.headers["x-mewvis-request"] === id);
         assert.ok(request);
         assert.equal(request.url, `/${id}/v1/${anthropic ? "messages" : "chat/completions"}`);
         assert.equal(request.input.model, `model-${id}`);

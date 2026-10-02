@@ -1,7 +1,7 @@
-import type { IsleToolRisk } from "@isle/app-sdk";
-import type { ApplicationChatEvent } from "@isle/app-sdk/chat";
+import type { MewvisToolRisk } from "@mewvis/app-sdk";
+import type { ApplicationChatEvent } from "@mewvis/app-sdk/chat";
 import { agentPermissionOptions } from "../../../src/agent-client/wire";
-// Development adapter compiled into @isle/app-dev. Uses the real session engine with memory-only resources.
+// Development adapter compiled into @mewvis/app-dev. Uses the real session engine with memory-only resources.
 import {
   createChatSession,
   createChatService,
@@ -18,12 +18,12 @@ import {
   type ApplicationDataTransport,
   type ApplicationStorageValue,
   type ApplicationWorkspace,
-} from "@isle/app-sdk/data";
+} from "@mewvis/app-sdk/data";
 
 export function createPreviewChat(options: {
   name: string;
   permissions: readonly string[];
-  tools: { name: string; description: string; risk?: IsleToolRisk }[];
+  tools: { name: string; description: string; risk?: MewvisToolRisk }[];
   executeTool(name: string, args: Record<string, unknown>): Promise<{ value: unknown }>;
 }) {
   type Listener = Parameters<ChatRuntime["subscribe"]>[0];
@@ -72,7 +72,7 @@ export function createPreviewChat(options: {
           if (!request.params.name.trim() || request.params.path !== undefined)
             return {
               ok: false,
-              error: { code: "INVALID_ARGUMENT", message: "内存预览只支持命名的虚拟目录，真实目录请在 Isle 中选择" },
+              error: { code: "INVALID_ARGUMENT", message: "内存预览只支持命名的虚拟目录，真实目录请在 Mewvis 中选择" },
             };
           const id = crypto.randomUUID();
           const workspace = { id, name: request.params.name.trim(), path: `/memory/${id}`, isDefault: false };
@@ -150,7 +150,7 @@ export function createPreviewChat(options: {
                 (tool) => !profileData?.allowedToolNames || profileData.allowedToolNames.includes(tool.name),
               )?.name;
               if (toolName && (turn.input.text.includes("工具") || turn.input.text.includes(toolName))) {
-                const args = { text: "Hello Isle 👋" };
+                const args = { text: "Hello Mewvis 👋" };
                 const toolCallId = `${turn.taskId}-tool`;
                 emit(turn.taskId, { type: "tool_execution_start", toolCallId, toolName, args });
                 let result: unknown;

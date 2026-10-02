@@ -52,16 +52,16 @@ export async function createDevServer(
 ) {
   const { root, project, manifest } = await validateApplication(source);
   if (!project?.uiEntry)
-    throw new Error("React 开发预览需要 isle.config.ts 和 UI 入口");
+    throw new Error("React 开发预览需要 mewvis.config.ts 和 UI 入口");
   const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
   if (!(await exists(resolve(packageRoot, "dist/chat-ui.js"))))
     throw new Error(
-      "应用开发运行时缺失；在 Isle 仓库执行 pnpm --filter client build:chat-ui，或安装包含 dist 的工具包",
+      "应用开发运行时缺失；在 Mewvis 仓库执行 pnpm --filter client build:chat-ui，或安装包含 dist 的工具包",
     );
   const token = randomUUID();
   const runtime = createDevHost(project);
-  const entry = "virtual:isle-app-entry";
-  const endpoint = "/__isle_application_tools__";
+  const entry = "virtual:mewvis-app-entry";
+  const endpoint = "/__mewvis_application_tools__";
   const descriptor = {
     name: manifest.name,
     version: manifest.version,
@@ -70,7 +70,7 @@ export async function createDevServer(
     token,
   };
   const application = {
-    name: "isle-app-dev",
+    name: "mewvis-app-dev",
     enforce: "pre",
     resolveId(id) {
       if (id === entry) return "\0" + id;
@@ -90,7 +90,7 @@ if (import.meta.hot) import.meta.hot.dispose(dispose);`;
         );
     },
     async handleHotUpdate(context) {
-      if (context.file.endsWith("isle.config.ts")) {
+      if (context.file.endsWith("mewvis.config.ts")) {
         context.server.config.logger.warn(
           "应用配置已修改，请手动重新运行 pnpm dev",
         );
@@ -119,7 +119,7 @@ if (import.meta.hot) import.meta.hot.dispose(dispose);`;
           try {
             const html = await server.transformIndexHtml(
               "/",
-              `<!doctype html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Isle Application Preview</title></head><body><script type="module" src="/@id/${entry}"></script></body></html>`,
+              `<!doctype html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Mewvis Application Preview</title></head><body><script type="module" src="/@id/${entry}"></script></body></html>`,
             );
             res.setHeader("Content-Type", "text/html");
             res.end(html);
@@ -136,10 +136,10 @@ if (import.meta.hot) import.meta.hot.dispose(dispose);`;
     plugins: [application, react()],
     resolve: {
       alias: projectAliases(root),
-      dedupe: ["react", "react-dom", "@isle/app-sdk"],
+      dedupe: ["react", "react-dom", "@mewvis/app-sdk"],
     },
     optimizeDeps: {
-      exclude: ["@isle/app-dev", "@isle/app-sdk/chat/react"],
+      exclude: ["@mewvis/app-dev", "@mewvis/app-sdk/chat/react"],
       ...(middlewareMode ? { noDiscovery: true, include: [] } : {}),
     },
     server: {

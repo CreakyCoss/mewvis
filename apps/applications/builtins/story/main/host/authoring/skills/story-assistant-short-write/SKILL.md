@@ -3,7 +3,7 @@ name: story-assistant-short-write
 description: >-
   Mewvis 故事创作助手专属的结构化短篇写作技能。用户要求写短篇、盐言/知乎/番茄短篇、设计反转、完成一万字故事或精修短篇时必须使用。继承 oh-story-claudecode 最新短篇题材包与写法，但用单卷、单章和 beats 表达短篇结构，所有内容经 Story ChangeSet 校验后写入 JSON。
 metadata:
-  isle-claw:
+  mewvis:
     assistant-only: true
     builtin-bundle: story-authoring
     required-private-tool: story

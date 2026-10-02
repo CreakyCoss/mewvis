@@ -3,13 +3,13 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { DshCompatApplicationHost } from "../src/index.js";
 
-const fixtureUrl = process.env.ISLE_DSH_COMPAT_FIXTURE_URL;
+const fixtureUrl = process.env.MEWVIS_DSH_COMPAT_FIXTURE_URL;
 assert.ok(fixtureUrl, "测试必须提供外部 DSH 应用入口 URL。");
-const fixtureRoot = process.env.ISLE_DSH_COMPAT_FIXTURE_ROOT;
+const fixtureRoot = process.env.MEWVIS_DSH_COMPAT_FIXTURE_ROOT;
 assert.ok(fixtureRoot, "测试必须提供外部 DSH 应用根目录。");
-const settingsPath = process.env.ISLE_DSH_COMPAT_SETTINGS_PATH;
+const settingsPath = process.env.MEWVIS_DSH_COMPAT_SETTINGS_PATH;
 assert.ok(settingsPath, "测试必须提供持久化 settings 文件路径。");
-const settingsRoot = process.env.ISLE_DSH_COMPAT_SETTINGS_ROOT;
+const settingsRoot = process.env.MEWVIS_DSH_COMPAT_SETTINGS_ROOT;
 assert.ok(settingsRoot, "测试必须提供 namespace 隔离 settings 目录。");
 const host = await DshCompatApplicationHost.create();
 
@@ -25,33 +25,33 @@ try {
   );
   await host.loadBundle("fixture", {
     packageRoot: fixtureRoot,
-    packageName: "@isle/fixture-dsh-portable-application",
+    packageName: "@mewvis/fixture-dsh-portable-application",
     patchPath: `${fixtureRoot}/cordis.patch.yml`,
     entrySpecifier: fixtureUrl,
   });
-  assert.deepEqual(host.applicationIds, ["fixture:isle-fixture-portable"]);
+  assert.deepEqual(host.applicationIds, ["fixture:mewvis-fixture-portable"]);
 
   assert.deepEqual(
     host.toolSchemas().map((tool) => tool.name),
-    ["isle_dsh_echo"],
+    ["mewvis_dsh_echo"],
   );
 
   const skills = await host.listSkills();
   assert.deepEqual(
     skills.map((skill) => skill.name),
-    ["isle-dsh-echo"],
+    ["mewvis-dsh-echo"],
   );
   assert.equal(skills[0]?.provider, "runtime");
   assert.equal(skills[0]?.invocation.modelInvocable, true);
   assert.equal(skills[0]?.invocation.userInvocable, true);
   assert.equal(
-    (await host.getSkill("isle-dsh-echo"))?.content,
-    "Call the isle_dsh_echo tool and preserve the user's message.",
+    (await host.getSkill("mewvis-dsh-echo"))?.content,
+    "Call the mewvis_dsh_echo tool and preserve the user's message.",
   );
 
   const result = await host.executeTool({
     callId: "compat-call-1",
-    name: "isle_dsh_echo",
+    name: "mewvis_dsh_echo",
     arguments: { message: "hello" },
   });
   assert.equal(result.isError, false);
@@ -62,7 +62,7 @@ try {
 
   const invalid = await host.executeTool({
     callId: "compat-call-2",
-    name: "isle_dsh_echo",
+    name: "mewvis_dsh_echo",
     arguments: {},
   });
   assert.equal(invalid.isError, true, "DSH defineTool 必须保留参数校验语义。");
@@ -71,7 +71,7 @@ try {
     () =>
       host.loadBundle("fixture", {
         packageRoot: fixtureRoot,
-        packageName: "@isle/fixture-dsh-portable-application",
+        packageName: "@mewvis/fixture-dsh-portable-application",
         patchPath: `${fixtureRoot}/cordis.patch.yml`,
         entrySpecifier: fixtureUrl,
       }),
@@ -84,13 +84,13 @@ try {
 
   await host.loadBundle("fixture", {
     packageRoot: fixtureRoot,
-    packageName: "@isle/fixture-dsh-portable-application",
+    packageName: "@mewvis/fixture-dsh-portable-application",
     patchPath: `${fixtureRoot}/cordis.patch.yml`,
     entrySpecifier: fixtureUrl,
   });
   assert.deepEqual(
     host.toolSchemas().map((tool) => tool.name),
-    ["isle_dsh_echo"],
+    ["mewvis_dsh_echo"],
   );
 } finally {
   await host.dispose();
@@ -102,7 +102,7 @@ const createPersistentFixtureHost = async () => {
   const persistentHost = await DshCompatApplicationHost.create({ settingsPath });
   await persistentHost.loadBundle("fixture", {
     packageRoot: fixtureRoot,
-    packageName: "@isle/fixture-dsh-portable-application",
+    packageName: "@mewvis/fixture-dsh-portable-application",
     patchPath: `${fixtureRoot}/cordis.patch.yml`,
     entrySpecifier: fixtureUrl,
   });
@@ -113,7 +113,7 @@ const firstPersistentHost = await createPersistentFixtureHost();
 try {
   const result = await firstPersistentHost.executeTool({
     callId: "compat-settings-1",
-    name: "isle_dsh_echo",
+    name: "mewvis_dsh_echo",
     arguments: { message: "first", prefix: "persisted" },
   });
   assert.equal(result.isError, false);
@@ -126,7 +126,7 @@ const secondPersistentHost = await createPersistentFixtureHost();
 try {
   const result = await secondPersistentHost.executeTool({
     callId: "compat-settings-2",
-    name: "isle_dsh_echo",
+    name: "mewvis_dsh_echo",
     arguments: { message: "second" },
   });
   assert.equal(result.isError, false);
@@ -139,7 +139,7 @@ const createNamespacedFixtureHost = async () => {
   const namespacedHost = await DshCompatApplicationHost.create({ settingsPath: settingsRoot });
   await namespacedHost.loadBundle("fixture", {
     packageRoot: fixtureRoot,
-    packageName: "@isle/fixture-dsh-portable-application",
+    packageName: "@mewvis/fixture-dsh-portable-application",
     patchPath: `${fixtureRoot}/cordis.patch.yml`,
     entrySpecifier: fixtureUrl,
   });
@@ -150,7 +150,7 @@ const firstNamespacedHost = await createNamespacedFixtureHost();
 try {
   const initialized = await firstNamespacedHost.executeTool({
     callId: "compat-namespaced-settings-1",
-    name: "isle_dsh_echo",
+    name: "mewvis_dsh_echo",
     arguments: { message: "initial" },
   });
   assert.equal(initialized.isError, false);
@@ -158,7 +158,7 @@ try {
 
   const updated = await firstNamespacedHost.executeTool({
     callId: "compat-namespaced-settings-2",
-    name: "isle_dsh_echo",
+    name: "mewvis_dsh_echo",
     arguments: { message: "isolated", prefix: "isolated" },
   });
   assert.equal(updated.isError, false);
@@ -166,7 +166,7 @@ try {
   await firstNamespacedHost.dispose();
 }
 
-const namespaceFile = join(settingsRoot, "isle-fixture-portable", "settings.yaml");
+const namespaceFile = join(settingsRoot, "mewvis-fixture-portable", "settings.yaml");
 assert.equal(existsSync(namespaceFile), true);
 assert.match(readFileSync(namespaceFile, "utf8"), /prefix:\s+isolated/);
 
@@ -174,7 +174,7 @@ const secondNamespacedHost = await createNamespacedFixtureHost();
 try {
   const persisted = await secondNamespacedHost.executeTool({
     callId: "compat-namespaced-settings-3",
-    name: "isle_dsh_echo",
+    name: "mewvis_dsh_echo",
     arguments: { message: "restart" },
   });
   assert.equal(persisted.isError, false);

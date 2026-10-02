@@ -1,4 +1,4 @@
-// Run against `pnpm --filter @isle/learning dev --port 5178`.
+// Run against `pnpm --filter @mewvis/learning dev --port 5178`.
 // Uses real UI + SDK + preview Chat engine. Only model output is deterministic.
 // Never connects to a configured model or the user's application database.
 import assert from "node:assert/strict";
@@ -16,7 +16,7 @@ const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
 page.setDefaultTimeout(15000);
 const errors = [];
 page.on("pageerror", (error) => errors.push(error.message));
-const out = process.env.LEARNING_SCREENSHOTS || "/tmp/isle-learning-v4-smoke";
+const out = process.env.LEARNING_SCREENSHOTS || "/tmp/mewvis-learning-v4-smoke";
 await mkdir(out, { recursive: true });
 const fixtureLesson = {
   title: "模型返回的标题",
@@ -157,7 +157,7 @@ const adopt = () => button("采用并保存结果").click();
 const generate = () => button("开始生成").click();
 const data = () =>
   page.evaluate(async () => {
-    const api = globalThis.isleApplication.data;
+    const api = globalThis.mewvisApplication.data;
     const keys = (await api.request({ version: 1, method: "storage.keys" }))
       .value;
     const result = {};

@@ -58,8 +58,8 @@ async function until(predicate, label) {
 }
 
 test("browser APIs use authenticated proxy, real persistence and replayable events", async (t) => {
-  const root = await realpath(await mkdtemp(join(tmpdir(), "isle-web-test-")));
-  const token = "isle-web-integration-private-token";
+  const root = await realpath(await mkdtemp(join(tmpdir(), "mewvis-web-test-")));
+  const token = "mewvis-web-integration-private-token";
   const pickerCalls = [];
   let holdPicker = false,
     pickerCanceled = 0;
@@ -200,7 +200,7 @@ test("browser APIs use authenticated proxy, real persistence and replayable even
         name: "@test/web",
         version: "1.0.0",
         type: "module",
-        isle: {
+        mewvis: {
           app: { version: 1, entry: "index.js" },
           permissions: ["application-data", "application-workspaces"],
           agentAccess: { process: { execute: false } },

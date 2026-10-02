@@ -7,7 +7,7 @@ import { startServer } from "../../dist/server.js";
 import { token } from "../support/helpers.mjs";
 
 test("local plugins can be added, disabled, enabled and removed", { timeout: 30_000 }, async (t) => {
-  const root = await mkdtemp(join(tmpdir(), "isle-local-plugins-"));
+  const root = await mkdtemp(join(tmpdir(), "mewvis-local-plugins-"));
   const server = await startServer({
     port: 0,
     token,
@@ -38,7 +38,7 @@ test("local plugins can be added, disabled, enabled and removed", { timeout: 30_
       name: "test.session-info",
       version: "1.0.0",
       type: "module",
-      "isle.plugin": {
+      "mewvis.plugin": {
         schemaVersion: 1,
         id: "test.session-info",
         protocolVersion: 1,
@@ -117,7 +117,7 @@ test(
   "bundled plugins are discovered without registration and overrides survive restart",
   { timeout: 60_000 },
   async (t) => {
-    const root = await mkdtemp(join(tmpdir(), "isle-bundled-plugins-"));
+    const root = await mkdtemp(join(tmpdir(), "mewvis-bundled-plugins-"));
     let server;
     t.after(async () => {
       await server?.close();
@@ -141,12 +141,12 @@ test(
     };
     const records = await call("list_extensions");
     assert.deepEqual(records.map((item) => item.id).sort(), [
-      "isle.collaboration",
-      "isle.decisions",
-      "isle.session-ledger",
+      "mewvis.collaboration",
+      "mewvis.decisions",
+      "mewvis.session-ledger",
     ]);
-    assert.equal(records.find((item) => item.id === "isle.collaboration")?.displayName, "角色协作");
-    assert.equal(records.find((item) => item.id === "isle.decisions")?.displayName, "智能判断");
+    assert.equal(records.find((item) => item.id === "mewvis.collaboration")?.displayName, "角色协作");
+    assert.equal(records.find((item) => item.id === "mewvis.decisions")?.displayName, "智能判断");
     assert.ok(
       records.every(
         (item) => item.source === "bundled" && item.enabled && !item.error,
@@ -156,7 +156,7 @@ test(
       code: "ENOENT",
     });
     assert.equal(
-      (await raw("remove_extension", { id: "isle.decisions" })).status,
+      (await raw("remove_extension", { id: "mewvis.decisions" })).status,
       400,
     );
     const workspace = await call("create_workspace", {
@@ -166,18 +166,18 @@ test(
     const target = { workspacePath: workspace.path, chatId: "bundled-test" };
     assert.equal(
       (await call("list_extension_commands", target)).commands.filter(
-        (item) => item.id.startsWith("isle.decisions/"),
+        (item) => item.id.startsWith("mewvis.decisions/"),
       ).length,
       4,
     );
     await call("configure_extension", {
-      id: "isle.decisions",
+      id: "mewvis.decisions",
       enabled: false,
       config: { rules: [] },
     });
     assert.deepEqual(
       (await call("list_extension_commands", target)).commands.filter(
-        (item) => item.id.startsWith("isle.decisions/"),
+        (item) => item.id.startsWith("mewvis.decisions/"),
       ),
       [],
     );
@@ -185,14 +185,14 @@ test(
     server = undefined;
     server = await start();
     const persisted = (await call("list_extensions")).find(
-      (item) => item.id === "isle.decisions",
+      (item) => item.id === "mewvis.decisions",
     );
     assert.equal(persisted.enabled, false);
     assert.deepEqual(persisted.config.rules, []);
-    await call("configure_extension", { id: "isle.decisions", enabled: true });
+    await call("configure_extension", { id: "mewvis.decisions", enabled: true });
     assert.equal(
       (await call("list_extension_commands", target)).commands.filter(
-        (item) => item.id.startsWith("isle.decisions/"),
+        (item) => item.id.startsWith("mewvis.decisions/"),
       ).length,
       4,
     );

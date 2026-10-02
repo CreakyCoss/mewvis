@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { build } from "esbuild";
-import { dshBundleCompatibilityPlugin } from "@isle/app-dev/dsh";
+import { dshBundleCompatibilityPlugin } from "@mewvis/app-dev/dsh";
 import fs from "node:fs";
 import childProcess from "node:child_process";
 import { EventEmitter } from "node:events";
@@ -11,7 +11,7 @@ import { mock } from "node:test";
 import { pathToFileURL } from "node:url";
 import entries from "../../../agent-runtime/build-entries.json" with { type: "json" };
 
-const temp = fs.mkdtempSync(join(tmpdir(), "isle-shell-"));
+const temp = fs.mkdtempSync(join(tmpdir(), "mewvis-shell-"));
 const runtime = join(temp, "runtime");
 fs.mkdirSync(runtime);
 const piRoot = resolve("../agent-runtime/src/engines/drivers/native/agent/runtimes/pi");

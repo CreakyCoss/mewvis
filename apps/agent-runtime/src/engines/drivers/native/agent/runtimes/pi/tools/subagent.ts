@@ -1,7 +1,7 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "@earendil-works/pi-ai";
 
-// Pi's subagent example exposes single, parallel and chain modes. Isle uses SDK
+// Pi's subagent example exposes single, parallel and chain modes. Mewvis uses SDK
 // sessions instead of invoking a separately installed pi executable.
 const readTools = ["read", "ls", "find", "grep"];
 export const PI_SUBAGENT_ROLES = {

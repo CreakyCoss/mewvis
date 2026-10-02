@@ -5,7 +5,7 @@ import { dump, JSON_SCHEMA, load } from "js-yaml";
 import { applicationDirectory } from "./application-paths.js";
 
 // Settings namespaces accept kebab-case names only; applications cannot register this host section.
-const HOST_SECTION = "$isleHost";
+const HOST_SECTION = "$mewvisHost";
 export type ApplicationToolPolicy = { allowedToolNames: string[] };
 const object = (value: unknown): value is Record<string, unknown> =>
   !!value && typeof value === "object" && !Array.isArray(value);
@@ -66,7 +66,7 @@ export async function writeToolPolicy(root: string, applicationId: string, value
     const doc = await readDocument(path);
     const section = doc[HOST_SECTION];
     if (section !== undefined && !object(section)) throw new Error("宿主应用配置无效");
-    doc.$isleApplicationSettings = 1;
+    doc.$mewvisApplicationSettings = 1;
     doc[HOST_SECTION] = { ...(section as Record<string, unknown>), tools: policy };
     await writeFileAtomic(path, dump(doc, { schema: JSON_SCHEMA, noRefs: true, lineWidth: 120 }), {
       mode: 0o600,

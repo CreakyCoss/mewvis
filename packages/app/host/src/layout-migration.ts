@@ -18,7 +18,7 @@ const { DatabaseSync } = createRequire(import.meta.url)("node:sqlite") as {
   };
 };
 
-const marker = "$isleApplicationSettings";
+const marker = "$mewvisApplicationSettings";
 const absent = (error: unknown) => (error as NodeJS.ErrnoException)?.code === "ENOENT";
 const hash = (text: string) => createHash("sha256").update(text).digest("hex");
 const object = (value: unknown): value is Record<string, unknown> =>
@@ -303,7 +303,7 @@ async function prepare(root: string, applicationIds: readonly string[]): Promise
       (id) =>
         id === namespace ||
         id.replace(/^@/, "").replace(/[^a-z0-9]+/g, "-") === namespace ||
-        (id === "@isle/rss-reader" && namespace === "dsh-rss"),
+        (id === "@mewvis/rss-reader" && namespace === "dsh-rss"),
     );
     if (owners.length > 1) throw new Error(`旧配置 namespace 对应多个应用，停止迁移：${namespace}`);
     if (!owners.length) throw new Error(`无法确定旧配置所属应用，已保留原文件：${namespace}`);

@@ -27,7 +27,7 @@ const restricted = {
   filesystem: {
     allowWrite: ["${workspace}", "${temp}"],
     denyRead: [] as string[],
-    denyWrite: ["${workspace}/.env", "${workspace}/.pi", "${workspace}/.git", "${workspace}/.isle"],
+    denyWrite: ["${workspace}/.env", "${workspace}/.pi", "${workspace}/.git", "${workspace}/.mewvis"],
   },
   network: { allow: [] as string[], deny: [] as string[] },
 };

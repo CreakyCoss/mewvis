@@ -41,7 +41,7 @@ export class Skills {
       const block = /^---\r?\n([\s\S]*?)\r?\n---/.exec(content);
       const meta = block ? (parse(block[1], { maxAliasCount: 20 }) ?? {}) : {};
       const name = typeof meta.name === "string" ? meta.name : basename(path);
-      const marker = join(path, ".isle-claw-skill-source");
+      const marker = join(path, ".mewvis-skill-source");
       if (
         source === "app" &&
         (await exists(marker)) &&
@@ -301,7 +301,7 @@ export class Skills {
             "Skill 已存在，请先移除或更换名称",
           );
         await fs.writeFile(
-          join(skill.path, ".isle-claw-skill-source"),
+          join(skill.path, ".mewvis-skill-source"),
           upload ? "upload" : "app",
         );
         await fs.rename(skill.path, dest);

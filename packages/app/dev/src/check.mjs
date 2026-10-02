@@ -50,7 +50,7 @@ export async function checkApplication(source) {
   const groups = [
     {
       files: [
-        join(root, "isle.config.ts"),
+        join(root, "mewvis.config.ts"),
         ...(project.hostEntry ? [project.hostEntry] : []),
         ...(project.toolsEntry ? [project.toolsEntry] : []),
         ...(project.skillsEntry ? [project.skillsEntry] : []),
@@ -106,7 +106,7 @@ export async function checkApplication(source) {
       platform: "browser",
       format: "esm",
       write: false,
-      outfile: join(root, "dist/isle-ui.js"),
+      outfile: join(root, "dist/mewvis-ui.js"),
       jsx: "automatic",
       plugins: [browserBoundary(root, project)],
       loader: {

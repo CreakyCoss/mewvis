@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Loader2, Wrench } from "lucide-react";
 import { toast } from "sonner";
-import type { ApplicationTool } from "@isle/app-sdk/tools";
+import type { ApplicationTool } from "@mewvis/app-sdk/tools";
 import type { ApplicationDescriptor } from "@/api/applications";
 import { listApplicationTools, saveApplicationToolPolicy } from "@/api/applications/tools";
 import { Button } from "design-system/components/ui/button";

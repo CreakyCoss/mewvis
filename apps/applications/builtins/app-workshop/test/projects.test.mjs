@@ -14,10 +14,10 @@ import {
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import application from "../dist/isle/index.js";
+import application from "../dist/mewvis/index.js";
 
 async function fixture(t) {
-  const root = await mkdtemp(join(tmpdir(), "isle-workshop-test-"));
+  const root = await mkdtemp(join(tmpdir(), "mewvis-workshop-test-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const base = {
     id: randomUUID(),
@@ -45,13 +45,13 @@ async function fixture(t) {
         path: input.path,
         isDefault: false,
       };
-      await mkdir(join(input.path, ".isle"));
+      await mkdir(join(input.path, ".mewvis"));
       await writeFile(
-        join(input.path, ".isle/workspace.json"),
+        join(input.path, ".mewvis/workspace.json"),
         JSON.stringify({
           version: 1,
           id: item.id,
-          applications: ["@isle/app-workshop"],
+          applications: ["@mewvis/app-workshop"],
         }),
       );
       enrolled.set(item.id, item);
@@ -493,8 +493,8 @@ test("interrupted source transactions recover all files and metadata while retai
   };
   await mkdir(sourceOf(f, project, ".git"));
   await writeFile(sourceOf(f, project, ".git/config"), "Git state");
-  const chat = join(workspace, ".isle-claw/chats/retained/messages.json");
-  await mkdir(join(workspace, ".isle-claw/chats/retained"), {
+  const chat = join(workspace, ".mewvis/chats/retained/messages.json");
+  await mkdir(join(workspace, ".mewvis/chats/retained"), {
     recursive: true,
   });
   await writeFile(chat, "[]");
@@ -697,7 +697,7 @@ test("source paths, project identity, payload sizes and symlinked files are chec
   for (const path of [
     "../outside.ts",
     "/tmp/code.ts",
-    ".isle/marker.ts",
+    ".mewvis/marker.ts",
     "folder/../test.ts",
     "../.workshop/project.json",
     "node_modules/escape.ts",
@@ -760,8 +760,8 @@ test("Pi worker fallback is bound to current authenticated workspace membership"
       /未登记/,
     );
     await writeFile(
-      join(process.cwd(), ".isle/workspace.json"),
-      JSON.stringify({ id: project.id, applications: ["@isle/other"] }),
+      join(process.cwd(), ".mewvis/workspace.json"),
+      JSON.stringify({ id: project.id, applications: ["@mewvis/other"] }),
     );
     await assert.rejects(
       agent.get("workshop_read_project").execute({ workspaceId: project.id }),

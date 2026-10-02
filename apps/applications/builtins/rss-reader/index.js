@@ -1,7 +1,7 @@
-import { defineApplication, defineSkill } from "@isle/app-sdk";
+import { defineApplication, defineSkill } from "@mewvis/app-sdk";
 import { apply as applyRss } from "dsh-rss";
 
-export const name = "@isle/rss-reader";
+export const name = "@mewvis/rss-reader";
 export const inject = ["settings", "tools", "skills"];
 
 const defaultConfig = {
@@ -11,7 +11,7 @@ const defaultConfig = {
 };
 
 const rssReaderSkill = defineSkill({
-  name: "isle-rss-reader",
+  name: "mewvis-rss-reader",
   description: "管理 RSS/Atom 订阅并读取用户明确请求的订阅内容。",
   source: "bundled",
   content: [

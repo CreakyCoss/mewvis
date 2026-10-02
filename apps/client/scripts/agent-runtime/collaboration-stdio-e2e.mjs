@@ -7,7 +7,7 @@ import { runtimePayloadFromJsonRpcMessage, writeAgentRuntimeCommand } from "./st
 
 const workspaceRoot = process.cwd();
 const runtimePath = join(workspaceRoot, "../agent-runtime/dist", entries.cli.output);
-const workspacePath = mkdtempSync(join(tmpdir(), "isle-claw-agent-runtime-stdio-"));
+const workspacePath = mkdtempSync(join(tmpdir(), "mewvis-agent-runtime-stdio-"));
 
 if (!existsSync(runtimePath)) {
   throw new Error(`${runtimePath} 不存在，请先运行 pnpm build:agent-runtime`);

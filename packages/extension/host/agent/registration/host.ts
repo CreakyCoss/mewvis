@@ -8,7 +8,7 @@ import {
   commandSchema,
   skillSchema,
   validateExtensionResult,
-} from "@isle/extension-host/agent/resources";
+} from "@mewvis/extension-host/agent/resources";
 import {
   createFacetHost,
   defineService,
@@ -26,13 +26,13 @@ import {
   type ExtensionCapability,
   type ExtensionMiddlewareHandler,
   type ExtensionMiddlewareType,
-} from "@isle/extension-host";
+} from "@mewvis/extension-host";
 import { AsyncLocalStorage } from "node:async_hooks";
 import type {
   ExtensionAgentEvent,
   ExtensionCommand,
   JsonValue,
-} from "@isle/extension-host";
+} from "@mewvis/extension-host";
 type ExtensionState = Record<string, import("../../shared.js").JsonObject>;
 import { Ajv } from "ajv";
 import { pathToFileURL } from "node:url";
@@ -40,8 +40,8 @@ import {
   applyMiddlewareResult,
   middlewareTypes,
   validateMiddlewareData,
-} from "@isle/extension-host/agent/middleware";
-import { validateExtensionEvent } from "@isle/extension-host/agent/events";
+} from "@mewvis/extension-host/agent/middleware";
+import { validateExtensionEvent } from "@mewvis/extension-host/agent/events";
 
 /** One host per live session instance (or ephemeral run), including module evaluation in the worker. */
 export async function createExtensionHost(
@@ -116,12 +116,12 @@ export async function createExtensionHost(
   >();
   const directory = defineService<{
     add(source: ExtensionSource, tool: ExtensionTool): void;
-  }>("isle.extension.tools", {
+  }>("mewvis.extension.tools", {
     local: true,
   });
   const facets: Facet[] = [
     {
-      id: "isle.extension.directory",
+      id: "mewvis.extension.directory",
       setup(env) {
         env.provide(directory, {
           add(source, definition) {

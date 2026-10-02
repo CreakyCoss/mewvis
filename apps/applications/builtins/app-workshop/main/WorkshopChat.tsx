@@ -1,10 +1,10 @@
-import type { ApplicationChatSession } from "@isle/app-sdk/chat";
+import type { ApplicationChatSession } from "@mewvis/app-sdk/chat";
 import {
   Chat,
   useChatComposer,
   type ComposerBinding,
   type RenderMessage,
-} from "@isle/app-sdk/chat/react";
+} from "@mewvis/app-sdk/chat/react";
 import {
   ChevronDown,
   LoaderCircle,

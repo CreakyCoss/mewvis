@@ -36,7 +36,7 @@ const rust = (...args) => {
 };
 const temporary = async (t) => {
   const root = await fs.realpath(
-    await fs.mkdtemp(join(tmpdir(), "isle-rust-node-")),
+    await fs.mkdtemp(join(tmpdir(), "mewvis-rust-node-")),
   );
   t.after(() => fs.rm(root, { recursive: true, force: true }));
   return root;
@@ -299,7 +299,7 @@ test("original app namespace, settings.yaml and storage.sqlite stay usable after
       name: app,
       version: "1.0.0",
       type: "module",
-      isle: {
+      mewvis: {
         app: { version: 1, entry: "index.js" },
         permissions: ["application-data", "application-workspaces"],
       },

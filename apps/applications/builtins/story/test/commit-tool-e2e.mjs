@@ -6,7 +6,7 @@ import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
-const tempDir = mkdtempSync(join(tmpdir(), "isle-claw-story-tool-"));
+const tempDir = mkdtempSync(join(tmpdir(), "mewvis-story-tool-"));
 const workspace = join(tempDir, "workspace");
 const entryPath = join(tempDir, "runner.ts");
 const bundlePath = join(tempDir, "runner.mjs");
@@ -88,10 +88,10 @@ writeFileSync(
 
   const initialized = await tool.api.initialize({ storyId: "story-tool", title: "工具故事" });
   assert(initialized.initialized && initialized.revision === 0, "工具应初始化完整故事项目。", initialized);
-  const projectConfig = JSON.parse(await readFile(workspace + "/story/.isle-claw/project.json", "utf8"));
+  const projectConfig = JSON.parse(await readFile(workspace + "/story/.mewvis/project.json", "utf8"));
   assert(projectConfig.id === "long-novel" && Array.isArray(projectConfig.documents), "工作区只保存可独立解释的完整故事类型定义。", projectConfig);
   let legacyConfigFound = false;
-  try { await readFile(workspace + "/story/.isle-claw/profile.json", "utf8"); legacyConfigFound = true; } catch {}
+  try { await readFile(workspace + "/story/.mewvis/profile.json", "utf8"); legacyConfigFound = true; } catch {}
   assert(!legacyConfigFound, "不得再创建 profile.json 或编译锁文件。");
 
   const detailed = await tool.api.describeStructure({ documentKinds: ["story-book", "story-relationships"] });

@@ -6,7 +6,7 @@ import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
-const tempDir = mkdtempSync(join(tmpdir(), "isle-claw-story-core-"));
+const tempDir = mkdtempSync(join(tmpdir(), "mewvis-story-core-"));
 const entryPath = join(tempDir, "runner.ts");
 const bundledPath = join(tempDir, "runner.mjs");
 const publicEntry = resolve(root, "core/project/index.ts");
@@ -213,7 +213,7 @@ writeFileSync(
   await fileProjects.create("/file/hidden", { storyTypeId: "long-novel", storyId: "story-3", title: "隐藏配置" });
   const reopened = await fileProjects.open("/file/hidden");
   assert((await reopened.overview()).title === "隐藏配置", "隐藏配置目录不得导致已初始化项目被误判。" );
-  const hiddenDefinitionKey = fileKey("/file/hidden", "story/.isle-claw/project.json");
+  const hiddenDefinitionKey = fileKey("/file/hidden", "story/.mewvis/project.json");
   const oldDefinition = JSON.parse(fileContents.get(hiddenDefinitionKey)!);
   fileContents.set(hiddenDefinitionKey, JSON.stringify({ ...oldDefinition, formatVersion: 2 }, null, 2) + "\\n");
   const upgradeable = await fileProjects.checkCompatibility("/file/hidden");
@@ -237,7 +237,7 @@ writeFileSync(
     storyId: "story-incompatible",
     title: "不可升级项目",
   });
-  const incompatibleDefinitionKey = fileKey("/file/incompatible", "story/.isle-claw/project.json");
+  const incompatibleDefinitionKey = fileKey("/file/incompatible", "story/.mewvis/project.json");
   const incompatibleDefinition = JSON.parse(fileContents.get(incompatibleDefinitionKey)!);
   fileContents.set(
     incompatibleDefinitionKey,

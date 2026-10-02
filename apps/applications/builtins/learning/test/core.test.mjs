@@ -7,7 +7,7 @@ import { join, dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const temporary = await mkdtemp(join(tmpdir(), "isle-learning-test-"));
+const temporary = await mkdtemp(join(tmpdir(), "mewvis-learning-test-"));
 test.after(() => rm(temporary, { recursive: true, force: true }));
 const compiled = await build({
   stdin: {
@@ -604,26 +604,26 @@ test("brief validation bounds user material and includes it as JSON data", () =>
 });
 test("built installation keeps permissions minimal, includes license and stays below sandbox limits", async () => {
   const manifest = JSON.parse(
-    await readFile(join(root, "dist/isle/package.json"), "utf8"),
+    await readFile(join(root, "dist/mewvis/package.json"), "utf8"),
   );
-  assert.equal(manifest.name, "@isle/learning");
-  assert.equal(manifest.isle.defaultEnabled, true);
-  assert.deepEqual(manifest.isle.permissions, [
+  assert.equal(manifest.name, "@mewvis/learning");
+  assert.equal(manifest.mewvis.defaultEnabled, true);
+  assert.deepEqual(manifest.mewvis.permissions, [
     "chat",
     "application-workspaces",
     "application-data",
   ]);
-  assert.equal(Object.hasOwn(manifest.isle.ui, "layout"), false);
+  assert.equal(Object.hasOwn(manifest.mewvis.ui, "layout"), false);
   assert.ok(
-    (await readFile(join(root, "dist/isle/isle-ui.js"))).byteLength <
+    (await readFile(join(root, "dist/mewvis/mewvis-ui.js"))).byteLength <
       512 * 1024,
   );
   assert.ok(
-    (await readFile(join(root, "dist/isle/isle-ui.css"))).byteLength <
+    (await readFile(join(root, "dist/mewvis/mewvis-ui.css"))).byteLength <
       256 * 1024,
   );
   assert.match(
-    await readFile(join(root, "dist/isle/LICENSE"), "utf8"),
+    await readFile(join(root, "dist/mewvis/LICENSE"), "utf8"),
     /Copyright \(c\) 2026 THU-MAIC/,
   );
 });

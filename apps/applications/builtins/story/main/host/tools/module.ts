@@ -1,8 +1,8 @@
 import {
   defineTool,
-  type IsleApplicationContext,
-  type IsleToolDefinition,
-} from "@isle/app-sdk";
+  type MewvisApplicationContext,
+  type MewvisToolDefinition,
+} from "@mewvis/app-sdk";
 import {
   lstat,
   mkdir,
@@ -63,8 +63,8 @@ type Record = {
 };
 const key = (id: string) => `story.library/${id}`;
 
-export function createStoryModuleTools(ctx: IsleApplicationContext) {
-  const tools: IsleToolDefinition[] = [];
+export function createStoryModuleTools(ctx: MewvisApplicationContext) {
+  const tools: MewvisToolDefinition[] = [];
   const storage = ctx.storage!;
   const workspaces = ctx.workspaces!;
   const get = (id?: string) => {
@@ -79,7 +79,7 @@ export function createStoryModuleTools(ctx: IsleApplicationContext) {
   };
   tools.push(
     defineTool({
-      name: "isle_story_project",
+      name: "mewvis_story_project",
       description: "原故事模块的项目接口。",
       risk: "medium",
       parameters,
@@ -124,7 +124,7 @@ export function createStoryModuleTools(ctx: IsleApplicationContext) {
   );
   tools.push(
     defineTool({
-      name: "isle_story_library",
+      name: "mewvis_story_library",
       description: "维护应用自有的故事库。移除记录可选择同时删除故事目录内容。",
       risk: "high",
       parameters,
@@ -214,7 +214,7 @@ export function createStoryModuleTools(ctx: IsleApplicationContext) {
   );
   tools.push(
     defineTool({
-      name: "isle_story_file",
+      name: "mewvis_story_file",
       description: "读写原故事模块的酒馆配置和运行文件。",
       risk: "medium",
       parameters,

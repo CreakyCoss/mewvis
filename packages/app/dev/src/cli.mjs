@@ -32,7 +32,7 @@ const parseArguments = (values) => {
   return { positionals, options };
 };
 
-const usage = `Isle application tooling\n\nUsage:\n  pnpm app:create -- <directory> [--name @scope/name] [--template react|tools] [--local]\n  pnpm app:validate -- [directory]\n  pnpm app:pack -- [directory] --target isle|dsh [--out-dir directory]\n  isle-app dev [directory] [--port 5173]\n  isle-app check [directory]\n  isle-app build [directory] [--target isle|dsh]\n`;
+const usage = `Mewvis application tooling\n\nUsage:\n  pnpm app:create -- <directory> [--name @scope/name] [--template react|tools] [--local]\n  pnpm app:validate -- [directory]\n  pnpm app:pack -- [directory] --target mewvis|dsh [--out-dir directory]\n  mewvis-app dev [directory] [--port 5173]\n  mewvis-app check [directory]\n  mewvis-app build [directory] [--target mewvis|dsh]\n`;
 
 const main = async () => {
   const [command, ...values] = process.argv.slice(2);
@@ -74,7 +74,7 @@ const main = async () => {
     if (command === "build") await checkApplication(positionals[0] ?? process.cwd());
     await packApplication({
       source: positionals[0] ?? process.cwd(),
-      target: options.get("target") ?? "isle",
+      target: options.get("target") ?? "mewvis",
       outDir: options.get("out-dir"),
     });
     return;

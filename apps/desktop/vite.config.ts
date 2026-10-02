@@ -13,7 +13,7 @@ export default defineConfig({
   define: {
     ...config.define,
     // Tauri provides the target platform, including when cross-compiling from macOS to Windows.
-    "import.meta.env.ISLE_TITLE_BAR_STYLE": JSON.stringify(
+    "import.meta.env.MEWVIS_TITLE_BAR_STYLE": JSON.stringify(
       (process.env.TAURI_ENV_PLATFORM ?? process.platform) === "darwin"
         ? "overlay"
         : "native",

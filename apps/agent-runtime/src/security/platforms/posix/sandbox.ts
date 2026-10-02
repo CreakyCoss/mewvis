@@ -28,7 +28,7 @@ export function createSandbox(policy: SandboxPolicy): SandboxLifecycle {
       mkdirSync(policy.backend.options.platform.temporaryDirectory, { recursive: true });
       const filesystem = structuredClone(policy.filesystem);
       if (filesystem.allowRead) {
-        scratch = canonicalPath(mkdtempSync(join(policy.backend.options.platform.temporaryDirectory, "isle-")));
+        scratch = canonicalPath(mkdtempSync(join(policy.backend.options.platform.temporaryDirectory, "mewvis-")));
         filesystem.allowRead.push(scratch);
       }
       process.env.TMPDIR = scratch ?? policy.backend.options.platform.temporaryDirectory;
@@ -36,7 +36,7 @@ export function createSandbox(policy: SandboxPolicy): SandboxLifecycle {
         {
           filesystem,
           network: {
-            allowedDomains: policy.network.allow === "all" ? ["isle-proxy.invalid"] : policy.network.allow,
+            allowedDomains: policy.network.allow === "all" ? ["mewvis-proxy.invalid"] : policy.network.allow,
             deniedDomains: policy.network.deny,
           },
         },

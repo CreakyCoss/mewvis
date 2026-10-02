@@ -1,6 +1,6 @@
-import { defineApplication, defineTool } from "@isle/app-sdk";
+import { defineApplication, defineTool } from "@mewvis/app-sdk";
 export default defineApplication({
-  name: "@isle-test/chat-client",
+  name: "@mewvis-test/chat-client",
   inject: ["tools", "chat"],
   apply(ctx) {
     ctx.tools.register(

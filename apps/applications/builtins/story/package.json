@@ -1,19 +1,19 @@
 {
-  "name": "@isle/story",
+  "name": "@mewvis/story",
   "version": "0.1.0",
-  "description": "Isle 内置故事工坊：结构化小说项目、文档编辑、创作助手与章节酒馆。",
+  "description": "Mewvis 内置故事工坊：结构化小说项目、文档编辑、创作助手与章节酒馆。",
   "type": "module",
   "private": true,
   "scripts": {
     "generate:skills": "node scripts/generate-skills.mjs",
-    "dev": "pnpm generate:skills && pnpm check:registry && isle-app dev",
-    "build": "pnpm generate:skills && pnpm check:registry && isle-app build",
-    "check": "pnpm generate:skills && pnpm check:registry && isle-app check",
+    "dev": "pnpm generate:skills && pnpm check:registry && mewvis-app dev",
+    "build": "pnpm generate:skills && pnpm check:registry && mewvis-app build",
+    "check": "pnpm generate:skills && pnpm check:registry && mewvis-app check",
     "test": "pnpm build && node --test test/*.test.mjs && node test/core-e2e.mjs && node test/contract-e2e.mjs && node test/commit-tool-e2e.mjs && node test/tavern-agent-protocol-e2e.mjs && node test/boundary.mjs && node test/binding.mjs",
     "check:registry": "node scripts/check-registry.mjs"
   },
   "dependencies": {
-    "@isle/app-sdk": "workspace:*",
+    "@mewvis/app-sdk": "workspace:*",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-markdown": "^10.1.0",
@@ -29,7 +29,7 @@
     "design-system": "workspace:*"
   },
   "devDependencies": {
-    "@isle/app-dev": "workspace:*",
+    "@mewvis/app-dev": "workspace:*",
     "@types/node": "^22.0.0",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",

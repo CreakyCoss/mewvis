@@ -1,6 +1,6 @@
-import type { IsleToolRisk } from "@isle/app-sdk";
+import type { MewvisToolRisk } from "@mewvis/app-sdk";
 
-export type ApplicationRuntimeKind = "isle" | "dsh";
+export type ApplicationRuntimeKind = "mewvis" | "dsh";
 
 export type RuntimeApplication = Readonly<{
   kind: ApplicationRuntimeKind;
@@ -19,7 +19,7 @@ export interface ApplicationAdapter {
 export type ApplicationToolSchema = Readonly<{
   name: string;
   description: string;
-  risk?: IsleToolRisk;
+  risk?: MewvisToolRisk;
   parameters: unknown;
 }>;
 

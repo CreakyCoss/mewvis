@@ -6,12 +6,12 @@ import {
   type ReactNode,
 } from "react";
 import { Activity, ChevronRight, Eye, RefreshCw } from "lucide-react";
-import type { ExtensionUIContext } from "@isle/extension-host/ui";
+import type { ExtensionUIContext } from "@mewvis/extension-host/ui";
 import type {
   ExtensionLedgerSnapshot,
   ExtensionSummaryResult,
   ExtensionSummaryScope,
-} from "@isle/extension-host/services";
+} from "@mewvis/extension-host/services";
 
 type Run = ExtensionLedgerSnapshot["runs"][number];
 type Message = ExtensionLedgerSnapshot["messages"][number];

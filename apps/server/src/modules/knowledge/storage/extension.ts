@@ -6,7 +6,7 @@ import { getLoadablePath } from "sqlite-vec";
 export function sqliteVecPath(
   platform = process.platform,
   arch = process.arch,
-  resources = process.env.ISLE_SERVER_RESOURCES,
+  resources = process.env.MEWVIS_SERVER_RESOURCES,
 ): string {
   if (platform === "win32" && arch === "arm64") {
     const root =
