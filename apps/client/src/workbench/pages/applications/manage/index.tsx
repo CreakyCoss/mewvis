@@ -59,8 +59,21 @@ const ApplicationRow = ({ application, isUpdating, onEnabledChange, onRemove }: 
       <p className="mt-1 line-clamp-1 text-sm leading-5 text-muted-foreground">
         {application.description || "暂无应用描述"}
       </p>
-      <p className="mt-1 truncate font-mono text-[11px] leading-4 text-muted-foreground/80" title={application.id}>
-        {application.id}
+      <p className="mt-1 flex min-w-0 items-center gap-2 font-mono text-[11px] leading-4 text-muted-foreground">
+        <span className="max-w-[50%] shrink-0 truncate select-text" title={application.id}>
+          {application.id}
+        </span>
+        {application.dataDirectory ? (
+          <>
+            <span className="h-3 w-px shrink-0 bg-border" aria-hidden="true" />
+            <span
+              className="min-w-0 truncate text-muted-foreground/80 select-text"
+              title={`数据目录：${application.dataDirectory}`}
+            >
+              {application.dataDirectory}
+            </span>
+          </>
+        ) : null}
       </p>
       <ApplicationPermissionSummary
         permissions={application.permissions}

@@ -25,6 +25,7 @@ export type ApplicationDescriptor = {
   enabled: boolean;
   defaultEnabled: boolean;
   path: string;
+  dataDirectory?: string;
   runtimeKind: ApplicationRuntimeKind;
   entry: string;
   compatibility: ApplicationCompatibility[];

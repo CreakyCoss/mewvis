@@ -248,6 +248,7 @@ export class Packages {
     return [...found.values()]
       .map((p): Application => ({
         ...p,
+        dataDirectory: applicationDirectory(this.path, p.id),
         enabled:
           p.permissionStatus !== "isle-upgrade-required" &&
           (r.enabled[p.id] ?? p.defaultEnabled),
