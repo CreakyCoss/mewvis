@@ -1,4 +1,12 @@
 import {
+  PRODUCT_CONFIG,
+  APP_DISPLAY_NAME,
+  PRODUCT_KEYS,
+  PRODUCT_NAMESPACE,
+  productDataName,
+  productId,
+} from "@mewvis/product-config";
+import {
   access,
   cp,
   mkdir,
@@ -36,7 +44,7 @@ import {
 } from "./project.mjs";
 import { createReactApplication } from "./template.mjs";
 
-const BUILD_MARKER = ".mewvis-app-build.json";
+const BUILD_MARKER = productDataName("-app-build.json");
 const accessValidator = new Ajv({ allErrors: true }).compile({
   ...accessSchema,
   anyOf: undefined,
@@ -58,10 +66,13 @@ const PERMISSIONS = new Set([
 const sdkEntry = createRequire(import.meta.url).resolve("@mewvis/app-sdk");
 
 const mewvisSdkResolver = {
-  name: "mewvis-app-sdk",
+  name: productId("-app-sdk"),
   setup(buildContext) {
     buildContext.onResolve(
-      { filter: /^@mewvis\/app-sdk(?:\/(?:browser|data|views(?:\/runtime)?|chat(?:\/react)?))?$/ },
+      {
+        filter:
+          /^@mewvis\/app-sdk(?:\/(?:browser|data|views(?:\/runtime)?|chat(?:\/react)?))?$/,
+      },
       ({ path }) => ({
         path:
           path === "@mewvis/app-sdk"
@@ -74,7 +85,7 @@ const mewvisSdkResolver = {
 
 // One React instance per sandbox, supplied together with the shared Chat runtime.
 const applicationReactResolver = {
-  name: "mewvis-shared-react",
+  name: productId("-shared-react"),
   setup(buildContext) {
     const modules = {
       react: "React",
@@ -88,11 +99,11 @@ const applicationReactResolver = {
       ({ path }) => {
         if (!(path in modules))
           throw new Error(`不支持的应用 React 入口：${path}`);
-        return { path, namespace: "mewvis-react" };
+        return { path, namespace: productId("-react") };
       },
     );
     buildContext.onLoad(
-      { filter: /.*/, namespace: "mewvis-react" },
+      { filter: /.*/, namespace: productId("-react") },
       async ({ path }) => {
         const source =
           path === "react/jsx-dev-runtime" ? "react/jsx-runtime" : path;
@@ -101,7 +112,7 @@ const applicationReactResolver = {
         );
         return {
           contents:
-            `const api = globalThis.mewvisApplicationReact.${modules[path]}; export default api;\n` +
+            `const api = globalThis[${JSON.stringify(PRODUCT_KEYS.applicationReactGlobal)}].${modules[path]}; export default api;\n` +
             exports
               .map((name) => `export const ${name} = api.${name};`)
               .join("\n"),
@@ -177,12 +188,12 @@ export const validateApplication = async (source) => {
   const manifest = await readManifest(root);
   const project = await readProject(root);
   if (project) {
-    if (manifest.mewvis !== undefined)
+    if (manifest[PRODUCT_KEYS.applicationManifest] !== undefined)
       throw new Error(
-        "使用 mewvis.config.ts 的项目不应在 package.json 重复声明 mewvis",
+        `使用 ${PRODUCT_CONFIG.files.appConfig} 的项目不应在 package.json 重复声明 ${PRODUCT_NAMESPACE}`,
       );
     const { config, uiEntry } = project;
-    manifest.mewvis = {
+    manifest[PRODUCT_KEYS.applicationManifest] = {
       app: { version: 1, entry: "./index.js" },
       displayName: config.displayName,
       defaultEnabled: config.defaultEnabled ?? false,
@@ -209,24 +220,33 @@ export const validateApplication = async (source) => {
   }
   if (manifest.type !== "module") problems.push('type 必须是 "module"。');
 
-  const mewvis = isObject(manifest.mewvis) ? manifest.mewvis : undefined;
+  const mewvis = isObject(manifest[PRODUCT_KEYS.applicationManifest])
+    ? manifest[PRODUCT_KEYS.applicationManifest]
+    : undefined;
   const application = mewvis && isObject(mewvis.app) ? mewvis.app : undefined;
   if (!application) {
-    problems.push("缺少 mewvis.app 原生入口声明。");
+    problems.push(`缺少 ${PRODUCT_NAMESPACE}.app 原生入口声明。`);
   } else {
-    if (application.version !== 1) problems.push("mewvis.app.version 必须为 1。");
+    if (application.version !== 1)
+      problems.push(productId(".app.version 必须为 1。"));
     if (
       typeof application.entry !== "string" ||
       !ENTRY_PATTERN.test(application.entry)
     ) {
-      problems.push("mewvis.app.entry 必须是以 ./ 开头的 .js 或 .mjs 文件。");
+      problems.push(
+        productId(".app.entry 必须是以 ./ 开头的 .js 或 .mjs 文件。"),
+      );
     } else {
       try {
-        const entry = containedPath(root, application.entry, "mewvis.app.entry");
+        const entry = containedPath(
+          root,
+          application.entry,
+          productId(".app.entry"),
+        );
         if (!project && !(await fileExists(entry)))
           problems.push(`应用入口不存在：${application.entry}`);
         else if (!project)
-          await assertRealContained(root, entry, "mewvis.app.entry");
+          await assertRealContained(root, entry, productId(".app.entry"));
       } catch (error) {
         problems.push(error instanceof Error ? error.message : String(error));
       }
@@ -235,12 +255,14 @@ export const validateApplication = async (source) => {
 
   if (!Array.isArray(mewvis?.permissions)) {
     problems.push(
-      "mewvis.permissions 必须是权限用途数组；没有额外能力时请声明空数组。",
+      productId(
+        ".permissions 必须是权限用途数组；没有额外能力时请声明空数组。",
+      ),
     );
   } else {
     const unique = new Set(mewvis.permissions);
     if (unique.size !== mewvis.permissions.length)
-      problems.push("mewvis.permissions 不能包含重复项。");
+      problems.push(productId(".permissions 不能包含重复项。"));
     for (const permission of unique) {
       if (typeof permission !== "string" || !PERMISSIONS.has(permission)) {
         problems.push(`不支持的应用权限：${String(permission)}。`);
@@ -250,33 +272,34 @@ export const validateApplication = async (source) => {
 
   if (mewvis?.agentAccess !== undefined && !accessValidator(mewvis.agentAccess))
     problems.push(
-      `mewvis.agentAccess 不符合权限协议：${JSON.stringify(accessValidator.errors)}`,
+      `${PRODUCT_NAMESPACE}.agentAccess 不符合权限协议：${JSON.stringify(accessValidator.errors)}`,
     );
 
   const assets = new Set(["./README.md", "./LICENSE"]);
   const requiredAssets = new Set();
   if (application && Array.isArray(application.assets)) {
     for (const [index, asset] of application.assets.entries()) {
-      pushAsset(assets, asset, `mewvis.app.assets[${index}]`);
+      pushAsset(assets, asset, `${PRODUCT_NAMESPACE}.app.assets[${index}]`);
       requiredAssets.add(asset);
     }
   } else if (application?.assets !== undefined) {
-    problems.push("mewvis.app.assets 必须是相对文件路径数组。");
+    problems.push(productId(".app.assets 必须是相对文件路径数组。"));
   }
 
   if (mewvis?.ui !== undefined) {
     if (!isObject(mewvis.ui)) {
-      problems.push("mewvis.ui 必须是对象。");
+      problems.push(productId(".ui 必须是对象。"));
     } else {
-      if (mewvis.ui.version !== 1) problems.push("mewvis.ui.version 必须为 1。");
+      if (mewvis.ui.version !== 1)
+        problems.push(productId(".ui.version 必须为 1。"));
       if (mewvis.ui.kind !== "sandbox")
-        problems.push('mewvis.ui.kind 必须是 "sandbox"。');
+        problems.push(productId('.ui.kind 必须是 "sandbox"。'));
       try {
         if (typeof mewvis.ui.entry !== "string")
-          throw new Error("mewvis.ui.entry 必须是字符串。");
-        pushAsset(assets, mewvis.ui.entry, "mewvis.ui.entry");
+          throw new Error(productId(".ui.entry 必须是字符串。"));
+        pushAsset(assets, mewvis.ui.entry, productId(".ui.entry"));
         requiredAssets.add(mewvis.ui.entry);
-        pushAsset(assets, mewvis.ui.style, "mewvis.ui.style");
+        pushAsset(assets, mewvis.ui.style, productId(".ui.style"));
         if (mewvis.ui.style !== undefined) requiredAssets.add(mewvis.ui.style);
       } catch (error) {
         problems.push(error instanceof Error ? error.message : String(error));
@@ -313,7 +336,7 @@ export const validateApplication = async (source) => {
   return Object.freeze({
     root,
     manifest,
-    entry: containedPath(root, application.entry, "mewvis.app.entry"),
+    entry: containedPath(root, application.entry, productId(".app.entry")),
     assets,
     project,
   });
@@ -334,12 +357,14 @@ const assertSafeOutput = async (sourceRoot, outputRoot) => {
     (await fileExists(outputRoot)) &&
     !(await fileExists(join(outputRoot, BUILD_MARKER)))
   ) {
-    throw new Error(`输出目录已经存在且不是 Mewvis 构建产物：${outputRoot}`);
+    throw new Error(
+      `输出目录已经存在且不是 ${APP_DISPLAY_NAME} 构建产物：${outputRoot}`,
+    );
   }
 };
 
 const outputManifest = (manifest, target) => {
-  const mewvis = structuredClone(manifest.mewvis);
+  const mewvis = structuredClone(manifest[PRODUCT_KEYS.applicationManifest]);
   mewvis.app.entry = "./index.js";
   const output = {
     name: manifest.name,
@@ -350,7 +375,7 @@ const outputManifest = (manifest, target) => {
     main: "./index.js",
     exports: "./index.js",
     bundled: true,
-    mewvis,
+    [PRODUCT_KEYS.applicationManifest]: mewvis,
   };
   for (const field of [
     "license",
@@ -380,20 +405,27 @@ const writeDshPatch = async (root, name) => {
 
 export const packApplication = async ({
   source,
-  target = "mewvis",
+  target = PRODUCT_KEYS.applicationManifest,
   outDir,
   quiet = false,
 }) => {
-  if (target !== "mewvis" && target !== "dsh")
-    throw new Error('打包目标必须是 "mewvis" 或 "dsh"。');
+  if (target !== PRODUCT_KEYS.applicationManifest && target !== "dsh")
+    throw new Error(`打包目标必须是 "${PRODUCT_NAMESPACE}" 或 "dsh"。`);
   const validated = await validateApplication(source);
-  if (target === "dsh" && validated.manifest.mewvis.permissions.includes("chat"))
-    throw new Error("应用聊天能力需要 Mewvis 宿主，不能打包为 DSH 目标");
+  if (
+    target === "dsh" &&
+    validated.manifest[PRODUCT_KEYS.applicationManifest].permissions.includes(
+      "chat",
+    )
+  )
+    throw new Error(
+      `应用聊天能力需要 ${APP_DISPLAY_NAME} 宿主，不能打包为 DSH 目标`,
+    );
   const outputRoot = resolve(outDir ?? join(validated.root, "dist", target));
   await assertSafeOutput(validated.root, outputRoot);
   await mkdir(dirname(outputRoot), { recursive: true });
   const stagingRoot = await mkdtemp(
-    join(dirname(outputRoot), ".mewvis-app-pack-"),
+    join(dirname(outputRoot), productDataName("-app-pack-")),
   );
 
   try {
@@ -421,7 +453,10 @@ export const packApplication = async ({
     });
 
     for (const asset of validated.assets) {
-      if (validated.project && asset === validated.manifest.mewvis.ui?.entry)
+      if (
+        validated.project &&
+        asset === validated.manifest[PRODUCT_KEYS.applicationManifest].ui?.entry
+      )
         continue;
       const sourcePath = containedPath(validated.root, asset, "应用资源路径");
       const destination = join(
@@ -434,11 +469,13 @@ export const packApplication = async ({
 
     const manifest = outputManifest(validated.manifest, target);
     if (
-      manifest.mewvis?.ui &&
+      manifest[PRODUCT_KEYS.applicationManifest]?.ui &&
       (validated.project ||
-        validated.manifest.mewvis.permissions.includes("chat"))
+        validated.manifest[
+          PRODUCT_KEYS.applicationManifest
+        ].permissions.includes("chat"))
     ) {
-      const ui = validated.manifest.mewvis.ui;
+      const ui = validated.manifest[PRODUCT_KEYS.applicationManifest].ui;
       const bundle = await build({
         ...(validated.project
           ? {
@@ -450,10 +487,10 @@ export const packApplication = async ({
             }
           : {
               entryPoints: [
-                containedPath(validated.root, ui.entry, "mewvis.ui.entry"),
+                containedPath(validated.root, ui.entry, productId(".ui.entry")),
               ],
             }),
-        outfile: join(stagingRoot, "mewvis-ui.js"),
+        outfile: join(stagingRoot, PRODUCT_CONFIG.files.appUiScript),
         bundle: true,
         platform: "browser",
         format: "iife",
@@ -482,20 +519,26 @@ export const packApplication = async ({
             ? [browserBoundary(validated.root, validated.project)]
             : []),
           mewvisSdkResolver,
-          ...(validated.manifest.mewvis.permissions.includes("chat")
+          ...(validated.manifest[
+            PRODUCT_KEYS.applicationManifest
+          ].permissions.includes("chat")
             ? [applicationReactResolver]
             : []),
         ],
       });
       let style = ui.style
         ? await readFile(
-            containedPath(validated.root, ui.style, "mewvis.ui.style"),
+            containedPath(validated.root, ui.style, productId(".ui.style")),
             "utf8",
           )
         : "";
       for (const file of bundle.outputFiles) {
         if (file.path.endsWith(".css")) style += "\n" + file.text;
-        else await writeFile(join(stagingRoot, "mewvis-ui.js"), file.contents);
+        else
+          await writeFile(
+            join(stagingRoot, PRODUCT_CONFIG.files.appUiScript),
+            file.contents,
+          );
       }
       if (
         Buffer.byteLength(
@@ -506,12 +549,16 @@ export const packApplication = async ({
         throw new Error("应用 UI 超过 8 MiB 宿主限制");
       if (Buffer.byteLength(style) > 2 * 1024 * 1024)
         throw new Error("应用样式超过 2 MiB 宿主限制");
-      manifest.mewvis.ui = {
+      manifest[PRODUCT_KEYS.applicationManifest].ui = {
         ...ui,
-        entry: "./mewvis-ui.js",
-        ...(style ? { style: "./mewvis-ui.css" } : {}),
+        entry: `./${PRODUCT_CONFIG.files.appUiScript}`,
+        ...(style ? { style: `./${PRODUCT_CONFIG.files.appUiStyle}` } : {}),
       };
-      if (style) await writeFile(join(stagingRoot, "mewvis-ui.css"), style);
+      if (style)
+        await writeFile(
+          join(stagingRoot, PRODUCT_CONFIG.files.appUiStyle),
+          style,
+        );
     }
     await writeFile(
       join(stagingRoot, "package.json"),
@@ -565,7 +612,7 @@ export const createApplication = async ({
   const root = resolve(destination);
   if (await fileExists(root)) throw new Error(`目标目录已经存在：${root}`);
   const slug = slugFromPath(root.split(sep).at(-1) ?? "");
-  const packageName = name ?? `@mewvis/${slug}`;
+  const packageName = name ?? `@${PRODUCT_NAMESPACE}/${slug}`;
   if (!PACKAGE_NAME.test(packageName))
     throw new Error(`应用包名无效：${packageName}`);
   const toolName = packageId(packageName).replace(/-/g, "_");
@@ -574,12 +621,12 @@ export const createApplication = async ({
   const manifest = {
     name: packageName,
     version: "0.1.0",
-    description: `${packageName} Mewvis application`,
+    description: `${packageName} ${APP_DISPLAY_NAME} application`,
     type: "module",
     main: "./index.js",
     exports: "./index.js",
     dependencies: { "@mewvis/app-sdk": "^0.1.0" },
-    mewvis: {
+    [PRODUCT_KEYS.applicationManifest]: {
       app: { version: 1, entry: "./index.js" },
       displayName: slug || packageName,
       defaultEnabled: false,
@@ -591,7 +638,7 @@ export const createApplication = async ({
 const tool = defineTool({
   risk: "low",
   name: ${JSON.stringify(toolName)},
-  description: "Example tool generated by Mewvis application tooling.",
+  description: ${JSON.stringify(`Example tool generated by ${APP_DISPLAY_NAME} application tooling.`)},
   parameters: { type: "object", properties: {}, additionalProperties: false },
   output: {
     schema: { type: "object", properties: { message: { type: "string" } }, required: ["message"], additionalProperties: false },
@@ -602,7 +649,7 @@ const tool = defineTool({
 
 const skill = defineSkill({
   name: ${JSON.stringify(toolName)},
-  description: "Use the example Mewvis application tool.",
+  description: ${JSON.stringify(`Use the example ${APP_DISPLAY_NAME} application tool.`)},
   content: "Call the ${toolName} tool when the user asks to test this application.",
 });
 
@@ -623,7 +670,7 @@ export default defineApplication({
   await writeFile(join(root, "index.js"), entry, "utf8");
   await writeFile(
     join(root, "README.md"),
-    `# ${packageName}\n\nCreated with Mewvis application tooling.\n\nValidate with \`pnpm app:validate -- ${destination}\`.\n`,
+    `# ${packageName}\n\nCreated with ${APP_DISPLAY_NAME} application tooling.\n\nValidate with \`pnpm app:validate -- ${destination}\`.\n`,
     "utf8",
   );
   await validateApplication(root);

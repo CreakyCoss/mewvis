@@ -1,5 +1,14 @@
 #!/usr/bin/env node
-import { createApplication, packApplication, validateApplication } from "./tooling.mjs";
+import {
+  APP_DISPLAY_NAME,
+  PRODUCT_KEYS,
+  PRODUCT_NAMESPACE,
+} from "@mewvis/product-config";
+import {
+  createApplication,
+  packApplication,
+  validateApplication,
+} from "./tooling.mjs";
 
 import { startDev } from "./dev.mjs";
 import { checkApplication } from "./check.mjs";
@@ -32,7 +41,7 @@ const parseArguments = (values) => {
   return { positionals, options };
 };
 
-const usage = `Mewvis application tooling\n\nUsage:\n  pnpm app:create -- <directory> [--name @scope/name] [--template react|tools] [--local]\n  pnpm app:validate -- [directory]\n  pnpm app:pack -- [directory] --target mewvis|dsh [--out-dir directory]\n  mewvis-app dev [directory] [--port 5173]\n  mewvis-app check [directory]\n  mewvis-app build [directory] [--target mewvis|dsh]\n`;
+const usage = `${APP_DISPLAY_NAME} application tooling\n\nUsage:\n  pnpm app:create -- <directory> [--name @scope/name] [--template react|tools] [--local]\n  pnpm app:validate -- [directory]\n  pnpm app:pack -- [directory] --target ${PRODUCT_NAMESPACE}|dsh [--out-dir directory]\n  ${PRODUCT_NAMESPACE}-app dev [directory] [--port 5173]\n  ${PRODUCT_NAMESPACE}-app check [directory]\n  ${PRODUCT_NAMESPACE}-app build [directory] [--target ${PRODUCT_NAMESPACE}|dsh]\n`;
 
 const main = async () => {
   const [command, ...values] = process.argv.slice(2);
@@ -71,10 +80,11 @@ const main = async () => {
     return;
   }
   if (command === "pack" || command === "build") {
-    if (command === "build") await checkApplication(positionals[0] ?? process.cwd());
+    if (command === "build")
+      await checkApplication(positionals[0] ?? process.cwd());
     await packApplication({
       source: positionals[0] ?? process.cwd(),
-      target: options.get("target") ?? "mewvis",
+      target: options.get("target") ?? PRODUCT_KEYS.applicationManifest,
       outDir: options.get("out-dir"),
     });
     return;

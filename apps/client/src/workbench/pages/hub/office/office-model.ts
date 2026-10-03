@@ -1,3 +1,4 @@
+import { APP_DISPLAY_NAME } from "@mewvis/product-config";
 export type Mode = "working" | "waiting" | "leisure" | "idle";
 export type Activity = keyof typeof ACTIVITIES;
 export type Point = { x: number; y: number };
@@ -114,7 +115,7 @@ export const ACTIVITIES = {
 export const ACTIVITY_POOL = (Object.keys(ACTIVITIES) as Activity[]).filter((id) => id !== "standby");
 export const CATS: Cat[] = [
   {
-    id: "Mewvis",
+    id: APP_DISPLAY_NAME,
     col: 0,
     role: "任务统筹",
     slot: 0,

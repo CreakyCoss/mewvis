@@ -1,3 +1,4 @@
+import { APP_DISPLAY_NAME } from "@mewvis/product-config";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, type Ref } from "react";
 import { LexicalComposer } from "@lexical/react/LexicalComposer";
 import { ClearEditorPlugin } from "@lexical/react/LexicalClearEditorPlugin";
@@ -150,7 +151,7 @@ const ChatEditorComponent = (
 ) => {
   const initialConfig = useMemo(
     () => ({
-      namespace: "MewvisChatInput",
+      namespace: `${APP_DISPLAY_NAME}ChatInput`,
       nodes: [FileReferenceNode, SkillReferenceNode, CommandReferenceNode, AgentReferenceNode],
       editable: !disabled,
       theme: {

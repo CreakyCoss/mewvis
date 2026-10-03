@@ -30,5 +30,8 @@
   },
   "devDependencies": {
     "json-schema-to-typescript": "^15.0.4"
+  },
+  "dependencies": {
+    "@mewvis/product-config": "workspace:*"
   }
 }

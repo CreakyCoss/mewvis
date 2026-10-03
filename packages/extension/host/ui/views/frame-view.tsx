@@ -1,3 +1,4 @@
+import { productId } from "@mewvis/product-config";
 import { useEffect, useRef, useState } from "react";
 import { useViewTransport } from "./transport-context";
 import type { JsonObject } from "../../shared.js";
@@ -130,12 +131,12 @@ export function ExtensionView({
                 ? await dialogs.open(owner, message.arguments)
                 : message.method === "ui.confirm"
                   ? await dialogs.confirm(owner, message.arguments)
-                : await transport.query(
-                    view.token,
-                    message.method,
-                    message.arguments,
-                    id,
-                  );
+                  : await transport.query(
+                      view.token,
+                      message.method,
+                      message.arguments,
+                      id,
+                    );
             if (!closed) port.postMessage({ type: "response", id, value });
           } catch (error) {
             if (!closed)
@@ -199,7 +200,7 @@ export function ExtensionView({
           });
           frame.contentWindow?.postMessage(
             {
-              type: "mewvis.extension.connect",
+              type: productId(".extension.connect"),
               source: view.source,
               id: view.id,
               contributionId: view.contributionId,

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { PRODUCT_NAMESPACE } from "@mewvis/product-config";
 import { resolve } from "node:path";
 import { readFile } from "node:fs/promises";
 import { parseArgs } from "node:util";
@@ -26,7 +27,9 @@ try {
   let result;
   if (command === "create") {
     if (!target || !values.id)
-      throw new Error("用法：mewvis-extension create <新目录> --id <插件ID>");
+      throw new Error(
+        `用法：${PRODUCT_NAMESPACE}-extension create <新目录> --id <插件ID>`,
+      );
     result = await createExtensionPackage(target, values.id);
   } else if (command === "build")
     result = await buildExtensionPackage(target ?? ".", {

@@ -1,3 +1,4 @@
+import { productId } from "@mewvis/product-config";
 import {
   createExtensionHostClient,
   extensionHostMethods,
@@ -116,12 +117,12 @@ export async function createExtensionHost(
   >();
   const directory = defineService<{
     add(source: ExtensionSource, tool: ExtensionTool): void;
-  }>("mewvis.extension.tools", {
+  }>(productId(".extension.tools"), {
     local: true,
   });
   const facets: Facet[] = [
     {
-      id: "mewvis.extension.directory",
+      id: productId(".extension.directory"),
       setup(env) {
         env.provide(directory, {
           add(source, definition) {

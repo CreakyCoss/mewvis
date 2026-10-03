@@ -7,7 +7,7 @@
     "node": ">=22.13.0"
   },
   "scripts": {
-    "build": "pnpm --filter @mewvis/extension-host build && node scripts/build.mjs",
+    "build": "node ../../scripts/maintenance/sync-product-config.mjs && pnpm --filter @mewvis/extension-host build && node scripts/build.mjs",
     "start": "node dist/cli.js",
     "dev": "pnpm build && node dist/cli.js",
     "test": "pnpm build && node scripts/test.mjs",
@@ -21,7 +21,8 @@
     "fs-native-extensions": "1.5.1",
     "sqlite-vec": "0.1.9",
     "yaml": "2.9.0",
-    "yauzl": "^3.4.0"
+    "yauzl": "^3.4.0",
+    "@mewvis/product-config": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

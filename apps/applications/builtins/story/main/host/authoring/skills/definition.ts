@@ -1,3 +1,4 @@
+import { productId } from "@mewvis/product-config";
 import {
   storySkillDefinitions,
   storySkillRequirements,
@@ -14,7 +15,7 @@ export const storySkillContract = defineProtocol<{
   validateChanges(): unknown;
   commitChanges(): unknown;
 }>()({
-  id: "mewvis.story-project-tool",
+  id: productId(".story-project-tool"),
   version: 2,
   properties: {},
   methods: {

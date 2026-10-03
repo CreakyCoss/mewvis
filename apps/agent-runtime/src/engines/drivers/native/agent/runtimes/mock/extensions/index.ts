@@ -1,3 +1,4 @@
+import { APP_DISPLAY_NAME } from "@mewvis/product-config";
 import { defineExtensionAdapter } from "@mewvis/extension-host";
 import type { MockPlugin } from "./registry.js";
 
@@ -18,9 +19,12 @@ export const mockExtensionAdapter = defineExtensionAdapter<MockPlugin>({
     "middleware.session_compact": { mode: "direct" },
     "events.run": {
       mode: "simulate",
-      reason: "由 Mewvis 运行边界提供成功、失败与取消终态",
+      reason: `由 ${APP_DISPLAY_NAME} 运行边界提供成功、失败与取消终态`,
     },
-    "session.state": { mode: "simulate", reason: "调用 Mewvis 会话状态事务服务" },
+    "session.state": {
+      mode: "simulate",
+      reason: `调用 ${APP_DISPLAY_NAME} 会话状态事务服务`,
+    },
     "middleware.input": { mode: "direct" },
     "middleware.system_prompt": { mode: "direct" },
     "middleware.context": { mode: "direct" },
@@ -29,14 +33,25 @@ export const mockExtensionAdapter = defineExtensionAdapter<MockPlugin>({
   },
   adapt(bindings, context) {
     return (mock) => {
-      const watched = new Set(bindings.catalog.subscriptions.flatMap((item) => item.events));
+      const watched = new Set(
+        bindings.catalog.subscriptions.flatMap((item) => item.events),
+      );
       mock.onMessage(async (event) => {
         const type =
-          event.phase === "start" ? "message_started" : event.phase === "end" ? "message_finished" : "message_updated";
+          event.phase === "start"
+            ? "message_started"
+            : event.phase === "end"
+              ? "message_finished"
+              : "message_updated";
         if (!watched.has(type)) return;
         await bindings.notify(
           type === "message_updated"
-            ? { type, taskId: context.taskId, message: event.message, change: event.change ?? { type: "snapshot" } }
+            ? {
+                type,
+                taskId: context.taskId,
+                message: event.message,
+                change: event.change ?? { type: "snapshot" },
+              }
             : { type, taskId: context.taskId, message: event.message },
         );
       });
@@ -57,31 +72,50 @@ export const mockExtensionAdapter = defineExtensionAdapter<MockPlugin>({
             toolResults: event.results,
           });
       });
-      const has = (type: string) => bindings.catalog.middleware.some((item) => item.type === type);
+      const has = (type: string) =>
+        bindings.catalog.middleware.some((item) => item.type === type);
       if (has("session_compact"))
         mock.beforeCompact(async (data, signal) => {
-          const reply = await bindings.intercept("session_compact", data, { signal: signal ?? context.signal });
+          const reply = await bindings.intercept("session_compact", data, {
+            signal: signal ?? context.signal,
+          });
           return reply.action === "block" ? reply.reason : undefined;
         });
       if (watched.has("session_compact_finished"))
         mock.onCompact((result) =>
-          bindings.notify({ type: "session_compact_finished", taskId: context.taskId, ...result }),
+          bindings.notify({
+            type: "session_compact_finished",
+            taskId: context.taskId,
+            ...result,
+          }),
         );
       if (has("input"))
         mock.onInput(async (text) => {
-          const reply = await bindings.intercept("input", { text }, { signal: context.signal });
+          const reply = await bindings.intercept(
+            "input",
+            { text },
+            { signal: context.signal },
+          );
           if (reply.action === "block") throw new Error(reply.reason);
           return reply.value.text;
         });
       if (has("system_prompt"))
         mock.onSystemPrompt(async (text) => {
-          const reply = await bindings.intercept("system_prompt", { text }, { signal: context.signal });
+          const reply = await bindings.intercept(
+            "system_prompt",
+            { text },
+            { signal: context.signal },
+          );
           if (reply.action === "block") throw new Error(reply.reason);
           return reply.value.text;
         });
       if (has("context"))
         mock.onContext(async (messages) => {
-          const reply = await bindings.intercept("context", { messages }, { signal: context.signal });
+          const reply = await bindings.intercept(
+            "context",
+            { messages },
+            { signal: context.signal },
+          );
           if (reply.action === "block") throw new Error(reply.reason);
           return reply.value.messages;
         });
@@ -92,7 +126,9 @@ export const mockExtensionAdapter = defineExtensionAdapter<MockPlugin>({
             { callId: call.id, toolName: name, input: call.input },
             { signal: call.signal },
           );
-          return reply.action === "block" ? { input: call.input, blocked: reply.reason } : { input: reply.value.input };
+          return reply.action === "block"
+            ? { input: call.input, blocked: reply.reason }
+            : { input: reply.value.input };
         });
       if (has("tool_result"))
         mock.afterTool(async (name, call, result) => {
@@ -120,7 +156,9 @@ export const mockExtensionAdapter = defineExtensionAdapter<MockPlugin>({
           }),
         );
       for (const skill of bindings.catalog.skills)
-        mock.addInstructions(`### ${skill.id}\n${skill.description}\n${skill.content}`);
+        mock.addInstructions(
+          `### ${skill.id}\n${skill.description}\n${skill.content}`,
+        );
       mock.onTool((event) =>
         bindings.notify(
           event.phase === "start"

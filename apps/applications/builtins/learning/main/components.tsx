@@ -1,4 +1,11 @@
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { APP_DISPLAY_NAME } from "@mewvis/product-config";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+} from "react";
 import {
   getApplicationChatClient,
   type ApplicationChatSession,
@@ -11,12 +18,7 @@ import {
   useChatSession,
   useChatSnapshot,
 } from "@mewvis/app-sdk/chat/react";
-import {
-  History,
-  Plus,
-  Sparkles,
-  Square,
-} from "lucide-react";
+import { History, Plus, Sparkles, Square } from "lucide-react";
 import { tutorProfile } from "./generation";
 import { recoverMissingChat } from "./chatRecovery";
 import {
@@ -120,14 +122,18 @@ const tutorMaxWidth = 720;
 const tutorWidthBounds = (tutor: HTMLElement | null) => {
   const classroom = tutor?.parentElement;
   const outline = classroom?.querySelector<HTMLElement>(".learn-outline");
-  const outlineWidth = outline && getComputedStyle(outline).display !== "none"
-    ? outline.getBoundingClientRect().width
-    : 0;
+  const outlineWidth =
+    outline && getComputedStyle(outline).display !== "none"
+      ? outline.getBoundingClientRect().width
+      : 0;
   return {
     min: tutorMinWidth,
     max: Math.max(
       tutorMinWidth,
-      Math.min(tutorMaxWidth, (classroom?.getBoundingClientRect().width ?? 0) - outlineWidth - 300),
+      Math.min(
+        tutorMaxWidth,
+        (classroom?.getBoundingClientRect().width ?? 0) - outlineWidth - 300,
+      ),
     ),
   };
 };
@@ -147,7 +153,12 @@ export function Tutor({
   lesson: Lesson;
   panels: Record<"practice", ReactNode>;
   expanded: boolean;
-  request: { id: string; courseId: string; lessonId: string; prompt: string } | null;
+  request: {
+    id: string;
+    courseId: string;
+    lessonId: string;
+    prompt: string;
+  } | null;
   onRequestHandled: (id: string) => void;
   onToggleExpand: () => void;
   onWidthChange: (width: number | null) => void;
@@ -162,7 +173,10 @@ export function Tutor({
   const [historyError, setHistoryError] = useState("");
   const [history, setHistory] = useState<ApplicationChatSummary[]>([]);
   const [measuredWidth, setMeasuredWidth] = useState(400);
-  const [resizeBounds, setResizeBounds] = useState({ min: tutorMinWidth, max: tutorMaxWidth });
+  const [resizeBounds, setResizeBounds] = useState({
+    min: tutorMinWidth,
+    max: tutorMaxWidth,
+  });
   const connecting = useRef(false);
   const handledRequest = useRef("");
   const tutorRef = useRef<HTMLElement>(null);
@@ -182,7 +196,9 @@ export function Tutor({
     const measure = () => {
       const nextWidth = Math.round(tutor.getBoundingClientRect().width);
       const nextBounds = tutorWidthBounds(tutor);
-      setMeasuredWidth((current) => current === nextWidth ? current : nextWidth);
+      setMeasuredWidth((current) =>
+        current === nextWidth ? current : nextWidth,
+      );
       setResizeBounds((current) =>
         current.min === nextBounds.min && current.max === nextBounds.max
           ? current
@@ -211,7 +227,9 @@ export function Tutor({
       const workspaces = await data.workspaces.list();
       const workspace = workspaces.find((w) => w.isDefault) ?? workspaces[0];
       if (!workspace)
-        throw new Error("尚无学习工作区，请在 Mewvis 中重新打开应用");
+        throw new Error(
+          `尚无学习工作区，请在 ${APP_DISPLAY_NAME} 中重新打开应用`,
+        );
       const key = tutorSessionKey(course.id, lesson.id);
       const previous = readTutorSessionIndex(await data.storage.getItem(key));
       const client = getApplicationChatClient();
@@ -240,10 +258,11 @@ export function Tutor({
       setSession(
         previous && !fresh
           ? await recoverMissingChat(
-              () => client.openSession({
-                workspaceId: previous.workspaceId,
-                chatId: previous.chatId,
-              }),
+              () =>
+                client.openSession({
+                  workspaceId: previous.workspaceId,
+                  chatId: previous.chatId,
+                }),
               create,
             )
           : await create(),
@@ -287,12 +306,16 @@ export function Tutor({
       const index = readTutorSessionIndex(
         await data.storage.getItem(tutorSessionKey(course.id, lesson.id)),
       );
-      setHistory(index
-        ? tutorSessionHistory(
-            index,
-            await getApplicationChatClient().listSessions({ workspaceId: index.workspaceId }),
-          )
-        : []);
+      setHistory(
+        index
+          ? tutorSessionHistory(
+              index,
+              await getApplicationChatClient().listSessions({
+                workspaceId: index.workspaceId,
+              }),
+            )
+          : [],
+      );
     } catch (e) {
       setHistoryError(errorText(e));
     } finally {
@@ -338,7 +361,9 @@ export function Tutor({
     }
     setPanel("chat");
     requestAnimationFrame(() =>
-      tutorRef.current?.querySelector<HTMLButtonElement>("#learn-tool-chat")?.focus(),
+      tutorRef.current
+        ?.querySelector<HTMLButtonElement>("#learn-tool-chat")
+        ?.focus(),
     );
     if (busy || connecting.current) return;
     if (!session) {
@@ -362,9 +387,13 @@ export function Tutor({
         return;
       }
       setError("");
-      void session.send({ text: request.prompt, requestId: request.id })
+      void session
+        .send({ text: request.prompt, requestId: request.id })
         .then((result) => {
-          if (handledRequest.current === request.id && result.status !== "dispatched")
+          if (
+            handledRequest.current === request.id &&
+            result.status !== "dispatched"
+          )
             setError(result.reason || "发送失败，请重试。");
         })
         .catch((e) => {
@@ -402,7 +431,8 @@ export function Tutor({
           resizeDrag.current = {
             pointerId: event.pointerId,
             startX: event.clientX,
-            startWidth: tutorRef.current?.getBoundingClientRect().width ?? measuredWidth,
+            startWidth:
+              tutorRef.current?.getBoundingClientRect().width ?? measuredWidth,
             ...bounds,
           };
           event.currentTarget.setPointerCapture(event.pointerId);
@@ -411,124 +441,145 @@ export function Tutor({
         onPointerMove={(event) => {
           const drag = resizeDrag.current;
           if (!drag || drag.pointerId !== event.pointerId) return;
-          onWidthChange(clampTutorWidth(
-            drag.startWidth + drag.startX - event.clientX,
-            drag.min,
-            drag.max,
-          ));
+          onWidthChange(
+            clampTutorWidth(
+              drag.startWidth + drag.startX - event.clientX,
+              drag.min,
+              drag.max,
+            ),
+          );
         }}
         onPointerUp={finishResize}
         onPointerCancel={finishResize}
-        onLostPointerCapture={() => { resizeDrag.current = null; }}
+        onLostPointerCapture={() => {
+          resizeDrag.current = null;
+        }}
         onDoubleClick={() => onWidthChange(null)}
         onKeyDown={(event) => {
           const bounds = tutorWidthBounds(tutorRef.current);
-          const next = event.key === "ArrowLeft"
-            ? measuredWidth + 24
-            : event.key === "ArrowRight"
-              ? measuredWidth - 24
-              : event.key === "Home"
-                ? bounds.min
-                : event.key === "End"
-                  ? bounds.max
-                  : null;
+          const next =
+            event.key === "ArrowLeft"
+              ? measuredWidth + 24
+              : event.key === "ArrowRight"
+                ? measuredWidth - 24
+                : event.key === "Home"
+                  ? bounds.min
+                  : event.key === "End"
+                    ? bounds.max
+                    : null;
           if (next === null) return;
           event.preventDefault();
           onWidthChange(clampTutorWidth(next, bounds.min, bounds.max));
         }}
       />
       <div className="learn-study-assistant-main">
-        {panel === "chat" && <header
-          ref={historyHeaderRef}
-          className="learn-study-assistant-header"
-          onBlur={(event) => {
-            if (!event.currentTarget.contains(event.relatedTarget as Node | null))
-              setHistoryOpen(false);
-          }}
-          onKeyDown={(event) => {
-            if (event.key !== "Escape" || !historyOpen) return;
-            event.preventDefault();
-            setHistoryOpen(false);
-            historyTriggerRef.current?.focus();
-          }}
-        >
-          <h2>学习助手</h2>
-          <div>
-            <button
-              ref={historyTriggerRef}
-              className="learn-assistant-icon-button"
-              type="button"
-              aria-label="会话历史"
-              aria-expanded={historyOpen}
-              aria-controls="learn-tutor-history"
-              title="会话历史"
-              disabled={busy || chatBusy}
-              onClick={() => historyOpen ? setHistoryOpen(false) : void showHistory()}
-            >
-              <History size={17} />
-            </button>
-            <button
-              className="learn-assistant-icon-button"
-              type="button"
-              aria-label="新开导师对话"
-              title="新开对话"
-              disabled={busy || chatBusy}
-              onClick={() => {
+        {panel === "chat" && (
+          <header
+            ref={historyHeaderRef}
+            className="learn-study-assistant-header"
+            onBlur={(event) => {
+              if (
+                !event.currentTarget.contains(
+                  event.relatedTarget as Node | null,
+                )
+              )
                 setHistoryOpen(false);
-                void connect(true);
-              }}
-            >
-              <Plus size={17} />
-            </button>
-            <button
-              className="learn-tutor-expand"
-              onClick={onToggleExpand}
-              aria-expanded={expanded}
-            >
-              {expanded ? "返回课程" : "展开助手"}
-            </button>
-          </div>
-          {historyOpen && (
-            <section
-              id="learn-tutor-history"
-              className="learn-tutor-history-popover"
-              role="group"
-              aria-label="本课会话历史"
-            >
-              <div className="learn-tutor-history-heading">
-                <strong>会话历史</strong>
-                <span>本课</span>
-              </div>
-              {historyLoading ? (
-                <p className="learn-tutor-history-empty">正在加载…</p>
-              ) : historyError ? (
-                <p className="learn-tutor-history-empty" role="alert">{historyError}</p>
-              ) : history.length ? (
-                <div className="learn-tutor-history-list">
-                  {history.map((item) => (
-                    <button
-                      key={item.chatId}
-                      type="button"
-                      aria-current={session?.identity.id === item.chatId ? "true" : undefined}
-                      disabled={busy || chatBusy}
-                      onClick={() => void selectHistory(item.chatId)}
-                    >
-                      <span className="learn-tutor-history-title">
-                        {item.title.trim() || "未命名对话"}
-                      </span>
-                      <span className="learn-tutor-history-meta">
-                        {new Date(item.updatedAt).toLocaleString("zh-CN")}
-                        {session?.identity.id === item.chatId && <em>当前</em>}
-                      </span>
-                    </button>
-                  ))}
+            }}
+            onKeyDown={(event) => {
+              if (event.key !== "Escape" || !historyOpen) return;
+              event.preventDefault();
+              setHistoryOpen(false);
+              historyTriggerRef.current?.focus();
+            }}
+          >
+            <h2>学习助手</h2>
+            <div>
+              <button
+                ref={historyTriggerRef}
+                className="learn-assistant-icon-button"
+                type="button"
+                aria-label="会话历史"
+                aria-expanded={historyOpen}
+                aria-controls="learn-tutor-history"
+                title="会话历史"
+                disabled={busy || chatBusy}
+                onClick={() =>
+                  historyOpen ? setHistoryOpen(false) : void showHistory()
+                }
+              >
+                <History size={17} />
+              </button>
+              <button
+                className="learn-assistant-icon-button"
+                type="button"
+                aria-label="新开导师对话"
+                title="新开对话"
+                disabled={busy || chatBusy}
+                onClick={() => {
+                  setHistoryOpen(false);
+                  void connect(true);
+                }}
+              >
+                <Plus size={17} />
+              </button>
+              <button
+                className="learn-tutor-expand"
+                onClick={onToggleExpand}
+                aria-expanded={expanded}
+              >
+                {expanded ? "返回课程" : "展开助手"}
+              </button>
+            </div>
+            {historyOpen && (
+              <section
+                id="learn-tutor-history"
+                className="learn-tutor-history-popover"
+                role="group"
+                aria-label="本课会话历史"
+              >
+                <div className="learn-tutor-history-heading">
+                  <strong>会话历史</strong>
+                  <span>本课</span>
                 </div>
-              ) : (
-                <p className="learn-tutor-history-empty">暂无本课历史会话</p>
-              )}
-            </section>
-          )}
-        </header>}
+                {historyLoading ? (
+                  <p className="learn-tutor-history-empty">正在加载…</p>
+                ) : historyError ? (
+                  <p className="learn-tutor-history-empty" role="alert">
+                    {historyError}
+                  </p>
+                ) : history.length ? (
+                  <div className="learn-tutor-history-list">
+                    {history.map((item) => (
+                      <button
+                        key={item.chatId}
+                        type="button"
+                        aria-current={
+                          session?.identity.id === item.chatId
+                            ? "true"
+                            : undefined
+                        }
+                        disabled={busy || chatBusy}
+                        onClick={() => void selectHistory(item.chatId)}
+                      >
+                        <span className="learn-tutor-history-title">
+                          {item.title.trim() || "未命名对话"}
+                        </span>
+                        <span className="learn-tutor-history-meta">
+                          {new Date(item.updatedAt).toLocaleString("zh-CN")}
+                          {session?.identity.id === item.chatId && (
+                            <em>当前</em>
+                          )}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="learn-tutor-history-empty">暂无本课历史会话</p>
+                )}
+              </section>
+            )}
+          </header>
+        )}
         {tabs.map(({ id }) => (
           <section
             key={id}
@@ -618,15 +669,18 @@ export function Tutor({
 const tutorPresetQuestions = [
   {
     label: "这节课最该掌握什么？",
-    prompt: "请结合本课学习目标，用通俗的话概括这节课最重要的知识点，并说明为什么重要。",
+    prompt:
+      "请结合本课学习目标，用通俗的话概括这节课最重要的知识点，并说明为什么重要。",
   },
   {
     label: "能换个实际例子讲吗？",
-    prompt: "请用一个不同于课文示例的生活或工作场景，一步步解释这节课的核心概念。",
+    prompt:
+      "请用一个不同于课文示例的生活或工作场景，一步步解释这节课的核心概念。",
   },
   {
     label: "能出一道题考考我吗？",
-    prompt: "请根据这节课出一道能检验理解的小题，先不要给答案，等我回答后再讲解。",
+    prompt:
+      "请根据这节课出一道能检验理解的小题，先不要给答案，等我回答后再讲解。",
   },
 ];
 
@@ -666,7 +720,8 @@ export function TutorConversation() {
   const models = binding.controls.resources.models ?? [];
   const selectedModelId = binding.controls.options.selectedModelId;
   const selectedModel = models.find((model) => model.value === selectedModelId);
-  const selectedModelName = selectedModel?.selectedLabel || selectedModel?.label || "暂无可用模型";
+  const selectedModelName =
+    selectedModel?.selectedLabel || selectedModel?.label || "暂无可用模型";
   return (
     <>
       <div className="learn-study-conversation">
@@ -691,7 +746,9 @@ export function TutorConversation() {
           </div>
         )}
       </div>
-      <div className={`learn-study-compose-area ${modelMenuOpen ? "is-popover-open" : ""}`}>
+      <div
+        className={`learn-study-compose-area ${modelMenuOpen ? "is-popover-open" : ""}`}
+      >
         <Chat.Error />
         <Chat.Question />
         {error && <Notice>{error}</Notice>}
@@ -734,7 +791,11 @@ export function TutorConversation() {
             className="learn-assistant-model"
             ref={modelMenuRef}
             onBlur={(event) => {
-              if (!event.currentTarget.contains(event.relatedTarget as Node | null))
+              if (
+                !event.currentTarget.contains(
+                  event.relatedTarget as Node | null,
+                )
+              )
                 setModelMenuOpen(false);
             }}
             onKeyDown={(event) => {
@@ -759,20 +820,28 @@ export function TutorConversation() {
               <Icon name="chevronDown" size={15} />
             </button>
             {modelMenuOpen && (
-              <div className="learn-assistant-model-menu" role="group" aria-label="可用学习助手模型">
+              <div
+                className="learn-assistant-model-menu"
+                role="group"
+                aria-label="可用学习助手模型"
+              >
                 {models.map((model) => (
                   <button
                     key={model.value}
                     type="button"
                     aria-pressed={model.value === selectedModelId}
                     onClick={() => {
-                      binding.controls.updateOptions({ selectedModelId: model.value });
+                      binding.controls.updateOptions({
+                        selectedModelId: model.value,
+                      });
                       setModelMenuOpen(false);
                       modelTriggerRef.current?.focus();
                     }}
                   >
                     <span>{model.selectedLabel || model.label}</span>
-                    {model.value === selectedModelId && <Icon name="check" size={15} />}
+                    {model.value === selectedModelId && (
+                      <Icon name="check" size={15} />
+                    )}
                   </button>
                 ))}
               </div>

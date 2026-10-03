@@ -1,11 +1,18 @@
+import { PRODUCT_NAMESPACE } from "@mewvis/product-config";
 import { randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import { once } from "node:events";
 import { createServer, createConnection, type Socket } from "node:net";
 import { createInterface } from "node:readline";
-import type { ExecutionTransport, TransportCallbacks, WorkerConnection } from "../../execution/types.js";
+import type {
+  ExecutionTransport,
+  TransportCallbacks,
+  WorkerConnection,
+} from "../../execution/types.js";
 
-export async function createTransport(callbacks: TransportCallbacks): Promise<ExecutionTransport> {
-  const path = `\\\\.\\pipe\\mewvis-agent-${randomUUID()}`;
+export async function createTransport(
+  callbacks: TransportCallbacks,
+): Promise<ExecutionTransport> {
+  const path = `\\\\.\\pipe\\${PRODUCT_NAMESPACE}-agent-${randomUUID()}`;
   const token = randomBytes(32).toString("hex");
   const pending: string[] = [];
   let channel: Socket | undefined;
@@ -44,13 +51,19 @@ export async function createTransport(callbacks: TransportCallbacks): Promise<Ex
     socket.once("close", () => {
       sockets.delete(socket);
       clearTimeout(timer);
-      if (authenticated && !closed) callbacks.fail(new Error("执行通道已关闭。"));
+      if (authenticated && !closed)
+        callbacks.fail(new Error("执行通道已关闭。"));
     });
   });
   server.listen({ path, readableAll: true, writableAll: true });
   await once(server, "listening");
   return {
-    args: ["--mewvis-channel", path, "--mewvis-token", token],
+    args: [
+      `--${PRODUCT_NAMESPACE}-channel`,
+      path,
+      `--${PRODUCT_NAMESPACE}-token`,
+      token,
+    ],
     stdio: ["ignore", "pipe", "pipe"],
     attach() {},
     send(line) {
@@ -67,11 +80,20 @@ export async function createTransport(callbacks: TransportCallbacks): Promise<Ex
 }
 
 export function connectWorker(): WorkerConnection {
-  const channelIndex = process.argv.indexOf("--mewvis-channel");
-  const tokenIndex = process.argv.indexOf("--mewvis-token");
-  if (channelIndex < 0 || tokenIndex < 0 || !process.argv[channelIndex + 1] || !process.argv[tokenIndex + 1])
+  const channelIndex = process.argv.indexOf(`--${PRODUCT_NAMESPACE}-channel`);
+  const tokenIndex = process.argv.indexOf(`--${PRODUCT_NAMESPACE}-token`);
+  if (
+    channelIndex < 0 ||
+    tokenIndex < 0 ||
+    !process.argv[channelIndex + 1] ||
+    !process.argv[tokenIndex + 1]
+  )
     throw new Error("缺少 Windows 执行通道参数。");
   const channel = createConnection(process.argv[channelIndex + 1]);
-  channel.once("connect", () => channel.write(`${JSON.stringify({ token: process.argv[tokenIndex + 1] })}\n`));
+  channel.once("connect", () =>
+    channel.write(
+      `${JSON.stringify({ token: process.argv[tokenIndex + 1] })}\n`,
+    ),
+  );
   return { input: channel, output: channel };
 }

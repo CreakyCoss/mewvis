@@ -34,6 +34,9 @@
     "build:web": "pnpm build:server && pnpm --filter client build",
     "start:web": "node apps/server/dist/cli.js --web",
     "test:web": "pnpm build:web && pnpm --filter client test:web",
-    "build:runtime": "pnpm --filter @mewvis/agent-runtime build"
+    "build:runtime": "pnpm --filter @mewvis/agent-runtime build",
+    "sync-product-config": "node scripts/maintenance/sync-product-config.mjs",
+    "check:product-config": "node scripts/maintenance/sync-product-config.mjs --check",
+    "test:product-config": "node --test scripts/maintenance/product-config.test.mjs"
   }
 }

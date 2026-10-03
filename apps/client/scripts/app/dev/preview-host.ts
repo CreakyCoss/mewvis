@@ -1,3 +1,4 @@
+import { APP_DISPLAY_NAME } from "@mewvis/product-config";
 import type { MewvisToolRisk } from "@mewvis/app-sdk";
 import type { ApplicationChatEvent } from "@mewvis/app-sdk/chat";
 import { agentPermissionOptions } from "../../../src/agent-client/wire";
@@ -72,7 +73,10 @@ export function createPreviewChat(options: {
           if (!request.params.name.trim() || request.params.path !== undefined)
             return {
               ok: false,
-              error: { code: "INVALID_ARGUMENT", message: "内存预览只支持命名的虚拟目录，真实目录请在 Mewvis 中选择" },
+              error: {
+                code: "INVALID_ARGUMENT",
+                message: `内存预览只支持命名的虚拟目录，真实目录请在 ${APP_DISPLAY_NAME} 中选择`,
+              },
             };
           const id = crypto.randomUUID();
           const workspace = { id, name: request.params.name.trim(), path: `/memory/${id}`, isDefault: false };
@@ -150,7 +154,7 @@ export function createPreviewChat(options: {
                 (tool) => !profileData?.allowedToolNames || profileData.allowedToolNames.includes(tool.name),
               )?.name;
               if (toolName && (turn.input.text.includes("工具") || turn.input.text.includes(toolName))) {
-                const args = { text: "Hello Mewvis 👋" };
+                const args = { text: `Hello ${APP_DISPLAY_NAME} 👋` };
                 const toolCallId = `${turn.taskId}-tool`;
                 emit(turn.taskId, { type: "tool_execution_start", toolCallId, toolName, args });
                 let result: unknown;
@@ -255,12 +259,13 @@ export function createPreviewChat(options: {
   } as unknown as DesktopChatService;
   const dataClient = createApplicationDataClient(data);
   const host = createApplicationChatHost(service, {
-    models: async () => (resources.models ?? []).map(({ value, label }) => ({
-      id: value,
-      provider: { id: "preview", name: "预览" },
-      modelId: value,
-      modelName: label,
-    })),
+    models: async () =>
+      (resources.models ?? []).map(({ value, label }) => ({
+        id: value,
+        provider: { id: "preview", name: "预览" },
+        modelId: value,
+        modelName: label,
+      })),
     deleteRecord: async (workspacePath, chatId) => {
       sources.delete(JSON.stringify([workspacePath, chatId]));
       for (const [key, entry] of metadata)

@@ -1,8 +1,9 @@
+import { productId } from "@mewvis/product-config";
 import { roles } from "./roles";
 import { defineExtension } from "@mewvis/extension-sdk/agent";
 import { workflows, runWorkflow } from "./workflows";
 export default defineExtension({
-  id: "mewvis.collaboration",
+  id: productId(".collaboration"),
   apiVersion: 1,
   setup(ctx) {
     const flows = workflows(ctx.config);

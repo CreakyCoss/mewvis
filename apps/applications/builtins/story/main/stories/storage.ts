@@ -1,3 +1,4 @@
+import { APP_DISPLAY_NAME } from "@mewvis/product-config";
 import { data } from "@/platform/bridge";
 import {
   createStoryRecord as createStoryRecordApi,
@@ -54,9 +55,14 @@ const storyWorkspaceFromRecord = (record: StoryRecord): StoryWorkspace => ({
   path: record.workspacePath,
 });
 
-const storyLibraryItemFromRecord = async (record: StoryRecord): Promise<StoryLibraryItem> => {
+const storyLibraryItemFromRecord = async (
+  record: StoryRecord,
+): Promise<StoryLibraryItem> => {
   const project = await storyProjectApi.open(record.workspacePath);
-  const [documents, overview] = await Promise.all([project.listDocuments(), project.overview()]);
+  const [documents, overview] = await Promise.all([
+    project.listDocuments(),
+    project.overview(),
+  ]);
   return {
     id: record.id,
     documents,
@@ -92,7 +98,10 @@ export const createStory = async (
       storyId: record.id,
       title: record.name,
     });
-    const [documents, overview] = await Promise.all([project.listDocuments(), project.overview()]);
+    const [documents, overview] = await Promise.all([
+      project.listDocuments(),
+      project.overview(),
+    ]);
     return {
       record,
       workspace,
@@ -116,25 +125,40 @@ const importWorkspaceCandidates = (selectedPath: string) => {
   return [...new Set(candidates.filter(Boolean))];
 };
 
-export const importStory = async (selectedPath: string): Promise<StoryLibraryItem> => {
+export const importStory = async (
+  selectedPath: string,
+): Promise<StoryLibraryItem> => {
   const candidates = importWorkspaceCandidates(selectedPath);
-  let reason = "所选目录不是 Mewvis 故事工作区。";
+  let reason = `所选目录不是 ${APP_DISPLAY_NAME} 故事工作区。`;
 
   for (const workspacePath of candidates) {
     const previous = await data().workspaces.list();
-    const enrolled = await data().workspaces.create({ name: workspacePath.split(/[\\/]/).filter(Boolean).at(-1) || "故事", path: workspacePath });
+    const enrolled = await data().workspaces.create({
+      name: workspacePath.split(/[\\/]/).filter(Boolean).at(-1) || "故事",
+      path: workspacePath,
+    });
     if (!enrolled) throw new Error("已取消导入故事");
-    const compatibility = await storyProjectApi.checkCompatibility(enrolled.path);
+    const compatibility = await storyProjectApi.checkCompatibility(
+      enrolled.path,
+    );
     if (compatibility.status !== "compatible") {
       reason = compatibility.reason || reason;
-      if (!previous.some(item => item.id === enrolled.id)) await data().workspaces.remove({ id: enrolled.id });
+      if (!previous.some((item) => item.id === enrolled.id))
+        await data().workspaces.remove({ id: enrolled.id });
       continue;
     }
 
     const project = await storyProjectApi.open(enrolled.path);
-    const [documents, overview] = await Promise.all([project.listDocuments(), project.overview()]);
-    const fallbackName = workspacePath.split(/[\\/]/).filter(Boolean).at(-1) || "未命名故事";
-    const record = await importStoryRecord(overview.title.trim() || fallbackName, enrolled.path);
+    const [documents, overview] = await Promise.all([
+      project.listDocuments(),
+      project.overview(),
+    ]);
+    const fallbackName =
+      workspacePath.split(/[\\/]/).filter(Boolean).at(-1) || "未命名故事";
+    const record = await importStoryRecord(
+      overview.title.trim() || fallbackName,
+      enrolled.path,
+    );
     return {
       id: record.id,
       documents,
@@ -151,15 +175,23 @@ export const loadStoryLibrary = async (): Promise<StoryLibraryEntry[]> => {
   return Promise.all(
     records.map(async (record) => {
       try {
-        return { ...(await storyLibraryItemFromRecord(record)), status: "ready" as const };
+        return {
+          ...(await storyLibraryItemFromRecord(record)),
+          status: "ready" as const,
+        };
       } catch (error) {
         console.warn("Story workspace is unavailable", record.id, error);
-        const compatibility = await storyProjectApi.checkCompatibility(record.workspacePath).catch((checkError) => ({
-          status: "incompatible" as const,
-          current: null,
-          target: null,
-          reason: checkError instanceof Error ? checkError.message : String(checkError),
-        }));
+        const compatibility = await storyProjectApi
+          .checkCompatibility(record.workspacePath)
+          .catch((checkError) => ({
+            status: "incompatible" as const,
+            current: null,
+            target: null,
+            reason:
+              checkError instanceof Error
+                ? checkError.message
+                : String(checkError),
+          }));
         return {
           status: "unavailable" as const,
           id: record.id,
@@ -171,10 +203,14 @@ export const loadStoryLibrary = async (): Promise<StoryLibraryEntry[]> => {
   );
 };
 
-export const upgradeStoryProject = (workspace: StoryWorkspace): Promise<StoryProjectUpgradeResult> =>
+export const upgradeStoryProject = (
+  workspace: StoryWorkspace,
+): Promise<StoryProjectUpgradeResult> =>
   storyProjectApi.upgrade(workspace.path);
 
-export const loadStoryById = async (storyId: string): Promise<StoryLibraryItem | null> => {
+export const loadStoryById = async (
+  storyId: string,
+): Promise<StoryLibraryItem | null> => {
   const record = (await listStoryRecords()).find((item) => item.id === storyId);
   return record ? storyLibraryItemFromRecord(record) : null;
 };

@@ -1,3 +1,4 @@
+import { PRODUCT_KEYS } from "@mewvis/product-config";
 import { readFileSync, readdirSync, realpathSync, statSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
 import { dirname, isAbsolute, relative, resolve } from "node:path";
@@ -123,7 +124,7 @@ export function readExtensionPackage(
   );
   const packageJson = decode(JSON.parse(readFileSync(manifestPath, "utf8")));
   assertValid(validateManifest, packageJson, "插件清单无效或能力尚不支持");
-  const manifest = packageJson["mewvis.plugin"];
+  const manifest = packageJson[PRODUCT_KEYS.pluginManifest];
   const modules = {};
   const paths = new Set();
   for (const [kind, declaration] of Object.entries(manifest.modules)) {
@@ -149,10 +150,18 @@ export function readExtensionPackage(
       modules.ui.contributions.length
   )
     throw new Error("插件 UI 贡献 ID 重复");
-  for (const action of modules.ui?.contributions.filter((item) => item.type === "action") ?? []) {
-    if (!modules.ui.contributions.some((item) =>
-      item.id === action.trigger.id && item.type === "dialog" && item.slot === "session.dialog",
-    )) throw new Error(`操作入口 ${action.id} 必须指向同插件声明的会话弹窗`);
+  for (const action of modules.ui?.contributions.filter(
+    (item) => item.type === "action",
+  ) ?? []) {
+    if (
+      !modules.ui.contributions.some(
+        (item) =>
+          item.id === action.trigger.id &&
+          item.type === "dialog" &&
+          item.slot === "session.dialog",
+      )
+    )
+      throw new Error(`操作入口 ${action.id} 必须指向同插件声明的会话弹窗`);
   }
   // Compile schema now, but required configuration may be supplied at registration time.
   if (manifest.configuration)

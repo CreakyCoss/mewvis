@@ -1,3 +1,4 @@
+import { productId } from "@mewvis/product-config";
 /** The bearer token stays in this local process; Vite never embeds it in client code. */
 export function webBackendConfig(url, token) {
   const target = new URL(url);
@@ -40,7 +41,7 @@ export function webBackendConfig(url, token) {
     },
   };
   return {
-    plugins: [{ name: "mewvis-local-backend", configureServer: guard }],
+    plugins: [{ name: productId("-local-backend"), configureServer: guard }],
     server: { host: "127.0.0.1", proxy },
   };
 }

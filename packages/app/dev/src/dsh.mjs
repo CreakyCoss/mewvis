@@ -1,3 +1,4 @@
+import { productId } from "@mewvis/product-config";
 import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
@@ -10,7 +11,7 @@ const versionRequirePattern =
  * points at the package, so inline the package version while loading the source.
  */
 export const dshBundleCompatibilityPlugin = {
-  name: "mewvis-dsh-bundle-compatibility",
+  name: productId("-dsh-bundle-compatibility"),
   setup(build) {
     build.onLoad(
       { filter: /[\\/]@deepseek-ai[\\/]dsh-llm[\\/]lib[\\/]index\.js$/ },

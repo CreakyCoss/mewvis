@@ -10,7 +10,7 @@ export function desktopPlatformFixture(globalName = "__platformFixture", titleBa
     setup(build) {
       build.initialOptions.define = {
         ...build.initialOptions.define,
-        "import.meta.env.MEWVIS_TITLE_BAR_STYLE": JSON.stringify(titleBarStyle),
+        __APP_TITLE_BAR_STYLE__: JSON.stringify(titleBarStyle),
       };
       build.onResolve({ filter: /^@platform-impl$/ }, () => ({ path: adapter }));
       build.onResolve({ filter: /^@tauri-apps\/(api\/(core|window)|plugin-(dialog|opener))$/ }, ({ path }) => ({

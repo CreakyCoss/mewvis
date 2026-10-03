@@ -1,3 +1,4 @@
+import { PRODUCT_CONFIG, productId } from "@mewvis/product-config";
 import { build } from "esbuild";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -6,7 +7,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 export async function buildRssUi() {
   await build({
     entryPoints: [resolve(root, "ui/main.tsx")],
-    outfile: resolve(root, "mewvis-ui.js"),
+    outfile: resolve(root, PRODUCT_CONFIG.files.appUiScript),
     bundle: true,
     format: "iife",
     platform: "browser",

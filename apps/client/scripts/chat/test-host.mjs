@@ -1,3 +1,4 @@
+import { productId } from "@mewvis/product-config";
 import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -31,7 +32,7 @@ const bundled = await build({
     },
   ],
 });
-const output = mkdtempSync(join(tmpdir(), "mewvis-chat-tests-"));
+const output = mkdtempSync(join(tmpdir(), productId("-chat-tests-")));
 try {
   const file = join(output, "test.mjs");
   writeFileSync(file, bundled.outputFiles[0].text);

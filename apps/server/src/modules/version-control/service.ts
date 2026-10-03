@@ -1,3 +1,4 @@
+import { APP_DISPLAY_NAME, PRODUCT_CONFIG } from "@mewvis/product-config";
 import * as fs from "node:fs/promises";
 import { join, basename } from "node:path";
 import { devNull } from "node:os";
@@ -81,7 +82,7 @@ export class VersionControl {
         path,
         value +
           (value && !value.endsWith("\n") ? "\n" : "") +
-          "\n# Mewvis local data\n" +
+          `\n# ${APP_DISPLAY_NAME} local data\n` +
           missing.join("\n") +
           "\n",
       );
@@ -417,10 +418,10 @@ export class VersionControl {
       throw new ServiceError(409, "NO_CHANGES", "没有可提交的文件变更");
     const name =
       (await this.git(base, ["config", "user.name"], [1])).stdout.trim() ||
-      "Mewvis";
+      PRODUCT_CONFIG.versionControl.authorName;
     const email =
       (await this.git(base, ["config", "user.email"], [1])).stdout.trim() ||
-      "mewvis@local";
+      PRODUCT_CONFIG.versionControl.authorEmail;
     const id = (
       await this.git(base, [
         "-c",

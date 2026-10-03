@@ -1,13 +1,32 @@
+import { APP_DISPLAY_NAME, PRODUCT_NAMESPACE } from "@mewvis/product-config";
 import type { MewvisToolRisk } from "@mewvis/app-sdk";
 import { isRiskLevel } from "@mewvis/chat-contracts";
-import { createApplicationChatClient, type ApplicationChatClient } from "@mewvis/app-sdk/chat";
-import { createApplicationDataClient, type ApplicationDataClient } from "@mewvis/app-sdk/data";
+import {
+  createApplicationChatClient,
+  type ApplicationChatClient,
+} from "@mewvis/app-sdk/chat";
+import {
+  createApplicationDataClient,
+  type ApplicationDataClient,
+} from "@mewvis/app-sdk/data";
 import { Context, Inject, type Fiber, type Plugin } from "@deepseek-ai/cordis";
-import { SkillRegistry, type SkillDefinition, type SkillSummary, type SkillViewOptions } from "@deepseek-ai/dsh-skill";
-import { SettingsProvider, type SettingsNamespace } from "@deepseek-ai/dsh-settings";
+import {
+  SkillRegistry,
+  type SkillDefinition,
+  type SkillSummary,
+  type SkillViewOptions,
+} from "@deepseek-ai/dsh-skill";
+import {
+  SettingsProvider,
+  type SettingsNamespace,
+} from "@deepseek-ai/dsh-settings";
 import { FileSettingsProvider } from "@deepseek-ai/dsh-settings-file";
 import { SystemPrompt } from "@deepseek-ai/dsh-system-prompt";
-import { ToolRuntime, type ToolExecutionInput, type ToolExecutionResult } from "@deepseek-ai/dsh-tools";
+import {
+  ToolRuntime,
+  type ToolExecutionInput,
+  type ToolExecutionResult,
+} from "@deepseek-ai/dsh-tools";
 import { lstat, mkdir, readFile, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { dirname, extname, isAbsolute, join, resolve, sep } from "node:path";
@@ -75,7 +94,10 @@ class MemorySettingsProvider extends SettingsProvider {
     return Promise.resolve({});
   }
 
-  protected persist(_namespace: SettingsNamespace, _section: Record<string, unknown>): Promise<void> {
+  protected persist(
+    _namespace: SettingsNamespace,
+    _section: Record<string, unknown>,
+  ): Promise<void> {
     return Promise.resolve();
   }
 }
@@ -86,15 +108,22 @@ class ApplicationFileSettingsProvider extends FileSettingsProvider {
     const path = this.documentPath;
     await mkdir(dirname(path), { recursive: true, mode: 0o700 });
     try {
-      await writeFile(path, "$mewvisApplicationSettings: 1\n", { flag: "wx", mode: 0o600 });
+      await writeFile(path, `$${PRODUCT_NAMESPACE}ApplicationSettings: 1\n`, {
+        flag: "wx",
+        mode: 0o600,
+      });
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
       const info = await lstat(path);
-      if (!info.isFile() || info.nlink > 1) throw new Error(`应用配置文件不能重定向：${path}`);
+      if (!info.isFile() || info.nlink > 1)
+        throw new Error(`应用配置文件不能重定向：${path}`);
     }
   }
 
-  protected async persist(namespace: SettingsNamespace, section: Record<string, unknown>) {
+  protected async persist(
+    namespace: SettingsNamespace,
+    section: Record<string, unknown>,
+  ) {
     await this.prepareMarker();
     await super.persist(namespace, section);
   }
@@ -111,14 +140,22 @@ const requiredApplicationId = (id: string) => {
   return value;
 };
 
-const awaitApplicationStart = async (task: PromiseLike<unknown>, label: string) => {
+const awaitApplicationStart = async (
+  task: PromiseLike<unknown>,
+  label: string,
+) => {
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     await Promise.race([
       task,
       new Promise<never>((_, reject) => {
         timer = setTimeout(
-          () => reject(new Error(`应用启动超时：${label}。它可能依赖 Mewvis 尚未提供的宿主服务。`)),
+          () =>
+            reject(
+              new Error(
+                `应用启动超时：${label}。它可能依赖 ${APP_DISPLAY_NAME} 尚未提供的宿主服务。`,
+              ),
+            ),
           APPLICATION_START_TIMEOUT_MS,
         );
         timer.unref?.();
@@ -132,24 +169,35 @@ const awaitApplicationStart = async (task: PromiseLike<unknown>, label: string) 
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
-const parseBundleEntries = async (patchPath: string): Promise<BundleEntry[]> => {
+const parseBundleEntries = async (
+  patchPath: string,
+): Promise<BundleEntry[]> => {
   let parsed: unknown;
   try {
-    parsed = loadYaml(await readFile(patchPath, "utf8"), { schema: JSON_SCHEMA });
+    parsed = loadYaml(await readFile(patchPath, "utf8"), {
+      schema: JSON_SCHEMA,
+    });
   } catch (error) {
     throw new Error(
-      `无法解析 DSH bundle patch（Mewvis 不执行 !!js 表达式）：${error instanceof Error ? error.message : String(error)}`,
+      `无法解析 DSH bundle patch（${APP_DISPLAY_NAME} 不执行 !!js 表达式）：${error instanceof Error ? error.message : String(error)}`,
     );
   }
-  if (!Array.isArray(parsed)) throw new Error("DSH bundle patch 顶层必须是数组。");
+  if (!Array.isArray(parsed))
+    throw new Error("DSH bundle patch 顶层必须是数组。");
 
   const entries: BundleEntry[] = [];
   const appendEntries = (value: unknown, parent = "insert") => {
-    if (!Array.isArray(value)) throw new Error(`DSH bundle ${parent} 必须是数组。`);
+    if (!Array.isArray(value))
+      throw new Error(`DSH bundle ${parent} 必须是数组。`);
     for (const candidate of value) {
-      if (!isObject(candidate)) throw new Error("DSH bundle entry 必须是对象。");
-      const id = typeof candidate.id === "string" ? requiredApplicationId(candidate.id) : "";
-      const name = typeof candidate.name === "string" ? candidate.name.trim() : "";
+      if (!isObject(candidate))
+        throw new Error("DSH bundle entry 必须是对象。");
+      const id =
+        typeof candidate.id === "string"
+          ? requiredApplicationId(candidate.id)
+          : "";
+      const name =
+        typeof candidate.name === "string" ? candidate.name.trim() : "";
       const group = candidate.group === true;
       const disabled = candidate.disabled === true;
       if (!id) throw new Error("DSH bundle entry 缺少 id。");
@@ -158,32 +206,53 @@ const parseBundleEntries = async (patchPath: string): Promise<BundleEntry[]> => 
         continue;
       }
       if (!name) throw new Error(`DSH bundle entry ${id} 缺少 name。`);
-      if (!disabled) entries.push({ id, name, config: candidate.config, inject: candidate.inject });
+      if (!disabled)
+        entries.push({
+          id,
+          name,
+          config: candidate.config,
+          inject: candidate.inject,
+        });
     }
   };
 
   for (const candidate of parsed) {
-    if (!isObject(candidate)) throw new Error("DSH bundle patch 必须由对象组成。");
+    if (!isObject(candidate))
+      throw new Error("DSH bundle patch 必须由对象组成。");
     const patch = candidate as BundlePatch;
     // A bundle is applied over Mewvis's intentionally small empty profile. Rows
     // that only override a full DSH base entry have no target here.
-    if (patch.insert !== undefined && patch.id === undefined) appendEntries(patch.insert);
+    if (patch.insert !== undefined && patch.id === undefined)
+      appendEntries(patch.insert);
   }
-  if (entries.length === 0) throw new Error("DSH bundle 没有可注入 Mewvis 宿主的顶层 insert entry。");
+  if (entries.length === 0)
+    throw new Error(
+      `DSH bundle 没有可注入 ${APP_DISPLAY_NAME} 宿主的顶层 insert entry。`,
+    );
   return entries;
 };
 
-const resolveBundleEntry = (entry: BundleEntry, options: DshCompatBundleOptions): string => {
+const resolveBundleEntry = (
+  entry: BundleEntry,
+  options: DshCompatBundleOptions,
+): string => {
   const packageRoot = resolve(options.packageRoot);
-  if (entry.name === options.packageName && options.entrySpecifier) return options.entrySpecifier;
+  if (entry.name === options.packageName && options.entrySpecifier)
+    return options.entrySpecifier;
   if (entry.name.startsWith("./") || entry.name.startsWith("../")) {
     const candidate = resolve(packageRoot, entry.name);
-    if (candidate !== packageRoot && !candidate.startsWith(`${packageRoot}${sep}`)) {
-      throw new Error(`DSH bundle entry ${entry.id} 的相对模块越过了应用目录。`);
+    if (
+      candidate !== packageRoot &&
+      !candidate.startsWith(`${packageRoot}${sep}`)
+    ) {
+      throw new Error(
+        `DSH bundle entry ${entry.id} 的相对模块越过了应用目录。`,
+      );
     }
     return candidate;
   }
-  if (isAbsolute(entry.name)) throw new Error(`DSH bundle entry ${entry.id} 不允许使用绝对模块路径。`);
+  if (isAbsolute(entry.name))
+    throw new Error(`DSH bundle entry ${entry.id} 不允许使用绝对模块路径。`);
   try {
     return createRequire(join(packageRoot, "package.json")).resolve(entry.name);
   } catch (error) {
@@ -211,7 +280,9 @@ export const resolveCordisApplicationModule = (module: object): Plugin => {
       return candidate as Plugin;
     }
   }
-  throw new Error("模块没有导出 Cordis 应用入口；需要 default application 或具名 apply(ctx, config)。");
+  throw new Error(
+    "模块没有导出 Cordis 应用入口；需要 default application 或具名 apply(ctx, config)。",
+  );
 };
 
 /**
@@ -223,7 +294,10 @@ export class CordisApplicationHost {
   readonly context: Context;
 
   private readonly loaded = new Map<CordisApplicationId, LoadedApplication>();
-  private readonly settingsScopes = new Map<string, { scope: Context; fiber: Fiber }>();
+  private readonly settingsScopes = new Map<
+    string,
+    { scope: Context; fiber: Fiber }
+  >();
   private disposed = false;
 
   private constructor(
@@ -242,7 +316,11 @@ export class CordisApplicationHost {
     try {
       if (options.settingsPath && !options.applicationSettingsRoot) {
         const settingsLocation = resolve(options.settingsPath);
-        if ([".yaml", ".yml", ".json"].includes(extname(settingsLocation).toLowerCase())) {
+        if (
+          [".yaml", ".yml", ".json"].includes(
+            extname(settingsLocation).toLowerCase(),
+          )
+        ) {
           await context.plugin(FileSettingsProvider, {
             path: settingsLocation,
             watch: false,
@@ -266,10 +344,23 @@ export class CordisApplicationHost {
 
       const tools = context.get("tools");
       const skills = context.get("skills");
-      if (!(tools instanceof ToolRuntime) || !(skills instanceof SkillRegistry) || !context.get("settings")) {
-        throw new Error("Mewvis 应用 tools/skills/settings 服务没有完成初始化。");
+      if (
+        !(tools instanceof ToolRuntime) ||
+        !(skills instanceof SkillRegistry) ||
+        !context.get("settings")
+      ) {
+        throw new Error(
+          `${APP_DISPLAY_NAME} 应用 tools/skills/settings 服务没有完成初始化。`,
+        );
       }
-      return new CordisApplicationHost(context, tools, skills, options.chat, options.data, options.applicationSettingsRoot);
+      return new CordisApplicationHost(
+        context,
+        tools,
+        skills,
+        options.chat,
+        options.data,
+        options.applicationSettingsRoot,
+      );
     } catch (error) {
       await context.fiber.dispose();
       throw error;
@@ -288,21 +379,27 @@ export class CordisApplicationHost {
     for (let path = directory; ; path = dirname(path)) {
       try {
         const info = await lstat(path);
-        if (info.isSymbolicLink() || !info.isDirectory()) throw new Error(`应用配置目录不能重定向：${path}`);
+        if (info.isSymbolicLink() || !info.isDirectory())
+          throw new Error(`应用配置目录不能重定向：${path}`);
       } catch (error) {
         if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
       }
-      if (path === this.applicationSettingsRoot || path === dirname(path)) break;
+      if (path === this.applicationSettingsRoot || path === dirname(path))
+        break;
     }
     const path = join(directory, "settings.yaml");
     try {
       const info = await lstat(path);
-      if (!info.isFile() || info.nlink > 1) throw new Error(`应用配置文件不能重定向：${path}`);
+      if (!info.isFile() || info.nlink > 1)
+        throw new Error(`应用配置文件不能重定向：${path}`);
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
     }
     const scope = this.context.isolate("settings");
-    const fiber = scope.registry.plugin(ApplicationFileSettingsProvider, { path, watch: false });
+    const fiber = scope.registry.plugin(ApplicationFileSettingsProvider, {
+      path,
+      watch: false,
+    });
     try {
       await awaitApplicationStart(fiber, `${id} settings`);
     } catch (error) {
@@ -322,24 +419,33 @@ export class CordisApplicationHost {
   async load(id: CordisApplicationId, application: Plugin, config?: unknown) {
     this.assertActive();
     const applicationId = requiredApplicationId(id);
-    if (this.loaded.has(applicationId)) throw new Error(`应用已经加载：${applicationId}`);
+    if (this.loaded.has(applicationId))
+      throw new Error(`应用已经加载：${applicationId}`);
 
     const chat =
       this.chatFactory?.(applicationId) ??
       createApplicationChatClient({
         request: async () => {
-          throw new Error("当前应用运行环境未提供桌面聊天连接或应用未声明 chat 权限");
+          throw new Error(
+            "当前应用运行环境未提供桌面聊天连接或应用未声明 chat 权限",
+          );
         },
         subscribe: () => () => {},
       });
-    const scope = (await this.settingsScope(applicationId)).isolate("chat").isolate("storage").isolate("workspaces");
+    const scope = (await this.settingsScope(applicationId))
+      .isolate("chat")
+      .isolate("storage")
+      .isolate("workspaces");
     const data =
       this.dataFactory?.(applicationId) ??
       createApplicationDataClient({
         version: 1,
         request: async () => ({
           ok: false,
-          error: { code: "CAPABILITY_UNAVAILABLE", message: "当前应用运行环境未提供持久化数据连接" },
+          error: {
+            code: "CAPABILITY_UNAVAILABLE",
+            message: "当前应用运行环境未提供持久化数据连接",
+          },
         }),
       });
     const removeStorage = scope.provide("storage", data.storage);
@@ -355,7 +461,10 @@ export class CordisApplicationHost {
     try {
       await awaitApplicationStart(fiber, applicationId);
       this.assertRequiredServices(applicationId, application, undefined, scope);
-      this.loaded.set(applicationId, Object.freeze({ application, fiber, releaseChat }));
+      this.loaded.set(
+        applicationId,
+        Object.freeze({ application, fiber, releaseChat }),
+      );
     } catch (error) {
       await fiber.dispose();
       releaseChat();
@@ -375,7 +484,10 @@ export class CordisApplicationHost {
    * overrides that target the full DSH base profile are ignored, and `!!js`
    * expressions are rejected instead of evaluated.
    */
-  async loadDshBundle(id: CordisApplicationId, options: DshCompatBundleOptions) {
+  async loadDshBundle(
+    id: CordisApplicationId,
+    options: DshCompatBundleOptions,
+  ) {
     this.assertActive();
     const bundleId = requiredApplicationId(id);
     const entries = await parseBundleEntries(options.patchPath);
@@ -395,7 +507,8 @@ export class CordisApplicationHost {
     const scope = await this.settingsScope(bundleId);
     const pending = modules.map(({ entry, application }) => {
       const applicationId = `${bundleId}:${entry.id}`;
-      if (this.loaded.has(applicationId)) throw new Error(`DSH 应用已经加载：${applicationId}`);
+      if (this.loaded.has(applicationId))
+        throw new Error(`DSH 应用已经加载：${applicationId}`);
       return {
         applicationId,
         entry,
@@ -405,12 +518,23 @@ export class CordisApplicationHost {
     });
 
     try {
-      await awaitApplicationStart(Promise.all(pending.map(({ fiber }) => fiber.await())), bundleId);
+      await awaitApplicationStart(
+        Promise.all(pending.map(({ fiber }) => fiber.await())),
+        bundleId,
+      );
       for (const item of pending) {
-        this.assertRequiredServices(item.applicationId, item.application, item.entry.inject, scope);
+        this.assertRequiredServices(
+          item.applicationId,
+          item.application,
+          item.entry.inject,
+          scope,
+        );
       }
       for (const item of pending) {
-        this.loaded.set(item.applicationId, Object.freeze({ application: item.application, fiber: item.fiber }));
+        this.loaded.set(
+          item.applicationId,
+          Object.freeze({ application: item.application, fiber: item.fiber }),
+        );
       }
     } catch (error) {
       await Promise.allSettled(pending.map(({ fiber }) => fiber.dispose()));
@@ -425,10 +549,18 @@ export class CordisApplicationHost {
   }
 
   /** Load an installed package name or absolute file URL through Node ESM. */
-  async loadSpecifier(id: CordisApplicationId, specifier: string | URL, config?: unknown) {
+  async loadSpecifier(
+    id: CordisApplicationId,
+    specifier: string | URL,
+    config?: unknown,
+  ) {
     this.assertActive();
     const importSpecifier =
-      specifier instanceof URL ? specifier.href : isAbsolute(specifier) ? pathToFileURL(specifier).href : specifier;
+      specifier instanceof URL
+        ? specifier.href
+        : isAbsolute(specifier)
+          ? pathToFileURL(specifier).href
+          : specifier;
     const module = (await import(importSpecifier)) as object;
     await this.loadModule(id, module, config);
   }
@@ -443,7 +575,9 @@ export class CordisApplicationHost {
       await this.releaseSettings(applicationId);
       return true;
     }
-    const bundleEntries = [...this.loaded.entries()].filter(([loadedId]) => loadedId.startsWith(`${applicationId}:`));
+    const bundleEntries = [...this.loaded.entries()].filter(([loadedId]) =>
+      loadedId.startsWith(`${applicationId}:`),
+    );
     if (bundleEntries.length === 0) return false;
     for (const [loadedId] of bundleEntries) this.loaded.delete(loadedId);
     await Promise.all(bundleEntries.map(([, entry]) => entry.fiber.dispose()));
@@ -455,9 +589,13 @@ export class CordisApplicationHost {
     this.assertActive();
     return this.tools.schemas().map((schema) => {
       const definition = this.tools.get(schema.name);
-      const risk = definition && "risk" in definition ? definition.risk : undefined;
+      const risk =
+        definition && "risk" in definition ? definition.risk : undefined;
       if (risk === undefined) return schema;
-      if (!isRiskLevel(risk)) throw new Error(`工具 ${schema.name} 的 risk 必须是 low、medium 或 high`);
+      if (!isRiskLevel(risk))
+        throw new Error(
+          `工具 ${schema.name} 的 risk 必须是 low、medium 或 high`,
+        );
       return { ...schema, risk };
     });
   }
@@ -478,7 +616,10 @@ export class CordisApplicationHost {
     return this.skills.list(options);
   }
 
-  getSkill(name: string, options?: SkillViewOptions): Promise<SkillDefinition | undefined> {
+  getSkill(
+    name: string,
+    options?: SkillViewOptions,
+  ): Promise<SkillDefinition | undefined> {
     this.assertActive();
     return this.skills.get(name, options);
   }
@@ -497,12 +638,22 @@ export class CordisApplicationHost {
     if (this.disposed) throw new Error("Cordis 应用宿主已经关闭。");
   }
 
-  private assertRequiredServices(id: string, application: Plugin, entryInject?: unknown, scope = this.context) {
+  private assertRequiredServices(
+    id: string,
+    application: Plugin,
+    entryInject?: unknown,
+    scope = this.context,
+  ) {
     const required = Inject.resolve((application as { inject?: never }).inject);
-    if (entryInject !== undefined) Inject.resolve(entryInject as never, required);
-    const missing = Object.keys(required).filter((name) => scope.get(name as never) === undefined);
+    if (entryInject !== undefined)
+      Inject.resolve(entryInject as never, required);
+    const missing = Object.keys(required).filter(
+      (name) => scope.get(name as never) === undefined,
+    );
     if (missing.length > 0) {
-      throw new Error(`应用 ${id} 依赖 Mewvis 尚未提供的服务：${missing.join("、")}`);
+      throw new Error(
+        `应用 ${id} 依赖 ${APP_DISPLAY_NAME} 尚未提供的服务：${missing.join("、")}`,
+      );
     }
   }
 }

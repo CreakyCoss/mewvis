@@ -344,6 +344,9 @@ importers:
       '@langchain/langgraph':
         specifier: ^1.4.7
         version: 1.4.7(@langchain/core@1.2.1)(react-dom@19.1.0)(react@19.1.0)(zod@4.4.3)
+      '@mewvis/product-config':
+        specifier: workspace:*
+        version: link:../../packages/product-config
       ajv:
         specifier: ^8.20.0
         version: 8.20.0
@@ -386,6 +389,10 @@ importers:
         version: 5.8.3
 
   apps/applications:
+    dependencies:
+      '@mewvis/product-config':
+        specifier: workspace:*
+        version: link:../../packages/product-config
     devDependencies:
       '@earendil-works/pi-ai':
         specifier: workspace:*
@@ -423,6 +430,9 @@ importers:
       '@mewvis/app-sdk':
         specifier: workspace:*
         version: link:../../../../packages/app/sdk
+      '@mewvis/product-config':
+        specifier: workspace:*
+        version: link:../../../../packages/product-config
       design-system:
         specifier: workspace:*
         version: link:../../../../packages/design-system
@@ -466,6 +476,9 @@ importers:
       '@mewvis/app-sdk':
         specifier: workspace:*
         version: link:../../../../packages/app/sdk
+      '@mewvis/product-config':
+        specifier: workspace:*
+        version: link:../../../../packages/product-config
       design-system:
         specifier: workspace:*
         version: link:../../../../packages/design-system
@@ -500,6 +513,9 @@ importers:
       '@mewvis/app-sdk':
         specifier: workspace:*
         version: link:../../../../packages/app/sdk
+      '@mewvis/product-config':
+        specifier: workspace:*
+        version: link:../../../../packages/product-config
       katex:
         specifier: ^0.16.22
         version: 0.16.47
@@ -546,6 +562,9 @@ importers:
       '@mewvis/app-sdk':
         specifier: workspace:*
         version: link:../../../../packages/app/sdk
+      '@mewvis/product-config':
+        specifier: workspace:*
+        version: link:../../../../packages/product-config
       dsh-rss:
         specifier: 0.2.0
         version: 0.2.0
@@ -592,6 +611,9 @@ importers:
       '@mewvis/app-sdk':
         specifier: workspace:*
         version: link:../../../../packages/app/sdk
+      '@mewvis/product-config':
+        specifier: workspace:*
+        version: link:../../../../packages/product-config
       date-fns:
         specifier: ^4.2.1
         version: 4.2.1
@@ -719,6 +741,9 @@ importers:
       '@lexical/react':
         specifier: ^0.48.0
         version: 0.48.0(react-dom@19.1.0)(react@19.1.0)(typescript@5.8.3)(yjs@13.6.31)
+      '@mewvis/product-config':
+        specifier: workspace:*
+        version: link:../../packages/product-config
       ajv:
         specifier: ^8.20.0
         version: 8.20.0
@@ -837,6 +862,9 @@ importers:
       '@mewvis/client-platform':
         specifier: workspace:*
         version: link:../../packages/client-platform
+      '@mewvis/product-config':
+        specifier: workspace:*
+        version: link:../../packages/product-config
       '@tauri-apps/api':
         specifier: ^2
         version: 2.0.0
@@ -865,6 +893,9 @@ importers:
       '@mewvis/extension-sdk':
         specifier: workspace:*
         version: link:../../../packages/extension/sdk
+      '@mewvis/product-config':
+        specifier: workspace:*
+        version: link:../../../packages/product-config
       react:
         specifier: ^19.1.0
         version: 19.1.0
@@ -890,6 +921,9 @@ importers:
       '@mewvis/extension-sdk':
         specifier: workspace:*
         version: link:../../../packages/extension/sdk
+      '@mewvis/product-config':
+        specifier: workspace:*
+        version: link:../../../packages/product-config
       react:
         specifier: ^19.1.0
         version: 19.1.0
@@ -921,6 +955,9 @@ importers:
       '@mewvis/extension-host':
         specifier: workspace:*
         version: link:../../../packages/extension/host
+      '@mewvis/product-config':
+        specifier: workspace:*
+        version: link:../../../packages/product-config
       lucide-react:
         specifier: ^0.500.0
         version: 0.500.0(react@19.1.0)
@@ -949,6 +986,9 @@ importers:
       '@mewvis/extension-host':
         specifier: workspace:*
         version: link:../../packages/extension/host
+      '@mewvis/product-config':
+        specifier: workspace:*
+        version: link:../../packages/product-config
       ajv:
         specifier: ^8.20.0
         version: 8.20.0
@@ -987,6 +1027,9 @@ importers:
       '@mewvis/chat-contracts':
         specifier: workspace:*
         version: link:../../chat-contracts
+      '@mewvis/product-config':
+        specifier: workspace:*
+        version: link:../../product-config
       '@types/node':
         specifier: ^22.0.0
         version: 22.0.0
@@ -1047,6 +1090,9 @@ importers:
       '@mewvis/chat-contracts':
         specifier: workspace:*
         version: link:../../chat-contracts
+      '@mewvis/product-config':
+        specifier: workspace:*
+        version: link:../../product-config
       js-yaml:
         specifier: 4.1.1
         version: 4.1.1
@@ -1078,6 +1124,9 @@ importers:
       '@mewvis/chat-contracts':
         specifier: workspace:*
         version: link:../../chat-contracts
+      '@mewvis/product-config':
+        specifier: workspace:*
+        version: link:../../product-config
       react:
         specifier: ^19.1.0
         version: 19.1.0
@@ -1189,6 +1238,9 @@ importers:
       '@mewvis/extension-sdk':
         specifier: workspace:*
         version: link:../sdk
+      '@mewvis/product-config':
+        specifier: workspace:*
+        version: link:../../product-config
       ajv:
         specifier: ^8.20.0
         version: 8.20.0
@@ -1208,6 +1260,9 @@ importers:
       '@mewvis/extension-sdk':
         specifier: workspace:*
         version: link:../sdk
+      '@mewvis/product-config':
+        specifier: workspace:*
+        version: link:../../product-config
       esbuild:
         specifier: ^0.28.0
         version: 0.28.1
@@ -1220,6 +1275,9 @@ importers:
       '@earendil-works/chord':
         specifier: workspace:*
         version: link:../../../ai/pi/packages/chord
+      '@mewvis/product-config':
+        specifier: workspace:*
+        version: link:../../product-config
       ajv:
         specifier: ^8.20.0
         version: 8.20.0
@@ -1253,10 +1311,16 @@ importers:
         version: 5.8.3
 
   packages/extension/sdk:
+    dependencies:
+      '@mewvis/product-config':
+        specifier: workspace:*
+        version: link:../../product-config
     devDependencies:
       json-schema-to-typescript:
         specifier: ^15.0.4
         version: 15.0.4
+
+  packages/product-config: {}
 
 packages:
 

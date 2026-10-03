@@ -1,3 +1,4 @@
+import { productId } from "@mewvis/product-config";
 import { createElement } from "react";
 import { createRoot } from "react-dom/client";
 import { definePlugin } from "@mewvis/extension-host";
@@ -5,7 +6,7 @@ import { Ledger } from "./ledger";
 import { styles } from "./styles";
 
 export default definePlugin({
-  id: "mewvis.session-ledger",
+  id: productId(".session-ledger"),
   protocolVersion: 1,
   mount(container, context) {
     const root = createRoot(container);

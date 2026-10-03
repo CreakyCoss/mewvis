@@ -1,3 +1,4 @@
+import { APP_DISPLAY_NAME, PRODUCT_KEYS } from "@mewvis/product-config";
 import { getApplicationHost } from "../browser/index.js";
 
 export function mountApplicationView(container, options) {
@@ -8,8 +9,8 @@ export function mountApplicationView(container, options) {
 }
 
 export function getApplicationViewClient() {
-  const client = globalThis.mewvisEmbeddedView;
+  const client = globalThis[PRODUCT_KEYS.embeddedViewGlobal];
   if (!client || client.version !== 1)
-    throw new Error("当前页面未连接 Mewvis 内嵌视图宿主");
+    throw new Error(`当前页面未连接 ${APP_DISPLAY_NAME} 内嵌视图宿主`);
   return client;
 }

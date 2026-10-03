@@ -1,3 +1,4 @@
+import { APP_DATA_DIR_NAME } from "@mewvis/product-config";
 import { mkdir, readdir, realpath, rm } from "node:fs/promises";
 import { join, sep } from "node:path";
 import { randomUUID } from "node:crypto";
@@ -128,7 +129,7 @@ export function createProjectService(workspaces: ApplicationWorkspaces) {
       // existing membership marker, exactly as other builtin applications do.
       path = await realpath(process.cwd());
       const marker = await readJson<{ id: string; applications: string[] }>(
-        join(path, ".mewvis", "workspace.json"),
+        join(path, APP_DATA_DIR_NAME, "workspace.json"),
         64 * 1024,
       );
       if (
@@ -701,7 +702,7 @@ export function previewWorkspaces(path: string): ApplicationWorkspaces {
         const projectPath = join(path, "projects", entry);
         try {
           const marker = await readJson<{ id: string; applications: string[] }>(
-            join(projectPath, ".mewvis", "workspace.json"),
+            join(projectPath, APP_DATA_DIR_NAME, "workspace.json"),
             64 * 1024,
           );
           if (
@@ -753,8 +754,8 @@ export function previewWorkspaces(path: string): ApplicationWorkspaces {
         path: input.path,
         isDefault: false,
       };
-      await mkdir(join(input.path, ".mewvis"));
-      await atomicJson(join(input.path, ".mewvis", "workspace.json"), {
+      await mkdir(join(input.path, APP_DATA_DIR_NAME));
+      await atomicJson(join(input.path, APP_DATA_DIR_NAME, "workspace.json"), {
         version: 1,
         id: item.id,
         applications: [APPLICATION_ID],

@@ -1,3 +1,4 @@
+import { APP_DISPLAY_NAME, productId } from "@mewvis/product-config";
 import { defineApplication, defineSkill } from "@mewvis/app-sdk";
 import {
   resolveConfig,
@@ -13,7 +14,7 @@ export const inject = ["settings", "tools", "skills"];
 const defaultConfig = {
   timeoutMs: 15_000,
   maxBodyBytes: 5 * 1024 * 1024,
-  userAgent: "Mewvis RSS Reader/0.1",
+  userAgent: `${APP_DISPLAY_NAME} RSS Reader/0.1`,
   // The settings base applies only until the user saves their own list,
   // including an empty list after removing every subscription.
   feedsYaml: serializeFeeds([
@@ -46,7 +47,7 @@ const defaultConfig = {
 };
 
 const rssReaderSkill = defineSkill({
-  name: "mewvis-rss-reader",
+  name: productId("-rss-reader"),
   description: "管理 RSS/Atom 订阅并读取用户明确请求的订阅内容。",
   source: "bundled",
   content: [

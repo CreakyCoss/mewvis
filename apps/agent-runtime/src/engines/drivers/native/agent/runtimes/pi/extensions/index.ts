@@ -1,22 +1,37 @@
+import { APP_DISPLAY_NAME, productId } from "@mewvis/product-config";
 import { randomUUID } from "node:crypto";
 import { defineExtensionAdapter } from "@mewvis/extension-host";
-import type { ExtensionMiddlewareType, ExtensionMiddlewareData, JsonValue, JsonObject } from "@mewvis/extension-host";
+import type {
+  ExtensionMiddlewareType,
+  ExtensionMiddlewareData,
+  JsonValue,
+  JsonObject,
+} from "@mewvis/extension-host";
 import { projectPiContext } from "./context.js";
 import { registerPiConversationEvents } from "./events.js";
 import { registerPiCompactionHooks } from "./compaction.js";
 export { isPiCompactionSkipped } from "./compaction.js";
-import type { AgentSession, ExtensionAPI, ExtensionFactory } from "@earendil-works/pi-coding-agent";
+import type {
+  AgentSession,
+  ExtensionAPI,
+  ExtensionFactory,
+} from "@earendil-works/pi-coding-agent";
 
 /** Preserve middleware failure identity across Pi's swallowed hook errors and native error text. */
 export class PiExtensionFailure extends Error {
   constructor(error: unknown) {
-    super(error instanceof Error ? error.message : String(error), { cause: error });
+    super(error instanceof Error ? error.message : String(error), {
+      cause: error,
+    });
     this.name = "PiExtensionFailure";
   }
 }
 
 /** Pi catches several native hook errors; stop at request/execution boundaries as well. */
-export function installPiExtensionGuards(session: AgentSession, healthy: () => void) {
+export function installPiExtensionGuards(
+  session: AgentSession,
+  healthy: () => void,
+) {
   const compact = session.compact.bind(session);
   session.compact = async (...args) => {
     healthy();
@@ -76,12 +91,18 @@ export const piExtensionAdapter = defineExtensionAdapter<PiExtensionFactory>({
     "middleware.session_compact": { mode: "direct" },
     "events.run": {
       mode: "simulate",
-      reason: "由 Mewvis 运行边界提供成功、失败与取消终态",
+      reason: `由 ${APP_DISPLAY_NAME} 运行边界提供成功、失败与取消终态`,
     },
-    "session.state": { mode: "simulate", reason: "调用 Mewvis 会话状态事务服务" },
+    "session.state": {
+      mode: "simulate",
+      reason: `调用 ${APP_DISPLAY_NAME} 会话状态事务服务`,
+    },
     "middleware.input": { mode: "direct" },
     "middleware.system_prompt": { mode: "direct" },
-    "middleware.context": { mode: "simulate", reason: "原生 context 钩子投影文本和消息引用，保留 Pi 原生元数据" },
+    "middleware.context": {
+      mode: "simulate",
+      reason: "原生 context 钩子投影文本和消息引用，保留 Pi 原生元数据",
+    },
     "middleware.tool_call": { mode: "direct" },
     "middleware.tool_result": { mode: "direct" },
   },
@@ -103,13 +124,17 @@ export const piExtensionAdapter = defineExtensionAdapter<PiExtensionFactory>({
       assertHealthy();
       try {
         return await bindings.intercept(type, data, {
-          signal: signal && context.signal ? AbortSignal.any([signal, context.signal]) : (signal ?? context.signal),
+          signal:
+            signal && context.signal
+              ? AbortSignal.any([signal, context.signal])
+              : (signal ?? context.signal),
         });
       } catch (error) {
         return fail(error);
       }
     };
-    const has = (type: ExtensionMiddlewareType) => bindings.catalog.middleware.some((item) => item.type === type);
+    const has = (type: ExtensionMiddlewareType) =>
+      bindings.catalog.middleware.some((item) => item.type === type);
     const factory: ExtensionFactory = (pi) => {
       registerPiConversationEvents(pi, bindings, context.taskId);
       registerPiCompactionHooks(pi, bindings, context.taskId, (data, signal) =>
@@ -120,7 +145,9 @@ export const piExtensionAdapter = defineExtensionAdapter<PiExtensionFactory>({
           name: tool.name,
           label: tool.label,
           description: tool.description,
-          parameters: tool.parameters as Parameters<ExtensionAPI["registerTool"]>[0]["parameters"],
+          parameters: tool.parameters as Parameters<
+            ExtensionAPI["registerTool"]
+          >[0]["parameters"],
           execute: (callId, input, signal, progress) =>
             bindings.execute(tool.name, input, { callId, signal, progress }),
         });
@@ -129,13 +156,16 @@ export const piExtensionAdapter = defineExtensionAdapter<PiExtensionFactory>({
         pi.registerCommand(command.id, {
           description: command.description,
           handler: async (args) => {
-            const input = command.inputMode === "text" ? { text: args.trim() } : JSON.parse(args.trim() || "{}");
+            const input =
+              command.inputMode === "text"
+                ? { text: args.trim() }
+                : JSON.parse(args.trim() || "{}");
             const value = await bindings.command(command.id, input, {
               callId: randomUUID(),
               signal: context.signal,
             });
             pi.sendMessage({
-              customType: "mewvis.extension.command",
+              customType: productId(".extension.command"),
               content: JSON.stringify(value),
               display: true,
               details: { commandId: command.id, value },
@@ -155,10 +185,15 @@ export const piExtensionAdapter = defineExtensionAdapter<PiExtensionFactory>({
         });
       if (bindings.catalog.skills.length || has("system_prompt")) {
         const skills = bindings.catalog.skills
-          .map((skill) => `### ${skill.id}\n${skill.description}\n${skill.content}`)
+          .map(
+            (skill) =>
+              `### ${skill.id}\n${skill.description}\n${skill.content}`,
+          )
           .join("\n\n");
         pi.on("before_agent_start", async (event) => {
-          const text = skills ? `${event.systemPrompt}\n\n已启用的插件技能：\n${skills}` : event.systemPrompt;
+          const text = skills
+            ? `${event.systemPrompt}\n\n已启用的插件技能：\n${skills}`
+            : event.systemPrompt;
           if (!has("system_prompt")) return { systemPrompt: text };
           const reply = await intercept("system_prompt", { text });
           if (reply.action === "block") return fail(new Error(reply.reason));
@@ -169,7 +204,9 @@ export const piExtensionAdapter = defineExtensionAdapter<PiExtensionFactory>({
         pi.on("context", async (event) => {
           try {
             const projected = projectPiContext(event.messages);
-            const reply = await intercept("context", { messages: projected.messages });
+            const reply = await intercept("context", {
+              messages: projected.messages,
+            });
             if (reply.action === "block") return fail(new Error(reply.reason));
             return { messages: projected.restore(reply.value.messages) };
           } catch (error) {
@@ -179,11 +216,19 @@ export const piExtensionAdapter = defineExtensionAdapter<PiExtensionFactory>({
       if (has("tool_call"))
         pi.on("tool_call", async (event) => {
           const input = event.input as JsonObject;
-          const reply = await intercept("tool_call", { callId: event.toolCallId, toolName: event.toolName, input });
-          if (reply.action === "block") return { block: true, reason: reply.reason };
+          const reply = await intercept("tool_call", {
+            callId: event.toolCallId,
+            toolName: event.toolName,
+            input,
+          });
+          if (reply.action === "block")
+            return { block: true, reason: reply.reason };
           // Pi explicitly exposes mutable final arguments here; validation and approval follow this hook.
           for (const key of Object.keys(input)) delete input[key];
-          Object.defineProperties(input, Object.getOwnPropertyDescriptors(reply.value.input));
+          Object.defineProperties(
+            input,
+            Object.getOwnPropertyDescriptors(reply.value.input),
+          );
         });
       if (has("tool_result"))
         pi.on("tool_result", async (event) => {
@@ -195,9 +240,15 @@ export const piExtensionAdapter = defineExtensionAdapter<PiExtensionFactory>({
                 content: event.content.map((block) =>
                   block.type === "text"
                     ? { type: "text" as const, text: block.text }
-                    : { type: "image" as const, data: block.data, mimeType: block.mimeType },
+                    : {
+                        type: "image" as const,
+                        data: block.data,
+                        mimeType: block.mimeType,
+                      },
                 ),
-                details: JSON.parse(JSON.stringify(event.details ?? null)) as JsonValue,
+                details: JSON.parse(
+                  JSON.stringify(event.details ?? null),
+                ) as JsonValue,
                 isError: event.isError,
               },
             };

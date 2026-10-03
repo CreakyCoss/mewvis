@@ -1,6 +1,13 @@
+import { APP_DISPLAY_NAME, productId } from "@mewvis/product-config";
 import "./styles.css";
 import "./rich-content.css";
-import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import {
   BookOpen,
   Circle,
@@ -10,7 +17,10 @@ import {
   Upload,
 } from "lucide-react";
 import { getApplicationDataClient } from "@mewvis/app-sdk/data";
-import { getApplicationHost, writeClipboardText } from "@mewvis/app-sdk/browser";
+import {
+  getApplicationHost,
+  writeClipboardText,
+} from "@mewvis/app-sdk/browser";
 import {
   createCourse,
   emptyProgress,
@@ -73,7 +83,9 @@ export default function App() {
   const [confirmCompletion, setConfirmCompletion] = useState(false);
   const [copiedCourse, setCopiedCourse] = useState("");
   const [focus, setFocus] = useState<FocusTarget | null>(null);
-  const [tab, setTab] = useState<"lesson" | "experiment" | "quiz" | "project">("lesson");
+  const [tab, setTab] = useState<"lesson" | "experiment" | "quiz" | "project">(
+    "lesson",
+  );
   const [tutorExpanded, setTutorExpanded] = useState(false);
   const [tutorWidth, setTutorWidth] = useState<number | null>(null);
   const [tutorRequest, setTutorRequest] = useState<{
@@ -155,8 +167,7 @@ export default function App() {
     };
   }, [confirmDelete]);
   useEffect(() => {
-    if (view !== "lesson")
-      window.scrollTo({ top: 0, behavior: "instant" });
+    if (view !== "lesson") window.scrollTo({ top: 0, behavior: "instant" });
   }, [view, lesson?.id]);
   useEffect(() => {
     if (view === "lesson")
@@ -172,7 +183,10 @@ export default function App() {
     const scrollerRect = scroller.getBoundingClientRect();
     const targetRect = target.getBoundingClientRect();
     scroller.scrollTo({
-      top: scroller.scrollTop + targetRect.top - scrollerRect.top -
+      top:
+        scroller.scrollTop +
+        targetRect.top -
+        scrollerRect.top -
         (scroller.clientHeight - targetRect.height) / 2,
       behavior: "smooth",
     });
@@ -211,8 +225,8 @@ export default function App() {
     const update = () =>
       setTheme(getApplicationHost().getHost()?.theme ?? "light");
     update();
-    window.addEventListener("mewvis:theme", update);
-    return () => window.removeEventListener("mewvis:theme", update);
+    window.addEventListener(productId(":theme"), update);
+    return () => window.removeEventListener(productId(":theme"), update);
   }, []);
   const run = async (action: () => Promise<void>) => {
     if (lock.current) return;
@@ -331,11 +345,10 @@ export default function App() {
       lessonId: lesson.id,
       prompt: questionAnalysisPrompt(lesson, question, index, answer),
     });
-    if (window.matchMedia("(max-width: 760px)").matches)
-      setTutorExpanded(true);
+    if (window.matchMedia("(max-width: 760px)").matches) setTutorExpanded(true);
   };
   const clearTutorRequest = useCallback((id: string) => {
-    setTutorRequest((current) => current?.id === id ? null : current);
+    setTutorRequest((current) => (current?.id === id ? null : current));
   }, []);
 
   return (
@@ -353,16 +366,34 @@ export default function App() {
               <BookOpen size={30} strokeWidth={2.1} aria-hidden="true" />
             </span>
             <span>
-              学习工坊<small>MEWVIS LEARNING</small>
+              学习工坊<small>{APP_DISPLAY_NAME.toUpperCase()} LEARNING</small>
             </span>
           </button>
           <div className="learn-nav-links">
-            <button className="learn-button text compact" disabled={loading || loadFailed || busy} onClick={() => void run(async () => {
-              const existing = courses.find(item => entryId(item) === interactiveCourse.id);
-              if (existing?.status === "ready") { open(existing); return; }
-              const demo = { ...interactiveCourse, id: existing ? crypto.randomUUID() : interactiveCourse.id, createdAt: Date.now() };
-              await save(demo); open(demo);
-            })}>互动实验示例</button>
+            <button
+              className="learn-button text compact"
+              disabled={loading || loadFailed || busy}
+              onClick={() =>
+                void run(async () => {
+                  const existing = courses.find(
+                    (item) => entryId(item) === interactiveCourse.id,
+                  );
+                  if (existing?.status === "ready") {
+                    open(existing);
+                    return;
+                  }
+                  const demo = {
+                    ...interactiveCourse,
+                    id: existing ? crypto.randomUUID() : interactiveCourse.id,
+                    createdAt: Date.now(),
+                  };
+                  await save(demo);
+                  open(demo);
+                })
+              }
+            >
+              互动实验示例
+            </button>
             <label className="learn-nav-import">
               <Upload size={17} aria-hidden="true" />
               导入课程
@@ -454,7 +485,13 @@ export default function App() {
             </header>
             <div
               className={`learn-classroom with-tutor ${tab === "project" ? "is-project" : ""} ${tab === "experiment" ? "is-experiment" : ""} ${tutorExpanded ? "mobile-tutor-expanded" : ""}`}
-              style={tutorWidth === null ? undefined : { "--learn-tutor-width": `${tutorWidth}px` } as CSSProperties}
+              style={
+                tutorWidth === null
+                  ? undefined
+                  : ({
+                      "--learn-tutor-width": `${tutorWidth}px`,
+                    } as CSSProperties)
+              }
             >
               <aside className="learn-outline" aria-label="课程目录">
                 <span className="learn-eyebrow">COURSE OUTLINE</span>
@@ -607,7 +644,17 @@ export default function App() {
                     >
                       课程讲解
                     </button>
-                    {lesson.experiment && <button role="tab" id="experiment-tab" aria-controls="lesson-panel" aria-selected={tab === "experiment"} onClick={() => setTab("experiment")}>动手实验</button>}
+                    {lesson.experiment && (
+                      <button
+                        role="tab"
+                        id="experiment-tab"
+                        aria-controls="lesson-panel"
+                        aria-selected={tab === "experiment"}
+                        onClick={() => setTab("experiment")}
+                      >
+                        动手实验
+                      </button>
+                    )}
                     <button
                       role="tab"
                       id="quiz-tab"
@@ -626,17 +673,25 @@ export default function App() {
                   aria-labelledby={
                     tab === "lesson"
                       ? "lesson-tab"
-                      : tab === "experiment" ? "experiment-tab"
-                      : tab === "quiz"
-                        ? "quiz-tab"
-                        : undefined
+                      : tab === "experiment"
+                        ? "experiment-tab"
+                        : tab === "quiz"
+                          ? "quiz-tab"
+                          : undefined
                   }
                 >
                   {tab === "project" ? (
                     <ProjectLab key={course.id} course={course} mode="learn" />
                   ) : tab === "lesson" ? (
                     <article className="learn-article">
-                      {lesson.blocks ? <RichLesson blocks={lesson.blocks} experiment={lesson.experiment} /> : <Text value={lesson.content} />}
+                      {lesson.blocks ? (
+                        <RichLesson
+                          blocks={lesson.blocks}
+                          experiment={lesson.experiment}
+                        />
+                      ) : (
+                        <Text value={lesson.content} />
+                      )}
                       <section
                         id="learning-focus-example"
                         className={`learn-example ${focus === "example" ? "learn-focused" : ""}`}
@@ -682,16 +737,45 @@ export default function App() {
                       </div>
                     </article>
                   ) : tab === "experiment" && lesson.experiment ? (
-                    <InteractiveExperiment key={lesson.id} config={lesson.experiment} attempt={currentProgress.experiments?.[lesson.id]} disabled={busy}
+                    <InteractiveExperiment
+                      key={lesson.id}
+                      config={lesson.experiment}
+                      attempt={currentProgress.experiments?.[lesson.id]}
+                      disabled={busy}
                       onCheck={async (attempt) => {
-                        if (lock.current) throw new Error("正在保存，请稍后重试");
-                        lock.current = true; setBusy(true);
+                        if (lock.current)
+                          throw new Error("正在保存，请稍后重试");
+                        lock.current = true;
+                        setBusy(true);
                         try {
-                          const latest = progressRef.current[course.id] ?? emptyProgress(course);
-                          await updateProgress(restoreProgress(course, { ...latest, experiments: { ...latest.experiments, [lesson.id]: attempt } }));
-                        } finally { lock.current = false; setBusy(false); }
+                          const latest =
+                            progressRef.current[course.id] ??
+                            emptyProgress(course);
+                          await updateProgress(
+                            restoreProgress(course, {
+                              ...latest,
+                              experiments: {
+                                ...latest.experiments,
+                                [lesson.id]: attempt,
+                              },
+                            }),
+                          );
+                        } finally {
+                          lock.current = false;
+                          setBusy(false);
+                        }
                       }}
-                      onAsk={(prompt) => { setTutorRequest({ id: crypto.randomUUID(), courseId: course.id, lessonId: lesson.id, prompt }); if (window.matchMedia("(max-width: 760px)").matches) setTutorExpanded(true); }} />
+                      onAsk={(prompt) => {
+                        setTutorRequest({
+                          id: crypto.randomUUID(),
+                          courseId: course.id,
+                          lessonId: lesson.id,
+                          prompt,
+                        });
+                        if (window.matchMedia("(max-width: 760px)").matches)
+                          setTutorExpanded(true);
+                      }}
+                    />
                   ) : (
                     <Quiz
                       key={`${lesson.id}:${currentProgress.attempts[lesson.id]?.submittedAt ?? "blank"}:${retryIds ? retryRequest?.nonce : "latest"}`}

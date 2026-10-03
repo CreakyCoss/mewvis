@@ -1,3 +1,4 @@
+import { APP_DISPLAY_NAME } from "@mewvis/product-config";
 import { useId, useRef, useState } from "react";
 import {
   ArrowRight,
@@ -16,7 +17,7 @@ export const inspectCode = [
   "",
   "const { value } = await getApplicationHost().executeTool(",
   '  "chat_playground_inspect_text",',
-  '  { text: "Hello Mewvis 👋" },',
+  `  { text: "Hello ${APP_DISPLAY_NAME} 👋" },`,
   ");",
   "",
   "// value: { text, characters, bytes, sha256, runtime }",
@@ -25,7 +26,7 @@ export const inspectCode = [
 /** Only a successful host call produces a real result. */
 export function ToolExample() {
   const id = useId();
-  const [text, setText] = useState("Hello Mewvis 👋");
+  const [text, setText] = useState(`Hello ${APP_DISPLAY_NAME} 👋`);
   const [result, setResult] = useState<{
     value: TextInspection;
     elapsed: number;
@@ -185,7 +186,7 @@ export function ToolExample() {
           {sample && (
             <p className="showcase-result-note">
               <CheckCircle2 aria-hidden="true" />
-              <span>示例结果 · 基于输入 “Hello Mewvis 👋”</span>
+              <span>示例结果 · 基于输入 “Hello {APP_DISPLAY_NAME} 👋”</span>
             </p>
           )}
           {result && (

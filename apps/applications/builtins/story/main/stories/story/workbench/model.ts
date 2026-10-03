@@ -1,3 +1,4 @@
+import { PRODUCT_NAMESPACE } from "@mewvis/product-config";
 import type {
   StoryDocument,
   StoryDocumentIdentity,
@@ -270,9 +271,12 @@ export function applySuggestion(
   return text + (text.trim() ? "\n\n" : "") + suggestion;
 }
 
-const contextMarker = "\n\n<mewvis-writing-context>\n";
+const contextMarker = `\n\n<${PRODUCT_NAMESPACE}-writing-context>\n`;
 export const encodeWritingRequest = (text: string, request: WritingRequest) =>
-  text + contextMarker + JSON.stringify(request) + "\n</mewvis-writing-context>";
+  text +
+  contextMarker +
+  JSON.stringify(request) +
+  `\n</${PRODUCT_NAMESPACE}-writing-context>`;
 export const conversationTitle = (title: string) =>
   title.split(/<mewvis-writing/)[0].trim() || "未命名会话";
 export function decodeWritingRequest(text: string): {
@@ -280,12 +284,13 @@ export function decodeWritingRequest(text: string): {
   request?: WritingRequest;
 } {
   const start = text.lastIndexOf(contextMarker);
-  if (start < 0 || !text.endsWith("\n</mewvis-writing-context>")) return { text };
+  if (start < 0 || !text.endsWith(`\n</${PRODUCT_NAMESPACE}-writing-context>`))
+    return { text };
   try {
     const request = JSON.parse(
       text.slice(
         start + contextMarker.length,
-        -"\n</mewvis-writing-context>".length,
+        -`\n</${PRODUCT_NAMESPACE}-writing-context>`.length,
       ),
     );
     if (

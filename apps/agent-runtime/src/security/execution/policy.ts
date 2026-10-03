@@ -1,3 +1,4 @@
+import { APP_DATA_DIR_NAME, PRODUCT_NAMESPACE } from "@mewvis/product-config";
 import type { ExecutionConfig } from "./types.js";
 
 /** Bundled execution settings; independent of the approval policy. */
@@ -18,7 +19,14 @@ export const EXECUTION_CONFIG: ExecutionConfig = {
         ".ripgreprc",
         ".mcp.json",
       ],
-      protectedDirectories: [".vscode", ".idea", ".claude/commands", ".claude/agents", ".git/hooks", ".git/config"],
+      protectedDirectories: [
+        ".vscode",
+        ".idea",
+        ".claude/commands",
+        ".claude/agents",
+        ".git/hooks",
+        ".git/config",
+      ],
     },
     platforms: {
       posix: {
@@ -39,9 +47,14 @@ export const EXECUTION_CONFIG: ExecutionConfig = {
       windows: {
         srtWinPath: "${runtime}/vendor/srt-win/${arch}/srt-win.exe",
         proxyPortRange: [60080, 60089],
-        readGrantPaths: ["${workspace}", "${home}", "${runtime}", "${nodeDirectory}"],
+        readGrantPaths: [
+          "${workspace}",
+          "${home}",
+          "${runtime}",
+          "${nodeDirectory}",
+        ],
         privateAccountProfile: true,
-        policyStore: "${programData}/sandbox-runtime/mewvis-policy.sqlite",
+        policyStore: `\${programData}/sandbox-runtime/${PRODUCT_NAMESPACE}-policy.sqlite`,
         mandatorySearchDepth: 3,
       },
     },
@@ -64,7 +77,12 @@ export const EXECUTION_CONFIG: ExecutionConfig = {
       filesystem: {
         allowWrite: ["${workspace}", "${temp}"],
         denyRead: [],
-        denyWrite: ["${workspace}/.env", "${workspace}/.pi", "${workspace}/.git", "${workspace}/.mewvis"],
+        denyWrite: [
+          "${workspace}/.env",
+          "${workspace}/.pi",
+          "${workspace}/.git",
+          `\${workspace}/${APP_DATA_DIR_NAME}`,
+        ],
       },
       network: {
         allow: "all",
@@ -76,7 +94,12 @@ export const EXECUTION_CONFIG: ExecutionConfig = {
       filesystem: {
         allowWrite: ["${workspace}", "${temp}"],
         denyRead: [],
-        denyWrite: ["${workspace}/.env", "${workspace}/.pi", "${workspace}/.git", "${workspace}/.mewvis"],
+        denyWrite: [
+          "${workspace}/.env",
+          "${workspace}/.pi",
+          "${workspace}/.git",
+          `\${workspace}/${APP_DATA_DIR_NAME}`,
+        ],
       },
       network: {
         allow: "all",

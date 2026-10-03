@@ -1,3 +1,4 @@
+import { APP_DATA_DIR_NAME, productDataName } from "@mewvis/product-config";
 import * as fs from "node:fs/promises";
 import { DatabaseSync } from "node:sqlite";
 import { join, dirname } from "node:path";
@@ -179,10 +180,10 @@ export class ApplicationData {
     }
   }
   private async marker(path: string) {
-    const target = join(path, ".mewvis", "workspace.json");
+    const target = join(path, APP_DATA_DIR_NAME, "workspace.json");
     if (
-      (await exists(join(path, ".mewvis"))) &&
-      (await fs.lstat(join(path, ".mewvis"))).isSymbolicLink()
+      (await exists(join(path, APP_DATA_DIR_NAME))) &&
+      (await fs.lstat(join(path, APP_DATA_DIR_NAME))).isSymbolicLink()
     )
       fail("WORKSPACE_MARKER_INVALID", "工作区标识目录不能是符号链接");
     if (await exists(target)) {
@@ -288,15 +289,23 @@ export class ApplicationData {
           path,
           result.isDefault ? 1 : 0,
         );
-        await jsonWrite(join(path, ".mewvis", "workspace.json"), marker);
+        await jsonWrite(
+          join(path, APP_DATA_DIR_NAME, "workspace.json"),
+          marker,
+        );
         db.exec("COMMIT");
         return result;
       } catch (error) {
         db.exec("ROLLBACK");
         if (snapshot)
-          await jsonWrite(join(path, ".mewvis", "workspace.json"), snapshot);
+          await jsonWrite(
+            join(path, APP_DATA_DIR_NAME, "workspace.json"),
+            snapshot,
+          );
         else
-          await fs.rm(join(path, ".mewvis", "workspace.json"), { force: true });
+          await fs.rm(join(path, APP_DATA_DIR_NAME, "workspace.json"), {
+            force: true,
+          });
         throw error;
       } finally {
         db.close();
@@ -384,7 +393,7 @@ export class ApplicationData {
                     (id: string) => id !== owner,
                   );
                   await jsonWrite(
-                    join(record.path, ".mewvis/workspace.json"),
+                    join(record.path, productDataName("/workspace.json")),
                     marker,
                   );
                 }

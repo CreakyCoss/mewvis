@@ -1,3 +1,8 @@
+import {
+  PRODUCT_CONFIG,
+  APP_DISPLAY_NAME,
+  PRODUCT_NAMESPACE,
+} from "@mewvis/product-config";
 import "./styles.css";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -282,7 +287,7 @@ export default function App() {
                     onClick={() =>
                       openChat({
                         label: "Agent 工具调用",
-                        text: "请调用 chat_playground_echo，text 设为“Hello Mewvis 👋”，然后说明返回的文本和字符数。",
+                        text: `请调用 chat_playground_echo，text 设为“Hello ${APP_DISPLAY_NAME} 👋”，然后说明返回的文本和字符数。`,
                       })
                     }
                   />
@@ -294,7 +299,7 @@ export default function App() {
                     onClick={() =>
                       openChat({
                         label: "技能驱动执行",
-                        text: "请使用 chat-playground-text-inspection 技能，分析文本“Hello Mewvis 👋”的字符数、UTF-8 字节数和 SHA-256，并解释字符数与字节数为什么不同。",
+                        text: `请使用 chat-playground-text-inspection 技能，分析文本“Hello ${APP_DISPLAY_NAME} 👋”的字符数、UTF-8 字节数和 SHA-256，并解释字符数与字节数为什么不同。`,
                       })
                     }
                   />
@@ -330,7 +335,7 @@ export default function App() {
               />
               <Section
                 title="先声明需要的能力"
-                description="在 mewvis.config.ts 中声明权限。清单权限、工具授权和 Agent 执行范围分别检查。"
+                description={`在 ${PRODUCT_CONFIG.files.appConfig} 中声明权限。清单权限、工具授权和 Agent 执行范围分别检查。`}
               >
                 <CodeExample
                   open

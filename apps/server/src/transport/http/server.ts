@@ -1,3 +1,4 @@
+import { PRODUCT_NAMESPACE, productId } from "@mewvis/product-config";
 import {
   createServer,
   type IncomingMessage,
@@ -185,7 +186,7 @@ export async function startHttpServer(options: HttpServerOptions) {
         (path === "/health" || path === "/")
       ) {
         json(response, 200, {
-          service: "mewvis-agent-server",
+          service: productId("-agent-server"),
           version: 1,
           status: "ok",
           api: "/api/commands/:name",
@@ -325,7 +326,7 @@ export async function startHttpServer(options: HttpServerOptions) {
   if (!address || typeof address === "string")
     throw new Error("无法取得监听地址");
   url = `http://127.0.0.1:${address.port}`;
-  cookieName = `mewvis_web_${address.port}`;
+  cookieName = `${PRODUCT_NAMESPACE}_web_${address.port}`;
   let closePromise: Promise<void> | undefined;
   return {
     url,

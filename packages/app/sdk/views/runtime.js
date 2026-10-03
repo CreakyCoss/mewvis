@@ -1,7 +1,19 @@
-// Self-contained: the desktop embeds this factory's source in its audited sandbox
+import { PRODUCT_KEYS, productId } from "@mewvis/product-config";
+
+export const applicationViewIdentity = Object.freeze({
+  channel: productId("-embedded-view-v1"),
+  readyEvent: productId(":ready"),
+  themeEvent: productId(":theme"),
+  globalName: PRODUCT_KEYS.embeddedViewGlobal,
+});
+
+// With an explicit identity, the desktop embeds this factory's source in its audited sandbox
 // document. Keep helpers inside the factory so preview and production run the same code.
-export function createApplicationViewHost({ getTheme }) {
-  const channel = "mewvis-embedded-view-v1";
+export function createApplicationViewHost({
+  getTheme,
+  identity = applicationViewIdentity,
+}) {
+  const { channel, readyEvent, themeEvent, globalName } = identity;
   const views = new Map();
   const maxMessageBytes = 256 * 1024;
   let disposed = false;
@@ -39,7 +51,7 @@ export function createApplicationViewHost({ getTheme }) {
 
   // Also self-contained: only this bootstrap and the supplied browser bundle run
   // in the child. It never receives mewvisApplication or an application data token.
-  function childBootstrap(channel, instance, viewId) {
+  function childBootstrap(channel, instance, viewId, themeEvent, globalName) {
     const pending = new Map();
     const listeners = new Set();
     let nextId = 1;
@@ -98,9 +110,9 @@ export function createApplicationViewHost({ getTheme }) {
         root.style.setProperty(name, value);
         appliedTokens.push(name);
       });
-      dispatchEvent(new CustomEvent("mewvis:theme", { detail: host.theme }));
+      dispatchEvent(new CustomEvent(themeEvent, { detail: host.theme }));
     };
-    Object.defineProperty(window, "mewvisEmbeddedView", {
+    Object.defineProperty(window, globalName, {
       value: Object.freeze({
         version: 1,
         getHost: () => host,
@@ -257,7 +269,7 @@ export function createApplicationViewHost({ getTheme }) {
     });
     const escapeScript = (value) => value.replace(/<\/script/gi, "<\\/script");
     const escapeStyle = (value) => value.replace(/<\/style/gi, "<\\/style");
-    const bootstrap = `(${childBootstrap.toString()})(${JSON.stringify(channel)},${JSON.stringify(instance)},${JSON.stringify(options.id)});`;
+    const bootstrap = `(${childBootstrap.toString()})(${JSON.stringify(channel)},${JSON.stringify(instance)},${JSON.stringify(options.id)},${JSON.stringify(themeEvent)},${JSON.stringify(globalName)});`;
     const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; connect-src 'none'; form-action 'none'; frame-src 'none'; img-src data: blob:; media-src 'none'; object-src 'none'; font-src data: blob:; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
 <style>:root{color-scheme:light;font-family:system-ui,sans-serif}:root[data-theme=dark]{color-scheme:dark}html,body{height:100%;margin:0}*{box-sizing:border-box}${escapeStyle(options.style ?? "")}</style></head><body>
@@ -461,12 +473,12 @@ export function createApplicationViewHost({ getTheme }) {
     disposed = true;
     for (const { view } of views.values()) view.dispose();
     observer.disconnect();
-    removeEventListener("mewvis:ready", updateTheme);
-    removeEventListener("mewvis:theme", updateTheme);
+    removeEventListener(readyEvent, updateTheme);
+    removeEventListener(themeEvent, updateTheme);
     removeEventListener("pagehide", dispose);
   };
-  addEventListener("mewvis:ready", updateTheme);
-  addEventListener("mewvis:theme", updateTheme);
+  addEventListener(readyEvent, updateTheme);
+  addEventListener(themeEvent, updateTheme);
   addEventListener("pagehide", dispose, { once: true });
   return Object.freeze({ version: 1, mount, dispose });
 }

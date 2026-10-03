@@ -1,5 +1,9 @@
+import { productId } from "@mewvis/product-config";
 import { posix } from "node:path";
-import type { MewvisSkillDefinition, MewvisToolDefinition } from "@mewvis/app-sdk";
+import type {
+  MewvisSkillDefinition,
+  MewvisToolDefinition,
+} from "@mewvis/app-sdk";
 import {
   assertProtocolImplementation,
   protocolSatisfies,
@@ -76,8 +80,11 @@ export function validateStoryRegistry(input: StoryRegistryInput) {
       documentKinds: "array",
       changeSet: "object",
     },
-    mewvis_story_skill: { name: "string" },
-    mewvis_story_skill_resource: { skillName: "string", path: "string" },
+    [productId("_story_skill")]: { name: "string" },
+    [productId("_story_skill_resource")]: {
+      skillName: "string",
+      path: "string",
+    },
   };
   for (const [name, parameters] of Object.entries(parameterRequirements)) {
     const tool = input.tools.find((item) => item.name === name);

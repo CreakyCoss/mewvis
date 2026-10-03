@@ -1,3 +1,4 @@
+import { envName } from "@mewvis/product-config";
 import {
   defineApplication,
   defineTool,
@@ -12,8 +13,9 @@ export default defineApplication({
   name: "@mewvis/app-workshop",
   inject: ["tools", "skills", "workspaces"],
   apply(ctx) {
-    const workspaces = process.env.MEWVIS_WORKSHOP_PREVIEW_ROOT
-      ? previewWorkspaces(process.env.MEWVIS_WORKSHOP_PREVIEW_ROOT)
+    const previewRoot = process.env[envName("WORKSHOP_PREVIEW_ROOT")];
+    const workspaces = previewRoot
+      ? previewWorkspaces(previewRoot)
       : ctx.workspaces;
     if (!workspaces) throw new Error("应用工坊需要应用工作区服务。");
     const projects = createProjectService(workspaces);

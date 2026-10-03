@@ -1,3 +1,4 @@
+import { APP_DISPLAY_NAME } from "@mewvis/product-config";
 import { useEffect, useRef, useState } from "react";
 import {
   Database,
@@ -19,7 +20,7 @@ export const dataCode = [
   'import { getApplicationDataClient } from "@mewvis/app-sdk/data";',
   "",
   "const { storage, workspaces } = getApplicationDataClient();",
-  'await storage.setItem("playground.demo.note", { message: "Hello Mewvis" });',
+  `await storage.setItem("playground.demo.note", { message: "Hello ${APP_DISPLAY_NAME}" });`,
   'const value = await storage.getItem("playground.demo.note");',
   "",
   "// 由宿主选择目录；取消时返回 null。",
@@ -30,7 +31,7 @@ export function DataExamples() {
   const [tab, setTab] = useState<"storage" | "workspaces">("storage");
   const [key, setKey] = useState("note");
   const [value, setValue] = useState(
-    '{\n  "message": "Hello Mewvis",\n  "count": 1\n}',
+    `{\n  "message": "Hello ${APP_DISPLAY_NAME}",\n  "count": 1\n}`,
   );
   const [stored, setStored] = useState<{
     key: string;
@@ -160,7 +161,8 @@ export function DataExamples() {
           <section className="showcase-panel-body" aria-label="编辑示例数据">
             <h2>写入一段业务数据</h2>
             <p className="showcase-muted">
-              在 Mewvis 中跨重启保留；开发预览使用内存，刷新页面后清空。
+              在 {APP_DISPLAY_NAME}{" "}
+              中跨重启保留；开发预览使用内存，刷新页面后清空。
             </p>
             <label className="showcase-field-label" htmlFor="demo-storage-key">
               示例键名

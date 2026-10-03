@@ -1,3 +1,4 @@
+import { productId } from "@mewvis/product-config";
 import { applicationChatHost } from "@/workbench/shell/chat-service";
 import type { ApplicationChatRequest } from "@mewvis/app-sdk/chat";
 import type { ApplicationDataRequest } from "@mewvis/app-sdk/data";
@@ -16,7 +17,7 @@ import { useWorkspaceHeader } from "@/workbench/shell/layout/workspace";
 import { readApplicationTheme, sandboxDocument } from "./sandbox-document";
 export { sandboxDocument } from "./sandbox-document";
 
-const CHANNEL = "mewvis-app-ui-v1";
+const CHANNEL = productId("-app-ui-v1");
 const MAX_ARGUMENT_BYTES = 256 * 1024;
 const MAX_CONCURRENT_CALLS = 4;
 const MAX_EXTERNAL_URL_LENGTH = 4_096;

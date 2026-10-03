@@ -1,9 +1,14 @@
+import { APP_DATA_DIR_NAME } from "@mewvis/product-config";
 import type { StoryFileLayout } from "../../storage/types.js";
 
 export const LONG_NOVEL_FILE_LAYOUT: StoryFileLayout = Object.freeze({
-  definitionPath: "story/.mewvis/project.json",
+  definitionPath: `story/${APP_DATA_DIR_NAME}/project.json`,
   managedRoots: Object.freeze(["story"]),
-  preservedPaths: Object.freeze(["story/.mewvis", "story/runtime", "story/tavern.json"]),
+  preservedPaths: Object.freeze([
+    `story/${APP_DATA_DIR_NAME}`,
+    "story/runtime",
+    "story/tavern.json",
+  ]),
   documentPaths: Object.freeze({
     "story-manifest": "story/manifest.json",
     "story-book": "story/book.json",
@@ -17,7 +22,8 @@ export const LONG_NOVEL_FILE_LAYOUT: StoryFileLayout = Object.freeze({
     "story-chapter-plan": "story/outline/chapters/{id}.json",
     "story-chapter": "story/tracking/chapter-results/{id}.json",
     "story-chapter-content": "story/chapters/{id}.md",
-    "story-character-state": "story/tracking/character-states/{characterId}.json",
+    "story-character-state":
+      "story/tracking/character-states/{characterId}.json",
     "story-foreshadows": "story/tracking/foreshadows.json",
     "story-timeline": "story/tracking/timeline/{id}.json",
     "story-progress": "story/tracking/progress.json",

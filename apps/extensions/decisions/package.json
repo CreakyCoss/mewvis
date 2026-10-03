@@ -14,7 +14,8 @@
     "@mewvis/extension-sdk": "workspace:*",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "zod": "^4.2.0"
+    "zod": "^4.2.0",
+    "@mewvis/product-config": "workspace:*"
   },
   "devDependencies": {
     "@mewvis/extension-dev": "workspace:*",

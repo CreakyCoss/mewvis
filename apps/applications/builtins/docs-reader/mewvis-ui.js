@@ -1,33 +1,10 @@
+import {
+  APP_DISPLAY_NAME,
+  PRODUCT_KEYS,
+  productId,
+} from "@mewvis/product-config";
 document.documentElement.lang = "zh-CN";
-document.body.innerHTML = `
-  <div class="docs-app">
-    <aside class="sidebar" aria-label="文档导航">
-      <header class="brand"><strong>Mewvis<span>文档中心</span></strong><span class="language">简体中文</span></header>
-      <div class="search-box"><label for="docs-search">搜索文档</label><input id="docs-search" type="search" maxlength="200" placeholder="搜索标题、内容或 API…" autocomplete="off"><span class="hint">⌘ / Ctrl K</span></div>
-      <div class="search-status" role="status" aria-live="polite"></div>
-      <nav class="chapter-list" aria-label="章节目录"></nav>
-      <nav class="search-results" aria-label="搜索结果" hidden></nav>
-      <footer class="sidebar-footer">中文文档 · 随应用离线提供</footer>
-    </aside>
-    <main class="reading-pane">
-      <header class="reader-toolbar">
-        <button class="menu-toggle" type="button" aria-expanded="false" aria-label="展开文档目录">目录</button>
-        <button class="history-back" type="button" aria-label="返回上一阅读位置" disabled>←</button>
-        <button class="history-forward" type="button" aria-label="前往下一阅读位置" disabled>→</button>
-        <span class="breadcrumb">Mewvis 文档</span><span class="page-count"></span>
-      </header>
-      <div class="reader-scroll">
-        <div class="reading-grid">
-          <div class="page-column">
-            <div class="notice" role="status" aria-live="polite">正在加载文档…</div>
-            <article class="prose" aria-label="文档正文" tabindex="-1"></article>
-            <nav class="page-navigation" aria-label="相邻文档"></nav>
-          </div>
-          <aside class="outline" aria-label="本页目录"><strong>本页内容</strong><nav></nav></aside>
-        </div>
-      </div>
-    </main>
-  </div>`;
+document.body.innerHTML = `\n  <div class="docs-app">\n    <aside class="sidebar" aria-label="文档导航">\n      <header class="brand"><strong>${APP_DISPLAY_NAME}<span>文档中心</span></strong><span class="language">简体中文</span></header>\n      <div class="search-box"><label for="docs-search">搜索文档</label><input id="docs-search" type="search" maxlength="200" placeholder="搜索标题、内容或 API…" autocomplete="off"><span class="hint">⌘ / Ctrl K</span></div>\n      <div class="search-status" role="status" aria-live="polite"></div>\n      <nav class="chapter-list" aria-label="章节目录"></nav>\n      <nav class="search-results" aria-label="搜索结果" hidden></nav>\n      <footer class="sidebar-footer">中文文档 · 随应用离线提供</footer>\n    </aside>\n    <main class="reading-pane">\n      <header class="reader-toolbar">\n        <button class="menu-toggle" type="button" aria-expanded="false" aria-label="展开文档目录">目录</button>\n        <button class="history-back" type="button" aria-label="返回上一阅读位置" disabled>←</button>\n        <button class="history-forward" type="button" aria-label="前往下一阅读位置" disabled>→</button>\n        <span class="breadcrumb">${APP_DISPLAY_NAME} 文档</span><span class="page-count"></span>\n      </header>\n      <div class="reader-scroll">\n        <div class="reading-grid">\n          <div class="page-column">\n            <div class="notice" role="status" aria-live="polite">正在加载文档…</div>\n            <article class="prose" aria-label="文档正文" tabindex="-1"></article>\n            <nav class="page-navigation" aria-label="相邻文档"></nav>\n          </div>\n          <aside class="outline" aria-label="本页目录"><strong>本页内容</strong><nav></nav></aside>\n        </div>\n      </div>\n    </main>\n  </div>`;
 
 const $ = (selector) => document.querySelector(selector);
 const state = {
@@ -52,8 +29,12 @@ const action = (title, callback, className = "") => {
   return button;
 };
 const execute = async (name, args = {}) => {
-  if (!window.mewvisApplication) throw new Error("未连接 Mewvis 应用宿主，请重新打开文档中心。");
-  return (await window.mewvisApplication.executeTool(name, args)).value;
+  if (!window[PRODUCT_KEYS.applicationGlobal])
+    throw new Error(
+      `未连接 ${APP_DISPLAY_NAME} 应用宿主，请重新打开文档中心。`,
+    );
+  return (await window[PRODUCT_KEYS.applicationGlobal].executeTool(name, args))
+    .value;
 };
 function notice(message, retry) {
   const node = $(".notice");
@@ -80,14 +61,20 @@ function renderCatalog() {
       container.append(element("summary", "", group));
       nav.append(container);
     }
-    const button = action(entry.title, () => openPage(entry.id), "chapter-link");
+    const button = action(
+      entry.title,
+      () => openPage(entry.id),
+      "chapter-link",
+    );
     button.dataset.page = entry.id;
     button.style.paddingInlineStart = `${16 + entry.depth * 14}px`;
     container.append(button);
   }
 }
 function jumpTo(anchor) {
-  const target = [...$(".prose").querySelectorAll("[id]")].find((node) => node.id === anchor);
+  const target = [...$(".prose").querySelectorAll("[id]")].find(
+    (node) => node.id === anchor,
+  );
   if (target) target.scrollIntoView({ block: "start" });
 }
 function updateHistory() {
@@ -99,7 +86,7 @@ async function openPage(id, anchor = "", historyPosition = null) {
   notice("正在加载文档…");
   $(".prose").setAttribute("aria-busy", "true");
   try {
-    const page = await execute("mewvis_docs_read", { id });
+    const page = await execute(productId("_docs_read"), { id });
     if (version !== state.readVersion) return;
     state.current = page;
     if (historyPosition !== null) state.position = historyPosition;
@@ -113,7 +100,8 @@ async function openPage(id, anchor = "", historyPosition = null) {
     $(".prose").innerHTML = page.html;
     $(".breadcrumb").textContent = `${page.group} / ${page.title}`;
     const index = state.entries.findIndex((entry) => entry.id === page.id);
-    $(".page-count").textContent = index < 0 ? "" : `${index + 1} / ${state.entries.length}`;
+    $(".page-count").textContent =
+      index < 0 ? "" : `${index + 1} / ${state.entries.length}`;
     for (const button of $(".chapter-list").querySelectorAll("[data-page]")) {
       if (button.dataset.page === page.id) {
         button.setAttribute("aria-current", "page");
@@ -122,7 +110,9 @@ async function openPage(id, anchor = "", historyPosition = null) {
     }
     const outline = $(".outline nav");
     outline.replaceChildren();
-    for (const heading of page.headings.filter((heading) => heading.level > 1 && heading.level <= 3)) {
+    for (const heading of page.headings.filter(
+      (heading) => heading.level > 1 && heading.level <= 3,
+    )) {
       const button = action(heading.title, () => jumpTo(heading.id));
       button.style.paddingInlineStart = heading.level === 3 ? "20px" : "8px";
       outline.append(button);
@@ -132,11 +122,15 @@ async function openPage(id, anchor = "", historyPosition = null) {
     navigation.replaceChildren();
     if (index > 0)
       navigation.append(
-        action(`上一篇\n${state.entries[index - 1].title}`, () => openPage(state.entries[index - 1].id)),
+        action(`上一篇\n${state.entries[index - 1].title}`, () =>
+          openPage(state.entries[index - 1].id),
+        ),
       );
     if (index >= 0 && index < state.entries.length - 1)
       navigation.append(
-        action(`下一篇\n${state.entries[index + 1].title}`, () => openPage(state.entries[index + 1].id)),
+        action(`下一篇\n${state.entries[index + 1].title}`, () =>
+          openPage(state.entries[index + 1].id),
+        ),
       );
     notice("");
     $(".reader-scroll").scrollTop = 0;
@@ -145,7 +139,9 @@ async function openPage(id, anchor = "", historyPosition = null) {
     if (anchor) jumpTo(anchor);
   } catch (error) {
     if (version === state.readVersion)
-      notice(error instanceof Error ? error.message : String(error), () => openPage(id, anchor, historyPosition));
+      notice(error instanceof Error ? error.message : String(error), () =>
+        openPage(id, anchor, historyPosition),
+      );
   } finally {
     if (version === state.readVersion) $(".prose").removeAttribute("aria-busy");
   }
@@ -153,7 +149,9 @@ async function openPage(id, anchor = "", historyPosition = null) {
 async function search(query, version) {
   const status = $(".search-status");
   try {
-    const { results, total } = await execute("mewvis_docs_search", { query });
+    const { results, total } = await execute(productId("_docs_search"), {
+      query,
+    });
     if (version !== state.searchVersion) return;
     status.textContent = total
       ? `找到 ${total} 篇文档${total > 30 ? "，显示前 30 篇" : ""}`
@@ -172,7 +170,11 @@ async function search(query, version) {
   } catch (error) {
     if (version !== state.searchVersion) return;
     status.replaceChildren(
-      element("span", "", `搜索失败：${error instanceof Error ? error.message : String(error)}`),
+      element(
+        "span",
+        "",
+        `搜索失败：${error instanceof Error ? error.message : String(error)}`,
+      ),
       action("重试", () => search(query, version)),
     );
   }
@@ -191,16 +193,21 @@ $(".prose").addEventListener("click", async (event) => {
   const link = event.target.closest("a");
   if (!link) return;
   event.preventDefault();
-  if (link.dataset.doc) await openPage(link.dataset.doc, link.dataset.anchor || "");
+  if (link.dataset.doc)
+    await openPage(link.dataset.doc, link.dataset.anchor || "");
   else if (link.dataset.external) {
     try {
-      await window.mewvisApplication.openExternal(link.href);
+      await window[PRODUCT_KEYS.applicationGlobal].openExternal(link.href);
     } catch (error) {
-      notice(`无法打开链接：${error instanceof Error ? error.message : String(error)}`);
+      notice(
+        `无法打开链接：${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 });
-$(".menu-toggle").addEventListener("click", () => showMenu(!$(".docs-app").classList.contains("menu-open")));
+$(".menu-toggle").addEventListener("click", () =>
+  showMenu(!$(".docs-app").classList.contains("menu-open")),
+);
 for (const [selector, delta] of [
   [".history-back", -1],
   [".history-forward", 1],
@@ -220,17 +227,21 @@ document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") showMenu(false);
 });
 function syncTheme() {
-  document.documentElement.dataset.theme = window.mewvisApplication?.getHost()?.theme === "dark" ? "dark" : "light";
+  document.documentElement.dataset.theme =
+    window[PRODUCT_KEYS.applicationGlobal]?.getHost()?.theme === "dark"
+      ? "dark"
+      : "light";
 }
-window.addEventListener("mewvis:ready", syncTheme);
-window.addEventListener("mewvis:theme", syncTheme);
+window.addEventListener(productId(":ready"), syncTheme);
+window.addEventListener(productId(":theme"), syncTheme);
 syncTheme();
 async function initialize() {
   notice("正在加载文档目录…");
   try {
-    const catalog = await execute("mewvis_docs_catalog");
+    const catalog = await execute(productId("_docs_catalog"));
     state.entries = catalog.entries;
-    if (!state.entries.length) throw new Error("文档目录为空，请重新构建应用内置文档。");
+    if (!state.entries.length)
+      throw new Error("文档目录为空，请重新构建应用内置文档。");
     renderCatalog();
     await openPage(state.entries[0].id);
   } catch (error) {

@@ -1,3 +1,4 @@
+import { PRODUCT_KEYS } from "@mewvis/product-config";
 import { agentPermissionOptions } from "../../../src/agent-client/wire";
 import React, { StrictMode, useState } from "react";
 import { createRoot } from "react-dom/client";
@@ -123,7 +124,7 @@ const host = createApplicationChatHost(service, {
   },
 });
 const application: ApplicationUiApplication = {
-  runtimeKind: "mewvis",
+  runtimeKind: PRODUCT_KEYS.applicationManifest,
   id: "fixture",
   name: "Chat integration fixture",
   version: "0.0.0",

@@ -1,14 +1,18 @@
+import { envName } from "@mewvis/product-config";
 import { createRuntimeEngine } from "../engines/index.js";
 import type { AgentRuntimeCommand } from "../engines/protocol/index.js";
-import { AgentRuntimeStdioProtocol, createStdioRuntimeReader } from "./stdio.js";
+import {
+  AgentRuntimeStdioProtocol,
+  createStdioRuntimeReader,
+} from "./stdio.js";
 
 const runAgentRuntimeCli = async () => {
   const reader = createStdioRuntimeReader();
   const protocol = new AgentRuntimeStdioProtocol();
   const runtime = createRuntimeEngine({
     profileId: process.env.AGENT_RUNTIME_PROFILE_ID,
-    extensionSettingsPath: process.env.MEWVIS_EXTENSION_SETTINGS_PATH,
-    bundledExtensionsPath: process.env.MEWVIS_BUNDLED_EXTENSIONS_PATH,
+    extensionSettingsPath: process.env[envName("EXTENSION_SETTINGS_PATH")],
+    bundledExtensionsPath: process.env[envName("BUNDLED_EXTENSIONS_PATH")],
     reloadExtensionSettings: true,
     close: () => {
       reader.close();
@@ -35,7 +39,10 @@ const runAgentRuntimeCli = async () => {
         keepRunning = await runtime.handle(command);
       } catch (error: unknown) {
         protocol.writeError(error);
-        const message = error instanceof Error ? (error.stack ?? error.message) : String(error);
+        const message =
+          error instanceof Error
+            ? (error.stack ?? error.message)
+            : String(error);
         console.error(message);
         keepRunning = true;
       } finally {
@@ -56,7 +63,8 @@ const runAgentRuntimeCli = async () => {
 };
 
 runAgentRuntimeCli().catch((error: unknown) => {
-  const message = error instanceof Error ? (error.stack ?? error.message) : String(error);
+  const message =
+    error instanceof Error ? (error.stack ?? error.message) : String(error);
   console.error(message);
   process.exitCode = 1;
 });

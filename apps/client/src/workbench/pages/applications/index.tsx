@@ -1,3 +1,4 @@
+import { APP_DISPLAY_NAME, PRODUCT_NAMESPACE } from "@mewvis/product-config";
 import {
   AlertCircle,
   ArrowRight,
@@ -271,8 +272,8 @@ const ApplicationDetail = ({
                       <AlertCircle />
                       <AlertTitle>检测到 DeepSeek Web Client</AlertTitle>
                       <AlertDescription>
-                        该界面依赖 DeepSeek 自己的 Client Runtime；Mewvis 当前使用通用工具页面。应用可以同时声明 mewvis.ui
-                        以提供可移植界面。
+                        该界面依赖 DeepSeek 自己的 Client Runtime；{APP_DISPLAY_NAME}{" "}
+                        当前使用通用工具页面。应用可以同时声明 {PRODUCT_NAMESPACE}.ui 以提供可移植界面。
                       </AlertDescription>
                     </Alert>
                   ) : null}

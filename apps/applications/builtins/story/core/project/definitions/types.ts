@@ -1,7 +1,11 @@
-import type { StoryDocumentDefinition, StoryObjectDefinition } from "./model/types.js";
+import { productId } from "@mewvis/product-config";
+import type {
+  StoryDocumentDefinition,
+  StoryObjectDefinition,
+} from "./model/types.js";
 
 /** Story Type Definition 持久化格式的稳定标识。 */
-export const STORY_TYPE_DEFINITION_FORMAT = "mewvis.story-type-definition";
+export const STORY_TYPE_DEFINITION_FORMAT = productId(".story-type-definition");
 
 /** Story Type Definition 持久化结构的版本。 */
 export const STORY_TYPE_DEFINITION_FORMAT_VERSION = 3;
@@ -28,8 +32,13 @@ export type StoryTypeDefinition = Readonly<{
   objects: readonly StoryObjectDefinition[];
   documents: readonly StoryDocumentDefinition[];
   contexts: readonly StoryContextDefinition[];
-  validationModes: Readonly<Record<string, Readonly<{ label?: string; description?: string }>>>;
+  validationModes: Readonly<
+    Record<string, Readonly<{ label?: string; description?: string }>>
+  >;
   rules: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
 }>;
 
-export type StoryTypeSummary = Pick<StoryTypeDefinition, "id" | "version" | "label" | "description">;
+export type StoryTypeSummary = Pick<
+  StoryTypeDefinition,
+  "id" | "version" | "label" | "description"
+>;

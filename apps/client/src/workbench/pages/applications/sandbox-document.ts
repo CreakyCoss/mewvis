@@ -1,6 +1,7 @@
+import { PRODUCT_NAMESPACE } from "@mewvis/product-config";
 import type { ApplicationUiDocument } from "@/api/applications";
 import themeTokensCss from "design-system/tokens.css?raw";
-import { createApplicationViewHost } from "@mewvis/app-sdk/views/runtime";
+import { applicationViewIdentity, createApplicationViewHost } from "@mewvis/app-sdk/views/runtime";
 
 // Only the public design-system tokens cross the sandbox boundary.
 const themeTokenNames = [...new Set([...themeTokensCss.matchAll(/(--[\w-]+)\s*:/g)].map((match) => match[1]))];
@@ -15,7 +16,7 @@ export const readApplicationTheme = () => {
 
 const BRIDGE_SOURCE = String.raw`
 (() => {
-  const channel = "mewvis-app-ui-v1";
+  const channel = "${PRODUCT_NAMESPACE}-app-ui-v1";
   const pending = new Map();
   let nextId = 1;
   let host = null;
@@ -104,7 +105,7 @@ const BRIDGE_SOURCE = String.raw`
       return host;
     },
   });
-  Object.defineProperty(window, "mewvisApplication", { value: api, enumerable: true });
+  Object.defineProperty(window, "${PRODUCT_NAMESPACE}Application", { value: api, enumerable: true });
   addEventListener("message", (event) => {
     if (event.source !== parent) return;
     const message = event.data;
@@ -114,13 +115,13 @@ const BRIDGE_SOURCE = String.raw`
     if (message.type === "host:init") {
       host = Object.freeze(message.host);
       applyTheme(host.theme, host.themeTokens);
-      dispatchEvent(new CustomEvent("mewvis:ready", { detail: host }));
+      dispatchEvent(new CustomEvent("${PRODUCT_NAMESPACE}:ready", { detail: host }));
       return;
     }
     if (message.type === "host:theme") {
       if (host) host = Object.freeze({ ...host, theme: message.theme, themeTokens: message.themeTokens });
       applyTheme(message.theme, message.themeTokens);
-      dispatchEvent(new CustomEvent("mewvis:theme", { detail: message.theme }));
+      dispatchEvent(new CustomEvent("${PRODUCT_NAMESPACE}:theme", { detail: message.theme }));
       return;
     }
     if (message.type !== "host:result" || typeof message.id !== "string") return;
@@ -160,10 +161,15 @@ export const sandboxDocument = (
     <style>${escapeStyle(themeTokensCss)}${chat ? escapeStyle(chat.style) : ""}${chat ? "html, body { height: 100%; margin: 0; }" : escapeStyle(BASE_STYLE)}${escapeStyle(document.style)}</style>
   </head>
   <body>
-    <script>${escapeScript(BRIDGE_SOURCE.replace("/* EMBEDDED_VIEWS */", options.embeddedViews
-      ? `const views = (${createApplicationViewHost.toString()})({ getTheme: () => host });`
-      : "const views = null;"))}</script>
+    <script>${escapeScript(
+      BRIDGE_SOURCE.replace(
+        "/* EMBEDDED_VIEWS */",
+        options.embeddedViews
+          ? `const views = (${createApplicationViewHost.toString()})({ getTheme: () => host, identity: ${JSON.stringify(applicationViewIdentity)} });`
+          : "const views = null;",
+      ),
+    )}</script>
     ${chat ? `<script>${escapeScript(chat.script)}</script>` : ""}
-    <script>${escapeScript(document.script)}\n//# sourceURL=mewvis-app-ui.js</script>
+    <script>${escapeScript(document.script)}\n//# sourceURL=${PRODUCT_NAMESPACE}-app-ui.js</script>
   </body>
 </html>`;

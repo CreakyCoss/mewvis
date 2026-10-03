@@ -1,3 +1,4 @@
+import { PRODUCT_NAMESPACE } from "@mewvis/product-config";
 import { readFile, writeFile } from "node:fs/promises";
 import { compile } from "json-schema-to-typescript";
 import { uiSlotDefinitions, uiSlotTypes } from "../ui/protocol/contracts.js";
@@ -5,7 +6,7 @@ import { uiSlotDefinitions, uiSlotTypes } from "../ui/protocol/contracts.js";
 const id = { type: "string", pattern: "^[a-z][a-z0-9-]*$", maxLength: 64 };
 const schema = {
   $schema: "http://json-schema.org/draft-07/schema#",
-  $id: "urn:mewvis:host-ui-contribution",
+  $id: `urn:${PRODUCT_NAMESPACE}:host-ui-contribution`,
   title: "UIContribution",
   oneOf: Object.values(uiSlotDefinitions).map((slot) => {
     const payload = uiSlotTypes[slot.type].schema;
@@ -44,7 +45,10 @@ const declarations = `${types}\nexport const uiSlotDefinitions: {\n${Object.entr
   )
   .join("\n")}\n};\n`;
 for (const [name, content] of [
-  ["ui/protocol/contribution.schema.json", `${JSON.stringify(schema, null, 2)}\n`],
+  [
+    "ui/protocol/contribution.schema.json",
+    `${JSON.stringify(schema, null, 2)}\n`,
+  ],
   ["ui/protocol/contracts.generated.d.ts", declarations],
 ]) {
   const file = new URL(`../${name}`, import.meta.url);

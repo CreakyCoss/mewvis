@@ -1,6 +1,10 @@
+import { APP_DATA_DIR_NAME, productId } from "@mewvis/product-config";
 import { readFile, realpath } from "node:fs/promises";
 import { join } from "node:path";
-import type { MewvisApplicationContext, MewvisToolDefinition } from "@mewvis/app-sdk";
+import type {
+  MewvisApplicationContext,
+  MewvisToolDefinition,
+} from "@mewvis/app-sdk";
 
 export function bindWorkspaceTools(
   ctx: MewvisApplicationContext,
@@ -10,11 +14,11 @@ export function bindWorkspaceTools(
     ...tool,
     async execute(args: unknown) {
       if (
-        [
-          "mewvis_story_types",
-          "mewvis_story_skill",
-          "mewvis_story_skill_resource",
-        ].includes(tool.name)
+        new Set<string>([
+          productId("_story_types"),
+          productId("_story_skill"),
+          productId("_story_skill_resource"),
+        ]).has(tool.name)
       )
         return tool.execute(args);
       const input = args as { workspaceId?: unknown } | null;
@@ -35,7 +39,7 @@ export function bindWorkspaceTools(
         workspacePath = await realpath(process.cwd());
         const marker = JSON.parse(
           await readFile(
-            join(workspacePath, ".mewvis", "workspace.json"),
+            join(workspacePath, APP_DATA_DIR_NAME, "workspace.json"),
             "utf8",
           ),
         ) as {

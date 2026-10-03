@@ -1,4 +1,5 @@
 mod node_backend;
+mod product_config;
 
 use node_backend::{get_backend_connection, NodeBackend};
 use tauri::Manager;

@@ -1,3 +1,8 @@
+import {
+  PRODUCT_CONFIG,
+  PRODUCT_NAMESPACE,
+  productId,
+} from "@mewvis/product-config";
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -13,7 +18,7 @@ export async function createReactApplication({ destination, name, local }) {
     .at(-1)
     .toLowerCase()
     .replace(/[^a-z0-9._-]+/g, "-");
-  const packageName = name ?? `@mewvis/${slug}`;
+  const packageName = name ?? `@${PRODUCT_NAMESPACE}/${slug}`;
   if (
     !/^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/.test(packageName) ||
     packageName.length > 214
@@ -27,11 +32,14 @@ export async function createReactApplication({ destination, name, local }) {
     private: true,
     type: "module",
     scripts: {
-      dev: "mewvis-app dev",
-      build: "mewvis-app build",
-      check: "mewvis-app check",
+      dev: `${PRODUCT_CONFIG.cli.application} dev`,
+      build: `${PRODUCT_CONFIG.cli.application} build`,
+      check: `${PRODUCT_CONFIG.cli.application} check`,
     },
     dependencies: {
+      "@mewvis/product-config": local
+        ? `link:${dirname(createRequire(import.meta.url).resolve("@mewvis/product-config"))}`
+        : "^0.1.0",
       "@mewvis/app-sdk": local
         ? `link:${dirname(createRequire(import.meta.url).resolve("@mewvis/app-sdk"))}`
         : "^0.1.0",
@@ -52,7 +60,14 @@ export async function createReactApplication({ destination, name, local }) {
         await copy(join(from, entry.name), join(to, entry.name));
       else
         await writeFile(
-          join(to, entry.name === "gitignore" ? ".gitignore" : entry.name),
+          join(
+            to,
+            entry.name === "gitignore"
+              ? ".gitignore"
+              : entry.name.endsWith(".config.ts")
+                ? PRODUCT_CONFIG.files.appConfig
+                : entry.name,
+          ),
           (await readFile(join(from, entry.name), "utf8"))
             .replaceAll("__APPLICATION_NAME__", packageName)
             .replaceAll("__TOOL_NAME__", tool)

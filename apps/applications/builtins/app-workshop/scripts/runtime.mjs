@@ -1,3 +1,4 @@
+import { APP_DISPLAY_NAME } from "@mewvis/product-config";
 import { build } from "esbuild";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
@@ -52,7 +53,7 @@ export const modules = {react: React, 'react/jsx-runtime': JSX, 'react-dom/clien
   );
   await writeFile(
     join(output, "theme.ts"),
-    `// Generated Mewvis theme defaults.\nexport default ${JSON.stringify(theme)};\n`,
+    `// Generated ${APP_DISPLAY_NAME} theme defaults.\nexport default ${JSON.stringify(theme)};\n`,
   );
   await writeFile(
     join(output, "runtime.ts"),

@@ -1,7 +1,11 @@
+import { PRODUCT_NAMESPACE } from "@mewvis/product-config";
 import { Worker } from "node:worker_threads";
 
 /** Host modules load in Node; only tool schemas and skill data cross into the preview. */
-export function createDevHost({ hostEntry, toolsEntry, skillsEntry }, timeout = 10_000) {
+export function createDevHost(
+  { hostEntry, toolsEntry, skillsEntry },
+  timeout = 10_000,
+) {
   let worker;
   let ready;
   let nextId = 0;
@@ -78,7 +82,7 @@ export function toolMiddleware(runtime, token) {
     response.setHeader("Content-Type", "application/json; charset=utf-8");
     response.setHeader("Cache-Control", "no-store");
     try {
-      if (request.headers["x-mewvis-dev-token"] !== token)
+      if (request.headers[`x-${PRODUCT_NAMESPACE}-dev-token`] !== token)
         throw new Error("开发宿主连接无效，请刷新预览页面");
       if (request.method === "GET") {
         response.end(JSON.stringify(await runtime.describe()));

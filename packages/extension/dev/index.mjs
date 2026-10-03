@@ -1,3 +1,10 @@
+import {
+  PRODUCT_CONFIG,
+  APP_DISPLAY_NAME,
+  PRODUCT_KEYS,
+  PRODUCT_NAMESPACE,
+  productId,
+} from "@mewvis/product-config";
 import { build } from "esbuild";
 import {
   mkdtemp,
@@ -33,13 +40,13 @@ export async function createExtensionPackage(directory, id) {
     private: true,
     type: "module",
     scripts: {
-      build: "mewvis-extension build",
-      validate: "mewvis-extension validate dist/plugin",
-      pack: "mewvis-extension pack",
+      build: `${PRODUCT_CONFIG.cli.extension} build`,
+      validate: `${PRODUCT_CONFIG.cli.extension} validate dist/plugin`,
+      pack: `${PRODUCT_CONFIG.cli.extension} pack`,
     },
     dependencies: { "@mewvis/extension-sdk": "workspace:*" },
     devDependencies: { "@mewvis/extension-dev": "workspace:*" },
-    "mewvis.extension": {
+    [PRODUCT_KEYS.extensionManifest]: {
       schemaVersion: 2,
       id,
       apiVersion: 1,
@@ -62,7 +69,7 @@ export default defineExtension({
       name: "hello",
       description: "问候命令",
       parameters: { type: "object", properties: {}, additionalProperties: false },
-      async execute() { return { message: "你好，Mewvis！" }; },
+      async execute() { return { message: ${JSON.stringify(`你好，${APP_DISPLAY_NAME}！`)} }; },
     });
   },
 });
@@ -76,9 +83,12 @@ export async function buildExtensionPackage(directory, { outputDir } = {}) {
   const metadata = JSON.parse(
     await readFile(join(resolve(directory), "package.json"), "utf8"),
   );
-  if (metadata["mewvis.plugin"] && metadata["mewvis.extension"])
+  if (
+    metadata[PRODUCT_KEYS.pluginManifest] &&
+    metadata[PRODUCT_KEYS.extensionManifest]
+  )
     throw new Error("不能同时声明原生与 SDK 插件清单");
-  const external = Boolean(metadata["mewvis.extension"]);
+  const external = Boolean(metadata[PRODUCT_KEYS.extensionManifest]);
   const pkg = readExtensionPackage(resolve(directory), {
     checkEntry: false,
     ...(external && { decode: adaptMewvisPackage }),
@@ -87,7 +97,7 @@ export async function buildExtensionPackage(directory, { outputDir } = {}) {
   if (output === pkg.root || !relative(output, pkg.root).startsWith(".."))
     throw new Error("构建输出不能覆盖项目或其父目录");
   // Custom output must be absent. Replace dist/plugin only after building succeeds.
-  const staging = await mkdtemp(join(tmpdir(), "mewvis-extension-build-"));
+  const staging = await mkdtemp(join(tmpdir(), productId("-extension-build-")));
   try {
     for (const [kind, declaration] of Object.entries(pkg.manifest.modules)) {
       if (!declaration.entry) continue;
@@ -98,7 +108,7 @@ export async function buildExtensionPackage(directory, { outputDir } = {}) {
               stdin: {
                 contents: `import definition from ${JSON.stringify(join(pkg.root, browser ? "src/ui.ts" : "src/index.ts"))}; import { ${browser ? "adaptUIExtension" : "adaptAgentExtension"} as adapt } from ${JSON.stringify(fileURLToPath(import.meta.resolve("@mewvis/extension-adapters")))}; export default adapt(definition);`,
                 resolveDir: pkg.root,
-                sourcefile: "mewvis-adapter-entry.js",
+                sourcefile: productId("-adapter-entry.js"),
               },
             }
           : {
@@ -111,7 +121,11 @@ export async function buildExtensionPackage(directory, { outputDir } = {}) {
         platform: browser ? "browser" : "node",
         format: "esm",
         target: browser ? "es2022" : "node22",
-        ...(browser && { jsx: "automatic", minify: true, define: { "process.env.NODE_ENV": '"production"' } }),
+        ...(browser && {
+          jsx: "automatic",
+          minify: true,
+          define: { "process.env.NODE_ENV": '"production"' },
+        }),
         alias: {
           "@mewvis/extension-sdk/agent": fileURLToPath(
             import.meta.resolve("@mewvis/extension-sdk/agent"),
@@ -126,9 +140,11 @@ export async function buildExtensionPackage(directory, { outputDir } = {}) {
           ...(!external &&
             Object.fromEntries(
               ["", "/agent", "/ui", "/services"].map((suffix) => [
-                `@mewvis/extension-host${suffix}`,
+                `@${PRODUCT_NAMESPACE}/extension-host${suffix}`,
                 fileURLToPath(
-                  import.meta.resolve(`@mewvis/extension-host${suffix}`),
+                  import.meta.resolve(
+                    `@${PRODUCT_NAMESPACE}/extension-host${suffix}`,
+                  ),
                 ),
               ]),
             )),
@@ -140,7 +156,7 @@ export async function buildExtensionPackage(directory, { outputDir } = {}) {
         }),
         plugins: [
           {
-            name: "mewvis-plugin-boundary",
+            name: productId("-plugin-boundary"),
             setup(builder) {
               builder.onResolve(
                 {
@@ -167,7 +183,7 @@ export async function buildExtensionPackage(directory, { outputDir } = {}) {
       name: pkg.packageJson.name,
       version: pkg.packageJson.version,
       type: "module",
-      "mewvis.plugin": pkg.manifest,
+      [PRODUCT_KEYS.pluginManifest]: pkg.manifest,
     };
     for (const key of ["description", "license", "keywords"]) {
       if (pkg.packageJson[key] !== undefined)
@@ -213,7 +229,7 @@ export async function buildExtensionPackage(directory, { outputDir } = {}) {
 
 export async function packExtensionPackage(directory, { outputDir } = {}) {
   const root = resolve(directory);
-  const temp = await mkdtemp(join(tmpdir(), "mewvis-extension-pack-"));
+  const temp = await mkdtemp(join(tmpdir(), productId("-extension-pack-")));
   try {
     const pkg = await buildExtensionPackage(root, {
       outputDir: join(temp, "package"),

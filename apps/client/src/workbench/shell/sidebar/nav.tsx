@@ -1,3 +1,4 @@
+import { PRODUCT_CONFIG } from "@mewvis/product-config";
 import { Blocks, Bot, ChevronRight, Database, House, Puzzle, Settings, Wrench } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router";
@@ -70,7 +71,7 @@ export const UtilityNav = () => {
     <nav className="mt-auto space-y-1 border-t border-sidebar-border bg-sidebar px-2 py-1.5" aria-label="更多导航">
       <NavLink to="/hub" className={linkClassName} title="中枢">
         <img
-          src="/assets/startup/mewvis-i-dot.png"
+          src={PRODUCT_CONFIG.assets.brandMark}
           alt=""
           aria-hidden="true"
           width={20}

@@ -1,3 +1,4 @@
+import { APP_DISPLAY_NAME } from "@mewvis/product-config";
 import "./chat.css";
 import {
   useCallback,
@@ -36,8 +37,7 @@ export type ChatPreset = {
 
 const profile = {
   id: "chat-playground-v1",
-  systemPrompt:
-    "你是 Mewvis 聊天调试助手，用中文简洁回答。按用户要求演示 Markdown、代码和应用工具。需要验证工具时，使用用户指定的工具；未指定时调用 chat_playground_echo。不要虚构工具执行或宿主状态。",
+  systemPrompt: `你是 ${APP_DISPLAY_NAME} 聊天调试助手，用中文简洁回答。按用户要求演示 Markdown、代码和应用工具。需要验证工具时，使用用户指定的工具；未指定时调用 chat_playground_echo。不要虚构工具执行或宿主状态。`,
   useKnowledge: true,
 };
 const phases: Record<ChatPhase, string> = {
@@ -62,7 +62,7 @@ const prompts = [
   },
   {
     label: "低风险工具",
-    text: "请调用 chat_playground_echo，text 设为“Hello Mewvis 👋”，然后说明返回的文本和字符数。",
+    text: `请调用 chat_playground_echo，text 设为“Hello ${APP_DISPLAY_NAME} 👋”，然后说明返回的文本和字符数。`,
   },
   {
     label: "中风险工具",
@@ -70,7 +70,7 @@ const prompts = [
   },
   {
     label: "技能示例",
-    text: "请使用 chat-playground-text-inspection 技能，分析文本“Hello Mewvis 👋”的字符数、UTF-8 字节数和 SHA-256，并解释字符数与字节数为什么不同。",
+    text: `请使用 chat-playground-text-inspection 技能，分析文本“Hello ${APP_DISPLAY_NAME} 👋”的字符数、UTF-8 字节数和 SHA-256，并解释字符数与字节数为什么不同。`,
   },
   {
     label: "长回复 / 停止",
@@ -337,7 +337,7 @@ function Workbench({
     <>
       {state.pendingApproval && (
         <p className="lab-approval-notice" role="status">
-          此操作正在等待宿主审批，请在 Mewvis 宿主窗口确认或拒绝。
+          此操作正在等待宿主审批，请在 {APP_DISPLAY_NAME} 宿主窗口确认或拒绝。
         </p>
       )}
       <div className="lab-session-bar">

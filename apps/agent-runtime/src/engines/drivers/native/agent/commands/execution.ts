@@ -1,5 +1,9 @@
+import { APP_DISPLAY_NAME } from "@mewvis/product-config";
 import { randomUUID } from "node:crypto";
-import { AgentRuntimeEventType, type AgentEvent } from "../../../../protocol/wire.js";
+import {
+  AgentRuntimeEventType,
+  type AgentEvent,
+} from "../../../../protocol/wire.js";
 import { resolveRuntime } from "../runtimes/resolver.js";
 import type {
   AgentRunCommand,
@@ -67,7 +71,8 @@ export const executeAgentRunCommand = (
   command: AgentRunCommand,
   context: AgentRuntimeContext,
   options: AgentExecutionOptions = {},
-): Promise<AgentRunResult> => executeAgentRunCommandWithRecording(command, context, options);
+): Promise<AgentRunResult> =>
+  executeAgentRunCommandWithRecording(command, context, options);
 
 export type AgentExecutionOptions = {
   registry?: RuntimeAgentRegistry;
@@ -78,8 +83,10 @@ export type AgentExecutionOptions = {
   sessionProviderId?: RuntimeSessionProviderId | null;
 };
 
-const runtimeIdOverride = (commandRuntimeId: string | null | undefined, defaultId: string | null | undefined) =>
-  commandRuntimeId?.trim() || defaultId?.trim() || null;
+const runtimeIdOverride = (
+  commandRuntimeId: string | null | undefined,
+  defaultId: string | null | undefined,
+) => commandRuntimeId?.trim() || defaultId?.trim() || null;
 
 const executeAgentRunCommandWithRecording = async (
   command: AgentRunCommand,
@@ -93,8 +100,12 @@ const executeAgentRunCommandWithRecording = async (
     options.registry,
   );
   if (options.extensions?.length) {
-    if (!implementation.extensionAdapter) throw new Error(`${runtimeId} 不支持 Mewvis 插件能力`);
-    const report = resolveExtensionAdaptation(implementation.extensionAdapter, options.extensions);
+    if (!implementation.extensionAdapter)
+      throw new Error(`${runtimeId} 不支持 ${APP_DISPLAY_NAME} 插件能力`);
+    const report = resolveExtensionAdaptation(
+      implementation.extensionAdapter,
+      options.extensions,
+    );
     context.callbacks.onExtensionAdaptation?.(report);
   }
   context.signal?.throwIfAborted();
@@ -108,16 +119,25 @@ const executeAgentRunCommandWithRecording = async (
         nativeSession: preparedRun.nativeSession,
       }
     : context;
-  const recorder = await RuntimeSessionRecorder.create(runtimeCommand, options.sessionProviderId);
+  const recorder = await RuntimeSessionRecorder.create(
+    runtimeCommand,
+    options.sessionProviderId,
+  );
   const extensionRuntime = options.extensionRuntime ?? createExtensionRuntime();
   let extensions: ExtensionOperation | undefined;
   let started = false;
   let completed = false;
-  const emit = recorder ? recorder.wrapEmit(runtimeContext.emit) : runtimeContext.emit;
+  const emit = recorder
+    ? recorder.wrapEmit(runtimeContext.emit)
+    : runtimeContext.emit;
   try {
     await recorder?.recordInitialUserMessage();
     extensions = options.extensions?.length
-      ? await extensionRuntime.open(options.extensions, runtimeCommand, runtimeContext)
+      ? await extensionRuntime.open(
+          options.extensions,
+          runtimeCommand,
+          runtimeContext,
+        )
       : undefined;
     if (!extensions && runtimeCommand.sessionRootDir) {
       // An empty source snapshot must retire previously enabled plugins too.
@@ -136,7 +156,9 @@ const executeAgentRunCommandWithRecording = async (
       /^\/([a-z][a-z0-9.-]*\/[a-z][a-z0-9_]*)(?:\s+([\s\S]*))?$/.exec(
         command.userMessage.trim(),
       );
-    const registered = slash && extensions?.catalog.commands.find((item) => item.id === slash[1]);
+    const registered =
+      slash &&
+      extensions?.catalog.commands.find((item) => item.id === slash[1]);
     if (slash && registered && extensions) {
       emit({ type: AgentRuntimeEventType.Started, taskId: command.taskId });
       const input =
@@ -177,7 +199,11 @@ const executeAgentRunCommandWithRecording = async (
         await extensions.finish({
           type: "run_finished",
           taskId: command.taskId,
-          status: context.signal?.aborted ? "cancelled" : completed ? "completed" : "failed",
+          status: context.signal?.aborted
+            ? "cancelled"
+            : completed
+              ? "completed"
+              : "failed",
         });
       }
     } finally {
@@ -222,7 +248,10 @@ export const executeChatCommand = async (
           return;
         }
 
-        attemptState.emitted ||= isVisibleChatOutputEvent(runtimeCommand, event);
+        attemptState.emitted ||= isVisibleChatOutputEvent(
+          runtimeCommand,
+          event,
+        );
         context.emit(event);
       },
     };
@@ -244,7 +273,9 @@ export const executeChatCommand = async (
         throw error;
       }
 
-      console.warn(`Chat runtime retry ${attempt}/${CHAT_MAX_ATTEMPTS - 1}: ${messageFromError(error)}`);
+      console.warn(
+        `Chat runtime retry ${attempt}/${CHAT_MAX_ATTEMPTS - 1}: ${messageFromError(error)}`,
+      );
       await sleep(retryDelayMs(attempt));
     } finally {
       attemptState.active = false;
@@ -297,7 +328,11 @@ const withTimeout = async <T>(
   }
 };
 
-const shouldRetryChatAttempt = (error: unknown, attempt: number, emitted: boolean) =>
+const shouldRetryChatAttempt = (
+  error: unknown,
+  attempt: number,
+  emitted: boolean,
+) =>
   attempt < CHAT_MAX_ATTEMPTS && !emitted && isRetryableExecutionError(error);
 
 const isRetryableExecutionError = (error: unknown) => {
@@ -317,9 +352,17 @@ const isRetryableExecutionError = (error: unknown) => {
   }
 
   const status = numberFromUnknown(
-    details?.status ?? details?.statusCode ?? objectFromUnknown(details?.response)?.status,
+    details?.status ??
+      details?.statusCode ??
+      objectFromUnknown(details?.response)?.status,
   );
-  if (status === 408 || status === 409 || status === 425 || status === 429 || (status !== null && status >= 500)) {
+  if (
+    status === 408 ||
+    status === 409 ||
+    status === 425 ||
+    status === 429 ||
+    (status !== null && status >= 500)
+  ) {
     return true;
   }
 
@@ -327,8 +370,15 @@ const isRetryableExecutionError = (error: unknown) => {
   return RETRYABLE_ERROR_MESSAGES.some((keyword) => message.includes(keyword));
 };
 
-const isVisibleChatOutputEvent = (command: ChatRunCommand, event: AgentEvent) => {
-  if (!command.streamId || !("taskId" in event) || event.taskId !== command.streamId) {
+const isVisibleChatOutputEvent = (
+  command: ChatRunCommand,
+  event: AgentEvent,
+) => {
+  if (
+    !command.streamId ||
+    !("taskId" in event) ||
+    event.taskId !== command.streamId
+  ) {
     return false;
   }
 
@@ -358,9 +408,12 @@ const formatDuration = (durationMs: number) => {
 };
 
 const objectFromUnknown = (value: unknown): Record<string, unknown> | null =>
-  typeof value === "object" && value !== null ? (value as Record<string, unknown>) : null;
+  typeof value === "object" && value !== null
+    ? (value as Record<string, unknown>)
+    : null;
 
-const stringFromUnknown = (value: unknown) => (typeof value === "string" ? value : null);
+const stringFromUnknown = (value: unknown) =>
+  typeof value === "string" ? value : null;
 
 const numberFromUnknown = (value: unknown) => {
   if (typeof value === "number") {

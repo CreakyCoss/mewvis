@@ -1,3 +1,8 @@
+import {
+  PRODUCT_KEYS,
+  PRODUCT_NAMESPACE,
+  productId,
+} from "@mewvis/product-config";
 import { readFile, realpath, stat } from "node:fs/promises";
 import { extname, isAbsolute, relative, resolve } from "node:path";
 
@@ -28,39 +33,56 @@ const MAX_SCRIPT_BYTES = 8 * 1024 * 1024;
 const MAX_STYLE_BYTES = 2 * 1024 * 1024;
 
 const asObject = (value: unknown, label: string): Record<string, unknown> => {
-  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error(`${label}必须是对象。`);
+  if (!value || typeof value !== "object" || Array.isArray(value))
+    throw new Error(`${label}必须是对象。`);
   return value as Record<string, unknown>;
 };
 
 const optionalTitle = (value: unknown) => {
   if (value === undefined) return undefined;
-  if (typeof value !== "string" || !value.trim()) throw new Error("mewvis.ui.title 必须是非空字符串。");
+  if (typeof value !== "string" || !value.trim())
+    throw new Error(productId(".ui.title 必须是非空字符串。"));
   const title = value.trim();
-  if (title.length > 100) throw new Error("mewvis.ui.title 不能超过 100 个字符。");
+  if (title.length > 100)
+    throw new Error(productId(".ui.title 不能超过 100 个字符。"));
   return title;
 };
 
-const relativeEntry = (value: unknown, field: string, extensions: readonly string[]) => {
+const relativeEntry = (
+  value: unknown,
+  field: string,
+  extensions: readonly string[],
+) => {
   if (typeof value !== "string" || !value.startsWith("./")) {
     throw new Error(`${field} 必须是以 ./ 开头的包内相对路径。`);
   }
   const extension = extname(value).toLowerCase();
-  if (!extensions.includes(extension)) throw new Error(`${field} 只支持 ${extensions.join("、")} 文件。`);
+  if (!extensions.includes(extension))
+    throw new Error(`${field} 只支持 ${extensions.join("、")} 文件。`);
   return value;
 };
 
-const readPackageFile = async (packageRoot: string, entry: string, maxBytes: number, label: string) => {
+const readPackageFile = async (
+  packageRoot: string,
+  entry: string,
+  maxBytes: number,
+  label: string,
+) => {
   const root = await realpath(packageRoot);
   const target = await realpath(resolve(root, entry));
   const inside = relative(root, target);
-  if (!inside || inside.startsWith("..") || isAbsolute(inside)) throw new Error(`${label} 必须位于应用包目录内。`);
+  if (!inside || inside.startsWith("..") || isAbsolute(inside))
+    throw new Error(`${label} 必须位于应用包目录内。`);
   const metadata = await stat(target);
   if (!metadata.isFile()) throw new Error(`${label} 不是普通文件。`);
-  if (metadata.size > maxBytes) throw new Error(`${label} 超过 ${Math.floor(maxBytes / 1024)} KiB 上限。`);
+  if (metadata.size > maxBytes)
+    throw new Error(`${label} 超过 ${Math.floor(maxBytes / 1024)} KiB 上限。`);
   return readFile(target, "utf8");
 };
 
-const compatibilityInfo = (manifest: Record<string, unknown>): readonly ApplicationCompatibilityInfo[] => {
+const compatibilityInfo = (
+  manifest: Record<string, unknown>,
+): readonly ApplicationCompatibilityInfo[] => {
   const dsh = manifest.dsh;
   if (!dsh || typeof dsh !== "object" || Array.isArray(dsh)) return [];
   const client = (dsh as Record<string, unknown>).client;
@@ -69,14 +91,26 @@ const compatibilityInfo = (manifest: Record<string, unknown>): readonly Applicat
     client && typeof client === "object" && !Array.isArray(client)
       ? (client as Record<string, unknown>).platform
       : undefined;
-  return [{ adapter: "dsh", clientPlatform: typeof platform === "string" ? platform : null }];
+  return [
+    {
+      adapter: "dsh",
+      clientPlatform: typeof platform === "string" ? platform : null,
+    },
+  ];
 };
 
 /** Read Mewvis's additive UI declaration without evaluating application browser code. */
-export const loadApplicationUiManifest = async (packageRoot: string): Promise<ApplicationUiManifestResult> => {
+export const loadApplicationUiManifest = async (
+  packageRoot: string,
+): Promise<ApplicationUiManifestResult> => {
   let manifest: Record<string, unknown>;
   try {
-    const text = await readPackageFile(packageRoot, "./package.json", MAX_MANIFEST_BYTES, "应用 package.json");
+    const text = await readPackageFile(
+      packageRoot,
+      "./package.json",
+      MAX_MANIFEST_BYTES,
+      "应用 package.json",
+    );
     manifest = asObject(JSON.parse(text), "应用 package.json");
   } catch (error) {
     return {
@@ -89,20 +123,41 @@ export const loadApplicationUiManifest = async (packageRoot: string): Promise<Ap
 
   const compatibility = compatibilityInfo(manifest);
   try {
-    const mewvis = manifest.mewvis;
-    if (mewvis === undefined) return { contribution: null, document: null, error: null, compatibility };
-    const uiValue = asObject(mewvis, "mewvis").ui;
-    if (uiValue === undefined) return { contribution: null, document: null, error: null, compatibility };
-    const ui = asObject(uiValue, "mewvis.ui");
-    if (ui.version !== 1) throw new Error("mewvis.ui.version 当前只支持 1。");
+    const mewvis = manifest[PRODUCT_KEYS.applicationManifest];
+    if (mewvis === undefined)
+      return { contribution: null, document: null, error: null, compatibility };
+    const uiValue = asObject(mewvis, PRODUCT_KEYS.applicationManifest).ui;
+    if (uiValue === undefined)
+      return { contribution: null, document: null, error: null, compatibility };
+    const ui = asObject(uiValue, productId(".ui"));
+    if (ui.version !== 1)
+      throw new Error(productId(".ui.version 当前只支持 1。"));
     const title = optionalTitle(ui.title);
 
     if (ui.kind === "sandbox") {
-      const entry = relativeEntry(ui.entry, "mewvis.ui.entry", [".js", ".mjs"]);
-      const style = ui.style === undefined ? undefined : relativeEntry(ui.style, "mewvis.ui.style", [".css"]);
+      const entry = relativeEntry(ui.entry, productId(".ui.entry"), [
+        ".js",
+        ".mjs",
+      ]);
+      const style =
+        ui.style === undefined
+          ? undefined
+          : relativeEntry(ui.style, productId(".ui.style"), [".css"]);
       const [script, stylesheet] = await Promise.all([
-        readPackageFile(packageRoot, entry, MAX_SCRIPT_BYTES, "mewvis.ui.entry"),
-        style ? readPackageFile(packageRoot, style, MAX_STYLE_BYTES, "mewvis.ui.style") : Promise.resolve(""),
+        readPackageFile(
+          packageRoot,
+          entry,
+          MAX_SCRIPT_BYTES,
+          productId(".ui.entry"),
+        ),
+        style
+          ? readPackageFile(
+              packageRoot,
+              style,
+              MAX_STYLE_BYTES,
+              productId(".ui.style"),
+            )
+          : Promise.resolve(""),
       ]);
       return {
         contribution: {
@@ -115,7 +170,9 @@ export const loadApplicationUiManifest = async (packageRoot: string): Promise<Ap
       };
     }
 
-    throw new Error(`mewvis.ui.kind 不受支持：${String(ui.kind)}`);
+    throw new Error(
+      `${PRODUCT_NAMESPACE}.ui.kind 不受支持：${String(ui.kind)}`,
+    );
   } catch (error) {
     return {
       contribution: null,

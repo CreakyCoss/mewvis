@@ -1,3 +1,4 @@
+import { APP_DATA_DIR_NAME } from "@mewvis/product-config";
 import { statSync } from "node:fs";
 import {
   containsPath,
@@ -27,12 +28,23 @@ const restricted = {
   filesystem: {
     allowWrite: ["${workspace}", "${temp}"],
     denyRead: [] as string[],
-    denyWrite: ["${workspace}/.env", "${workspace}/.pi", "${workspace}/.git", "${workspace}/.mewvis"],
+    denyWrite: [
+      "${workspace}/.env",
+      "${workspace}/.pi",
+      "${workspace}/.git",
+      `\${workspace}/${APP_DATA_DIR_NAME}`,
+    ],
   },
   network: { allow: [] as string[], deny: [] as string[] },
 };
 const profiles = [
-  { mode: "ask", label: "请求批准", isDefault: false, approval: { maximumRisk: "low", unknown: "ask" }, ...restricted },
+  {
+    mode: "ask",
+    label: "请求批准",
+    isDefault: false,
+    approval: { maximumRisk: "low", unknown: "ask" },
+    ...restricted,
+  },
   {
     mode: "auto",
     label: "帮我批准",
@@ -46,7 +58,11 @@ const profiles = [
     label: "完全访问权限",
     isDefault: false,
     approval: { maximumRisk: "high", unknown: "allow" },
-    filesystem: { allowWrite: ["${workspace}", "${home}", "${temp}"], denyRead: [], denyWrite: [] },
+    filesystem: {
+      allowWrite: ["${workspace}", "${home}", "${temp}"],
+      denyRead: [],
+      denyWrite: [],
+    },
     network: { allow: "all", deny: [] },
   },
 ] as const;
@@ -66,17 +82,27 @@ const risks = {
 export const SAFETY_CONFIG: SafetyConfig = {
   enabled: true,
   profiles: profiles.map((profile) => {
-    const risk = { low: "低", medium: "低、中", high: "低、中、高" }[profile.approval.maximumRisk];
-    const unknown = { allow: "自动放行", ask: "需要审批", deny: "禁止执行" }[profile.approval.unknown];
+    const risk = { low: "低", medium: "低、中", high: "低、中、高" }[
+      profile.approval.maximumRisk
+    ];
+    const unknown = { allow: "自动放行", ask: "需要审批", deny: "禁止执行" }[
+      profile.approval.unknown
+    ];
     const roots =
       profile.filesystem.allowWrite
         .map((path) =>
           path === "/"
             ? "全部路径"
-            : path.replace("${workspace}", "工作区").replace("${home}", "用户目录").replace("${temp}", "临时目录"),
+            : path
+                .replace("${workspace}", "工作区")
+                .replace("${home}", "用户目录")
+                .replace("${temp}", "临时目录"),
         )
         .join("、") || "无";
-    const network = profile.network.allow === "all" ? "任意域名" : profile.network.allow.join("、") || "禁止联网";
+    const network =
+      profile.network.allow === "all"
+        ? "任意域名"
+        : profile.network.allow.join("、") || "禁止联网";
     return {
       mode: profile.mode,
       label: profile.label,
@@ -97,11 +123,20 @@ export const SAFETY_CONFIG: SafetyConfig = {
     const filesystem = {
       allowWrite: paths(profile.filesystem.allowWrite),
       denyRead: paths([...baseline.denyRead, ...profile.filesystem.denyRead]),
-      denyWrite: paths([...baseline.denyWrite, ...profile.filesystem.denyWrite]),
+      denyWrite: paths([
+        ...baseline.denyWrite,
+        ...profile.filesystem.denyWrite,
+      ]),
     };
     const network = {
-      allow: profile.network.allow === "all" ? ("all" as const) : resourceDomains.parse(profile.network.allow),
-      deny: resourceDomains.parse([...baseline.deniedDomains, ...profile.network.deny]),
+      allow:
+        profile.network.allow === "all"
+          ? ("all" as const)
+          : resourceDomains.parse(profile.network.allow),
+      deny: resourceDomains.parse([
+        ...baseline.deniedDomains,
+        ...profile.network.deny,
+      ]),
     };
     const risk = structuredClone(risks);
     const denyHardlinkWrites = baseline.denyHardlinkWrites;
@@ -115,11 +150,20 @@ export const SAFETY_CONFIG: SafetyConfig = {
           const { target, action, recursive } = operation;
           const mutation = action === "write" || action === "delete";
           const blocked = (roots: string[]) =>
-            roots.find((root) => containsPath(root, target) || (recursive && containsPath(target, root)));
-          const deniedRoot = blocked(mutation ? filesystem.denyWrite : filesystem.denyRead);
+            roots.find(
+              (root) =>
+                containsPath(root, target) ||
+                (recursive && containsPath(target, root)),
+            );
+          const deniedRoot = blocked(
+            mutation ? filesystem.denyWrite : filesystem.denyRead,
+          );
           const denied = deniedRoot
             ? `公共或档位规则禁止${mutation ? "写入" : "访问"}：${deniedRoot}`
-            : mutation && !filesystem.allowWrite.some((root) => containsPath(root, target))
+            : mutation &&
+                !filesystem.allowWrite.some((root) =>
+                  containsPath(root, target),
+                )
               ? `目标不在允许写入的范围：${target}`
               : undefined;
           const outside = !containsPath(workspacePath, target);
@@ -144,10 +188,19 @@ export const SAFETY_CONFIG: SafetyConfig = {
         description: "阻止文件工具写入多硬链接目标。",
         scope: "operation",
         evaluate({ operation }) {
-          if (!denyHardlinkWrites || operation?.kind !== "filesystem" || operation.action !== "write") return;
+          if (
+            !denyHardlinkWrites ||
+            operation?.kind !== "filesystem" ||
+            operation.action !== "write"
+          )
+            return;
           try {
             if (statSync(operation.target).nlink > 1)
-              return { risk: "high", effect: "deny", reason: "文件工具禁止写入多硬链接目标。" };
+              return {
+                risk: "high",
+                effect: "deny",
+                reason: "文件工具禁止写入多硬链接目标。",
+              };
           } catch (error) {
             if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
           }
@@ -158,7 +211,11 @@ export const SAFETY_CONFIG: SafetyConfig = {
         description: "命令按配置风险处理。",
         scope: "operation",
         evaluate({ operation }) {
-          if (operation?.kind === "process") return { risk: risk.process, reason: `执行命令：${operation.command}` };
+          if (operation?.kind === "process")
+            return {
+              risk: risk.process,
+              reason: `执行命令：${operation.command}`,
+            };
         },
       },
       {
@@ -168,8 +225,15 @@ export const SAFETY_CONFIG: SafetyConfig = {
         evaluate({ operation }) {
           if (operation?.kind !== "network") return;
           if (!networkAllowed({ network }, new URL(operation.url).hostname))
-            return { risk: risk.network, effect: "deny", reason: "目标不在配置允许的网络范围。" };
-          return { risk: risk.network, reason: `${operation.method} ${operation.url}` };
+            return {
+              risk: risk.network,
+              effect: "deny",
+              reason: "目标不在配置允许的网络范围。",
+            };
+          return {
+            risk: risk.network,
+            reason: `${operation.method} ${operation.url}`,
+          };
         },
       },
       {
@@ -177,7 +241,11 @@ export const SAFETY_CONFIG: SafetyConfig = {
         description: "已启用工具按定义声明的风险等级处理。",
         scope: "operation",
         evaluate({ operation }) {
-          if (operation?.kind === "tool") return { risk: operation.risk, reason: `工具声明风险：${operation.risk}` };
+          if (operation?.kind === "tool")
+            return {
+              risk: operation.risk,
+              reason: `工具声明风险：${operation.risk}`,
+            };
         },
       },
       {
@@ -186,7 +254,11 @@ export const SAFETY_CONFIG: SafetyConfig = {
         scope: "operation",
         evaluate({ operation }) {
           if (operation?.kind === "interaction")
-            return { risk: risk.interaction, reason: operation.action === "ask" ? "询问用户。" : "委派子 Agent。" };
+            return {
+              risk: risk.interaction,
+              reason:
+                operation.action === "ask" ? "询问用户。" : "委派子 Agent。",
+            };
         },
       },
       // Add invocation rules here too. They inspect request.entry/input directly;

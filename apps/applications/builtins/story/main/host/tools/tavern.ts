@@ -1,3 +1,4 @@
+import { productId } from "@mewvis/product-config";
 import {
   lstat,
   mkdir,
@@ -22,7 +23,7 @@ import {
 
 const tavernContext = defineTool({
   risk: "low",
-  name: "mewvis_story_tavern_context",
+  name: productId("_story_tavern_context"),
   description: "读取章节酒馆所需的定向故事上下文和相关角色资料。",
   parameters: {
     type: "object",
@@ -133,7 +134,7 @@ const tavernFile = async (path: string) => {
 };
 const readTavern = defineTool({
   risk: "low",
-  name: "mewvis_story_tavern_read",
+  name: productId("_story_tavern_read"),
   description: "读取原故事模块使用的 story/tavern.json 酒馆配置。",
   parameters: {
     type: "object",
@@ -157,7 +158,7 @@ const readTavern = defineTool({
 });
 const saveTavern = defineTool({
   risk: "medium",
-  name: "mewvis_story_tavern_save",
+  name: productId("_story_tavern_save"),
   description: "保存酒馆配置到原故事模块兼容的 story/tavern.json。",
   parameters: {
     type: "object",
@@ -221,7 +222,7 @@ const tavernRoomFile = async (
 };
 const readTavernRoom = defineTool({
   risk: "low",
-  name: "mewvis_story_tavern_room_read",
+  name: productId("_story_tavern_room_read"),
   description: "读取原酒馆兼容的章节消息记录。",
   parameters: {
     type: "object",
@@ -253,7 +254,7 @@ const readTavernRoom = defineTool({
 });
 const saveTavernRoom = defineTool({
   risk: "medium",
-  name: "mewvis_story_tavern_room_save",
+  name: productId("_story_tavern_room_save"),
   description: "原子保存章节酒馆消息记录。",
   parameters: {
     type: "object",
@@ -292,7 +293,7 @@ const saveTavernRoom = defineTool({
 });
 const resetTavernRoom = defineTool({
   risk: "medium",
-  name: "mewvis_story_tavern_room_reset",
+  name: productId("_story_tavern_room_reset"),
   description: "清空指定章节的酒馆消息文件，故事项目内容不受影响。",
   parameters: {
     type: "object",

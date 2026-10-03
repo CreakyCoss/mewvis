@@ -1,3 +1,4 @@
+import { PRODUCT_NAMESPACE } from "@mewvis/product-config";
 import { readFile, writeFile } from "node:fs/promises";
 import { compile } from "json-schema-to-typescript";
 import { uiSlotDefinitions, uiSlotTypes } from "../ui/slots.js";
@@ -5,7 +6,7 @@ import { uiSlotDefinitions, uiSlotTypes } from "../ui/slots.js";
 const id = { type: "string", pattern: "^[a-z][a-z0-9-]*$", maxLength: 64 };
 const schema = {
   $schema: "http://json-schema.org/draft-07/schema#",
-  $id: "urn:mewvis:ui-contribution",
+  $id: `urn:${PRODUCT_NAMESPACE}:ui-contribution`,
   title: "UIContribution",
   oneOf: Object.values(uiSlotDefinitions).map((slot) => {
     const payload = uiSlotTypes[slot.type].schema;

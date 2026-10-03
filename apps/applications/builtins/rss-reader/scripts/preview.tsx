@@ -1,3 +1,4 @@
+import { productId } from "@mewvis/product-config";
 // Explicit development adapter only. Production ui/main.tsx never imports this file.
 import React from "react";
 import { createRoot } from "react-dom/client";
@@ -9,7 +10,7 @@ import "../ui/styles.css";
 import { demoFeeds, demoEntries, demoStorage } from "./fixtures";
 import { httpUrl, record, string, type Feed } from "../ui/model";
 
-const key = "mewvis-rss-design-preview-v1";
+const key = productId("-rss-design-preview-v1");
 let demo: { feeds: Feed[]; values: Record<string, unknown> };
 try {
   demo = JSON.parse(localStorage.getItem(key) || "null") ?? {

@@ -51,10 +51,15 @@ test("data SDK is browser-safe and can be packaged from a application outside th
       format: "esm",
       metafile: true,
     });
-    assert.ok(result.outputFiles[0].text.includes("createApplicationDataClient"));
+    assert.ok(
+      result.outputFiles[0].text.includes("createApplicationDataClient"),
+    );
     assert.deepEqual(
       Object.keys(result.metafile.inputs).filter(
-        (path) => !path.endsWith("data/index.js") && path !== "<stdin>",
+        (path) =>
+          !path.endsWith("data/index.js") &&
+          path !== "<stdin>" &&
+          !/\/product-config\/(?:index\.js|product\.config\.json)$/.test(path),
       ),
       [],
     );

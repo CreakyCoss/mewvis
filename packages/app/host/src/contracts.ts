@@ -1,6 +1,7 @@
+import { PRODUCT_NAMESPACE } from "@mewvis/product-config";
 import type { MewvisToolRisk } from "@mewvis/app-sdk";
 
-export type ApplicationRuntimeKind = "mewvis" | "dsh";
+export type ApplicationRuntimeKind = typeof PRODUCT_NAMESPACE | "dsh";
 
 export type RuntimeApplication = Readonly<{
   kind: ApplicationRuntimeKind;

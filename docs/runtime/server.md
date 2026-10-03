@@ -134,7 +134,7 @@ Node 新增 `open_system_dialog`，接收 `{ input: { directory, multiple, title
 | `MEWVIS_SERVER_RUNTIME_CLI`      | Runtime CLI 构建产物的绝对路径                    |
 | `AGENT_RUNTIME_PROFILE_ID`     | Runtime profile；`mock` 用于离线验证              |
 
-开发时 Server 从 `apps/agent-runtime` 读取协议，从 `apps/product.config.json` 读取产品配置。桌面构建会将 Server、原生依赖、协议、产品配置及技能打包进 Runtime 资源目录；通过 `MEWVIS_SERVER_RESOURCES` 定位，不依赖源码仓库或系统 Node。Node 可执行文件继续随桌面分发。Windows ARM64 使用原生 ARM64 Node；打包时从固定版本且经 SHA-256 校验的 sqlite-vec 0.1.9 源码编译 `server/native/vec0.dll`，同时复制上游许可证。其他平台继续使用 npm 的目标原生依赖。
+开发时 Server 从 `apps/agent-runtime` 读取协议，通过 `@mewvis/product-config` 读取由 `apps/product.config.json` 生成的产品配置。桌面构建会将 Server、原生依赖、协议、产品配置及技能打包进 Runtime 资源目录；通过 `MEWVIS_SERVER_RESOURCES` 定位，不依赖源码仓库或系统 Node。Node 可执行文件继续随桌面分发。Windows ARM64 使用原生 ARM64 Node；打包时从固定版本且经 SHA-256 校验的 sqlite-vec 0.1.9 源码编译 `server/native/vec0.dll`，同时复制上游许可证。其他平台继续使用 npm 的目标原生依赖。
 
 Windows ARM64 的本机构建需在 Visual Studio 的 ARM64 Native Tools 开发命令行中运行；macOS/Linux 交叉编译复用 LLVM 与 `cargo-xwin` 提供的 ARM64 CRT/SDK。源码及工具链缓存可供后续构建复用。Windows ARM64 开发时先运行 `pnpm --filter client build:node-server` 生成 DLL，再启动 Server；运行分发包无需编译器或 Rust。
 

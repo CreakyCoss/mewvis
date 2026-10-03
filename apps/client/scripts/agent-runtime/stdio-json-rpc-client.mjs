@@ -1,3 +1,4 @@
+import { PRODUCT_KEYS } from "@mewvis/product-config";
 import { readFileSync } from "node:fs";
 
 const openRpcDocument = JSON.parse(
@@ -6,7 +7,7 @@ const openRpcDocument = JSON.parse(
 
 const methodByCommandType = new Map(
   openRpcDocument.methods.flatMap((method) => {
-    const command = method["x-mewvis-command"];
+    const command = method[PRODUCT_KEYS.runtimeCommand];
     return command ? [[command.type, { method: method.name, paramsMode: command.paramsMode }]] : [];
   }),
 );

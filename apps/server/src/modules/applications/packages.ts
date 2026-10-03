@@ -1,3 +1,10 @@
+import {
+  APP_DISPLAY_NAME,
+  PRODUCT_KEYS,
+  PRODUCT_NAMESPACE,
+  productDataName,
+  productId,
+} from "@mewvis/product-config";
 import * as fs from "node:fs/promises";
 import { join, basename, relative, dirname } from "node:path";
 import {
@@ -78,16 +85,16 @@ export async function readPackage(
   const manifest = await jsonOptional(join(path, "package.json"));
   if (!manifest) invalid("应用缺少 package.json");
   const id = nonempty(manifest.name, "name"),
-    mewvis = manifest.mewvis ?? {},
+    mewvis = manifest[PRODUCT_KEYS.applicationManifest] ?? {},
     declared = Array.isArray(mewvis.permissions);
   if (mewvis.permissions != null && !declared)
-    invalid("mewvis.permissions 必须是数组");
+    invalid(productId(".permissions 必须是数组"));
   const list = mewvis.permissions ?? [];
   if (
     new Set(list).size !== list.length ||
     list.some((p: unknown) => !permissions.includes(String(p)))
   )
-    invalid("mewvis.permissions 无效或重复");
+    invalid(productId(".permissions 无效或重复"));
   async function file(value: string) {
     const p = await safePath(path, value);
     if (!(await fs.stat(p)).isFile()) invalid("应用入口必须是文件");
@@ -99,9 +106,10 @@ export async function readPackage(
   if (manifest.dsh?.bundle?.patch)
     patchPath = await file(manifest.dsh.bundle.patch);
   if (mewvis.app) {
-    if (mewvis.app.version !== 1) invalid("不支持的 Mewvis 应用协议版本");
-    runtimeKind = "mewvis";
-    entry = await file(nonempty(mewvis.app.entry, "mewvis.app.entry"));
+    if (mewvis.app.version !== 1)
+      invalid(`不支持的 ${APP_DISPLAY_NAME} 应用协议版本`);
+    runtimeKind = PRODUCT_KEYS.applicationManifest;
+    entry = await file(nonempty(mewvis.app.entry, productId(".app.entry")));
   } else if (patchPath) {
     runtimeKind = "dsh";
     const resolveExport = (value: any): string | undefined =>
@@ -114,11 +122,11 @@ export async function readPackage(
           : undefined;
     const main = manifest.main ?? resolveExport(manifest.exports);
     if (main) entry = await file(main);
-  } else invalid("应用缺少 mewvis.app 或 DSH bundle 声明");
+  } else invalid(`应用缺少 ${PRODUCT_NAMESPACE}.app 或 DSH bundle 声明`);
   const permissionStatus = declared
     ? "declared"
-    : runtimeKind === "mewvis"
-      ? "mewvis-upgrade-required"
+    : runtimeKind === PRODUCT_KEYS.applicationManifest
+      ? productId("-upgrade-required")
       : "dsh-unsupported";
   return {
     id,
@@ -136,7 +144,7 @@ export async function readPackage(
     permissions: list,
     agentAccess: mewvis.agentAccess ?? null,
     permissionStatus,
-    origin: await jsonOptional(join(path, ".mewvis-origin.json")),
+    origin: await jsonOptional(join(path, productDataName("-origin.json"))),
   };
 }
 export function descriptor(application: Application) {
@@ -144,8 +152,10 @@ export function descriptor(application: Application) {
   return value;
 }
 export function installable(a: Application) {
-  if (a.permissionStatus === "mewvis-upgrade-required")
-    invalid("请为 Mewvis 应用声明 mewvis.permissions，没有额外权限时声明空数组");
+  if (a.permissionStatus === productId("-upgrade-required"))
+    invalid(
+      `请为 ${APP_DISPLAY_NAME} 应用声明 ${PRODUCT_NAMESPACE}.permissions，没有额外权限时声明空数组`,
+    );
 }
 export async function copyPackage(
   source: string,
@@ -250,7 +260,7 @@ export class Packages {
         ...p,
         dataDirectory: applicationDirectory(this.path, p.id),
         enabled:
-          p.permissionStatus !== "mewvis-upgrade-required" &&
+          p.permissionStatus !== productId("-upgrade-required") &&
           (r.enabled[p.id] ?? p.defaultEnabled),
       }))
       .sort(
@@ -317,7 +327,8 @@ export class Packages {
       try {
         return await this.enable(
           p.id,
-          p.runtimeKind === "mewvis" && (enable ?? true),
+          p.runtimeKind === PRODUCT_KEYS.applicationManifest &&
+            (enable ?? true),
         );
       } catch (error) {
         await fs.rm(dest, { recursive: true, force: true });

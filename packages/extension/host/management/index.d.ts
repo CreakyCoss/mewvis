@@ -1,3 +1,4 @@
+import { PRODUCT_KEYS } from "@mewvis/product-config";
 import type {
   ExtensionManifest,
   ExtensionSource,
@@ -29,7 +30,7 @@ export interface ExtensionPackage {
     name: string;
     version: string;
     type: "module";
-    "mewvis.plugin": ExtensionManifest;
+    [PRODUCT_KEYS.pluginManifest]: ExtensionManifest;
     [key: string]: unknown;
   };
 }

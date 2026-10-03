@@ -1,3 +1,4 @@
+import { PRODUCT_CONFIG } from "@mewvis/product-config";
 import { type ReactNode, useEffect, useState } from "react";
 import { initializeConfigDatabase } from "@/api/recovery";
 import { APP_DISPLAY_NAME } from "@/product-config";
@@ -13,7 +14,7 @@ type StartupScreenProps = {
 
 const STARTUP_PREVIEW_COMPLETE_DELAY_MS = 320;
 const STARTUP_PREVIEW_DURATION_MS = 10_000;
-const BRAND_I_DOT_IMAGE = "/assets/startup/mewvis-i-dot.png";
+const BRAND_I_DOT_IMAGE = PRODUCT_CONFIG.assets.brandMark;
 
 let configDatabaseInitialization: Promise<void> | null = null;
 

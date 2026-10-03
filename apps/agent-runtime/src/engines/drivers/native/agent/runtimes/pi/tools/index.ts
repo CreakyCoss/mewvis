@@ -1,9 +1,13 @@
+import { APP_DISPLAY_NAME } from "@mewvis/product-config";
 import type { ExtensionAPI, Skill } from "@earendil-works/pi-coding-agent";
 import { isRiskLevel } from "@mewvis/chat-contracts";
 import { fileURLToPath } from "node:url";
 import entries from "../../../../../../../../build-entries.json" with { type: "json" };
 import { resolveBuiltins } from "../../../../../../builtins/index.js";
-import { AGENT_TOOL_DEFINITIONS, normalizeAllowedAgentTools } from "../../../tools/definitions.js";
+import {
+  AGENT_TOOL_DEFINITIONS,
+  normalizeAllowedAgentTools,
+} from "../../../tools/definitions.js";
 import {
   DEFAULT_AGENT_PERMISSION_MODE,
   resolveSafetyPolicy,
@@ -15,17 +19,28 @@ import {
   serializeWorkspaceOperation,
 } from "../../../../../../../security/execution/index.js";
 import { allowedRuntimeTools, runtimeResourcesFor } from "../../resources.js";
-import type { AgentRuntimeCallbacks, RuntimeAgentCommand } from "../../types.js";
+import type {
+  AgentRuntimeCallbacks,
+  RuntimeAgentCommand,
+} from "../../types.js";
 import { createPiSubagentRunner } from "../agent/subagent-session.js";
-import type { PiAgentSessionOptions, PiAgentSession } from "../agent/session.js";
+import type {
+  PiAgentSessionOptions,
+  PiAgentSession,
+} from "../agent/session.js";
 import { registerPiAskUserTool } from "./ask-user-tool.js";
 import { registerPiSubagentTool } from "./subagent.js";
 import { installPiSafety } from "./safety.js";
-import { accessAllowsPath, resolveAgentAccess } from "../../../../../../../security/access/index.js";
+import {
+  accessAllowsPath,
+  resolveAgentAccess,
+} from "../../../../../../../security/access/index.js";
 
 type PiTool = Parameters<ExtensionAPI["registerTool"]>[0];
 type Catalog = {
-  tools: (Pick<PiTool, "name" | "label" | "description" | "parameters"> & { risk?: SafetyRisk })[];
+  tools: (Pick<PiTool, "name" | "label" | "description" | "parameters"> & {
+    risk?: SafetyRisk;
+  })[];
   skillContents: { skill: Skill; content: string }[];
 };
 
@@ -49,12 +64,19 @@ export async function createPiToolSet(
   if (
     access &&
     resources.applications?.settingsPath &&
-    !accessAllowsPath(access.filesystem.read, resources.applications.settingsPath)
+    !accessAllowsPath(
+      access.filesystem.read,
+      resources.applications.settingsPath,
+    )
   )
     delete resources.applications.settingsPath;
   // Safety rules are an immutable host snapshot containing functions. Only execution data is cloned.
   const policies = options.policies
-    ? { safety: options.policies.safety, execution: structuredClone(options.policies.execution), access }
+    ? {
+        safety: options.policies.safety,
+        execution: structuredClone(options.policies.execution),
+        access,
+      }
     : {
         safety: resolveSafetyPolicy(mode, command.workspacePath),
         execution: resolveExecutionPolicy(
@@ -63,7 +85,12 @@ export async function createPiToolSet(
           undefined,
           undefined,
           access
-            ? { access, programPaths: resources.applications?.items?.map((application) => application.packageRoot) }
+            ? {
+                access,
+                programPaths: resources.applications?.items?.map(
+                  (application) => application.packageRoot,
+                ),
+              }
             : undefined,
         ),
         access,
@@ -81,7 +108,11 @@ export async function createPiToolSet(
         policy: policies.execution,
         program: {
           executable: process.execPath,
-          args: [fileURLToPath(new URL(entries.piToolWorker.output, import.meta.url))],
+          args: [
+            fileURLToPath(
+              new URL(entries.piToolWorker.output, import.meta.url),
+            ),
+          ],
         },
       });
       starting = worker.call<Catalog>(
@@ -97,8 +128,12 @@ export async function createPiToolSet(
   try {
     const catalog = await initialize();
     const names = catalog.tools.map((tool) => tool.name);
-    if (new Set(names).size !== names.length || names.includes("ask_user") || names.includes("subagent"))
-      throw new Error("应用工具不能覆盖 Mewvis Runtime 工具。");
+    if (
+      new Set(names).size !== names.length ||
+      names.includes("ask_user") ||
+      names.includes("subagent")
+    )
+      throw new Error(`应用工具不能覆盖 ${APP_DISPLAY_NAME} Runtime 工具。`);
     const baseNames = new Set([
       ...AGENT_TOOL_DEFINITIONS.map((tool) => tool.name),
       ...builtins.requiredTools.internal.map((tool) => tool.name),
@@ -106,17 +141,31 @@ export async function createPiToolSet(
     const applicationNames = names.filter((name) => !baseNames.has(name));
     const allocated = [
       ...normalizeAllowedAgentTools(allowedRuntimeTools(command)),
-      ...applicationNames.filter((name) => !resources.tools?.allowed || resources.tools.allowed.includes(name)),
+      ...applicationNames.filter(
+        (name) =>
+          !resources.tools?.allowed || resources.tools.allowed.includes(name),
+      ),
     ];
     const enabled = [...new Set(allocated)]
-      .filter((name) => names.includes(name) || name === "subagent" || name === "ask_user")
-      .filter((name) => !options.toolCeiling || options.toolCeiling.includes(name))
-      .filter((name) => !options.subagent || (name !== "subagent" && name !== "ask_user"));
-    const builtinNames = new Set(builtins.requiredTools.internal.map((tool) => tool.name));
+      .filter(
+        (name) =>
+          names.includes(name) || name === "subagent" || name === "ask_user",
+      )
+      .filter(
+        (name) => !options.toolCeiling || options.toolCeiling.includes(name),
+      )
+      .filter(
+        (name) =>
+          !options.subagent || (name !== "subagent" && name !== "ask_user"),
+      );
+    const builtinNames = new Set(
+      builtins.requiredTools.internal.map((tool) => tool.name),
+    );
     const toolRisks = new Map<string, SafetyRisk>();
     for (const tool of catalog.tools) {
       if (tool.risk === undefined || !enabled.includes(tool.name)) continue;
-      if (!isRiskLevel(tool.risk)) throw new Error(`工具 ${tool.name} 的风险声明无效`);
+      if (!isRiskLevel(tool.risk))
+        throw new Error(`工具 ${tool.name} 的风险声明无效`);
       toolRisks.set(tool.name, tool.risk);
     }
     const tools: PiTool[] = catalog.tools
@@ -144,7 +193,11 @@ export async function createPiToolSet(
               timeout,
             );
           return builtinNames.has(descriptor.name)
-            ? serializeWorkspaceOperation(policies.execution.workspacePath, signal, execute)
+            ? serializeWorkspaceOperation(
+                policies.execution.workspacePath,
+                signal,
+                execute,
+              )
             : execute();
         },
       }));
@@ -154,8 +207,15 @@ export async function createPiToolSet(
       },
     };
     if (!options.subagent)
-      registerPiSubagentTool(collector, createPiSubagentRunner(command, callbacks, enabled, policies));
-    registerPiAskUserTool(collector, command.taskId, callbacks.requestUserInput);
+      registerPiSubagentTool(
+        collector,
+        createPiSubagentRunner(command, callbacks, enabled, policies),
+      );
+    registerPiAskUserTool(
+      collector,
+      command.taskId,
+      callbacks.requestUserInput,
+    );
     return {
       tools,
       access,
@@ -165,10 +225,15 @@ export async function createPiToolSet(
         registerSkills(pi: ExtensionAPI, resolvedSkills: readonly Skill[]) {
           const paths = new Set(resolvedSkills.map((skill) => skill.filePath));
           const contents = catalog.skillContents.filter(
-            ({ skill }) => !skill.disableModelInvocation && paths.has(skill.filePath),
+            ({ skill }) =>
+              !skill.disableModelInvocation && paths.has(skill.filePath),
           );
           pi.on("before_agent_start", (event) => {
-            if ((!access && pi.getActiveTools().includes("read")) || !contents.length) return;
+            if (
+              (!access && pi.getActiveTools().includes("read")) ||
+              !contents.length
+            )
+              return;
             return {
               systemPrompt: [
                 event.systemPrompt,

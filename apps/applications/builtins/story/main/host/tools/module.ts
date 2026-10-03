@@ -1,3 +1,4 @@
+import { productId } from "@mewvis/product-config";
 import {
   defineTool,
   type MewvisApplicationContext,
@@ -79,7 +80,7 @@ export function createStoryModuleTools(ctx: MewvisApplicationContext) {
   };
   tools.push(
     defineTool({
-      name: "mewvis_story_project",
+      name: productId("_story_project"),
       description: "原故事模块的项目接口。",
       risk: "medium",
       parameters,
@@ -124,7 +125,7 @@ export function createStoryModuleTools(ctx: MewvisApplicationContext) {
   );
   tools.push(
     defineTool({
-      name: "mewvis_story_library",
+      name: productId("_story_library"),
       description: "维护应用自有的故事库。移除记录可选择同时删除故事目录内容。",
       risk: "high",
       parameters,
@@ -214,7 +215,7 @@ export function createStoryModuleTools(ctx: MewvisApplicationContext) {
   );
   tools.push(
     defineTool({
-      name: "mewvis_story_file",
+      name: productId("_story_file"),
       description: "读写原故事模块的酒馆配置和运行文件。",
       risk: "medium",
       parameters,

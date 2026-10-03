@@ -17,7 +17,8 @@
   "dependencies": {
     "@mewvis/extension-host": "workspace:*",
     "@mewvis/extension-sdk": "workspace:*",
-    "ajv": "^8.20.0"
+    "ajv": "^8.20.0",
+    "@mewvis/product-config": "workspace:*"
   },
   "devDependencies": {
     "typescript": "~5.8.3"

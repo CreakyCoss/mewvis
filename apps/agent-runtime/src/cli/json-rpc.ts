@@ -1,3 +1,4 @@
+import { PRODUCT_KEYS } from "@mewvis/product-config";
 import { Ajv, type ErrorObject } from "ajv";
 import openRpcDocumentJson from "../../protocol/v1/openrpc.json" with { type: "json" };
 import eventSchemaJson from "../../protocol/v1/schema/event.schema.json" with { type: "json" };
@@ -25,11 +26,11 @@ type ParamsMode = "flat" | "input";
 
 type OpenRpcMethod = {
   name: string;
-  "x-mewvis-command"?: {
+  [PRODUCT_KEYS.runtimeCommand]?: {
     type: string;
     paramsMode: ParamsMode;
   };
-  "x-mewvis-params-schema"?: string;
+  [PRODUCT_KEYS.runtimeParamsSchema]?: string;
 };
 
 type OpenRpcDocument = {
@@ -45,20 +46,25 @@ const requestDefinitions = requestSchemaJson.definitions as Record<
 
 const requestSchemaNameByMethod = new Map(
   Object.entries(requestDefinitions).flatMap(([name, definition]) =>
-    definition.properties?.method?.const ? [[definition.properties.method.const, name] as const] : [],
+    definition.properties?.method?.const
+      ? [[definition.properties.method.const, name] as const]
+      : [],
   ),
 );
 
 const commandMethods = new Map(
   openRpcDocument.methods.flatMap((method) => {
-    const command = method["x-mewvis-command"];
+    const command = method[PRODUCT_KEYS.runtimeCommand];
     if (!command) return [];
     return [
       [
         method.name,
         {
           ...command,
-          paramsSchemaName: method["x-mewvis-params-schema"]?.split("#/definitions/")[1] ?? null,
+          paramsSchemaName:
+            method[PRODUCT_KEYS.runtimeParamsSchema]?.split(
+              "#/definitions/",
+            )[1] ?? null,
           requestSchemaName: requestSchemaNameByMethod.get(method.name) ?? null,
         },
       ] as const,
@@ -66,7 +72,12 @@ const commandMethods = new Map(
   }),
 );
 
-const ajv = new Ajv({ allErrors: true, allowUnionTypes: true, strict: true, strictTypes: false });
+const ajv = new Ajv({
+  allErrors: true,
+  allowUnionTypes: true,
+  strict: true,
+  strictTypes: false,
+});
 ajv.addSchema(modelSchemaJson);
 ajv.addSchema(permissionsSchemaJson);
 ajv.addSchema(accessSchemaJson);
@@ -115,12 +126,17 @@ export const validateRuntimeResult = (value: unknown) => ({
 
 const validatedProtocolValue = <TValue>(
   value: unknown,
-  validate: (candidate: unknown) => { valid: boolean; errors: ReturnType<typeof errorDetails> },
+  validate: (candidate: unknown) => {
+    valid: boolean;
+    errors: ReturnType<typeof errorDetails>;
+  },
   label: string,
 ): TValue => {
   const validation = validate(value);
   if (!validation.valid) {
-    throw new Error(`${label} 不符合 agent runtime wire schema：${JSON.stringify(validation.errors)}`);
+    throw new Error(
+      `${label} 不符合 agent runtime wire schema：${JSON.stringify(validation.errors)}`,
+    );
   }
   return value as TValue;
 };
@@ -141,7 +157,10 @@ export class JsonRpcProtocolError extends Error {
 const requestIdFrom = (value: unknown): JsonRpcId | null => {
   if (!value || typeof value !== "object" || !("id" in value)) return null;
   const id = (value as { id?: unknown }).id;
-  return typeof id === "string" || (typeof id === "number" && Number.isInteger(id)) ? id : null;
+  return typeof id === "string" ||
+    (typeof id === "number" && Number.isInteger(id))
+    ? id
+    : null;
 };
 
 export const agentRuntimeCommandFromJsonRpc = (
@@ -171,10 +190,15 @@ export const agentRuntimeCommandFromJsonRpc = (
 
   const validation = validateJsonRpcRequest(value);
   if (!validation.valid) {
-    const schemaNames = [commandDefinition.requestSchemaName, commandDefinition.paramsSchemaName].filter(Boolean);
+    const schemaNames = [
+      commandDefinition.requestSchemaName,
+      commandDefinition.paramsSchemaName,
+    ].filter(Boolean);
     const relevantErrors = validation.errors.filter(
       (error) =>
-        schemaNames.some((name) => error.schemaPath.includes(`/definitions/${name}/`)) ||
+        schemaNames.some((name) =>
+          error.schemaPath.includes(`/definitions/${name}/`),
+        ) ||
         error.schemaPath.startsWith("#/properties/jsonrpc/") ||
         error.schemaPath.startsWith("#/properties/id/") ||
         error.schemaPath === "#/additionalProperties",
@@ -196,17 +220,23 @@ export const agentRuntimeCommandFromJsonRpc = (
   };
 
   return (
-    commandDefinition.paramsMode === "input" ? { ...commandBase, input: params } : { ...params, ...commandBase }
+    commandDefinition.paramsMode === "input"
+      ? { ...commandBase, input: params }
+      : { ...params, ...commandBase }
   ) as AgentRuntimeCommand;
 };
 
 const recordWithoutRequestId = (value: unknown): Record<string, unknown> => {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return { value };
+  if (!value || typeof value !== "object" || Array.isArray(value))
+    return { value };
   const { requestId: _requestId, ...rest } = value as Record<string, unknown>;
   return rest;
 };
 
-export const createJsonRpcSuccessResponse = (id: JsonRpcId, result: unknown): JsonRpcResponse =>
+export const createJsonRpcSuccessResponse = (
+  id: JsonRpcId,
+  result: unknown,
+): JsonRpcResponse =>
   validatedProtocolValue<JsonRpcResponse>(
     {
       jsonrpc: "2.0",

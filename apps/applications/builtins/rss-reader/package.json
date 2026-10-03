@@ -14,7 +14,8 @@
   "dependencies": {
     "@mewvis/app-sdk": "workspace:*",
     "dsh-rss": "0.2.0",
-    "fast-xml-parser": "^5.0.0"
+    "fast-xml-parser": "^5.0.0",
+    "@mewvis/product-config": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

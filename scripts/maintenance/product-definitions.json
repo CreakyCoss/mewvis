@@ -1,0 +1,886 @@
+{
+  "packages/chat-contracts/agent-access.schema.json": {
+    "keys": [],
+    "values": [
+      [
+        [
+          "$id"
+        ],
+        "{schemas.runtimeOrigin}/protocol/agent-runtime/v1/access.schema.json"
+      ]
+    ]
+  },
+  "packages/chat-contracts/package.json": {
+    "keys": [],
+    "values": [
+      [
+        [
+          "description"
+        ],
+        "UI-independent session and semantic message contracts shared by {displayName} and its application SDK."
+      ]
+    ]
+  },
+  "packages/app/dev/package.json": {
+    "keys": [
+      [
+        [
+          "bin"
+        ],
+        "{cli.application}"
+      ]
+    ],
+    "values": [
+      [
+        [
+          "description"
+        ],
+        "React application development, preview and packaging for {displayName}."
+      ]
+    ]
+  },
+  "packages/app/sdk/package.json": {
+    "keys": [],
+    "values": [
+      [
+        [
+          "description"
+        ],
+        "Stable authoring contract for {displayName} Cordis applications."
+      ]
+    ]
+  },
+  "apps/extensions/decisions/package.json": {
+    "keys": [
+      [
+        [],
+        "{namespace}.extension"
+      ]
+    ],
+    "values": [
+      [
+        [
+          "{namespace}.extension",
+          "id"
+        ],
+        "{namespace}.decisions"
+      ]
+    ]
+  },
+  "apps/extensions/collaboration/package.json": {
+    "keys": [
+      [
+        [],
+        "{namespace}.extension"
+      ]
+    ],
+    "values": [
+      [
+        [
+          "{namespace}.extension",
+          "id"
+        ],
+        "{namespace}.collaboration"
+      ]
+    ]
+  },
+  "apps/extensions/session-ledger/package.json": {
+    "keys": [
+      [
+        [],
+        "{namespace}.plugin"
+      ]
+    ],
+    "values": [
+      [
+        [
+          "{namespace}.plugin",
+          "id"
+        ],
+        "{namespace}.session-ledger"
+      ]
+    ]
+  },
+  "packages/app/host/schema/mewvis-manifest.schema.json": {
+    "keys": [],
+    "values": [
+      [
+        [
+          "$id"
+        ],
+        "{schemas.applicationOrigin}/schemas/{namespace}-manifest-v1.json"
+      ],
+      [
+        [
+          "title"
+        ],
+        "{displayName} Package Manifest"
+      ]
+    ]
+  },
+  "packages/app/host/schema/mewvis-app.schema.json": {
+    "keys": [],
+    "values": [
+      [
+        [
+          "$id"
+        ],
+        "{schemas.applicationOrigin}/schemas/{namespace}-app-v1.json"
+      ],
+      [
+        [
+          "title"
+        ],
+        "{displayName} Application Manifest"
+      ]
+    ]
+  },
+  "packages/app/host/schema/mewvis-ui.schema.json": {
+    "keys": [],
+    "values": [
+      [
+        [
+          "$id"
+        ],
+        "{schemas.applicationOrigin}/schemas/{namespace}-ui-v1.json"
+      ],
+      [
+        [
+          "title"
+        ],
+        "{displayName} Application UI Manifest"
+      ]
+    ]
+  },
+  "apps/agent-runtime/protocol/v1/schema/response.schema.json": {
+    "keys": [],
+    "values": [
+      [
+        [
+          "$id"
+        ],
+        "{schemas.runtimeOrigin}/protocol/agent-runtime/v1/response.schema.json"
+      ]
+    ]
+  },
+  "apps/agent-runtime/protocol/v1/schema/event.schema.json": {
+    "keys": [],
+    "values": [
+      [
+        [
+          "$id"
+        ],
+        "{schemas.runtimeOrigin}/protocol/agent-runtime/v1/event.schema.json"
+      ]
+    ]
+  },
+  "apps/agent-runtime/protocol/v1/schema/result.schema.json": {
+    "keys": [],
+    "values": [
+      [
+        [
+          "$id"
+        ],
+        "{schemas.runtimeOrigin}/protocol/agent-runtime/v1/result.schema.json"
+      ]
+    ]
+  },
+  "apps/agent-runtime/protocol/v1/schema/access.schema.json": {
+    "keys": [],
+    "values": [
+      [
+        [
+          "$id"
+        ],
+        "{schemas.runtimeOrigin}/protocol/agent-runtime/v1/access.schema.json"
+      ]
+    ]
+  },
+  "apps/agent-runtime/protocol/v1/schema/notification.schema.json": {
+    "keys": [],
+    "values": [
+      [
+        [
+          "$id"
+        ],
+        "{schemas.runtimeOrigin}/protocol/agent-runtime/v1/notification.schema.json"
+      ]
+    ]
+  },
+  "apps/agent-runtime/protocol/v1/schema/request.schema.json": {
+    "keys": [],
+    "values": [
+      [
+        [
+          "$id"
+        ],
+        "{schemas.runtimeOrigin}/protocol/agent-runtime/v1/request.schema.json"
+      ],
+      [
+        [
+          "definitions",
+          "AgentRuntimeApplicationKind",
+          "enum",
+          0
+        ],
+        "{namespace}"
+      ],
+      [
+        [
+          "definitions",
+          "AgentRuntimeApplication",
+          "allOf",
+          0,
+          "if",
+          "properties",
+          "kind",
+          "const"
+        ],
+        "{namespace}"
+      ]
+    ]
+  },
+  "apps/agent-runtime/protocol/v1/schema/permissions.schema.json": {
+    "keys": [],
+    "values": [
+      [
+        [
+          "$id"
+        ],
+        "{schemas.runtimeOrigin}/protocol/agent-runtime/v1/permissions.schema.json"
+      ]
+    ]
+  },
+  "apps/agent-runtime/protocol/v1/schema/model.schema.json": {
+    "keys": [],
+    "values": [
+      [
+        [
+          "$id"
+        ],
+        "{schemas.runtimeOrigin}/protocol/agent-runtime/v1/model.schema.json"
+      ]
+    ]
+  },
+  "apps/agent-runtime/protocol/v1/schema/bindings.schema.json": {
+    "keys": [],
+    "values": [
+      [
+        [
+          "$id"
+        ],
+        "{schemas.runtimeOrigin}/protocol/agent-runtime/v1/bindings.schema.json"
+      ]
+    ]
+  },
+  "apps/agent-runtime/protocol/v1/openrpc.json": {
+    "keys": [
+      [
+        [
+          "methods",
+          0
+        ],
+        "x-{namespace}-command"
+      ],
+      [
+        [
+          "methods",
+          0
+        ],
+        "x-{namespace}-params-schema"
+      ],
+      [
+        [
+          "methods",
+          1
+        ],
+        "x-{namespace}-command"
+      ],
+      [
+        [
+          "methods",
+          1
+        ],
+        "x-{namespace}-params-schema"
+      ],
+      [
+        [
+          "methods",
+          2
+        ],
+        "x-{namespace}-command"
+      ],
+      [
+        [
+          "methods",
+          2
+        ],
+        "x-{namespace}-params-schema"
+      ],
+      [
+        [
+          "methods",
+          3
+        ],
+        "x-{namespace}-command"
+      ],
+      [
+        [
+          "methods",
+          3
+        ],
+        "x-{namespace}-params-schema"
+      ],
+      [
+        [
+          "methods",
+          4
+        ],
+        "x-{namespace}-command"
+      ],
+      [
+        [
+          "methods",
+          4
+        ],
+        "x-{namespace}-params-schema"
+      ],
+      [
+        [
+          "methods",
+          5
+        ],
+        "x-{namespace}-command"
+      ],
+      [
+        [
+          "methods",
+          5
+        ],
+        "x-{namespace}-params-schema"
+      ],
+      [
+        [
+          "methods",
+          6
+        ],
+        "x-{namespace}-command"
+      ],
+      [
+        [
+          "methods",
+          6
+        ],
+        "x-{namespace}-params-schema"
+      ],
+      [
+        [
+          "methods",
+          7
+        ],
+        "x-{namespace}-command"
+      ],
+      [
+        [
+          "methods",
+          7
+        ],
+        "x-{namespace}-params-schema"
+      ],
+      [
+        [
+          "methods",
+          8
+        ],
+        "x-{namespace}-command"
+      ],
+      [
+        [
+          "methods",
+          8
+        ],
+        "x-{namespace}-params-schema"
+      ],
+      [
+        [
+          "methods",
+          9
+        ],
+        "x-{namespace}-command"
+      ],
+      [
+        [
+          "methods",
+          9
+        ],
+        "x-{namespace}-params-schema"
+      ],
+      [
+        [
+          "methods",
+          10
+        ],
+        "x-{namespace}-command"
+      ],
+      [
+        [
+          "methods",
+          10
+        ],
+        "x-{namespace}-params-schema"
+      ],
+      [
+        [
+          "methods",
+          11
+        ],
+        "x-{namespace}-command"
+      ],
+      [
+        [
+          "methods",
+          11
+        ],
+        "x-{namespace}-params-schema"
+      ],
+      [
+        [
+          "methods",
+          12
+        ],
+        "x-{namespace}-command"
+      ],
+      [
+        [
+          "methods",
+          12
+        ],
+        "x-{namespace}-params-schema"
+      ],
+      [
+        [
+          "methods",
+          13
+        ],
+        "x-{namespace}-command"
+      ],
+      [
+        [
+          "methods",
+          13
+        ],
+        "x-{namespace}-params-schema"
+      ],
+      [
+        [
+          "methods",
+          14
+        ],
+        "x-{namespace}-command"
+      ],
+      [
+        [
+          "methods",
+          14
+        ],
+        "x-{namespace}-params-schema"
+      ],
+      [
+        [
+          "methods",
+          15
+        ],
+        "x-{namespace}-command"
+      ],
+      [
+        [
+          "methods",
+          15
+        ],
+        "x-{namespace}-params-schema"
+      ],
+      [
+        [
+          "methods",
+          16
+        ],
+        "x-{namespace}-command"
+      ],
+      [
+        [
+          "methods",
+          16
+        ],
+        "x-{namespace}-params-schema"
+      ],
+      [
+        [
+          "methods",
+          17
+        ],
+        "x-{namespace}-command"
+      ],
+      [
+        [
+          "methods",
+          17
+        ],
+        "x-{namespace}-params-schema"
+      ],
+      [
+        [
+          "methods",
+          18
+        ],
+        "x-{namespace}-command"
+      ],
+      [
+        [
+          "methods",
+          18
+        ],
+        "x-{namespace}-params-schema"
+      ],
+      [
+        [
+          "methods",
+          19
+        ],
+        "x-{namespace}-command"
+      ],
+      [
+        [
+          "methods",
+          19
+        ],
+        "x-{namespace}-params-schema"
+      ],
+      [
+        [
+          "methods",
+          20
+        ],
+        "x-{namespace}-command"
+      ],
+      [
+        [
+          "methods",
+          20
+        ],
+        "x-{namespace}-params-schema"
+      ],
+      [
+        [
+          "methods",
+          21
+        ],
+        "x-{namespace}-command"
+      ],
+      [
+        [
+          "methods",
+          21
+        ],
+        "x-{namespace}-params-schema"
+      ],
+      [
+        [
+          "methods",
+          22
+        ],
+        "x-{namespace}-command"
+      ],
+      [
+        [
+          "methods",
+          22
+        ],
+        "x-{namespace}-params-schema"
+      ],
+      [
+        [
+          "methods",
+          23
+        ],
+        "x-{namespace}-direction"
+      ],
+      [
+        [
+          "methods",
+          23
+        ],
+        "x-{namespace}-params-schema"
+      ],
+      [
+        [
+          "methods",
+          24
+        ],
+        "x-{namespace}-direction"
+      ],
+      [
+        [
+          "methods",
+          24
+        ],
+        "x-{namespace}-params-schema"
+      ],
+      [
+        [
+          "methods",
+          25
+        ],
+        "x-{namespace}-command"
+      ],
+      [
+        [
+          "methods",
+          25
+        ],
+        "x-{namespace}-params-schema"
+      ],
+      [
+        [
+          "methods",
+          26
+        ],
+        "x-{namespace}-command"
+      ],
+      [
+        [
+          "methods",
+          26
+        ],
+        "x-{namespace}-params-schema"
+      ],
+      [
+        [
+          "methods",
+          27
+        ],
+        "x-{namespace}-command"
+      ],
+      [
+        [
+          "methods",
+          27
+        ],
+        "x-{namespace}-params-schema"
+      ]
+    ],
+    "values": [
+      [
+        [
+          "info",
+          "title"
+        ],
+        "{displayName} Agent Runtime"
+      ],
+      [
+        [
+          "info",
+          "description"
+        ],
+        "Language-neutral JSON-RPC protocol for the {displayName} agent runtime. The x-{namespace}-params-schema extension points to the authoritative by-name params schema for each method."
+      ]
+    ]
+  },
+  "packages/extension/sdk/manifest.schema.json": {
+    "keys": [
+      [
+        [
+          "properties"
+        ],
+        "{namespace}.extension"
+      ]
+    ],
+    "values": [
+      [
+        [
+          "title"
+        ],
+        "{displayName} Extension package.json"
+      ],
+      [
+        [
+          "required",
+          3
+        ],
+        "{namespace}.extension"
+      ],
+      [
+        [
+          "properties",
+          "{namespace}.extension",
+          "properties",
+          "modules",
+          "properties",
+          "ui",
+          "properties",
+          "contributions",
+          "items",
+          "$ref"
+        ],
+        "urn:{namespace}:ui-contribution"
+      ]
+    ]
+  },
+  "packages/extension/sdk/ui/contribution.schema.json": {
+    "keys": [],
+    "values": [
+      [
+        [
+          "$id"
+        ],
+        "urn:{namespace}:ui-contribution"
+      ]
+    ]
+  },
+  "packages/extension/host/manifest.schema.json": {
+    "keys": [
+      [
+        [
+          "properties"
+        ],
+        "{namespace}.plugin"
+      ]
+    ],
+    "values": [
+      [
+        [
+          "title"
+        ],
+        "{displayName} native plugin package"
+      ],
+      [
+        [
+          "required",
+          3
+        ],
+        "{namespace}.plugin"
+      ],
+      [
+        [
+          "properties",
+          "{namespace}.plugin",
+          "properties",
+          "modules",
+          "properties",
+          "ui",
+          "properties",
+          "contributions",
+          "items",
+          "$ref"
+        ],
+        "urn:{namespace}:host-ui-contribution"
+      ]
+    ]
+  },
+  "apps/applications/builtins/docs-reader/package.json": {
+    "keys": [
+      [
+        [],
+        "{namespace}"
+      ]
+    ],
+    "values": [
+      [
+        [
+          "{namespace}",
+          "ui",
+          "entry"
+        ],
+        "./{files.appUiScript}"
+      ],
+      [
+        [
+          "{namespace}",
+          "ui",
+          "style"
+        ],
+        "./{files.appUiStyle}"
+      ]
+    ]
+  },
+  "apps/applications/builtins/chat-playground/package.json": {
+    "keys": [],
+    "values": [
+      [
+        [
+          "description"
+        ],
+        "{displayName} 应用能力实验室：体验聊天、工具与技能、审批、数据工作区、内嵌视图和宿主集成。"
+      ]
+    ]
+  },
+  "packages/extension/host/ui/protocol/contribution.schema.json": {
+    "keys": [],
+    "values": [
+      [
+        [
+          "$id"
+        ],
+        "urn:{namespace}:host-ui-contribution"
+      ]
+    ]
+  },
+  "apps/applications/builtins/rss-reader/package.json": {
+    "keys": [
+      [
+        [],
+        "{namespace}"
+      ]
+    ],
+    "values": [
+      [
+        [
+          "{namespace}",
+          "ui",
+          "entry"
+        ],
+        "./{files.appUiScript}"
+      ],
+      [
+        [
+          "{namespace}",
+          "ui",
+          "style"
+        ],
+        "./{files.appUiStyle}"
+      ]
+    ]
+  },
+  "apps/applications/builtins/story/package.json": {
+    "keys": [],
+    "values": [
+      [
+        [
+          "description"
+        ],
+        "{displayName} 内置故事工坊：结构化小说项目、文档编辑、创作助手与章节酒馆。"
+      ]
+    ]
+  },
+  "packages/extension/dev/package.json": {
+    "keys": [
+      [
+        [
+          "bin"
+        ],
+        "{cli.extension}"
+      ]
+    ],
+    "values": []
+  },
+  "package.json": {
+    "keys": [],
+    "values": [
+      [
+        [
+          "name"
+        ],
+        "{namespace}"
+      ]
+    ]
+  }
+}

@@ -1,3 +1,4 @@
+import { APP_DISPLAY_NAME, productId } from "@mewvis/product-config";
 import { useEffect, useRef, useState } from "react";
 import { Copy, ExternalLink, PanelTop, RotateCcw } from "lucide-react";
 import {
@@ -23,7 +24,7 @@ export const hostCode = [
 
 export function HostExamples({ onBack }: { onBack(): void }) {
   const [info, setInfo] = useState<ApplicationHostInfo | null>(null);
-  const [text, setText] = useState("来自 Mewvis 应用能力实验室");
+  const [text, setText] = useState(`来自 ${APP_DISPLAY_NAME} 应用能力实验室`);
   const [url, setUrl] = useState("https://example.com");
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -42,8 +43,8 @@ export function HostExamples({ onBack }: { onBack(): void }) {
       }
     };
     refresh();
-    window.addEventListener("mewvis:theme", refresh);
-    window.addEventListener("mewvis:ready", refresh);
+    window.addEventListener(productId(":theme"), refresh);
+    window.addEventListener(productId(":ready"), refresh);
     let unsubscribe: (() => void) | undefined;
     try {
       const header = getApplicationHost().header;
@@ -55,8 +56,8 @@ export function HostExamples({ onBack }: { onBack(): void }) {
       setError(errorText(error));
     }
     return () => {
-      window.removeEventListener("mewvis:theme", refresh);
-      window.removeEventListener("mewvis:ready", refresh);
+      window.removeEventListener(productId(":theme"), refresh);
+      window.removeEventListener(productId(":ready"), refresh);
       unsubscribe?.();
       if (headerRequested.current) {
         try {
@@ -90,7 +91,7 @@ export function HostExamples({ onBack }: { onBack(): void }) {
       const header = getApplicationHost().header;
       if (!header)
         throw new Error(
-          "当前宿主不提供公共顶栏。请在支持的 Mewvis 版本中体验。",
+          `当前宿主不提供公共顶栏。请在支持的 ${APP_DISPLAY_NAME} 版本中体验。`,
         );
       headerRequested.current = active;
       const result = await header.set(
@@ -142,7 +143,7 @@ export function HostExamples({ onBack }: { onBack(): void }) {
           <p className="showcase-muted">
             {headerAvailable
               ? "在宿主顶栏显示当前应用标题，并接收返回操作。"
-              : "当前环境未提供公共顶栏；此示例需在 Mewvis 中体验。"}
+              : `当前环境未提供公共顶栏；此示例需在 ${APP_DISPLAY_NAME} 中体验。`}
           </p>
           <div className="showcase-actions">
             <button

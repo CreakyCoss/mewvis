@@ -1,3 +1,4 @@
+import { APP_DISPLAY_NAME, PRODUCT_KEYS } from "@mewvis/product-config";
 import { Ajv } from "ajv";
 import manifestSchema from "@mewvis/extension-sdk/manifest.schema.json" with { type: "json" };
 import contributionSchema from "@mewvis/extension-sdk/ui/contribution.schema.json" with { type: "json" };
@@ -8,8 +9,10 @@ const validate = ajv.compile(manifestSchema);
 /** Metadata translation only; executable entries are adapted independently inside their execution environment. */
 export function adaptMewvisPackage(packageJson) {
   if (!validate(packageJson))
-    throw new Error(`Mewvis 插件清单无效：${ajv.errorsText(validate.errors)}`);
-  const source = packageJson["mewvis.extension"];
+    throw new Error(
+      `${APP_DISPLAY_NAME} 插件清单无效：${ajv.errorsText(validate.errors)}`,
+    );
+  const source = packageJson[PRODUCT_KEYS.extensionManifest];
   const modules = {};
   if (source.modules.agent)
     modules.agent = {
@@ -23,10 +26,11 @@ export function adaptMewvisPackage(packageJson) {
       // validates its own schema after translation, so new slot types need no switch here.
       contributions: structuredClone(source.modules.ui.contributions),
     };
-  const { "mewvis.extension": _external, ...metadata } = packageJson;
+  const { [PRODUCT_KEYS.extensionManifest]: _external, ...metadata } =
+    packageJson;
   return {
     ...metadata,
-    "mewvis.plugin": {
+    [PRODUCT_KEYS.pluginManifest]: {
       id: source.id,
       ...(source.displayName && { displayName: source.displayName }),
       schemaVersion: 1,

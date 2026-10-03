@@ -50,6 +50,8 @@ Windows ARM64 包保留原生 ARM64 桌面外壳与 Node。sqlite-vec 0.1.9 的 
 
 应用的应用列表中打开「文档中心」。源码文档的入口是 [文档首页](../README.md)，维护规则见 [文档维护](documentation.md)。
 
-产品配置统一位于 `apps/product.config.json`。配置同步脚本从这里生成 `apps/client/index.html` 的页面标题以及 `apps/desktop/src-tauri` 的 Tauri/Cargo 产品信息；Server 与 Runtime 读取同一份配置。文件移动不改变产品标识或原数据目录命名。应用宿主和内置应用分别归属 `packages/app/host`、`apps/applications`；`core` 仍位于 `apps/client/core`。
+产品配置统一位于 `apps/product.config.json`。显示名称、数据目录、环境变量前缀、产品命名空间、图标和 Schema 地址在这里定义；业务代码通过 `@mewvis/product-config` 读取。修改后在仓库根目录执行 `pnpm sync-product-config`，再重新构建。标准前端、Server、Runtime 和应用宿主构建会自动同步配置。
+
+同步脚本生成共享包的配置快照与类型、启动 HTML、Tauri/Cargo 产品信息、Rust 环境变量名，以及应用和插件清单、Schema 中的产品定义。`scripts/maintenance/product-definitions.json` 记录静态文件中需要生成的字段模板。`pnpm check:product-config` 可只检查产物是否一致，`pnpm test:product-config` 验证配置切换及同步行为。显示名称和技术命名空间分别配置；现有包引用、类型名、源码文件名和 CSS 标识保持为代码引用。文件移动不改变产品标识或原数据目录命名。应用宿主和内置应用分别归属 `packages/app/host`、`apps/applications`；`core` 仍位于 `apps/client/core`。
 
 当前产品标识为 `com.mewvis.desktop`，共享数据目录为 `~/.mewvis`，工作区标记位于 `.mewvis/workspace.json`。产品更名后的版本使用这些新名称，不自动读取或迁移旧名称对应的数据目录。

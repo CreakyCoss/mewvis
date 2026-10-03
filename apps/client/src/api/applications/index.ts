@@ -1,8 +1,10 @@
+import { PRODUCT_NAMESPACE } from "@mewvis/product-config";
+import type { ProductId } from "@mewvis/product-config";
 import { invoke } from "@/transport";
 import type { AgentAccess } from "@mewvis/chat-contracts";
 import type { MewvisToolRisk } from "@mewvis/app-sdk";
 
-export type ApplicationRuntimeKind = "mewvis" | "dsh";
+export type ApplicationRuntimeKind = typeof PRODUCT_NAMESPACE | "dsh";
 
 export type ApplicationPermission =
   | "network"
@@ -14,7 +16,7 @@ export type ApplicationPermission =
   | "chat"
   | "chat-knowledge"
   | "embedded-views";
-export type ApplicationPermissionStatus = "declared" | "mewvis-upgrade-required" | "dsh-unsupported";
+export type ApplicationPermissionStatus = "declared" | ProductId<"-upgrade-required"> | "dsh-unsupported";
 
 export type ApplicationDescriptor = {
   id: string;

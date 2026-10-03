@@ -1,4 +1,9 @@
-import { createSyntheticSourceInfo, type ExtensionAPI, type Skill } from "@earendil-works/pi-coding-agent";
+import { productId } from "@mewvis/product-config";
+import {
+  createSyntheticSourceInfo,
+  type ExtensionAPI,
+  type Skill,
+} from "@earendil-works/pi-coding-agent";
 import type { TextContent, TSchema } from "@earendil-works/pi-ai";
 import type { RiskLevel } from "@mewvis/chat-contracts";
 import { existsSync } from "node:fs";
@@ -16,7 +21,11 @@ const requiredValue = (value: string, label: string) => {
   return normalized;
 };
 
-const skillFileContent = (skill: { name: string; description: string; content: string }) =>
+const skillFileContent = (skill: {
+  name: string;
+  description: string;
+  content: string;
+}) =>
   [
     "---",
     `name: ${JSON.stringify(skill.name)}`,
@@ -29,9 +38,17 @@ const skillFileContent = (skill: { name: string; description: string; content: s
 
 const jsonText = (value: unknown) => JSON.stringify(value) ?? String(value);
 
-const contentAsPiText = (content: readonly unknown[], fallback: unknown): TextContent[] => {
+const contentAsPiText = (
+  content: readonly unknown[],
+  fallback: unknown,
+): TextContent[] => {
   const blocks = content.flatMap((block): TextContent[] => {
-    if (block && typeof block === "object" && "text" in block && typeof block.text === "string") {
+    if (
+      block &&
+      typeof block === "object" &&
+      "text" in block &&
+      typeof block.text === "string"
+    ) {
       return [{ type: "text", text: block.text }];
     }
     return [{ type: "text", text: jsonText(block) }];
@@ -49,9 +66,15 @@ export class ApplicationRuntimeBridge {
     private readonly temporarySkillRoot: string | null,
   ) {}
 
-  static async create(applications: readonly AgentRuntimeApplication[], cwd: string, settingsPath?: string | null) {
+  static async create(
+    applications: readonly AgentRuntimeApplication[],
+    cwd: string,
+    settingsPath?: string | null,
+  ) {
     const host = await ApplicationHost.create({
-      settingsPath: settingsPath ? runtimeApplicationSpecifier(settingsPath, cwd) : undefined,
+      settingsPath: settingsPath
+        ? runtimeApplicationSpecifier(settingsPath, cwd)
+        : undefined,
     });
     let temporarySkillRoot: string | null = null;
     try {
@@ -60,9 +83,16 @@ export class ApplicationRuntimeBridge {
         const runtimeApplication: RuntimeApplication = {
           kind: application.kind,
           id,
-          packageRoot: runtimeApplicationSpecifier(application.packageRoot, cwd),
-          entry: application.entry ? runtimeApplicationSpecifier(application.entry, cwd) : "",
-          patchPath: application.patchPath ? runtimeApplicationSpecifier(application.patchPath, cwd) : undefined,
+          packageRoot: runtimeApplicationSpecifier(
+            application.packageRoot,
+            cwd,
+          ),
+          entry: application.entry
+            ? runtimeApplicationSpecifier(application.entry, cwd)
+            : "",
+          patchPath: application.patchPath
+            ? runtimeApplicationSpecifier(application.patchPath, cwd)
+            : undefined,
           config: application.config ?? undefined,
         };
         await host.load(runtimeApplication);
@@ -70,15 +100,22 @@ export class ApplicationRuntimeBridge {
 
       const materialized = await materializeApplicationSkills(host, cwd);
       temporarySkillRoot = materialized.temporaryRoot;
-      return new ApplicationRuntimeBridge(host, Object.freeze(materialized.skills), temporarySkillRoot);
+      return new ApplicationRuntimeBridge(
+        host,
+        Object.freeze(materialized.skills),
+        temporarySkillRoot,
+      );
     } catch (error) {
       await host.dispose();
-      if (temporarySkillRoot) await rm(temporarySkillRoot, { recursive: true, force: true });
+      if (temporarySkillRoot)
+        await rm(temporarySkillRoot, { recursive: true, force: true });
       throw error;
     }
   }
 
-  registerTools(pi: Pick<ExtensionAPI, "registerTool">): ReadonlyMap<string, RiskLevel> {
+  registerTools(
+    pi: Pick<ExtensionAPI, "registerTool">,
+  ): ReadonlyMap<string, RiskLevel> {
     this.assertActive();
     const risks = new Map<string, RiskLevel>();
     for (const schema of this.host.toolSchemas()) {
@@ -128,15 +165,24 @@ export class ApplicationRuntimeBridge {
   }
 }
 
-export const createApplicationRuntimeBridge = async (command: RuntimeAgentCommand) => {
+export const createApplicationRuntimeBridge = async (
+  command: RuntimeAgentCommand,
+) => {
   const applicationResources = runtimeResourcesFor(command).applications;
   const applications = applicationResources?.items ?? [];
   return applications.length > 0
-    ? ApplicationRuntimeBridge.create(applications, command.workspacePath, applicationResources?.settingsPath)
+    ? ApplicationRuntimeBridge.create(
+        applications,
+        command.workspacePath,
+        applicationResources?.settingsPath,
+      )
     : null;
 };
 
-const materializeApplicationSkills = async (host: ApplicationHost, cwd: string) => {
+const materializeApplicationSkills = async (
+  host: ApplicationHost,
+  cwd: string,
+) => {
   const summaries = await host.listSkills({ cwd });
   const skills: Skill[] = [];
   let temporaryRoot: string | null = null;
@@ -146,9 +192,12 @@ const materializeApplicationSkills = async (host: ApplicationHost, cwd: string) 
       const definition = await host.getSkill(summary.name, { cwd });
       if (!definition) continue;
 
-      let filePath = definition.path && existsSync(definition.path) ? definition.path : null;
+      let filePath =
+        definition.path && existsSync(definition.path) ? definition.path : null;
       if (!filePath) {
-        temporaryRoot ??= await mkdtemp(join(tmpdir(), "mewvis-app-skills-"));
+        temporaryRoot ??= await mkdtemp(
+          join(tmpdir(), productId("-app-skills-")),
+        );
         const skillDir = join(temporaryRoot, definition.name);
         await mkdir(skillDir, { recursive: true });
         filePath = join(skillDir, "SKILL.md");
@@ -156,7 +205,10 @@ const materializeApplicationSkills = async (host: ApplicationHost, cwd: string) 
       }
 
       const resourceBase = definition.resourceBase;
-      const baseDir = resourceBase?.kind === "directory" ? resourceBase.path : dirname(filePath);
+      const baseDir =
+        resourceBase?.kind === "directory"
+          ? resourceBase.path
+          : dirname(filePath);
       skills.push({
         name: definition.name,
         description: definition.description,
@@ -173,10 +225,13 @@ const materializeApplicationSkills = async (host: ApplicationHost, cwd: string) 
 
     return { skills, temporaryRoot };
   } catch (error) {
-    if (temporaryRoot) await rm(temporaryRoot, { recursive: true, force: true });
+    if (temporaryRoot)
+      await rm(temporaryRoot, { recursive: true, force: true });
     throw error;
   }
 };
 
 const runtimeApplicationSpecifier = (specifier: string, cwd: string) =>
-  ["./", "../", ".\\", "..\\"].some((prefix) => specifier.startsWith(prefix)) ? resolve(cwd, specifier) : specifier;
+  ["./", "../", ".\\", "..\\"].some((prefix) => specifier.startsWith(prefix))
+    ? resolve(cwd, specifier)
+    : specifier;

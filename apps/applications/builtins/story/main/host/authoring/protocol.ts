@@ -1,3 +1,4 @@
+import { productId } from "@mewvis/product-config";
 import { defineBuiltinToolContract } from "../definition.js";
 
 type JsonValue =
@@ -77,11 +78,11 @@ export type StoryContextBundle = Readonly<{
 export const STORY_BUILTIN_IDENTIFIERS = Object.freeze({
   /** 技能依赖的 Story Tool Contract；实现可以替换，但必须满足这组方法。 */
   toolContract: Object.freeze({
-    id: "mewvis.story-project-tool",
+    id: productId(".story-project-tool"),
     version: 2,
   }),
   /** agent-runtime 创建的默认 Story Tool 实现包身份。 */
-  toolPackage: Object.freeze({ id: "mewvis.story" }),
+  toolPackage: Object.freeze({ id: productId(".story") }),
 });
 
 export const STORY_TOOL_ACTIONS = {

@@ -1,3 +1,4 @@
+import { productId } from "@mewvis/product-config";
 import { sandboxDocument } from "../../src/workbench/pages/applications/application-frame.tsx";
 import script from "../../../applications/builtins/docs-reader/mewvis-ui.js?raw";
 import style from "../../../applications/builtins/docs-reader/mewvis-ui.css?raw";
@@ -9,15 +10,15 @@ const library = createLibrary(book);
 let theme = "light";
 let failNextRead = false;
 const tools = {
-  mewvis_docs_catalog: () => library.catalog(),
-  mewvis_docs_read: ({ id }) => {
+  [productId("_docs_catalog")]: () => library.catalog(),
+  [productId("_docs_read")]: ({ id }) => {
     if (failNextRead) {
       failNextRead = false;
       throw new Error("模拟读取失败，请重试。");
     }
     return library.read(id);
   },
-  mewvis_docs_search: ({ query }) => library.search(query),
+  [productId("_docs_search")]: ({ query }) => library.search(query),
 };
 let channel;
 function post(message) {

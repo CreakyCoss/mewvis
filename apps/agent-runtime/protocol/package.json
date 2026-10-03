@@ -12,5 +12,8 @@
     "prettier": "3.9.3",
     "quicktype": "26.0.0",
     "esbuild": "^0.28.0"
+  },
+  "dependencies": {
+    "@mewvis/product-config": "workspace:*"
   }
 }

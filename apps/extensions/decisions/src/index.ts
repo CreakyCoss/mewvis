@@ -1,3 +1,4 @@
+import { productId } from "@mewvis/product-config";
 import { defineExtension } from "@mewvis/extension-sdk/agent";
 import {
   decisionRequestSchema,
@@ -7,7 +8,7 @@ import { readRules } from "./rules";
 import { evaluate, formatDecision } from "./evaluate";
 
 export default defineExtension({
-  id: "mewvis.decisions",
+  id: productId(".decisions"),
   apiVersion: 1,
   setup(ctx) {
     const rules = readRules(ctx.config);

@@ -1,3 +1,10 @@
+import { PRODUCT_KEYS } from "@mewvis/product-config";
+import {
+  PRODUCT_KEYS,
+  PRODUCT_NAMESPACE,
+  envName,
+  productId,
+} from "@mewvis/product-config";
 import { randomUUID } from "node:crypto";
 import { mkdtemp, realpath } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -11,13 +18,13 @@ import { seedExamples } from "./seed.mjs";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 // Each preview has an explicit isolated filesystem. No real Mewvis registration or
 // user projects are read. Closing/reopening the browser retains these source files.
-process.env.MEWVIS_WORKSHOP_PREVIEW_ROOT = await realpath(
-  await mkdtemp(join(tmpdir(), "mewvis-workshop-preview-")),
+process.env[envName("WORKSHOP_PREVIEW_ROOT")] = await realpath(
+  await mkdtemp(join(tmpdir(), productId("-workshop-preview-"))),
 );
 await prepareRuntime();
 const { manifest } = await packApplication({
   source: root,
-  target: "mewvis",
+  target: PRODUCT_KEYS.applicationManifest,
   outDir: join(root, "dist/preview"),
   quiet: true,
 });
@@ -40,7 +47,7 @@ application.apply({
 });
 if (process.argv.includes("--seed")) await seedExamples(tools);
 const token = randomUUID();
-const endpoint = "/__mewvis_application_tools__";
+const endpoint = `/__${PRODUCT_NAMESPACE}_application_tools__`;
 const catalog = {
   tools: [...tools.values()].map(({ name, description, risk, parameters }) => ({
     name,
@@ -52,10 +59,10 @@ const catalog = {
 };
 const entry = `import { mountPreview } from '@mewvis/app-dev/preview';
 import App from ${JSON.stringify(join(root, "main/App.tsx"))};
-await mountPreview(App, ${JSON.stringify({ name: manifest.name, displayName: "应用工坊", version: manifest.version, permissions: manifest.mewvis.permissions, endpoint, token })});
+await mountPreview(App, ${JSON.stringify({ name: manifest.name, displayName: "应用工坊", version: manifest.version, permissions: manifest[PRODUCT_KEYS.applicationManifest].permissions, endpoint, token })});
 // Map the explicit filesystem fixture to the SDK's documented memory-chat
 // workspaces. Chat stays a simulation; production uses the real workspace IDs.
-const original=globalThis.mewvisApplication;
+const original=globalThis[${JSON.stringify(PRODUCT_KEYS.applicationGlobal)}];
 const workspaces=new Map();
 async function memoryWorkspace(id){
   if(!workspaces.has(id)) workspaces.set(id,original.data.request({version:1,method:'workspaces.create',params:{name:'小应用预览'}}).then(result=>{if(!result.ok)throw new Error(result.error.message);return result.value.id}));
@@ -74,10 +81,10 @@ const server = await createServer({
   optimizeDeps: { exclude: ["@mewvis/app-dev", "@mewvis/app-sdk/chat/react"] },
   server: {
     host: "127.0.0.1",
-    port: Number(process.env.MEWVIS_WORKSHOP_PORT ?? 5183),
+    port: Number(process.env[envName("WORKSHOP_PORT")] ?? 5183),
     strictPort: true,
     // Stable visual QA can opt out of reloads from concurrent workspace builds.
-    ...(process.env.MEWVIS_WORKSHOP_PREVIEW_STABLE === "1"
+    ...(process.env[envName("WORKSHOP_PREVIEW_STABLE")] === "1"
       ? { hmr: false, watch: null }
       : {}),
     fs: { allow: [searchForWorkspaceRoot(root)] },
@@ -96,7 +103,7 @@ const server = await createServer({
           response.setHeader("Content-Type", "application/json; charset=utf-8");
           response.setHeader("Cache-Control", "no-store");
           try {
-            if (request.headers["x-mewvis-dev-token"] !== token)
+            if (request.headers[`x-${PRODUCT_NAMESPACE}-dev-token`] !== token)
               throw new Error("预览连接无效，请刷新页面。");
             if (request.method === "GET") {
               response.end(JSON.stringify(catalog));
@@ -143,7 +150,7 @@ const server = await createServer({
 await server.listen();
 server.printUrls();
 console.log(
-  `Isolated preview files: ${process.env.MEWVIS_WORKSHOP_PREVIEW_ROOT}`,
+  `Isolated preview files: ${process.env[envName("WORKSHOP_PREVIEW_ROOT")]}`,
 );
 for (const signal of ["SIGINT", "SIGTERM"])
   process.once(signal, async () => {

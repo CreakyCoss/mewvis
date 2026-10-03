@@ -1,3 +1,5 @@
+import { productId } from "@mewvis/product-config";
+import type { ProductId } from "@mewvis/product-config";
 import type { AgentAccess } from "@mewvis/chat-contracts";
 import { createNativeApplicationChat } from "./chat.js";
 import { createNativeApplicationData } from "./data.js";
@@ -28,7 +30,8 @@ type RuntimeApplication = Readonly<{
   patchPath?: string | null;
   permissions: readonly string[];
   agentAccess?: AgentAccess | null;
-  permissionStatus: "declared" | "mewvis-upgrade-required" | "dsh-unsupported";
+  permissionStatus:
+    "declared" | ProductId<"-upgrade-required"> | "dsh-unsupported";
   dataConnection?: string | null;
 }>;
 
@@ -57,7 +60,8 @@ type UiApplication = Readonly<{
   compatibility: readonly ApplicationCompatibilityInfo[];
   permissions: readonly string[];
   agentAccess?: AgentAccess | null;
-  permissionStatus: "declared" | "mewvis-upgrade-required" | "dsh-unsupported";
+  permissionStatus:
+    "declared" | ProductId<"-upgrade-required"> | "dsh-unsupported";
 }>;
 
 const MAX_RESPONSE_BYTES = 4 * 1024 * 1024;
@@ -177,12 +181,12 @@ const configure = async (value: unknown) => {
         agentAccess: application.agentAccess,
         permissionStatus:
           application.permissionStatus === "declared" ||
-          application.permissionStatus === "mewvis-upgrade-required" ||
+          application.permissionStatus === productId("-upgrade-required") ||
           application.permissionStatus === "dsh-unsupported"
             ? application.permissionStatus
             : application.kind === "dsh"
               ? "dsh-unsupported"
-              : "mewvis-upgrade-required",
+              : productId("-upgrade-required"),
       });
     }
     host = nextHost;

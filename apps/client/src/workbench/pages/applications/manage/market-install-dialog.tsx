@@ -1,7 +1,12 @@
+import { APP_DISPLAY_NAME } from "@mewvis/product-config";
 import { useEffect, useState } from "react";
 import { Download, Loader2, ShieldCheck, TriangleAlert } from "lucide-react";
 import { toast } from "sonner";
-import { installApplicationFromMarketplace, type MarketplaceApplication, type ApplicationDescriptor } from "@/api/applications";
+import {
+  installApplicationFromMarketplace,
+  type MarketplaceApplication,
+  type ApplicationDescriptor,
+} from "@/api/applications";
 import { Alert, AlertDescription, AlertTitle } from "design-system/components/ui/alert";
 import { Badge } from "design-system/components/ui/badge";
 import { Button } from "design-system/components/ui/button";
@@ -84,7 +89,10 @@ export const MarketplaceInstallDialog = ({ application, onOpenChange, onInstalle
             <p className="text-sm leading-5 text-muted-foreground">
               {application?.summaryZh || application?.summary || "暂无应用描述"}
             </p>
-            <p className="truncate font-mono text-xs text-muted-foreground" title={application?.npmPackage ?? undefined}>
+            <p
+              className="truncate font-mono text-xs text-muted-foreground"
+              title={application?.npmPackage ?? undefined}
+            >
               npm: {application?.npmPackage ?? "没有 npm 发布包"}
             </p>
           </div>
@@ -94,7 +102,7 @@ export const MarketplaceInstallDialog = ({ application, onOpenChange, onInstalle
             <AlertTitle>安全安装模式</AlertTitle>
             <AlertDescription>
               使用固定 npm registry 下载，并保留精确版本锁文件；安装期间不会执行 preinstall、install、postinstall
-              等脚本。安装成功只代表包格式有效；依赖完整 DSH Profile、客户端或 Mewvis
+              等脚本。安装成功只代表包格式有效；依赖完整 DSH Profile、客户端或 {APP_DISPLAY_NAME}
               尚未提供服务的应用，会在启用时明确报错。
             </AlertDescription>
           </Alert>
@@ -104,7 +112,9 @@ export const MarketplaceInstallDialog = ({ application, onOpenChange, onInstalle
               <TriangleAlert />
               <AlertTitle>社区风险提示</AlertTitle>
               <AlertDescription>
-                {[...application.riskFlags, ...application.blockedBuilds.map((item) => `被阻止构建：${item}`)].join("；")}
+                {[...application.riskFlags, ...application.blockedBuilds.map((item) => `被阻止构建：${item}`)].join(
+                  "；",
+                )}
               </AlertDescription>
             </Alert>
           ) : null}
@@ -113,7 +123,7 @@ export const MarketplaceInstallDialog = ({ application, onOpenChange, onInstalle
             <TriangleAlert />
             <AlertTitle>安装后保持停用</AlertTitle>
             <AlertDescription>
-              社区目录本身不提供权限信息。安装后 Mewvis 会读取包内声明；若 DSH
+              社区目录本身不提供权限信息。安装后 {APP_DISPLAY_NAME} 会读取包内声明；若 DSH
               格式不支持，会明确标记为受信任模式，再由你确认启用。
             </AlertDescription>
           </Alert>
@@ -129,7 +139,11 @@ export const MarketplaceInstallDialog = ({ application, onOpenChange, onInstalle
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isInstalling}>
             取消
           </Button>
-          <Button type="button" onClick={() => void handleInstall()} disabled={isInstalling || !application?.npmPackage}>
+          <Button
+            type="button"
+            onClick={() => void handleInstall()}
+            disabled={isInstalling || !application?.npmPackage}
+          >
             {isInstalling ? (
               <Loader2 className="size-4 animate-spin motion-reduce:animate-none" />
             ) : (

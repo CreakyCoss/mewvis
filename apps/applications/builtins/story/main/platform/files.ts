@@ -1,3 +1,4 @@
+import { productId } from "@mewvis/product-config";
 import { call, locationForPath } from "./bridge";
 const file = async <T>(
   workspacePath: string,
@@ -6,7 +7,7 @@ const file = async <T>(
   content?: string,
 ): Promise<T> => {
   const location = await locationForPath(workspacePath);
-  return call<T>("mewvis_story_file", {
+  return call<T>(productId("_story_file"), {
     workspaceId: location.workspace.id,
     path: [location.relativePath, path].filter(Boolean).join("/"),
     action,

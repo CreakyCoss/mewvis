@@ -1,3 +1,4 @@
+import { productDataName } from "@mewvis/product-config";
 import * as fs from "node:fs/promises";
 import { basename, join, dirname } from "node:path";
 import { parse } from "yaml";
@@ -41,7 +42,7 @@ export class Skills {
       const block = /^---\r?\n([\s\S]*?)\r?\n---/.exec(content);
       const meta = block ? (parse(block[1], { maxAliasCount: 20 }) ?? {}) : {};
       const name = typeof meta.name === "string" ? meta.name : basename(path);
-      const marker = join(path, ".mewvis-skill-source");
+      const marker = join(path, productDataName("-skill-source"));
       if (
         source === "app" &&
         (await exists(marker)) &&
@@ -301,7 +302,7 @@ export class Skills {
             "Skill 已存在，请先移除或更换名称",
           );
         await fs.writeFile(
-          join(skill.path, ".mewvis-skill-source"),
+          join(skill.path, productDataName("-skill-source")),
           upload ? "upload" : "app",
         );
         await fs.rename(skill.path, dest);

@@ -1,3 +1,4 @@
+import { envName } from "@mewvis/product-config";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { getLoadablePath } from "sqlite-vec";
@@ -6,7 +7,7 @@ import { getLoadablePath } from "sqlite-vec";
 export function sqliteVecPath(
   platform = process.platform,
   arch = process.arch,
-  resources = process.env.MEWVIS_SERVER_RESOURCES,
+  resources = process.env[envName("SERVER_RESOURCES")],
 ): string {
   if (platform === "win32" && arch === "arm64") {
     const root =

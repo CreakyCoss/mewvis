@@ -16,6 +16,7 @@
     "@mewvis/extension-host": "workspace:*",
     "@mewvis/extension-sdk": "workspace:*",
     "esbuild": "^0.28.0",
-    "@mewvis/extension-adapters": "workspace:*"
+    "@mewvis/extension-adapters": "workspace:*",
+    "@mewvis/product-config": "workspace:*"
   }
 }

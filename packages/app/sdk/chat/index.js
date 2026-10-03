@@ -1,3 +1,4 @@
+import { PRODUCT_KEYS } from "@mewvis/product-config";
 const freeze = (value) => {
   if (value && typeof value === "object" && !Object.isFrozen(value)) {
     Object.values(value).forEach(freeze);
@@ -171,7 +172,7 @@ export function createApplicationChatClient(transport) {
 let browserClient;
 export function getApplicationChatClient() {
   if (!browserClient) {
-    const transport = globalThis.mewvisApplication?.chat;
+    const transport = globalThis[PRODUCT_KEYS.applicationGlobal]?.chat;
     if (!transport) throw new Error("当前宿主未提供应用聊天能力");
     browserClient = createApplicationChatClient(transport);
   }

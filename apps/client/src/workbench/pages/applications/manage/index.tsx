@@ -1,3 +1,4 @@
+import { APP_DISPLAY_NAME, PRODUCT_KEYS, productId } from "@mewvis/product-config";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Loader2, PackageOpen, PackagePlus, Plug, RefreshCw, Trash2 } from "lucide-react";
 import { NavLink } from "react-router";
@@ -50,8 +51,11 @@ const ApplicationRow = ({ application, isUpdating, onEnabledChange, onRemove }: 
         <Badge variant={application.source === "bundled" ? "primary" : "outline"}>
           {application.source === "bundled" ? "内置" : application.origin?.kind === "marketplace" ? "社区" : "本地"}
         </Badge>
-        <Badge variant="outline">{application.runtimeKind === "mewvis" ? "Mewvis 原生" : "DSH 兼容"}</Badge>
-        {application.runtimeKind === "mewvis" && application.compatibility.some((item) => item.adapter === "dsh") ? (
+        <Badge variant="outline">
+          {application.runtimeKind === PRODUCT_KEYS.applicationManifest ? `${APP_DISPLAY_NAME} 原生` : "DSH 兼容"}
+        </Badge>
+        {application.runtimeKind === PRODUCT_KEYS.applicationManifest &&
+        application.compatibility.some((item) => item.adapter === "dsh") ? (
           <Badge variant="outline">兼容 DSH</Badge>
         ) : null}
         <span className="text-xs text-muted-foreground">v{application.version || "0.0.0"}</span>
@@ -89,7 +93,7 @@ const ApplicationRow = ({ application, isUpdating, onEnabledChange, onRemove }: 
       <label className="flex min-h-11 cursor-pointer items-center gap-2 text-xs font-medium text-muted-foreground">
         {isUpdating ? <Loader2 className="size-3.5 animate-spin motion-reduce:animate-none" /> : null}
         <span>
-          {application.permissionStatus === "mewvis-upgrade-required"
+          {application.permissionStatus === productId("-upgrade-required")
             ? "需要升级"
             : application.enabled
               ? "已启用"
@@ -98,7 +102,7 @@ const ApplicationRow = ({ application, isUpdating, onEnabledChange, onRemove }: 
         <Switch
           checked={application.enabled}
           onCheckedChange={onEnabledChange}
-          disabled={isUpdating || application.permissionStatus === "mewvis-upgrade-required"}
+          disabled={isUpdating || application.permissionStatus === productId("-upgrade-required")}
           aria-label={`${application.enabled ? "禁用" : "启用"}应用 ${application.name}`}
         />
       </label>
@@ -263,7 +267,9 @@ export const ApplicationManagePage = () => {
           </Button>
           <div className="min-w-0">
             <h1 className="truncate text-lg font-semibold tracking-[-0.02em]">应用管理</h1>
-            <p className="mt-1 truncate text-sm text-muted-foreground">安装、启停和维护 Mewvis 应用与兼容应用</p>
+            <p className="mt-1 truncate text-sm text-muted-foreground">
+              安装、启停和维护 {APP_DISPLAY_NAME} 应用与兼容应用
+            </p>
           </div>
         </div>
         <Button type="button" className="min-h-11 shrink-0" onClick={() => setIsImportOpen(true)} title="导入本地应用">
@@ -372,7 +378,7 @@ export const ApplicationManagePage = () => {
             <AlertDialogTitle>启用“{pendingEnable?.name ?? ""}”？</AlertDialogTitle>
             <AlertDialogDescription>
               {pendingEnable?.permissionStatus === "dsh-unsupported"
-                ? "该 DSH 兼容应用没有 Mewvis 权限声明。启用后会以受信任模式执行 Node.js 代码，请确认应用来源可靠。"
+                ? `该 DSH 兼容应用没有 ${APP_DISPLAY_NAME} 权限声明。启用后会以受信任模式执行 Node.js 代码，请确认应用来源可靠。`
                 : "启用前请确认宿主能力和 Agent 访问范围。Agent 操作会受到范围限制；应用自身的 Node.js 代码仍按受信任代码运行。"}
             </AlertDialogDescription>
             {pendingEnable ? (

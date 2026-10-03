@@ -1,3 +1,4 @@
+import { APP_DISPLAY_NAME } from "@mewvis/product-config";
 import { useEffect, useState } from "react";
 import { getApplicationHost } from "@mewvis/app-sdk/browser";
 import {
@@ -10,7 +11,7 @@ import type { TextInspection } from "./contracts";
 import "./styles.css";
 
 export default function App() {
-  const [text, setText] = useState("Hello Mewvis 👋");
+  const [text, setText] = useState(`Hello ${APP_DISPLAY_NAME} 👋`);
   const [result, setResult] = useState<TextInspection>();
   const [session, setSession] = useState<ApplicationChatSession>();
   const [workspaces, setWorkspaces] = useState<{ id: string; name: string }[]>(
@@ -131,7 +132,8 @@ export default function App() {
       {error && <p role="alert">{error}</p>}
       <section className="chat-panel">
         <p>
-          技能示例：新建对话后发送“请使用 __SKILL_NAME__ 技能分析文本 Hello Mewvis
+          技能示例：新建对话后发送“请使用 __SKILL_NAME__ 技能分析文本 Hello{" "}
+          {APP_DISPLAY_NAME}
           👋 的字符数、UTF-8 字节数和 SHA-256”。
         </p>
         {session ? <Chat session={session} /> : <p>选择工作区并新建对话。</p>}

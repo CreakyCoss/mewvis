@@ -1,3 +1,9 @@
+import {
+  APP_DATA_DIR_NAME,
+  APP_DISPLAY_NAME,
+  PRODUCT_CONFIG,
+  envName,
+} from "@mewvis/product-config";
 import { fileURLToPath } from "node:url";
 import { join } from "node:path";
 import { randomBytes } from "node:crypto";
@@ -12,14 +18,14 @@ const unknown = process.argv
   .filter((arg) => !["--desktop", "--web", "--help"].includes(arg));
 if (unknown.length) throw new Error(`未知参数：${unknown.join(", ")}`);
 if (process.argv.includes("--help")) {
-  console.log(`Mewvis Node Server (loopback only)
+  console.log(`${APP_DISPLAY_NAME} Node Server (loopback only)
 Usage: node cli.js [--desktop | --web]
-  MEWVIS_SERVER_PORT       Port, default 1422 (desktop uses a free port)
-  MEWVIS_WEB_PORT          Web mode port, default 4173
-  MEWVIS_SERVER_WEB_ROOT   Built React page directory for --web
-  MEWVIS_SERVER_TOKEN      Bearer token; generated when omitted
-  MEWVIS_SERVER_DATA_DIR   Shared data root, default ~/.mewvis
-  MEWVIS_SERVER_RESOURCES  Packaged Runtime, protocol and product resources
+  ${PRODUCT_CONFIG.envPrefix}_SERVER_PORT       Port, default 1422 (desktop uses a free port)
+  ${PRODUCT_CONFIG.envPrefix}_WEB_PORT          Web mode port, default 4173
+  ${PRODUCT_CONFIG.envPrefix}_SERVER_WEB_ROOT   Built React page directory for --web
+  ${PRODUCT_CONFIG.envPrefix}_SERVER_TOKEN      Bearer token; generated when omitted
+  ${PRODUCT_CONFIG.envPrefix}_SERVER_DATA_DIR   Shared data root, default ~/${APP_DATA_DIR_NAME}
+  ${PRODUCT_CONFIG.envPrefix}_SERVER_RESOURCES  Packaged Runtime, protocol and product resources
 Desktop mode writes a private readiness message to stdout and closes on stdin EOF.`);
 } else {
   let parentGone = false;
@@ -50,13 +56,15 @@ Desktop mode writes a private readiness message to stdout and closes on stdin EO
   try {
     const port = Number(
       web
-        ? (process.env.MEWVIS_WEB_PORT ?? 4173)
-        : (process.env.MEWVIS_SERVER_PORT ?? (desktop ? 0 : 1422)),
+        ? (process.env[envName("WEB_PORT")] ?? 4173)
+        : (process.env[envName("SERVER_PORT")] ?? (desktop ? 0 : 1422)),
     );
     if (!Number.isInteger(port) || port < 0 || port > 65535)
-      throw new Error(`${web ? "MEWVIS_WEB_PORT" : "MEWVIS_SERVER_PORT"} 不合法`);
+      throw new Error(
+        `${web ? envName("WEB_PORT") : envName("SERVER_PORT")} 不合法`,
+      );
     const token =
-      process.env.MEWVIS_SERVER_TOKEN ?? randomBytes(32).toString("hex");
+      process.env[envName("SERVER_TOKEN")] ?? randomBytes(32).toString("hex");
     // Only desktop's known bundled-page origins and its exact development origin may use CORS.
     const allowedOrigins = desktop
       ? [
@@ -65,7 +73,7 @@ Desktop mode writes a private readiness message to stdout and closes on stdin EO
           "https://tauri.localhost",
         ]
       : [];
-    const devOrigin = process.env.MEWVIS_DESKTOP_DEV_ORIGIN;
+    const devOrigin = process.env[envName("DESKTOP_DEV_ORIGIN")];
     if (desktop && devOrigin) {
       const parsed = new URL(devOrigin);
       if (
@@ -76,10 +84,11 @@ Desktop mode writes a private readiness message to stdout and closes on stdin EO
         throw new Error("Invalid desktop development origin");
       allowedOrigins.push(devOrigin);
     }
+    const resources = process.env[envName("SERVER_RESOURCES")];
     const webRoot = web
-      ? (process.env.MEWVIS_SERVER_WEB_ROOT ??
-        (process.env.MEWVIS_SERVER_RESOURCES
-          ? join(process.env.MEWVIS_SERVER_RESOURCES, "web")
+      ? (process.env[envName("SERVER_WEB_ROOT")] ??
+        (resources
+          ? join(resources, "web")
           : fileURLToPath(new URL("../../client/dist/", import.meta.url))))
       : undefined;
     server = await startServer({ port, token, allowedOrigins, webRoot });
@@ -88,10 +97,10 @@ Desktop mode writes a private readiness message to stdout and closes on stdin EO
       process.stdout.write(
         JSON.stringify({ type: "ready", url: server.url, token }) + "\n",
       );
-    else if (web) console.log(`Mewvis Web: ${server.url}`);
+    else if (web) console.log(`${APP_DISPLAY_NAME} Web: ${server.url}`);
     else {
-      console.log(`Mewvis Node Server: ${server.url}`);
-      if (!process.env.MEWVIS_SERVER_TOKEN)
+      console.log(`${APP_DISPLAY_NAME} Node Server: ${server.url}`);
+      if (!process.env[envName("SERVER_TOKEN")])
         console.log(`Session token: ${token}`);
     }
   } catch (error) {
@@ -104,7 +113,10 @@ Desktop mode writes a private readiness message to stdout and closes on stdin EO
           ? error.code
           : "STARTUP_FAILED";
       await new Promise<void>((resolve) => {
-        process.stdout.write(JSON.stringify({ type: "error", code }) + "\n", () => resolve());
+        process.stdout.write(
+          JSON.stringify({ type: "error", code }) + "\n",
+          () => resolve(),
+        );
       });
     }
     process.exit(1);

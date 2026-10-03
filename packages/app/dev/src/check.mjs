@@ -1,3 +1,8 @@
+import {
+  PRODUCT_CONFIG,
+  PRODUCT_NAMESPACE,
+  productId,
+} from "@mewvis/product-config";
 import ts from "typescript";
 import { dirname, join, resolve } from "node:path";
 import { createRequire } from "node:module";
@@ -50,7 +55,7 @@ export async function checkApplication(source) {
   const groups = [
     {
       files: [
-        join(root, "mewvis.config.ts"),
+        join(root, PRODUCT_CONFIG.files.appConfig),
         ...(project.hostEntry ? [project.hostEntry] : []),
         ...(project.toolsEntry ? [project.toolsEntry] : []),
         ...(project.skillsEntry ? [project.skillsEntry] : []),
@@ -106,7 +111,7 @@ export async function checkApplication(source) {
       platform: "browser",
       format: "esm",
       write: false,
-      outfile: join(root, "dist/mewvis-ui.js"),
+      outfile: join(root, `dist/${PRODUCT_CONFIG.files.appUiScript}`),
       jsx: "automatic",
       plugins: [browserBoundary(root, project)],
       loader: {

@@ -1,3 +1,4 @@
+import { PRODUCT_CONFIG, envName } from "@mewvis/product-config";
 import { randomUUID } from "node:crypto";
 import {
   mkdirSync,
@@ -9,13 +10,12 @@ import {
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { z } from "zod";
-import product from "../../../../product.config.json" with { type: "json" };
 import { EXECUTION_CONFIG } from "./policy.js";
 
 const settingsSchema = z.object({ enabled: z.boolean() }).strict();
 const settingsPath = () =>
-  process.env.MEWVIS_SANDBOX_SETTINGS_PATH ??
-  join(homedir(), product.appDataDirName, "sandbox.json");
+  process.env[envName("SANDBOX_SETTINGS_PATH")] ??
+  join(homedir(), PRODUCT_CONFIG.appDataDirName, "sandbox.json");
 
 /** Read per run so existing runtime processes see changes without changing active snapshots. */
 export function readExecutionConfig(platform = process.platform) {

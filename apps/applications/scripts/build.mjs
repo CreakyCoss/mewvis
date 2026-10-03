@@ -1,3 +1,4 @@
+import { PRODUCT_KEYS } from "@mewvis/product-config";
 import { copyFile, mkdir, rm } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -28,7 +29,11 @@ for (const application of builtinApplications) {
   if (ids.has(manifest.name)) throw new Error(`重复内置应用：${manifest.name}`);
   ids.add(manifest.name);
   // Chat depends on the Mewvis host bridge; keep existing portable applications dual-target.
-  const target = manifest.mewvis.permissions.includes("chat") ? "mewvis" : "dsh";
+  const target = manifest[
+    PRODUCT_KEYS.applicationManifest
+  ].permissions.includes("chat")
+    ? PRODUCT_KEYS.applicationManifest
+    : "dsh";
   await packApplication({
     source: application.sourceRoot,
     target,

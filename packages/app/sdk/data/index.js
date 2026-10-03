@@ -1,3 +1,4 @@
+import { APP_DISPLAY_NAME, PRODUCT_KEYS } from "@mewvis/product-config";
 export const APPLICATION_DATA_PERMISSIONS = Object.freeze({
   storage: "application-data",
   workspaces: "application-workspaces",
@@ -222,8 +223,11 @@ export function createApplicationDataClient(transport) {
 
 /** Resolve on every call so a reconnected bridge cannot reuse another connection's client. */
 export function getApplicationDataClient() {
-  const host = globalThis.mewvisApplication;
+  const host = globalThis[PRODUCT_KEYS.applicationGlobal];
   if (!host || host.version !== 1)
-    fail("CAPABILITY_UNAVAILABLE", "当前页面未连接支持应用数据的 Mewvis 宿主");
+    fail(
+      "CAPABILITY_UNAVAILABLE",
+      `当前页面未连接支持应用数据的 ${APP_DISPLAY_NAME} 宿主`,
+    );
   return createApplicationDataClient(host.data);
 }

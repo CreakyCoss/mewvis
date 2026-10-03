@@ -26,7 +26,8 @@
     "sonner": "^2.0.7",
     "zustand": "^5.0.0",
     "date-fns": "^4.2.1",
-    "design-system": "workspace:*"
+    "design-system": "workspace:*",
+    "@mewvis/product-config": "workspace:*"
   },
   "devDependencies": {
     "@mewvis/app-dev": "workspace:*",

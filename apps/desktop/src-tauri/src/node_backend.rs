@@ -1,3 +1,4 @@
+use crate::product_config;
 use serde::{Deserialize, Serialize};
 use std::{
     io::{BufRead, BufReader, Read},
@@ -121,17 +122,17 @@ fn start(app: &AppHandle, stopping: &AtomicBool) -> Result<BackendProcess, Strin
     command
         .arg(runtime.join("server/cli.mjs"))
         .arg("--desktop")
-        .env("MEWVIS_SERVER_RESOURCES", &runtime)
-        .env("MEWVIS_SERVER_PORT", "0")
-        .env_remove("MEWVIS_SERVER_TOKEN")
-        .env_remove("MEWVIS_DESKTOP_DEV_ORIGIN")
+        .env(product_config::SERVER_RESOURCES, &runtime)
+        .env(product_config::SERVER_PORT, "0")
+        .env_remove(product_config::SERVER_TOKEN)
+        .env_remove(product_config::DESKTOP_DEV_ORIGIN)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::inherit());
     if cfg!(debug_assertions) {
         if let Some(url) = app.config().build.dev_url.as_ref() {
             command.env(
-                "MEWVIS_DESKTOP_DEV_ORIGIN",
+                product_config::DESKTOP_DEV_ORIGIN,
                 url.origin().ascii_serialization(),
             );
         }

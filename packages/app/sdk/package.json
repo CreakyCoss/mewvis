@@ -51,7 +51,8 @@
   },
   "dependencies": {
     "@deepseek-ai/schemastery": "3.18.1",
-    "@mewvis/chat-contracts": "workspace:*"
+    "@mewvis/chat-contracts": "workspace:*",
+    "@mewvis/product-config": "workspace:*"
   },
   "sideEffects": false,
   "license": "MIT",

@@ -1,3 +1,4 @@
+import { PRODUCT_NAMESPACE } from "@mewvis/product-config";
 import { createExtensionHostClient } from "@mewvis/extension-host/services";
 
 /** Only this bootstrap executes before the isolated plugin module is imported. */
@@ -13,7 +14,7 @@ ${bootstrap}
 
 const bootstrap = String.raw`
 addEventListener("message", function connect(event) {
-  if (event.source !== parent || event.data?.type !== "mewvis.extension.connect" || !event.ports[0]) return;
+  if (event.source !== parent || event.data?.type !== "${PRODUCT_NAMESPACE}.extension.connect" || !event.ports[0]) return;
   removeEventListener("message", connect);
   const port = event.ports[0];
   const abort = new AbortController();

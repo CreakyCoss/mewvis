@@ -1,3 +1,4 @@
+import { APP_DISPLAY_NAME } from "@mewvis/product-config";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { Download, Loader2, PackageSearch, RefreshCw, Search, ShieldCheck, Star, TriangleAlert } from "lucide-react";
 import { searchApplicationMarketplace, type MarketplaceApplication } from "@/api/applications";
@@ -82,7 +83,7 @@ export const MarketplacePanel = ({ installedIds, onInstall }: MarketplacePanelPr
         <ShieldCheck />
         <AlertTitle>独立社区目录</AlertTitle>
         <AlertDescription>
-          数据来自 dshmarketplace.dev，不代表 DeepSeek 官方背书。Mewvis 当前只安装已发布到 npm 的 DSH
+          数据来自 dshmarketplace.dev，不代表 DeepSeek 官方背书。{APP_DISPLAY_NAME} 当前只安装已发布到 npm 的 DSH
           bundle，且禁用安装脚本；目前运行兼容面以 Cordis 工具与技能为主。
         </AlertDescription>
       </Alert>

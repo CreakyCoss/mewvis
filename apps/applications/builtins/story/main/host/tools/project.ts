@@ -1,3 +1,4 @@
+import { APP_DATA_DIR_NAME, productId } from "@mewvis/product-config";
 import { lstat } from "node:fs/promises";
 import { join } from "node:path";
 import { defineTool } from "@mewvis/app-sdk";
@@ -38,7 +39,7 @@ const snapshot = async (path: string) => {
 
 const storyTypes = defineTool({
   risk: "low",
-  name: "mewvis_story_types",
+  name: productId("_story_types"),
   description: "列出可创建的故事项目类型。",
   parameters: { type: "object", properties: {}, additionalProperties: false },
   output,
@@ -46,7 +47,7 @@ const storyTypes = defineTool({
 });
 const inspect = defineTool({
   risk: "low",
-  name: "mewvis_story_inspect",
+  name: productId("_story_inspect"),
   description: "检查故事工作区兼容性，读取概览、文档和结构。",
   parameters: {
     type: "object",
@@ -60,7 +61,7 @@ const inspect = defineTool({
     const compatibility = await storyProjectApi.checkCompatibility(path);
     if (!compatibility.current) {
       const hasDefinition = await lstat(
-        join(path, "story", ".mewvis", "project.json"),
+        join(path, "story", APP_DATA_DIR_NAME, "project.json"),
       ).then(
         () => true,
         () => false,
@@ -77,7 +78,7 @@ const inspect = defineTool({
 });
 const create = defineTool({
   risk: "medium",
-  name: "mewvis_story_create",
+  name: productId("_story_create"),
   description: "在已登记的应用工作区中创建标准故事项目。",
   parameters: {
     type: "object",
@@ -99,7 +100,7 @@ const create = defineTool({
     const compatibility = await storyProjectApi.checkCompatibility(path);
     if (
       compatibility.current ||
-      (await lstat(join(path, "story", ".mewvis", "project.json")).then(
+      (await lstat(join(path, "story", APP_DATA_DIR_NAME, "project.json")).then(
         () => true,
         () => false,
       ))
@@ -115,7 +116,7 @@ const create = defineTool({
 });
 const save = defineTool({
   risk: "medium",
-  name: "mewvis_story_save_document",
+  name: productId("_story_save_document"),
   description: "保存故事项目文档并返回更新后的项目快照。",
   parameters: {
     type: "object",
@@ -137,7 +138,7 @@ const save = defineTool({
 });
 const getDocument = defineTool({
   risk: "low",
-  name: "mewvis_story_get_document",
+  name: productId("_story_get_document"),
   description: "读取指定故事文档的完整内容与字段定义。",
   parameters: {
     type: "object",
@@ -162,7 +163,7 @@ const getDocument = defineTool({
 });
 const remove = defineTool({
   risk: "medium",
-  name: "mewvis_story_remove_document",
+  name: productId("_story_remove_document"),
   description: "移除故事项目中的一份文档。",
   parameters: {
     type: "object",
@@ -181,7 +182,7 @@ const remove = defineTool({
 });
 const upgrade = defineTool({
   risk: "medium",
-  name: "mewvis_story_upgrade",
+  name: productId("_story_upgrade"),
   description: "将已登记故事项目升级到当前格式。",
   parameters: {
     type: "object",
@@ -203,7 +204,7 @@ const upgrade = defineTool({
 });
 const context = defineTool({
   risk: "low",
-  name: "mewvis_story_read_context",
+  name: productId("_story_read_context"),
   description: "按项目或章节读取标准故事上下文，供创作助手使用。",
   parameters: {
     type: "object",
@@ -231,7 +232,7 @@ const context = defineTool({
 });
 const validateChanges = defineTool({
   risk: "low",
-  name: "mewvis_story_validate_changes",
+  name: productId("_story_validate_changes"),
   description: "按原故事协议校验带修订版本的变更集，不写入文件。",
   parameters: {
     type: "object",
@@ -252,7 +253,7 @@ const validateChanges = defineTool({
 });
 const commitChanges = defineTool({
   risk: "medium",
-  name: "mewvis_story_commit_changes",
+  name: productId("_story_commit_changes"),
   description: "按原故事协议原子提交已校验的变更集。",
   parameters: {
     type: "object",

@@ -708,7 +708,9 @@ export function StoryWorkbench({
                 (c) => !volumes.some((v) => v.ref.identity.id === c.volumeId),
               ),
             )}
-            {!chapters.length && <p className="sw-empty">新建一章，开始你的故事。</p>}
+            {!chapters.length && (
+              <p className="sw-empty">新建一章，开始你的故事。</p>
+            )}
           </nav>
           <div className="sw-library-footer">
             全书{" "}
@@ -1122,7 +1124,10 @@ export function StoryWorkbench({
               <span>{label}</span>
             </button>
           ))}
-          <TavernStoryAction placement="rail" onOpenSettings={onOpenTavernSettings} />
+          <TavernStoryAction
+            placement="rail"
+            onOpenSettings={onOpenTavernSettings}
+          />
         </nav>
       </div>
       <Dialog

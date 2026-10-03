@@ -97,7 +97,7 @@ test("React scaffold checks and builds outside the Mewvis repository", async () 
   assert.equal(manifest.dependencies, undefined);
   const ui = await readFile(join(outputRoot, "mewvis-ui.js"), "utf8");
   assert.match(ui, /mewvis-app-root/);
-  assert.match(ui, /mewvisApplicationChatUI/);
+  assert.doesNotMatch(ui, /@mewvis\/product-config|from ["']/);
   assert.doesNotMatch(ui, /node:crypto|createHash/);
   const host = await import(pathToFileURL(join(outputRoot, "index.js")).href);
   const registered = [];
@@ -141,8 +141,13 @@ test("embedded-views is declared in the built manifest and its browser SDK bundl
   const originalConfig = await readFile(configFile, "utf8");
   const originalApp = await readFile(appFile, "utf8");
   try {
-    await writeFile(configFile, 'export default { displayName: "View owner", permissions: ["embedded-views"] };');
-    await writeFile(appFile, `import { useEffect, useRef } from "react";
+    await writeFile(
+      configFile,
+      'export default { displayName: "View owner", permissions: ["embedded-views"] };',
+    );
+    await writeFile(
+      appFile,
+      `import { useEffect, useRef } from "react";
 import { mountApplicationView } from "@mewvis/app-sdk/views";
 export default function App() {
   const container = useRef<HTMLDivElement>(null);
@@ -151,11 +156,15 @@ export default function App() {
     return () => view.dispose();
   }, []);
   return <div ref={container} />;
-}`);
+}`,
+    );
     await checkApplication(source);
     const result = await packApplication({ source, quiet: true });
     assert.deepEqual(result.manifest.mewvis.permissions, ["embedded-views"]);
-    assert.match(await readFile(join(result.outputRoot, "mewvis-ui.js"), "utf8"), /embedded-views/);
+    assert.match(
+      await readFile(join(result.outputRoot, "mewvis-ui.js"), "utf8"),
+      /embedded-views/,
+    );
   } finally {
     await writeFile(configFile, originalConfig);
     await writeFile(appFile, originalApp);
@@ -168,7 +177,9 @@ test("a full host entry captures the existing application workspace context", as
   const original = await readFile(configFile, "utf8");
   const dev = createDevHost({ hostEntry: entryFile });
   try {
-    await writeFile(entryFile, `import { defineApplication, defineTool } from "@mewvis/app-sdk";
+    await writeFile(
+      entryFile,
+      `import { defineApplication, defineTool } from "@mewvis/app-sdk";
 export default defineApplication({
   name: "@example/scaffold", inject: ["tools", "workspaces"],
   apply(ctx) {
@@ -179,23 +190,38 @@ export default defineApplication({
       async execute(args) { return { path: (await ctx.workspaces!.get((args as { id: string }).id)).path }; },
     }));
   },
-});`);
-    await writeFile(configFile,
-      'export default { displayName: "Custom host", permissions: ["application-workspaces"], ui: false, host: { entry: "./main/host/index.ts" } };');
+});`,
+    );
+    await writeFile(
+      configFile,
+      'export default { displayName: "Custom host", permissions: ["application-workspaces"], ui: false, host: { entry: "./main/host/index.ts" } };',
+    );
     await checkApplication(source);
     const { outputRoot } = await packApplication({ source, quiet: true });
-    const { default: application } = await import(pathToFileURL(join(outputRoot, "index.js")).href + "?custom-entry");
+    const { default: application } = await import(
+      pathToFileURL(join(outputRoot, "index.js")).href + "?custom-entry"
+    );
     assert.deepEqual(application.inject, ["tools", "workspaces"]);
     const tools = [];
     application.apply({
-      tools: { register: tool => tools.push(tool) },
-      workspaces: { get: async id => ({ id, path: "/registered/story" }) },
+      tools: { register: (tool) => tools.push(tool) },
+      workspaces: { get: async (id) => ({ id, path: "/registered/story" }) },
     });
-    assert.deepEqual(await tools[0].execute({ id: "story" }), { path: "/registered/story" });
-    assert.equal((await dev.describe()).tools[0].name, "example_custom_entry_check");
-    await assert.rejects(dev.execute("example_custom_entry_check", { id: "story" }), /真实工作区/);
-    await writeFile(configFile,
-      'export default { displayName: "Invalid", permissions: [], host: { entry: "./main/host/index.ts", tools: "./main/host/tools.ts" } };');
+    assert.deepEqual(await tools[0].execute({ id: "story" }), {
+      path: "/registered/story",
+    });
+    assert.equal(
+      (await dev.describe()).tools[0].name,
+      "example_custom_entry_check",
+    );
+    await assert.rejects(
+      dev.execute("example_custom_entry_check", { id: "story" }),
+      /真实工作区/,
+    );
+    await writeFile(
+      configFile,
+      'export default { displayName: "Invalid", permissions: [], host: { entry: "./main/host/index.ts", tools: "./main/host/tools.ts" } };',
+    );
     await assert.rejects(validateApplication(source), /host 必须声明 entry/);
   } finally {
     await dev.dispose();
@@ -751,8 +777,14 @@ test("preview data uses declared permissions and virtual workspaces that Chat ca
     await data.storage.setItem("keep", true);
     await data.storage.clear();
     assert.deepEqual(await data.storage.keys(), []);
-    await chat.deleteSession({ workspaceId: workspace.id, chatId: session.identity.id });
-    assert.deepEqual(await chat.listSessions({ workspaceId: workspace.id }), []);
+    await chat.deleteSession({
+      workspaceId: workspace.id,
+      chatId: session.identity.id,
+    });
+    assert.deepEqual(
+      await chat.listSessions({ workspaceId: workspace.id }),
+      [],
+    );
     assert.equal(
       (await data.workspaces.get(workspace.id)).path,
       workspace.path,

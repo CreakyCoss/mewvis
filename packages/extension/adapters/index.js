@@ -1,3 +1,4 @@
+import { APP_DISPLAY_NAME } from "@mewvis/product-config";
 // @ts-check
 /** @template T @param {T} value @returns {T} */
 
@@ -24,7 +25,10 @@ function adaptServices(native) {
       ) => copy(await native.configuration.write(copy(value), options)),
     },
     decisions: {
-      evaluate: async (/** @type {import("@mewvis/extension-sdk/host").DecisionRequest} */ input, /** @type {{signal?: AbortSignal}} */ options = {}) => copy(await native.decisions.evaluate(copy(input), options)),
+      evaluate: async (
+        /** @type {import("@mewvis/extension-sdk/host").DecisionRequest} */ input,
+        /** @type {{signal?: AbortSignal}} */ options = {},
+      ) => copy(await native.decisions.evaluate(copy(input), options)),
     },
     tasks: {
       run: async (
@@ -33,9 +37,18 @@ function adaptServices(native) {
       ) => copy(await native.tasks.run(copy(input), options)),
     },
     activity: {
-      pause: (/** @type {string} */ id, /** @type {{signal?: AbortSignal}} */ options = {}) => native.activity.pause(id, options),
-      resume: (/** @type {string} */ id, /** @type {{signal?: AbortSignal}} */ options = {}) => native.activity.resume(id, options),
-      checkpoint: (/** @type {string} */ id, /** @type {{signal?: AbortSignal}} */ options = {}) => native.activity.checkpoint(id, options),
+      pause: (
+        /** @type {string} */ id,
+        /** @type {{signal?: AbortSignal}} */ options = {},
+      ) => native.activity.pause(id, options),
+      resume: (
+        /** @type {string} */ id,
+        /** @type {{signal?: AbortSignal}} */ options = {},
+      ) => native.activity.resume(id, options),
+      checkpoint: (
+        /** @type {string} */ id,
+        /** @type {{signal?: AbortSignal}} */ options = {},
+      ) => native.activity.checkpoint(id, options),
       publish: async (
         /** @type {import("@mewvis/extension-sdk/host").ExtensionActivity} */ input,
         /** @type {{signal?: AbortSignal}} */ options = {},
@@ -68,7 +81,7 @@ function adaptServices(native) {
  */
 export function adaptAgentExtension(definition) {
   if (definition?.apiVersion !== 1 || typeof definition.setup !== "function")
-    throw new Error("不支持的 Mewvis Agent 插件入口");
+    throw new Error(`不支持的 ${APP_DISPLAY_NAME} Agent 插件入口`);
   return {
     id: definition.id,
     protocolVersion: 1,
@@ -85,7 +98,9 @@ export function adaptAgentExtension(definition) {
           delete: (key) => native.session.delete(key),
         },
         provide(method, handler) {
-          native.provide(method, async (input, context) => copy(await handler(copy(input), context)));
+          native.provide(method, async (input, context) =>
+            copy(await handler(copy(input), context)),
+          );
         },
         registerTool(tool) {
           native.registerTool({
@@ -143,7 +158,7 @@ export function adaptAgentExtension(definition) {
  */
 export function adaptUIExtension(definition) {
   if (definition?.apiVersion !== 1 || typeof definition.mount !== "function")
-    throw new Error("不支持的 Mewvis UI 插件入口");
+    throw new Error(`不支持的 ${APP_DISPLAY_NAME} UI 插件入口`);
   return {
     id: definition.id,
     protocolVersion: 1,
