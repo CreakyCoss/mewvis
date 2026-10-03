@@ -11,7 +11,7 @@ final result: passed
 - **[P2，已修复] 字体和控件比例过大。** 主标题从 30px 改为 22px，手机为 18px；侧栏标题固定为桌面 22px、窄屏 20px，正文和操作文字主要为 12–14px。主按钮从 52–58px 高改为 38px，粗指针设备的主要按钮保留至少 44px 高度。
 - **[P2，已修复] 地图在常用窗口内过高。** 关卡名称与状态合为一行，缩略图按视口高度调整；4 列地图保留到 620px，手机切为 2 列。取消相互覆盖的旧断点规则，统一边距、圆角、图标和按钮比例。
 - **[P2，已修复] 宽屏侧栏过度拉伸。** 内容限制在 1140px 内居中，游戏侧栏固定为 320px／264px；棋盘最多 640px。待安置猫保持可辨认、可操作的尺寸，标题和提示不再占据过多空间。
-- 本轮 source visual truth 为修改前的真实浏览器截图：`/Users/haowen.zheng/Development/projects/isle/.codex/cat-packing-compact-qa/map-before.jpg`、`game-before.jpg`。实现截图为同目录的 `map-after.jpg`、`game-after.jpg`、`complete-after.jpg`。
+- 本轮 source visual truth 为修改前的真实浏览器截图：`/Users/haowen.zheng/Development/projects/mewvis/.codex/cat-packing-compact-qa/map-before.jpg`、`game-before.jpg`。实现截图为同目录的 `map-after.jpg`、`game-after.jpg`、`complete-after.jpg`。
 - 前后 CSS 视口与原始截图均为 1280 × 820，密度 1；并排图统一裁去 34px 开发工具条，保留宿主导航。完整比较为 `map-comparison.jpg`、`game-comparison.jpg`；文字、插画与操作局部比较为 `controls-comparison.jpg`。旧游戏截图因原布局溢出而有滚动，修复后同一 4 / 6 摆放状态的 scrollTop 为 0，未把滚动位置变化当作字体差异。
 - 修复过程的二次调整：初次紧凑版游戏多出 4px、窄屏地图多出 10px 高度；随后收紧棋盘和缩略图的可用高度预算。最终 1280 × 820 游戏正文与视口均为 746px，687 × 740 地图正文与视口均为 636px，1280 × 720 通关页正文与视口均为 646px。
 - 手机复查视口为 390 × 844，内容宽度与可用宽度均为 375px；证据为 `map-mobile.jpg`、`game-mobile.jpg`、`controls-mobile.jpg`。帮助弹窗证据为 `help-after.jpg`。
@@ -31,7 +31,7 @@ final result: passed
 | 第 6 关：4 / 6 只已安置，卷卷待放入 | `exec-320b5f04-2ae7-4696-860d-24bde35f368d.png` | `playing-final.jpg`  |
 | 第 6 关完成，第 7 关解锁            | `exec-cd096c28-94bf-41c4-a511-02bf00df29b9.png` | `complete-final.jpg` |
 
-所有实现截图与并排比较图保存在 `/Users/haowen.zheng/Development/projects/isle/.codex/cat-packing-qa/`。预览地址为 `http://127.0.0.1:5183/`，使用真实工坊模板安装、编译与沙箱运行路径。
+所有实现截图与并排比较图保存在 `/Users/haowen.zheng/Development/projects/mewvis/.codex/cat-packing-qa/`。预览地址为 `http://127.0.0.1:5183/`，使用真实工坊模板安装、编译与沙箱运行路径。
 
 - 桌面 CSS 视口为 1487 × 1092，截图为同尺寸，密度 1。上方额外 34px 是开发预览控制条；比较时去掉这 34px，保留和设计相同的宿主导航，得到 1487 × 1058。
 - 地图和游玩设计源为 1487 × 1058；完成设计源为 1485 × 1059，比较时保留原始密度，不把其 2px 宽、1px 高差异当作设计缺陷。

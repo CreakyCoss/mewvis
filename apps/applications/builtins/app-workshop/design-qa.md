@@ -12,7 +12,7 @@ final result: passed
 
 - 源设计：`/Users/haowen.zheng/.codex/generated_images/01a0f769-9f15-7e10-a09f-fec0a9335702/exec-a4e2d945-e1eb-4e72-89de-e38a1f80b872.png`。原图为 1713 × 918 栅格像素，未提供 CSS 视口或设备密度元数据；按图像比例缩放并舍入到 1280 × 686，不声称像素精确复刻。
 - 实现：`http://127.0.0.1:5185/`，1280 × 720 CSS px、1× 截图。扣除顶部 34 px 开发工具条后，工坊区域为 1280 × 686；浅色主题、四个示例项目、选中专注计时器、25:00 初始状态。
-- 本轮截图目录：`/Users/haowen.zheng/Development/projects/isle/output/design/app-workshop-2026-10-02/design-language/implementation/`。
+- 本轮截图目录：`/Users/haowen.zheng/Development/projects/mewvis/output/design/app-workshop-2026-10-02/design-language/implementation/`。
 - 最终全景及重点比较将源图和实现同时放入 `07-final-comparison.png`（2576 × 722）和 `07-final-focused.png`（2576 × 256），已一起查看；`06-home-final.png` 为最终工坊截图，`05-home-pending.png` 为待生成项目状态。
 - `03-narrow-after.png` 为 820 × 720 窄窗口，`04-home-mobile.png` 为 390 × 844 手机布局。源稿没有对应窄窗口设计，响应式布局按既有产品行为适配。
 
