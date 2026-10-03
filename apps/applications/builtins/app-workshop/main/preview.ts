@@ -1,4 +1,10 @@
 // Keep inspection and native scrolling available without activating the app.
+export const previewInteractionStyle = `
+  :root, :root *, :root *::before, :root *::after {
+    cursor: default !important;
+  }
+`;
+
 // This runs inside the existing opaque sandbox before the application bundle.
 export const previewInteractionGuard = `(() => {
   const stop = event => event.stopImmediatePropagation();

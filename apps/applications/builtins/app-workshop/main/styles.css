@@ -449,6 +449,26 @@
   padding: 24px;
   background: var(--surface-raised);
 }
+.wk-view-preview-overlay {
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--background) 48%, transparent);
+  /* Native wheel, touch and scrollbar input must still reach the iframe. */
+  pointer-events: none;
+}
+.wk-view-preview-hint {
+  position: absolute;
+  bottom: 12px;
+  right: 24px;
+  max-width: calc(100% - 48px);
+  padding: 5px 9px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-raised);
+  color: var(--muted-foreground);
+  font-size: 12px;
+  line-height: 1.5;
+}
 .wk-empty {
   display: flex;
   flex: 1;

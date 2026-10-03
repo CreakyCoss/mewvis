@@ -23,7 +23,7 @@ import {
 } from "@mewvis/app-sdk/views";
 import type { BuildArtifact, ProjectSummary } from "./contracts";
 import { errorText } from "./api";
-import { previewInteractionGuard } from "./preview";
+import { previewInteractionGuard, previewInteractionStyle } from "./preview";
 import { useToastLayer } from "./Notifications";
 
 export function ApplicationHeader({
@@ -245,7 +245,9 @@ export function AppView({
         script: passive
           ? previewInteractionGuard + artifact.script
           : artifact.script,
-        style: artifact.style,
+        style: passive
+          ? artifact.style + "\n" + previewInteractionStyle
+          : artifact.style,
         methods: {
           "state.read": async (params, { viewId: actual, signal }) => {
             if (
@@ -316,6 +318,13 @@ export function AppView({
   return (
     <div className={`wk-view ${passive ? "is-passive" : ""}`}>
       <div ref={ref} className="wk-view-frame" />
+      {passive && artifact && !loading && !error && (
+        <div className="wk-view-preview-overlay">
+          <span className="wk-view-preview-hint" role="note">
+            仅供预览 · 点击「运行」使用
+          </span>
+        </div>
+      )}
       {loading && (
         <div className="wk-view-overlay">
           <Busy text="正在启动小应用…" />
