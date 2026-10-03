@@ -21,6 +21,10 @@ build/
 # Local design prototypes
 /prototypes/
 
+# Local design QA records and screenshots
+design-qa.md
+/.codex/
+
 # Logs
 logs
 *.log

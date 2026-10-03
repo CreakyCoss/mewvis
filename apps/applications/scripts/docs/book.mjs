@@ -56,7 +56,7 @@ export function parseSummary(source) {
 async function markdownFiles(root) {
   const files = [];
   for (const entry of await readdir(root, { withFileTypes: true })) {
-    if (entry.name.startsWith(".")) continue;
+    if (entry.name.startsWith(".") || entry.name === "design-qa.md") continue;
     if (entry.isSymbolicLink())
       throw new Error(`文档不允许符号链接：${join(root, entry.name)}`);
     if (entry.isDirectory())

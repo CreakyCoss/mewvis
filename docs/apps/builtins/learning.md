@@ -135,4 +135,4 @@ pnpm --filter @mewvis/learning test
 
 浏览器回归测试：先启动上面的开发预览，再在安装了 Playwright 的环境执行 `node apps/applications/builtins/learning/test/browser-smoke.mjs`。可通过 `PLAYWRIGHT_MODULE` 指定模块路径，通过 `CHROME_PATH` 指定浏览器，通过 `LEARNING_URL` 指定预览地址（默认 5178）。测试仅替换开发预览的模型输出，使用真实 UI、SDK 和预览 Chat 引擎，覆盖多文件文本导入、要点回忆与页内引导、作答历史与薄弱题重练、AI 局部修改、课程 JSON 复制、大纲预览和课时弹窗编辑、返回恢复、单课失败重试、多题型作答、AI 评分保存、单课重生成、PBL 评审/重交/恢复、项目删除与移动端布局；不访问真实模型或用户数据库。
 
-`test/rich-content.test.mjs` 与 `test/experiment-models.test.mjs` 覆盖富内容往返、MathML/Markdown 安全渲染、表达式语法与预算、依赖与参数校验、参考解和采样判定、观察记录恢复与存储失败、旧实验兼容、公式绑定、AI 快照与并发编辑保护。浏览器验收记录见应用目录 `design-qa.md`。
+`test/rich-content.test.mjs` 与 `test/experiment-models.test.mjs` 覆盖富内容往返、MathML/Markdown 安全渲染、表达式语法与预算、依赖与参数校验、参考解和采样判定、观察记录恢复与存储失败、旧实验兼容、公式绑定、AI 快照与并发编辑保护。

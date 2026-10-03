@@ -23,6 +23,5 @@
   "docs/SPEC.md": "docs/architecture/spec.md",
   "docs/RAG_DESIGN.md": "docs/architecture/rag.md",
   "docs/design-system.md": "docs/architecture/design-system.md",
-  "docs/git.md": "docs/guide/git.md",
-  "design-qa.md": "docs/quality/design-qa.md"
+  "docs/git.md": "docs/guide/git.md"
 }

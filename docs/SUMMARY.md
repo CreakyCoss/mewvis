@@ -69,4 +69,3 @@
 ## 质量记录
 
 - [酒馆提示词评估](quality/tavern-prompts.md)
-- [界面设计验收（历史）](quality/design-qa.md)

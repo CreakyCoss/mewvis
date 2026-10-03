@@ -52,5 +52,3 @@ DSH 目标内联运行时依赖，生成 `cordis.patch.yml`，并保留附加的
 ## 本地界面预览
 
 在仓库根目录运行 `pnpm --filter @mewvis/rss-reader dev --port 5199`。预览明确标注「示例预览」，使用 `scripts/fixtures.ts` 和开发专用桥接，不会读取或改动用户的真实订阅。右下角可恢复示例、查看空状态、模拟单源失败及切换主题。预览适配器的浏览器存储仅用于演示，生产入口不包含此适配器，必须连接宿主 Data SDK。
-
-方案 2 设计稿及浏览器验证截图保存在 `prototypes/rss-reader-redesign/`，验收记录见仓库根目录 `design-qa.md`。
