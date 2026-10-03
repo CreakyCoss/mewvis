@@ -3,6 +3,20 @@
   "version": "0.1.0",
   "private": true,
   "packageManager": "pnpm@8.15.9",
+  "pnpm": {
+    "supportedArchitectures": {
+      "os": [
+        "current",
+        "darwin",
+        "win32"
+      ],
+      "cpu": [
+        "current",
+        "arm64",
+        "x64"
+      ]
+    }
+  },
   "scripts": {
     "dev:desktop": "pnpm --filter @mewvis/desktop dev",
     "dev:web": "pnpm --filter client dev:web",
