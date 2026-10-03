@@ -2,7 +2,7 @@
   <img src="apps/client/public/assets/startup/brand-mark.png" alt="Mewvis" width="96" />
 </p>
 
-<h1 align="center">Mewvis</h1>
+<h1 align="center">🐾 Mewvis</h1>
 
 <p align="center">可扩展的 AI 工作台</p>
 
@@ -21,7 +21,9 @@
 
 Mewvis 是一个支持桌面端和 Web 的 AI 工作台，提供模型接入、对话、Agent 执行、工作区和知识库管理，并通过应用与插件扩展不同的使用场景。
 
-## 核心模块
+<a id="核心模块"></a>
+
+## 🧩 核心模块
 
 ### 模型与 Agent
 
@@ -39,7 +41,9 @@ Mewvis 是一个支持桌面端和 Web 的 AI 工作台，提供模型接入、�
 
 插件扩展已有的会话和 Agent 执行流程，可提供工具、技能、命令、上下文处理与会话侧栏。用户可以在插件管理中配置、启用或停用插件。内置插件包括协作流程、智能判断和会话链路查看器，开发者也可以通过插件 SDK 接入自己的能力。
 
-## 界面预览
+<a id="界面预览"></a>
+
+## 🖼️ 界面预览
 
 **应用选择**
 
@@ -59,7 +63,9 @@ Mewvis 是一个支持桌面端和 Web 的 AI 工作台，提供模型接入、�
 
 ![Mewvis 办公室：猫咪角色、像素工位与不同活动的屏幕](docs/assets/screenshots/office.jpg)
 
-## 快速开始
+<a id="快速开始"></a>
+
+## 🚀 快速开始
 
 ### 环境要求
 
@@ -92,7 +98,7 @@ pnpm dev:web
 
 应用数据默认保存在 `~/.mewvis`，项目文件保存在所选工作区。安装包构建与平台配置见 [桌面开发与构建](docs/guide/desktop.md)，Web 服务配置见 [后端服务](docs/runtime/server.md)。
 
-## 开发文档
+## 📚 开发文档
 
 完整中文文档见 [文档首页](docs/README.md)与 [目录](docs/SUMMARY.md)，也可在应用内的「文档中心」离线阅读。
 
@@ -104,11 +110,11 @@ pnpm dev:web
 | [Agent 运行时](docs/runtime/overview.md)   | 运行时架构、SDK 与通信协议       |
 | [桌面开发](docs/guide/desktop.md)          | 平台准备、开发与安装包构建       |
 
-## 参与贡献
+## 🤝 参与贡献
 
 欢迎通过 Issue 反馈问题或提出功能建议，通过 Pull Request 改进代码、文档、应用和插件。提交问题时，请提供运行环境、复现步骤与相关日志。
 
-## 致谢
+## 💖 致谢
 
 Mewvis 使用了 [Pi](https://github.com/earendil-works/pi) 的模型接入与 Agent 能力：
 
