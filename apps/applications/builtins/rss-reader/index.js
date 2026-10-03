@@ -1,6 +1,7 @@
 import { defineApplication, defineSkill } from "@mewvis/app-sdk";
 import {
   resolveConfig,
+  serializeFeeds,
   RSS_SETTINGS_NAMESPACE,
   RssSettingsSchema,
 } from "dsh-rss";
@@ -13,6 +14,35 @@ const defaultConfig = {
   timeoutMs: 15_000,
   maxBodyBytes: 5 * 1024 * 1024,
   userAgent: "Mewvis RSS Reader/0.1",
+  // The settings base applies only until the user saves their own list,
+  // including an empty list after removing every subscription.
+  feedsYaml: serializeFeeds([
+    {
+      url: "https://sspai.com/feed",
+      name: "少数派",
+      category: "数字生活",
+    },
+    {
+      url: "https://www.ifanr.com/feed",
+      name: "爱范儿",
+      category: "科技资讯",
+    },
+    {
+      url: "https://www.ithome.com/rss/",
+      name: "IT之家",
+      category: "科技资讯",
+    },
+    {
+      url: "https://www.ruanyifeng.com/blog/atom.xml",
+      name: "阮一峰的网络日志",
+      category: "开发技术",
+    },
+    {
+      url: "https://news.ycombinator.com/rss",
+      name: "Hacker News",
+      category: "开发技术",
+    },
+  ]),
 };
 
 const rssReaderSkill = defineSkill({

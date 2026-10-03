@@ -121,12 +121,50 @@ try {
     assert.equal(toolNames.has(toolName), true, `RSS 应用缺少 ${toolName}`);
   }
 
-  const empty = await request("execute", {
+  const defaults = await request("execute", {
     applicationId: "@mewvis/rss-reader",
     toolName: "rss_list",
     arguments: {},
   });
-  assert.deepEqual(empty.value, { count: 0, feeds: [] });
+  assert.equal(defaults.value.count, 5, "首次使用应提供五个默认订阅源。");
+  assert.deepEqual(defaults.value.feeds, [
+    { url: "https://sspai.com/feed", name: "少数派", category: "数字生活" },
+    { url: "https://www.ifanr.com/feed", name: "爱范儿", category: "科技资讯" },
+    { url: "https://www.ithome.com/rss/", name: "IT之家", category: "科技资讯" },
+    { url: "https://www.ruanyifeng.com/blog/atom.xml", name: "阮一峰的网络日志", category: "开发技术" },
+    { url: "https://news.ycombinator.com/rss", name: "Hacker News", category: "开发技术" },
+  ]);
+
+  await request("execute", {
+    applicationId: "@mewvis/rss-reader",
+    toolName: "rss_remove",
+    arguments: { url: defaults.value.feeds[0].url },
+  });
+  await configure();
+  const remainingDefaults = await request("execute", {
+    applicationId: "@mewvis/rss-reader",
+    toolName: "rss_list",
+    arguments: {},
+  });
+  assert.deepEqual(
+    remainingDefaults.value,
+    { count: 4, feeds: defaults.value.feeds.slice(1) },
+    "删除默认订阅后，Host 重载不应重新补回或重复添加。",
+  );
+  for (const feed of remainingDefaults.value.feeds) {
+    await request("execute", {
+      applicationId: "@mewvis/rss-reader",
+      toolName: "rss_remove",
+      arguments: { url: feed.url },
+    });
+  }
+  await configure();
+  const cleared = await request("execute", {
+    applicationId: "@mewvis/rss-reader",
+    toolName: "rss_list",
+    arguments: {},
+  });
+  assert.deepEqual(cleared.value, { count: 0, feeds: [] }, "用户清空订阅后，重载仍应保持为空。");
 
   const added = await request("execute", {
     applicationId: "@mewvis/rss-reader",
@@ -167,6 +205,7 @@ try {
     toolName: "rss_remove",
     arguments: { url: feedUrl },
   });
+  await configure();
   const removed = await request("execute", {
     applicationId: "@mewvis/rss-reader",
     toolName: "rss_list",
