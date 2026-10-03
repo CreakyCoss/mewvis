@@ -11,6 +11,8 @@ import {
   type ProjectDetail,
   type ProjectSummary,
   type SourceFile,
+  type BuiltinSummary,
+  type BuiltinInitialization,
 } from "./contracts";
 
 export async function call<T>(
@@ -20,6 +22,27 @@ export async function call<T>(
   return (await getApplicationHost().executeTool<T>(name, args)).value;
 }
 export const api = {
+  async load() {
+    const builtins = (
+      await call<{ builtins: BuiltinSummary[] }>("workshop_list_builtins")
+    ).builtins;
+    let errors: string[] = [];
+    try {
+      errors = (
+        await call<BuiltinInitialization>("workshop_initialize_builtins")
+      ).errors;
+    } catch (error) {
+      errors = [`内置小应用初始化失败：${errorText(error)}`];
+    }
+    // An individual template failure must not hide the user's existing projects.
+    return { projects: await api.list(), builtins, errors };
+  },
+  fromBuiltin: async (builtinId: string) =>
+    (
+      await call<{ project: ProjectDetail }>("workshop_create_from_builtin", {
+        builtinId,
+      })
+    ).project,
   list: async () =>
     (await call<{ projects: ProjectSummary[] }>("workshop_list_projects"))
       .projects,

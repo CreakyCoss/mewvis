@@ -13,7 +13,12 @@ import { Home } from "./Home";
 import { Editor } from "./Editor";
 import { UseView } from "./UseView";
 import { Notifications } from "./Notifications";
-import type { BuildArtifact, ProjectDetail, ProjectSummary } from "./contracts";
+import type {
+  BuildArtifact,
+  BuiltinSummary,
+  ProjectDetail,
+  ProjectSummary,
+} from "./contracts";
 import "./styles.css";
 
 export default function App() {
@@ -26,6 +31,8 @@ export default function App() {
 
 function Workshop() {
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
+  const [builtins, setBuiltins] = useState<BuiltinSummary[]>([]);
+  const [builtinId, setBuiltinId] = useState("");
   const [selectedId, setSelectedId] = useState("");
   const [mode, setMode] = useState<"home" | "develop" | "use">("home");
   const [detail, setDetail] = useState<ProjectDetail>();
@@ -45,8 +52,11 @@ function Workshop() {
   const epoch = useRef(0);
   const action = useRef(false);
   const selected = projects.find((project) => project.id === selectedId);
+  const template = builtins.find((item) => item.id === builtinId);
   const refresh = useCallback(async () => {
-    const items = await api.list();
+    const { projects: items, builtins, errors } = await api.load();
+    setBuiltins(builtins);
+    setError(errors.join("\n"));
     setProjects(items);
     setSelectedId((id) =>
       items.some((item) => item.id === id) ? id : (items[0]?.id ?? ""),
@@ -55,11 +65,13 @@ function Workshop() {
   useEffect(() => {
     let active = true;
     void Promise.all([
-      api.list(),
+      api.load(),
       getApplicationDataClient().storage.getItem<string>("workshop:selection"),
     ])
-      .then(([items, saved]) => {
+      .then(([{ projects: items, builtins, errors }, saved]) => {
         if (!active) return;
+        setBuiltins(builtins);
+        setError(errors.join("\n"));
         setProjects(items);
         setSelectedId(
           items.some((item) => item.id === saved)
@@ -187,10 +199,19 @@ function Workshop() {
     setError("");
     setName("");
     setDescription("");
+    setBuiltinId("");
     setCreateOpen(true);
   }
   const createProject = () =>
     perform("正在创建小应用…", async () => {
+      if (template) {
+        const project = await api.fromBuiltin(template.id);
+        await refresh();
+        select(project.id);
+        setCreateOpen(false);
+        setMode("use");
+        return;
+      }
       if (!name.trim()) return;
       const project = await api.create(name.trim(), description.trim());
       setProjects((items) => [...items, project]);
@@ -227,14 +248,12 @@ function Workshop() {
           {error && (
             <div className="wk-top-error">
               <ErrorNotice>{error}</ErrorNotice>
-              {!projects.length && (
-                <button
-                  className="wk-button"
-                  onClick={() => void perform("正在重新加载…", refresh)}
-                >
-                  重新加载
-                </button>
-              )}
+              <button
+                className="wk-button"
+                onClick={() => void perform("正在重新加载…", refresh)}
+              >
+                重新加载
+              </button>
             </div>
           )}
           {pending && (
@@ -255,7 +274,7 @@ function Workshop() {
             }}
             artifact={artifact}
             loading={loading}
-            busy={!!pending}
+            busy={loading || !!pending}
             previewLoading={previewLoading}
             previewError={previewError}
             retry={() => {
@@ -272,36 +291,65 @@ function Workshop() {
           busy={!!pending}
         >
           <div className="wk-modal-body">
-            <label htmlFor="wk-project-name">应用名称</label>
-            <input
-              id="wk-project-name"
-              autoFocus
-              value={name}
-              maxLength={80}
-              placeholder="例如：专注计时器"
-              disabled={!!pending}
-              onChange={(event) => setName(event.target.value)}
-              onKeyDown={(event) => {
-                if (
-                  event.key === "Enter" &&
-                  !event.nativeEvent.isComposing &&
-                  name.trim()
-                )
-                  void createProject();
-              }}
-            />
-            <label htmlFor="wk-project-description">
-              应用说明 <span className="wk-muted">选填</span>
-            </label>
-            <textarea
-              id="wk-project-description"
-              value={description}
-              maxLength={500}
-              placeholder="简单描述这个小应用要做什么"
-              disabled={!!pending}
-              onChange={(event) => setDescription(event.target.value)}
-            />
-            <p>创建后进入编辑页，与 AI 一起开发小应用。</p>
+            {builtins.length > 0 && (
+              <>
+                <label htmlFor="wk-project-template">创建方式</label>
+                <select
+                  id="wk-project-template"
+                  value={builtinId}
+                  disabled={!!pending}
+                  onChange={(event) => setBuiltinId(event.target.value)}
+                >
+                  <option value="">空白小应用</option>
+                  {builtins.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.name} · V{item.version}
+                    </option>
+                  ))}
+                </select>
+              </>
+            )}
+            {template ? (
+              <>
+                <p>{template.description}</p>
+                <p>
+                  添加一个可直接运行的新副本，已有小应用的内容和数据会保留。
+                </p>
+              </>
+            ) : (
+              <>
+                <label htmlFor="wk-project-name">应用名称</label>
+                <input
+                  id="wk-project-name"
+                  autoFocus
+                  value={name}
+                  maxLength={80}
+                  placeholder="例如：专注计时器"
+                  disabled={!!pending}
+                  onChange={(event) => setName(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (
+                      event.key === "Enter" &&
+                      !event.nativeEvent.isComposing &&
+                      name.trim()
+                    )
+                      void createProject();
+                  }}
+                />
+                <label htmlFor="wk-project-description">
+                  应用说明 <span className="wk-muted">选填</span>
+                </label>
+                <textarea
+                  id="wk-project-description"
+                  value={description}
+                  maxLength={500}
+                  placeholder="简单描述这个小应用要做什么"
+                  disabled={!!pending}
+                  onChange={(event) => setDescription(event.target.value)}
+                />
+                <p>创建后进入编辑页，与 AI 一起开发小应用。</p>
+              </>
+            )}
             {error && <ErrorNotice>{error}</ErrorNotice>}
           </div>
           <footer>
@@ -314,10 +362,14 @@ function Workshop() {
             </button>
             <button
               className="wk-button is-primary"
-              disabled={!!pending || !name.trim()}
+              disabled={!!pending || (!template && !name.trim())}
               onClick={() => void createProject()}
             >
-              {pending ? "正在创建…" : "创建并进入开发"}
+              {pending
+                ? "正在创建…"
+                : template
+                  ? "添加并运行"
+                  : "创建并进入开发"}
             </button>
           </footer>
         </Modal>

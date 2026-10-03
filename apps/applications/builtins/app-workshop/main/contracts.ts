@@ -73,6 +73,27 @@ export interface SourceFile {
 }
 export type FileMap = Record<string, string>;
 
+export interface BuiltinSummary {
+  id: string;
+  name: string;
+  description: string;
+  version: number;
+}
+export interface BuiltinDefinition extends BuiltinSummary {
+  files: FileMap;
+}
+export interface BuiltinInstallation {
+  directoryId: string;
+  versionId: string;
+  version: number;
+  projectId: string | null;
+  status: "pending" | "installed" | "deleted";
+}
+export interface BuiltinInitialization {
+  builtins: BuiltinSummary[];
+  errors: string[];
+}
+
 export function validateFileName(value: unknown): string {
   if (
     typeof value !== "string" ||

@@ -1562,6 +1562,7 @@
   line-height: 1.7;
 }
 .wk-modal-body input,
+.wk-modal-body select,
 .wk-modal-body textarea {
   width: 100%;
   border: 1px solid var(--input);

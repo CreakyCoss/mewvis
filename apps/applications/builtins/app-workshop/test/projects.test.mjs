@@ -4,7 +4,6 @@ import { createHash, randomUUID } from "node:crypto";
 import {
   mkdir,
   link,
-  mkdtemp,
   readFile,
   readdir,
   rename,
@@ -12,106 +11,47 @@ import {
   symlink,
   writeFile,
 } from "node:fs/promises";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fixture } from "./fixture.mjs";
 import application from "../dist/mewvis/index.js";
-
-async function fixture(t) {
-  const root = await mkdtemp(join(tmpdir(), "mewvis-workshop-test-"));
-  t.after(() => rm(root, { recursive: true, force: true }));
-  const base = {
-    id: randomUUID(),
-    name: "默认工作区",
-    path: root,
-    isDefault: true,
-  };
-  const enrolled = new Map([[base.id, base]]);
-  const tools = new Map();
-  const skills = new Map();
-  const workspaces = {
-    async list() {
-      return [...enrolled.values()];
-    },
-    async get(id) {
-      if (!enrolled.has(id)) throw new Error("项目未登记");
-      return enrolled.get(id);
-    },
-    async create(input) {
-      assert.equal(input.exclusive, true);
-      await mkdir(input.path);
-      const item = {
-        id: randomUUID(),
-        name: input.name,
-        path: input.path,
-        isDefault: false,
-      };
-      await mkdir(join(input.path, ".mewvis"));
-      await writeFile(
-        join(input.path, ".mewvis/workspace.json"),
-        JSON.stringify({
-          version: 1,
-          id: item.id,
-          applications: ["@mewvis/app-workshop"],
-        }),
-      );
-      enrolled.set(item.id, item);
-      return item;
-    },
-    async remove({ id, deleteContent }) {
-      const item = await this.get(id);
-      assert.equal(item.isDefault, false);
-      enrolled.delete(id);
-      if (deleteContent) await rm(item.path, { recursive: true, force: true });
-    },
-  };
-  application.apply({
-    tools: {
-      register(tool) {
-        tools.set(tool.name, tool);
-      },
-    },
-    skills: {
-      register(skill) {
-        skills.set(skill.name, skill);
-      },
-    },
-    workspaces,
-  });
-  const run = (name, args = {}) => tools.get(name).execute(args);
-  const create = async (name) =>
-    (await run("workshop_create_project", { name, description: "测试应用" }))
-      .project;
-  const write = async (project, path, content) =>
-    (
-      await run("workshop_write_file", {
-        workspaceId: project.id,
-        path,
-        content,
-        baseRevision: project.revision,
-      })
-    ).project;
-  return { root, tools, skills, enrolled, workspaces, run, create, write };
-}
 
 test("projects stay in creation order after editing an older application", async (t) => {
   const f = await fixture(t);
   const older = await f.create("先创建的应用");
   const newer = await f.create("后创建的应用");
-  for (const [project, createdAt] of [[older, 1000], [newer, 2000]]) {
-    const path = join(f.enrolled.get(project.id).path, ".workshop/project.json");
+  for (const [project, createdAt] of [
+    [older, 1000],
+    [newer, 2000],
+  ]) {
+    const path = join(
+      f.enrolled.get(project.id).path,
+      ".workshop/project.json",
+    );
     const metadata = JSON.parse(await readFile(path, "utf8"));
     metadata.createdAt = createdAt;
     metadata.updatedAt = createdAt;
     await writeFile(path, JSON.stringify(metadata));
   }
   const before = (await f.run("workshop_list_projects")).projects;
-  assert.deepEqual(before.map((project) => project.id), [older.id, newer.id]);
-  assert.deepEqual(before.map((project) => project.createdAt), [1000, 2000]);
+  assert.deepEqual(
+    before.map((project) => project.id),
+    [older.id, newer.id],
+  );
+  assert.deepEqual(
+    before.map((project) => project.createdAt),
+    [1000, 2000],
+  );
   await f.write(older, "src/order.json", '{"edited":true}');
   const after = (await f.run("workshop_list_projects")).projects;
   assert.ok(after[0].updatedAt > after[1].updatedAt);
-  assert.deepEqual(after.map((project) => project.id), [older.id, newer.id]);
-  assert.deepEqual(after.map((project) => project.createdAt), [1000, 2000]);
+  assert.deepEqual(
+    after.map((project) => project.id),
+    [older.id, newer.id],
+  );
+  assert.deepEqual(
+    after.map((project) => project.createdAt),
+    [1000, 2000],
+  );
 });
 
 test("create, edit, build, save, reopen and restore a real packaged application", async (t) => {
@@ -304,7 +244,8 @@ test("builds use one draft, saves overwrite the current version, and new version
   );
   assert.equal(await readFile(savedPath, "utf8"), snapshot);
   assert.equal(
-    (await f.run("workshop_read_build", { ...args, mode: "saved" })).artifact.id,
+    (await f.run("workshop_read_build", { ...args, mode: "saved" })).artifact
+      .id,
     savedId,
   );
   project = (await f.run("workshop_save_version", args)).project;
@@ -323,7 +264,10 @@ test("builds use one draft, saves overwrite the current version, and new version
   const newVersionId = project.savedVersionId;
   const newVersionPath = join(builds, `${newVersionId}.json`);
   const newSnapshot = await readFile(newVersionPath, "utf8");
-  assert.equal(JSON.parse(newSnapshot).sourceHash, JSON.parse(snapshot).sourceHash);
+  assert.equal(
+    JSON.parse(newSnapshot).sourceHash,
+    JSON.parse(snapshot).sourceHash,
+  );
   assert.equal((await readdir(builds)).length, 3);
   project = (
     await f.run("workshop_restore_version", {
@@ -333,7 +277,8 @@ test("builds use one draft, saves overwrite the current version, and new version
     })
   ).project;
   assert.equal(
-    (await f.run("workshop_read_build", { ...args, mode: "draft" })).artifact.id,
+    (await f.run("workshop_read_build", { ...args, mode: "draft" })).artifact
+      .id,
     project.id,
   );
   assert.equal(project.savedVersionId, savedId);

@@ -1,14 +1,4 @@
-import { constants } from "node:fs";
-import {
-  lstat,
-  mkdir,
-  open,
-  readFile,
-  readdir,
-  realpath,
-  rename,
-  rm,
-} from "node:fs/promises";
+import { mkdir, readdir, realpath, rm } from "node:fs/promises";
 import { join, sep } from "node:path";
 import { randomUUID } from "node:crypto";
 import type {
@@ -28,9 +18,19 @@ import {
   type ProjectDetail,
   type ProjectSummary,
   type SavedVersion,
+  type BuiltinDefinition,
+  type BuiltinInstallation,
 } from "../contracts.js";
 import { compile, sourceHash } from "./compiler.js";
 import { applySource, readSource, validateFiles } from "./source.js";
+import {
+  isId,
+  errorCode,
+  directory,
+  readJson,
+  atomicJson,
+  withDirectoryLock,
+} from "./files.js";
 
 interface ProjectMetadata {
   format: 2;
@@ -44,6 +44,7 @@ interface ProjectMetadata {
   draftBuildId: string | null;
   savedVersionId: string | null;
   versions: SavedVersion[];
+  builtin?: { id: string; version: number };
 }
 interface ProjectRecord extends ProjectMetadata {
   files: FileMap;
@@ -59,49 +60,11 @@ interface ArtifactRecord extends BuildArtifact {
   files: FileMap;
   sourceLayout: 2;
 }
-const isId = (id: unknown): id is string =>
-  typeof id === "string" &&
-  /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(id);
 const text = (value: unknown, max: number, label: string) => {
   if (typeof value !== "string" || !value.trim() || value.trim().length > max)
     throw new Error(`${label}须为 1–${max} 个字符。`);
   return value.trim();
 };
-const errorCode = (error: unknown) =>
-  error && typeof error === "object" && "code" in error
-    ? error.code
-    : undefined;
-async function directory(path: string) {
-  const info = await lstat(path);
-  if (!info.isDirectory() || info.isSymbolicLink())
-    throw new Error("工坊目录不能是符号链接。");
-}
-async function readJson<T>(path: string, limit: number): Promise<T> {
-  const file = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW);
-  try {
-    const info = await file.stat();
-    if (!info.isFile() || info.size > limit)
-      throw new Error("项目文件无效或超过大小限制。");
-    return JSON.parse(await file.readFile("utf8")) as T;
-  } finally {
-    await file.close();
-  }
-}
-async function atomicJson(path: string, value: unknown) {
-  const temporary = `${path}.${randomUUID()}.tmp`;
-  const file = await open(temporary, "wx", 0o600);
-  try {
-    await file.writeFile(JSON.stringify(value));
-    await file.sync();
-  } finally {
-    await file.close();
-  }
-  try {
-    await rename(temporary, path);
-  } finally {
-    await rm(temporary, { force: true });
-  }
-}
 const projectFiles = (): FileMap => ({
   "package.json":
     JSON.stringify(
@@ -152,7 +115,6 @@ const metadata = ({
   files: _files,
   ...record
 }: ProjectRecord): ProjectMetadata => record;
-const gates = new Map<string, Promise<void>>();
 
 export function createProjectService(workspaces: ApplicationWorkspaces) {
   async function resolve(id: unknown) {
@@ -323,80 +285,9 @@ export function createProjectService(workspaces: ApplicationWorkspaces) {
     action: (root: string, record: ProjectRecord) => Promise<T>,
   ): Promise<T> {
     const root = await resolve(id);
-    const previous = gates.get(root);
-    let release!: () => void;
-    const gate = new Promise<void>((resolve) => {
-      release = resolve;
-    });
-    gates.set(root, gate);
-    await previous;
-    try {
-      return await filesystemLocked(root, id, action);
-    } finally {
-      release();
-      if (gates.get(root) === gate) gates.delete(root);
-    }
-  }
-  async function filesystemLocked<T>(
-    root: string,
-    id: string,
-    action: (root: string, record: ProjectRecord) => Promise<T>,
-  ): Promise<T> {
-    const lock = join(root, ".write-lock");
-    const busy = () => new Error("项目正在保存或构建，请稍后重试。");
-    try {
-      await mkdir(lock);
-    } catch (error) {
-      if (errorCode(error) !== "EEXIST") throw error;
-      await directory(lock);
-      const lockInfo = await lstat(lock);
-      // Only one contender may reclaim a crashed process's lock. Never clear a
-      // live owner's lock, including when its operation takes longer than usual.
-      const reclaim = join(lock, ".reclaim");
-      try {
-        await mkdir(reclaim);
-      } catch {
-        throw busy();
-      }
-      let moved = false;
-      try {
-        let abandoned = false;
-        try {
-          const owner = await readJson<{ pid: number }>(
-            join(lock, "owner.json"),
-            1024,
-          );
-          if (!Number.isSafeInteger(owner.pid) || owner.pid < 1) throw busy();
-          try {
-            process.kill(owner.pid, 0);
-          } catch (value) {
-            if (errorCode(value) === "ESRCH") abandoned = true;
-            else throw busy();
-          }
-        } catch (value) {
-          if (errorCode(value) !== "ENOENT") throw value;
-          abandoned = Date.now() - lockInfo.mtimeMs > 60_000;
-        }
-        if (!abandoned) throw busy();
-        const stale = join(root, `.abandoned-lock-${randomUUID()}`);
-        await rename(lock, stale);
-        moved = true;
-        await rm(stale, { recursive: true, force: true });
-      } finally {
-        if (!moved) await rm(reclaim, { recursive: true, force: true });
-      }
-      try {
-        await mkdir(lock);
-      } catch {
-        throw busy();
-      }
-    }
-    try {
-      await atomicJson(join(lock, "owner.json"), { pid: process.pid });
-      return await action(root, await read(root, id));
-    } finally {
-      await rm(lock, { recursive: true, force: true });
-    }
+    return withDirectoryLock(root, async () =>
+      action(root, await read(root, id)),
+    );
   }
   async function artifact(root: string, record: ProjectRecord, id: string) {
     if (!isId(id)) throw new Error("版本 ID 无效。");
@@ -430,6 +321,109 @@ export function createProjectService(workspaces: ApplicationWorkspaces) {
       throw new Error("源码已被其他操作更新，请重新读取后再保存。");
   }
   return {
+    async createBuiltin(
+      template: BuiltinDefinition,
+      installation: BuiltinInstallation,
+    ) {
+      if (
+        !isId(installation.directoryId) ||
+        !isId(installation.versionId) ||
+        installation.version !== template.version
+      )
+        throw new Error("内置小应用安装记录无效。");
+      validateFiles(template.files);
+      const result = compile(template.files);
+      if (result.diagnostics.length)
+        throw new Error(
+          result.diagnostics
+            .map((d) => `${d.file}:${d.line} ${d.message}`)
+            .join("\n"),
+        );
+      const enrolled = await workspaces.list();
+      const base = enrolled.find((w) => w.isDefault);
+      if (!base) throw new Error("默认工作区不可用。");
+      const parent = join(await realpath(base.path), "projects");
+      await mkdir(parent, { recursive: true });
+      await directory(parent);
+      const path = join(parent, installation.directoryId);
+      // The path is reserved in the installation journal before creating the
+      // workspace. A retry resumes it even if the process died before saving ID.
+      const workspace =
+        enrolled.find((w) => !w.isDefault && w.path === path) ??
+        (await workspaces.create({
+          name: template.name,
+          path,
+          exclusive: true,
+        }));
+      if (!workspace) throw new Error("创建项目已取消。");
+      const root = join(workspace.path, ".workshop");
+      await mkdir(root, { recursive: true });
+      await directory(root);
+      return withDirectoryLock(root, async () => {
+        let stored: ProjectMetadata | undefined;
+        try {
+          stored = await readMetadata(root, workspace.id);
+        } catch (error) {
+          if (errorCode(error) !== "ENOENT") throw error;
+        }
+        if (stored) {
+          if (
+            stored.builtin?.id !== template.id ||
+            stored.builtin.version !== template.version
+          )
+            throw new Error("安装目录已有其他项目，已保留原有内容。");
+          // A committed project is user-owned, including subsequent edits.
+          return detail(root, await read(root, workspace.id));
+        }
+        await mkdir(join(root, "builds"), { recursive: true });
+        await directory(join(root, "builds"));
+        const now = Date.now();
+        const hash = sourceHash(template.files);
+        const artifact: ArtifactRecord = {
+          id: workspace.id,
+          projectId: workspace.id,
+          sourceHash: hash,
+          sourceRevision: 0,
+          createdAt: now,
+          files: template.files,
+          sourceLayout: 2,
+          script: result.script,
+          style: result.style,
+        };
+        // Partial writes can be resumed; external edits are never overwritten.
+        await applySource(root, {}, template.files);
+        await atomicJson(
+          join(root, "builds", `${workspace.id}.json`),
+          artifact,
+        );
+        await atomicJson(
+          join(root, "builds", `${installation.versionId}.json`),
+          {
+            ...artifact,
+            id: installation.versionId,
+          },
+        );
+        const record: ProjectRecord = {
+          format: 2,
+          id: workspace.id,
+          name: template.name,
+          description: template.description,
+          revision: 0,
+          createdAt: now,
+          updatedAt: now,
+          sourceHash: hash,
+          draftBuildId: workspace.id,
+          savedVersionId: installation.versionId,
+          versions: [
+            { id: installation.versionId, createdAt: now, sourceRevision: 0 },
+          ],
+          builtin: { id: template.id, version: template.version },
+          files: template.files,
+        };
+        await writeRecord(root, record);
+        return detail(root, record);
+      });
+    },
     async list() {
       const items: ProjectSummary[] = [];
       for (const workspace of await workspaces.list()) {
@@ -706,18 +700,34 @@ export function previewWorkspaces(path: string): ApplicationWorkspaces {
       for (const entry of await readdir(join(path, "projects"))) {
         const projectPath = join(path, "projects", entry);
         try {
-          const record = await readJson<ProjectRecord>(
-            join(projectPath, ".workshop", "project.json"),
-            2 * 1024 * 1024,
+          const marker = await readJson<{ id: string; applications: string[] }>(
+            join(projectPath, ".mewvis", "workspace.json"),
+            64 * 1024,
           );
-          records.set(record.id, {
-            id: record.id,
-            name: record.name,
+          if (
+            !isId(marker.id) ||
+            !marker.applications?.includes(APPLICATION_ID)
+          )
+            continue;
+          let name = entry;
+          try {
+            name = (
+              await readJson<ProjectMetadata>(
+                join(projectPath, ".workshop", "project.json"),
+                4 * 1024 * 1024,
+              )
+            ).name;
+          } catch {
+            /* An enrolled workspace can contain an interrupted install. */
+          }
+          records.set(marker.id, {
+            id: marker.id,
+            name,
             path: projectPath,
             isDefault: false,
           });
         } catch {
-          /* Preview ignores directories without a complete project. */
+          /* Preview ignores directories without an application membership marker. */
         }
       }
     } catch (error) {

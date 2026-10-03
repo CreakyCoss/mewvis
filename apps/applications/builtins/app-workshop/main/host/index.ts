@@ -5,6 +5,8 @@ import {
 } from "@mewvis/app-sdk";
 import { createProjectService, previewWorkspaces } from "./projects.js";
 import { AUTHORING_TOOLS } from "../contracts.js";
+import definitions from "./generated/builtins.js";
+import { createBuiltinService } from "./builtins.js";
 
 export default defineApplication({
   name: "@mewvis/app-workshop",
@@ -15,6 +17,7 @@ export default defineApplication({
       : ctx.workspaces;
     if (!workspaces) throw new Error("应用工坊需要应用工作区服务。");
     const projects = createProjectService(workspaces);
+    const builtins = createBuiltinService(workspaces, projects, definitions);
     const string = { type: "string" };
     const id = { ...string, pattern: "^[a-fA-F0-9-]{36}$" };
     const baseRevision = { type: "integer", minimum: 0 };
@@ -59,6 +62,30 @@ export default defineApplication({
         }),
       );
     }
+    register(
+      "workshop_list_builtins",
+      "列出随工坊发布的内置小应用模板，不创建项目。",
+      "low",
+      {},
+      [],
+      async () => ({ builtins: builtins.catalog() }),
+    );
+    register(
+      "workshop_initialize_builtins",
+      "首次进入工坊时安装内置小应用并保存首个版本；不覆盖已有项目或重新安装已删除的项目。",
+      "medium",
+      {},
+      [],
+      async () => builtins.initialize(),
+    );
+    register(
+      "workshop_create_from_builtin",
+      "从当前内置模板添加一个可运行的新副本，保留已有项目的源码、版本和数据。",
+      "medium",
+      { builtinId: string },
+      ["builtinId"],
+      async (args) => ({ project: await builtins.create(args.builtinId) }),
+    );
     register(
       "workshop_list_projects",
       "列出当前工坊登记的小应用。",
@@ -203,7 +230,7 @@ export default defineApplication({
       { workspaceId: id },
       ["workspaceId"],
       async (args) => {
-        await projects.remove(args.workspaceId);
+        await builtins.remove(args.workspaceId);
         return { removed: true };
       },
     );
