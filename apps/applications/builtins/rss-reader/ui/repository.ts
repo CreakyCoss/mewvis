@@ -14,6 +14,8 @@ const cachePrefix = "rss:feed:v1:",
   markPrefix = "rss:marks:v1:",
   prefKey = "rss:preferences:v1";
 const chunkPrefix = "rss:cache-part:v1:";
+// ApplicationFrame allows at most four application-data requests at a time.
+const maxConcurrentReads = 4;
 const chunkKeys = (value: unknown): string[] | null => {
   const item = record(value);
   if (item.version !== 2) return null;
@@ -28,10 +30,10 @@ const chunkKeys = (value: unknown): string[] | null => {
   return item.chunks;
 };
 export function repository(storage: ApplicationStorage) {
-  let writes: Promise<unknown> = Promise.resolve();
+  let operations: Promise<unknown> = Promise.resolve();
   const serial = <T>(job: () => Promise<T>): Promise<T> => {
-    const next = writes.then(job, job);
-    writes = next.catch(() => undefined);
+    const next = operations.then(job, job);
+    operations = next.catch(() => undefined);
     return next;
   };
   const loadCache = async (value: unknown) => {
@@ -47,32 +49,40 @@ export function repository(storage: ApplicationStorage) {
     return readCache(JSON.parse(parts.join("")));
   };
   return {
-    async load() {
-      const keys = await storage.keys();
-      const caches: FeedCache[] = [],
-        marks: MarkMap = {};
-      // Bound reads to avoid flooding the sandbox bridge for established libraries.
-      const relevant = keys.filter(
-        (key) => key.startsWith(cachePrefix) || key.startsWith(markPrefix),
-      );
-      for (let i = 0; i < relevant.length; i += 8) {
-        await Promise.all(
-          relevant.slice(i, i + 8).map(async (key) => {
-            const value = await storage.getItem(key);
-            if (key.startsWith(cachePrefix)) {
-              const cache = await loadCache(value);
-              if (cache) caches.push(cache);
-            } else
-              marks[decodeURIComponent(key.slice(markPrefix.length))] =
-                readMarks(value);
-          }),
+    load() {
+      // Do not overlap a snapshot load with cache replacement or mark writes.
+      return serial(async () => {
+        const keys = await storage.keys();
+        const caches: FeedCache[] = [],
+          marks: MarkMap = {};
+        const relevant = keys.filter(
+          (key) => key.startsWith(cachePrefix) || key.startsWith(markPrefix),
         );
-      }
-      return {
-        caches,
-        marks,
-        preferences: preferences(await storage.getItem(prefKey)),
-      };
+        for (let i = 0; i < relevant.length; i += maxConcurrentReads) {
+          // Drain the whole batch even on failure so a retry cannot overlap
+          // requests (including cache chunks) left behind by the failed load.
+          const results = await Promise.allSettled(
+            relevant.slice(i, i + maxConcurrentReads).map(async (key) => {
+              const value = await storage.getItem(key);
+              if (key.startsWith(cachePrefix)) {
+                const cache = await loadCache(value);
+                if (cache) caches.push(cache);
+              } else
+                marks[decodeURIComponent(key.slice(markPrefix.length))] =
+                  readMarks(value);
+            }),
+          );
+          const failure = results.find(
+            (result) => result.status === "rejected",
+          );
+          if (failure) throw failure.reason;
+        }
+        return {
+          caches,
+          marks,
+          preferences: preferences(await storage.getItem(prefKey)),
+        };
+      });
     },
     saveCache(cache: FeedCache) {
       return serial(async () => {
