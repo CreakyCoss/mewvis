@@ -58,7 +58,9 @@ export default function App() {
         </div>
         {ready && (
           <p className="chapter-progress">
-            {screen === "map" ? "已完成" : "纸箱小屋 ·"}{" "}
+            <span className="progress-label">
+              {screen === "map" ? "已完成" : "纸箱小屋 ·"}
+            </span>{" "}
             <strong>{progress.completed.length} / 8</strong>{" "}
             {screen === "map" ? "关" : "完成"}
           </p>
@@ -166,15 +168,17 @@ export default function App() {
                       locked={!available}
                     />
                   </div>
-                  <span className="level-name">{item.name}</span>
-                  <span className="level-state">
-                    {completed
-                      ? "已通关"
-                      : available && Object.keys(board).length
-                        ? "进行中"
-                        : available
-                          ? "等你来玩"
-                          : ""}
+                  <span className="level-caption">
+                    <span className="level-name">{item.name}</span>
+                    <span className="level-state">
+                      {completed
+                        ? "已通关"
+                        : available && Object.keys(board).length
+                          ? "进行中"
+                          : available
+                            ? "等你来玩"
+                            : ""}
+                    </span>
                   </span>
                 </button>
               );
