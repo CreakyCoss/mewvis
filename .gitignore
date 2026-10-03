@@ -18,6 +18,11 @@ build/
 *.so
 *.dll
 
+# Environment and local secrets
+.env
+.env.*
+!.env.example
+
 # Local design prototypes
 /prototypes/
 
