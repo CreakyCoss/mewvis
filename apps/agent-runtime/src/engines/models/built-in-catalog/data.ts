@@ -188,5 +188,466 @@ export const RAW_MODEL_CATALOG = {
 				"maxTokens": 128000
 			}
 		}
+	},
+	"moonshotai-cn": {
+		"api": "https://api.moonshot.cn/v1",
+		"models": {
+			"kimi-k2.6": {
+				"id": "kimi-k2.6",
+				"name": "Kimi K2.6",
+				"reasoning": true,
+				"input": [
+					"text",
+					"image"
+				],
+				"cost": {
+					"input": 0.95,
+					"output": 4,
+					"cacheRead": 0.16,
+					"cacheWrite": 0
+				},
+				"contextWindow": 262144,
+				"maxTokens": 262144
+			},
+			"kimi-k2.7-code": {
+				"id": "kimi-k2.7-code",
+				"name": "Kimi K2.7 Code",
+				"reasoning": true,
+				"input": [
+					"text",
+					"image"
+				],
+				"cost": {
+					"input": 0.95,
+					"output": 4,
+					"cacheRead": 0.19,
+					"cacheWrite": 0
+				},
+				"contextWindow": 262144,
+				"maxTokens": 262144
+			},
+			"kimi-k2.7-code-highspeed": {
+				"id": "kimi-k2.7-code-highspeed",
+				"name": "Kimi K2.7 Code HighSpeed",
+				"reasoning": true,
+				"input": [
+					"text",
+					"image"
+				],
+				"cost": {
+					"input": 1.9,
+					"output": 8,
+					"cacheRead": 0.38,
+					"cacheWrite": 0
+				},
+				"contextWindow": 262144,
+				"maxTokens": 262144
+			},
+			"kimi-k3": {
+				"id": "kimi-k3",
+				"name": "Kimi K3",
+				"reasoning": true,
+				"input": [
+					"text",
+					"image"
+				],
+				"cost": {
+					"input": 3,
+					"output": 15,
+					"cacheRead": 0.3,
+					"cacheWrite": 0
+				},
+				"contextWindow": 1048576,
+				"maxTokens": 1048576
+			}
+		}
+	},
+	"xiaomi": {
+		"api": "https://api.xiaomimimo.com/v1",
+		"models": {
+			"mimo-v2.5": {
+				"id": "mimo-v2.5",
+				"name": "MiMo-V2.5",
+				"reasoning": true,
+				"input": [
+					"text",
+					"image"
+				],
+				"cost": {
+					"input": 0.14,
+					"output": 0.28,
+					"cacheRead": 0.0028,
+					"cacheWrite": 0
+				},
+				"contextWindow": 1048576,
+				"maxTokens": 131072
+			},
+			"mimo-v2.5-pro": {
+				"id": "mimo-v2.5-pro",
+				"name": "MiMo-V2.5-Pro",
+				"reasoning": true,
+				"input": [
+					"text"
+				],
+				"cost": {
+					"input": 0.435,
+					"output": 0.87,
+					"cacheRead": 0.0036,
+					"cacheWrite": 0
+				},
+				"contextWindow": 1048576,
+				"maxTokens": 131072
+			},
+			"mimo-v2.5-pro-ultraspeed": {
+				"id": "mimo-v2.5-pro-ultraspeed",
+				"name": "MiMo-V2.5-Pro-UltraSpeed",
+				"reasoning": true,
+				"input": [
+					"text"
+				],
+				"cost": {
+					"input": 1.305,
+					"output": 2.61,
+					"cacheRead": 0.0108,
+					"cacheWrite": 0
+				},
+				"contextWindow": 1048576,
+				"maxTokens": 131072
+			},
+			"mimo-v2.6-flash": {
+				"id": "mimo-v2.6-flash",
+				"name": "MiMo-V2.6-Flash",
+				"reasoning": true,
+				"input": [
+					"text",
+					"image"
+				],
+				"cost": {
+					"input": 0.14,
+					"output": 0.28,
+					"cacheRead": 0.0028,
+					"cacheWrite": 0
+				},
+				"contextWindow": 1048576,
+				"maxTokens": 131072
+			},
+			"mimo-v2.6-pro": {
+				"id": "mimo-v2.6-pro",
+				"name": "MiMo-V2.6-Pro",
+				"reasoning": true,
+				"input": [
+					"text",
+					"image"
+				],
+				"cost": {
+					"input": 0.435,
+					"output": 0.87,
+					"cacheRead": 0.0036,
+					"cacheWrite": 0
+				},
+				"contextWindow": 1048576,
+				"maxTokens": 131072
+			},
+			"mimo-v2.6-pro-ultraspeed": {
+				"id": "mimo-v2.6-pro-ultraspeed",
+				"name": "MiMo-V2.6-Pro-UltraSpeed",
+				"reasoning": true,
+				"input": [
+					"text",
+					"image"
+				],
+				"cost": {
+					"input": 4.35,
+					"output": 8.7,
+					"cacheRead": 0.036,
+					"cacheWrite": 0
+				},
+				"contextWindow": 1048576,
+				"maxTokens": 131072
+			}
+		}
+	},
+	"zhipuai": {
+		"api": "https://open.bigmodel.cn/api/paas/v4",
+		"models": {
+			"glm-4.5": {
+				"id": "glm-4.5",
+				"name": "GLM-4.5",
+				"reasoning": true,
+				"input": [
+					"text"
+				],
+				"cost": {
+					"input": 0.6,
+					"output": 2.2,
+					"cacheRead": 0.11,
+					"cacheWrite": 0
+				},
+				"contextWindow": 131072,
+				"maxTokens": 98304
+			},
+			"glm-4.5-air": {
+				"id": "glm-4.5-air",
+				"name": "GLM-4.5-Air",
+				"reasoning": true,
+				"input": [
+					"text"
+				],
+				"cost": {
+					"input": 0.2,
+					"output": 1.1,
+					"cacheRead": 0.03,
+					"cacheWrite": 0
+				},
+				"contextWindow": 131072,
+				"maxTokens": 98304
+			},
+			"glm-4.5-flash": {
+				"id": "glm-4.5-flash",
+				"name": "GLM-4.5-Flash",
+				"reasoning": true,
+				"input": [
+					"text"
+				],
+				"cost": {
+					"input": 0,
+					"output": 0,
+					"cacheRead": 0,
+					"cacheWrite": 0
+				},
+				"contextWindow": 131072,
+				"maxTokens": 98304
+			},
+			"glm-4.5v": {
+				"id": "glm-4.5v",
+				"name": "GLM-4.5V",
+				"reasoning": true,
+				"input": [
+					"text",
+					"image"
+				],
+				"cost": {
+					"input": 0.6,
+					"output": 1.8,
+					"cacheRead": 0,
+					"cacheWrite": 0
+				},
+				"contextWindow": 64000,
+				"maxTokens": 16384
+			},
+			"glm-4.6": {
+				"id": "glm-4.6",
+				"name": "GLM-4.6",
+				"reasoning": true,
+				"input": [
+					"text"
+				],
+				"cost": {
+					"input": 0.6,
+					"output": 2.2,
+					"cacheRead": 0.11,
+					"cacheWrite": 0
+				},
+				"contextWindow": 204800,
+				"maxTokens": 131072
+			},
+			"glm-4.6v": {
+				"id": "glm-4.6v",
+				"name": "GLM-4.6V",
+				"reasoning": true,
+				"input": [
+					"text",
+					"image"
+				],
+				"cost": {
+					"input": 0.3,
+					"output": 0.9,
+					"cacheRead": 0,
+					"cacheWrite": 0
+				},
+				"contextWindow": 128000,
+				"maxTokens": 32768
+			},
+			"glm-4.6v-flash": {
+				"id": "glm-4.6v-flash",
+				"name": "GLM-4.6V-Flash",
+				"reasoning": true,
+				"input": [
+					"text",
+					"image"
+				],
+				"cost": {
+					"input": 0,
+					"output": 0,
+					"cacheRead": 0,
+					"cacheWrite": 0
+				},
+				"contextWindow": 128000,
+				"maxTokens": 32768
+			},
+			"glm-4.7": {
+				"id": "glm-4.7",
+				"name": "GLM-4.7",
+				"reasoning": true,
+				"input": [
+					"text"
+				],
+				"cost": {
+					"input": 0.6,
+					"output": 2.2,
+					"cacheRead": 0.11,
+					"cacheWrite": 0
+				},
+				"contextWindow": 204800,
+				"maxTokens": 131072
+			},
+			"glm-4.7-flash": {
+				"id": "glm-4.7-flash",
+				"name": "GLM-4.7-Flash",
+				"reasoning": true,
+				"input": [
+					"text"
+				],
+				"cost": {
+					"input": 0,
+					"output": 0,
+					"cacheRead": 0,
+					"cacheWrite": 0
+				},
+				"contextWindow": 200000,
+				"maxTokens": 131072
+			},
+			"glm-4.7-flashx": {
+				"id": "glm-4.7-flashx",
+				"name": "GLM-4.7-FlashX",
+				"reasoning": true,
+				"input": [
+					"text"
+				],
+				"cost": {
+					"input": 0.07,
+					"output": 0.4,
+					"cacheRead": 0.01,
+					"cacheWrite": 0
+				},
+				"contextWindow": 200000,
+				"maxTokens": 131072
+			},
+			"glm-5": {
+				"id": "glm-5",
+				"name": "GLM-5",
+				"reasoning": true,
+				"input": [
+					"text"
+				],
+				"cost": {
+					"input": 1,
+					"output": 3.2,
+					"cacheRead": 0.2,
+					"cacheWrite": 0
+				},
+				"contextWindow": 204800,
+				"maxTokens": 131072
+			},
+			"glm-5.1": {
+				"id": "glm-5.1",
+				"name": "GLM-5.1",
+				"reasoning": true,
+				"input": [
+					"text"
+				],
+				"cost": {
+					"input": 1.4,
+					"output": 4.4,
+					"cacheRead": 0.26,
+					"cacheWrite": 0
+				},
+				"contextWindow": 200000,
+				"maxTokens": 131072
+			},
+			"glm-5.2": {
+				"id": "glm-5.2",
+				"name": "GLM-5.2",
+				"reasoning": true,
+				"input": [
+					"text"
+				],
+				"cost": {
+					"input": 1.4,
+					"output": 4.4,
+					"cacheRead": 0.26,
+					"cacheWrite": 0
+				},
+				"contextWindow": 1000000,
+				"maxTokens": 131072
+			},
+			"glm-5.3": {
+				"id": "glm-5.3",
+				"name": "GLM-5.3",
+				"reasoning": true,
+				"input": [
+					"text"
+				],
+				"cost": {
+					"input": 1.4,
+					"output": 4.4,
+					"cacheRead": 0.26,
+					"cacheWrite": 0
+				},
+				"contextWindow": 1000000,
+				"maxTokens": 131072
+			},
+			"glm-5.3-flash": {
+				"id": "glm-5.3-flash",
+				"name": "GLM-5.3-Flash",
+				"reasoning": true,
+				"input": [
+					"text",
+					"image"
+				],
+				"cost": {
+					"input": 0.15,
+					"output": 0.5,
+					"cacheRead": 0.03,
+					"cacheWrite": 0
+				},
+				"contextWindow": 1000000,
+				"maxTokens": 131072
+			},
+			"glm-5.3-flashx": {
+				"id": "glm-5.3-flashx",
+				"name": "GLM-5.3-FlashX",
+				"reasoning": true,
+				"input": [
+					"text",
+					"image"
+				],
+				"cost": {
+					"input": 0.37,
+					"output": 1.25,
+					"cacheRead": 0.075,
+					"cacheWrite": 0
+				},
+				"contextWindow": 1000000,
+				"maxTokens": 131072
+			},
+			"glm-5v-turbo": {
+				"id": "glm-5v-turbo",
+				"name": "GLM-5V-Turbo",
+				"reasoning": true,
+				"input": [
+					"text",
+					"image"
+				],
+				"cost": {
+					"input": 5,
+					"output": 22,
+					"cacheRead": 1.2,
+					"cacheWrite": 0
+				},
+				"contextWindow": 200000,
+				"maxTokens": 131072
+			}
+		}
 	}
 } as const;

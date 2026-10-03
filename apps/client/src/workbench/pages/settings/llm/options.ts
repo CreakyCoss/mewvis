@@ -39,6 +39,14 @@ const apiFormatLabelEntries: Array<[RuntimeApiFormat, string]> = [
 
 const apiFormatLabels = new Map<RuntimeApiFormat, string>(apiFormatLabelEntries);
 
+const providerLabels = new Map<string, string>([
+  ["deepseek", "DeepSeek"],
+  ["minimax-cn", "MiniMax"],
+  ["zhipuai", "GLM"],
+  ["moonshotai-cn", "Kimi"],
+  ["xiaomi", "MiMo"],
+]);
+
 const apiFormatEndpointSuffix: Partial<Record<RuntimeApiFormat, string>> = {
   "anthropic-messages": "/anthropic",
   "openai-codex-responses": "/v1",
@@ -87,7 +95,7 @@ export const getProviderOptions = (): ProviderOption[] => {
     })
     .map((provider) => ({
       value: provider,
-      label: provider,
+      label: providerLabels.get(provider) ?? provider,
     }));
 };
 

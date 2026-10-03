@@ -17,7 +17,7 @@ const targetPath = join(
 const MODELS_DEV_URL = "https://models.dev/api.json";
 const RAW_CATALOG_EXPORT_NAME = "RAW_MODEL_CATALOG";
 
-const SYNCED_PROVIDERS = new Set(["deepseek", "minimax-cn"]);
+const SYNCED_PROVIDERS = new Set(["deepseek", "minimax-cn", "zhipuai", "moonshotai-cn", "xiaomi"]);
 
 const sortRecord = (record) => {
   return Object.fromEntries(

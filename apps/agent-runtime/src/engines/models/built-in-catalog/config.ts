@@ -47,4 +47,53 @@ export const MODEL_PROVIDER_CONFIG: Record<string, CatalogProviderConfig> = {
       },
     ],
   },
+  zhipuai: {
+    websiteUrl: "https://bigmodel.cn",
+    models: {
+      "glm-5.3": {},
+      "glm-5.3-flash": {},
+      "glm-5.3-flashx": {},
+      "glm-4.7-flash": {},
+    },
+    // https://docs.bigmodel.cn/cn/guide/develop/openai/introduction
+    apis: [
+      {
+        apiFormat: "openai-completions",
+        apiEndpoint: "https://open.bigmodel.cn/api/paas/v4",
+      },
+    ],
+  },
+  "moonshotai-cn": {
+    websiteUrl: "https://platform.kimi.com",
+    models: {
+      "kimi-k3": {},
+      "kimi-k2.7-code": {},
+      "kimi-k2.7-code-highspeed": {},
+      "kimi-k2.6": {},
+    },
+    // https://platform.kimi.com/docs/get-api-key
+    apis: [
+      {
+        apiFormat: "openai-completions",
+        apiEndpoint: "https://api.moonshot.cn/v1",
+      },
+    ],
+  },
+  xiaomi: {
+    websiteUrl: "https://platform.xiaomimimo.com",
+    models: {
+      "mimo-v2.6-pro": {},
+      "mimo-v2.6-flash": {},
+      "mimo-v2.6-pro-ultraspeed": {},
+      "mimo-v2.5-pro": {},
+      "mimo-v2.5": {},
+    },
+    // https://mimo.mi.com/docs/en-US/quick-start/summary/first-api-call
+    apis: [
+      {
+        apiFormat: "openai-completions",
+        apiEndpoint: "https://api.xiaomimimo.com/v1",
+      },
+    ],
+  },
 };
