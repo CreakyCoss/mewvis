@@ -189,11 +189,13 @@
 }
 .wk-library-header .wk-brand {
   gap: 8px;
+  font-size: 16px;
+  line-height: 1.5;
   white-space: nowrap;
 }
 .wk-library-header .wk-brand svg {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
 }
 .wk-library-header .wk-button {
   margin-left: auto;
@@ -298,8 +300,8 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 16px;
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 500;
 }
 .wk-project-heading .wk-status {
   justify-content: center;
@@ -308,7 +310,7 @@
   padding: 2px 6px;
   border-radius: 5px;
   background: color-mix(in oklab, var(--muted) 94%, var(--foreground));
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
   line-height: 20px;
   white-space: nowrap;
@@ -384,14 +386,15 @@
   flex-wrap: wrap;
 }
 .wk-detail-title h2 {
-  font-size: 22px;
+  font-size: 18px;
   font-weight: 600;
+  line-height: 1.5;
   overflow-wrap: anywhere;
 }
 .wk-detail-title p {
   color: var(--muted-foreground);
   margin: 6px 0 0;
-  font-size: 14px;
+  font-size: 13px;
   overflow-wrap: anywhere;
 }
 .wk-detail-actions {
@@ -489,6 +492,9 @@
 .wk-empty h2 {
   font-size: 18px;
   font-weight: 600;
+}
+.wk-home .wk-empty h2 {
+  font-size: 16px;
 }
 .wk-empty p {
   color: var(--muted-foreground);
@@ -2008,9 +2014,6 @@
   .wk-header-name {
     flex: 1;
     max-width: calc(100% - 40px);
-  }
-  .wk-detail-title h2 {
-    font-size: 20px;
   }
   .wk-code-actions {
     padding-right: 6px;
