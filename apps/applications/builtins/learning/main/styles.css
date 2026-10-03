@@ -85,6 +85,8 @@
 .learn-select-wrap {
   position: relative;
   display: inline-flex;
+  width: 100%;
+  max-width: 100%;
   min-width: 0;
 }
 .learn-select-wrap::after {
@@ -102,14 +104,27 @@
 .learning-app .learn-select-wrap select {
   appearance: none;
   -webkit-appearance: none;
+  height: var(--learn-control-height);
   min-height: var(--learn-control-height);
-  padding-right: 32px;
+  padding: 8px 32px 8px 12px;
+  line-height: 1.4;
+  font-weight: 400;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+  cursor: pointer;
   border-color: var(--learn-stroke);
   background: var(--learn-surface);
   color: var(--learn-ink);
 }
 .learning-app .learn-select-wrap:focus-within select {
   border-color: var(--learn-accent);
+}
+.learning-app .learn-select-wrap:has(> select:disabled) {
+  opacity: 0.5;
+}
+.learning-app .learn-select-wrap select:disabled {
+  cursor: not-allowed;
 }
 .learning-app input::placeholder,
 .learning-app textarea::placeholder {

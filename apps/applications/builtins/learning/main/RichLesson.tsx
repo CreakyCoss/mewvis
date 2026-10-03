@@ -1,17 +1,40 @@
 import { useMemo } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
 import { ArrowDown, ArrowRight } from "lucide-react";
-import { type ContentBlock, renderFormula } from "./richContent";
+import {
+  type ContentBlock,
+  renderFormula,
+  formulaLatex,
+  type ExperimentConfig,
+} from "./richContent";
 
-export function Formula({ latex }: { latex: string }) {
+export function Formula({
+  latex,
+  inline = false,
+}: {
+  latex: string;
+  inline?: boolean;
+}) {
   const rendered = useMemo(() => {
     try {
-      return { html: renderFormula(latex), error: false };
+      return { html: renderFormula(latex, !inline), error: false };
     } catch {
       return { html: "", error: true };
     }
-  }, [latex]);
+  }, [latex, inline]);
+  if (inline)
+    return rendered.error ? (
+      <span className="learn-field-error" title="公式格式有误">
+        {latex}
+      </span>
+    ) : (
+      <span
+        className="learn-inline-formula"
+        dangerouslySetInnerHTML={{ __html: rendered.html }}
+      />
+    );
   return rendered.error ? (
     <p className="learn-field-error" role="status">
       公式格式有误，请检查 LaTeX 表达式。
@@ -27,10 +50,32 @@ export function Prose({ text }: { text: string }) {
   return (
     <div className="learn-rich-prose">
       <Markdown
-        remarkPlugins={[remarkGfm]}
+        remarkPlugins={[remarkGfm, remarkMath]}
         skipHtml
         disallowedElements={["img"]}
         components={{
+          code: ({ className, children, node: _node, ...props }) =>
+            className?.includes("math-inline") ||
+            className?.includes("math-display") ? (
+              <Formula
+                latex={String(children).trim()}
+                inline={className.includes("math-inline")}
+              />
+            ) : (
+              <code className={className} {...props}>
+                {children}
+              </code>
+            ),
+          pre: ({ node, children }) => {
+            const child = node?.children[0];
+            return child?.type === "element" &&
+              Array.isArray(child.properties?.className) &&
+              child.properties.className.includes("math-display") ? (
+              <>{children}</>
+            ) : (
+              <pre>{children}</pre>
+            );
+          },
           a: ({ children, href }) => (
             <a href={href} target="_blank" rel="noreferrer">
               {children}
@@ -41,6 +86,58 @@ export function Prose({ text }: { text: string }) {
         {text}
       </Markdown>
     </div>
+  );
+}
+export function FormulaContent({
+  block,
+  experiment,
+}: {
+  block: Extract<ContentBlock, { type: "formula" }>;
+  experiment?: ExperimentConfig;
+}) {
+  let latex: string;
+  try {
+    latex = formulaLatex(block, experiment);
+  } catch (error) {
+    return (
+      <p className="learn-field-error" role="status">
+        {error instanceof Error ? error.message : "公式来源无效"}
+      </p>
+    );
+  }
+  return (
+    <>
+      <Formula latex={latex} />
+      {block.caption && <p className="learn-block-caption">{block.caption}</p>}
+      {!!block.symbols?.length && (
+        <dl className="learn-formula-symbols">
+          {block.symbols.map((symbol, index) => (
+            <div key={index}>
+              <dt>
+                <Formula latex={symbol.symbol} inline />
+              </dt>
+              <dd>
+                {symbol.meaning}
+                {symbol.unit && <small> · {symbol.unit}</small>}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      )}
+      {!!block.steps?.length && (
+        <ol className="learn-formula-steps" aria-label="公式推导步骤">
+          {block.steps.map((step, index) => (
+            <li key={index}>
+              <span>{index + 1}</span>
+              <div>
+                <Formula latex={step.latex} />
+                <p>{step.explanation}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
+      )}
+    </>
   );
 }
 export function Diagram({
@@ -73,7 +170,13 @@ export function Diagram({
     </figure>
   );
 }
-export function RichLesson({ blocks }: { blocks: ContentBlock[] }) {
+export function RichLesson({
+  blocks,
+  experiment,
+}: {
+  blocks: ContentBlock[];
+  experiment?: ExperimentConfig;
+}) {
   return (
     <div className="learn-rich-lesson">
       {blocks.map((block) => (
@@ -84,12 +187,7 @@ export function RichLesson({ blocks }: { blocks: ContentBlock[] }) {
           {block.type === "text" ? (
             <Prose text={block.text} />
           ) : block.type === "formula" ? (
-            <>
-              <Formula latex={block.latex} />
-              {block.caption && (
-                <p className="learn-block-caption">{block.caption}</p>
-              )}
-            </>
+            <FormulaContent block={block} experiment={experiment} />
           ) : block.type === "diagram" ? (
             <Diagram block={block} />
           ) : block.type === "code" ? (

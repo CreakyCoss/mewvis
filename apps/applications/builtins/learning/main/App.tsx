@@ -26,7 +26,7 @@ import {
 import { repository, upsertCourseEntry } from "./repository";
 import { clearOldChats } from "./clearOldChats";
 import { exampleCourse } from "./example";
-import { functionCourse } from "./functionCourse";
+import { interactiveCourse } from "./interactiveCourse";
 import {
   Icon,
   Notice,
@@ -43,7 +43,7 @@ import { RecallCards } from "./RecallCards";
 import { ProjectLab } from "./ProjectLab";
 import { CourseDialog } from "./CourseDialog";
 import { RichLesson } from "./RichLesson";
-import { FunctionExperiment } from "./FunctionExperiment";
+import { InteractiveExperiment } from "./InteractiveExperiment";
 import { type CourseEntry, type Draft } from "./workflow";
 
 const repo = () => repository(getApplicationDataClient().storage);
@@ -358,11 +358,11 @@ export default function App() {
           </button>
           <div className="learn-nav-links">
             <button className="learn-button text compact" disabled={loading || loadFailed || busy} onClick={() => void run(async () => {
-              const existing = courses.find(item => entryId(item) === functionCourse.id);
+              const existing = courses.find(item => entryId(item) === interactiveCourse.id);
               if (existing?.status === "ready") { open(existing); return; }
-              const demo = { ...functionCourse, id: existing ? crypto.randomUUID() : functionCourse.id, createdAt: Date.now() };
+              const demo = { ...interactiveCourse, id: existing ? crypto.randomUUID() : interactiveCourse.id, createdAt: Date.now() };
               await save(demo); open(demo);
-            })}>函数实验示例</button>
+            })}>互动实验示例</button>
             <label className="learn-nav-import">
               <Upload size={17} aria-hidden="true" />
               导入课程
@@ -636,7 +636,7 @@ export default function App() {
                     <ProjectLab key={course.id} course={course} mode="learn" />
                   ) : tab === "lesson" ? (
                     <article className="learn-article">
-                      {lesson.blocks ? <RichLesson blocks={lesson.blocks} /> : <Text value={lesson.content} />}
+                      {lesson.blocks ? <RichLesson blocks={lesson.blocks} experiment={lesson.experiment} /> : <Text value={lesson.content} />}
                       <section
                         id="learning-focus-example"
                         className={`learn-example ${focus === "example" ? "learn-focused" : ""}`}
@@ -682,7 +682,7 @@ export default function App() {
                       </div>
                     </article>
                   ) : tab === "experiment" && lesson.experiment ? (
-                    <FunctionExperiment key={lesson.id} config={lesson.experiment} attempt={currentProgress.experiments?.[lesson.id]} disabled={busy}
+                    <InteractiveExperiment key={lesson.id} config={lesson.experiment} attempt={currentProgress.experiments?.[lesson.id]} disabled={busy}
                       onCheck={async (attempt) => {
                         if (lock.current) throw new Error("正在保存，请稍后重试");
                         lock.current = true; setBusy(true);

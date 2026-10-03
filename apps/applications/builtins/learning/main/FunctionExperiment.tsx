@@ -1,10 +1,10 @@
+import type { LinearExperimentAttempt } from "./linearExperiment";
 import { useEffect, useRef, useState } from "react";
 import { Lightbulb, RotateCcw } from "lucide-react";
 import {
   checkExperiment,
   rounded,
   snapParameter,
-  type ExperimentAttempt,
   type FunctionExperimentConfig,
 } from "./richContent";
 import { Formula } from "./RichLesson";
@@ -175,8 +175,8 @@ export function FunctionExperiment({
   onAsk,
 }: {
   config: FunctionExperimentConfig;
-  attempt?: ExperimentAttempt;
-  onCheck?: (attempt: ExperimentAttempt) => Promise<void>;
+  attempt?: LinearExperimentAttempt;
+  onCheck?: (attempt: LinearExperimentAttempt) => Promise<void>;
   preview?: boolean;
   disabled?: boolean;
   onAsk?: (prompt: string) => void;

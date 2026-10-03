@@ -1,10 +1,59 @@
-# 学习应用富内容与受控实验：设计验收
+# 学习应用富内容、通用公式与受控实验：设计验收
 
 - 日期：2026-10-03
 - 最终结果：**passed**
-- 范围：按已选的独立实验台方案，完成富内容课时、公式、图解、课程编辑和受控函数实验。遵循当前学习应用的视觉规范与现有宿主边界。
-- 实现入口：`main/App.tsx`、`main/LessonEditor.tsx`、`main/RichContentEditor.tsx`、`main/ExperimentEditor.tsx`、`main/FunctionExperiment.tsx`、`main/rich-content.css`。
-- 本地预览：<http://127.0.0.1:5178/>；课程库点击“函数实验示例”，打开第二课“斜率与截距”。
+- 当前范围：在既有富内容、图解与独立实验台上，扩展通用公式编辑、受控表达式模型和对应课程编辑功能。遵循现有视觉规范与宿主边界。
+- 实现入口：`main/FormulaEditor.tsx`、`main/ExperimentEditor.tsx`、`main/InteractiveExperiment.tsx`、`main/experiments.ts`、`main/expression.ts`、`main/rich-content.css`。
+- 本地预览：<http://127.0.0.1:5178/>；课程库点击“互动实验示例”，可体验抛物线、电路、成本与收益、正弦曲线。
+
+## 桌面下拉样式修复（2026-10-03）
+
+新增的公式、图解与实验选择框此前直接使用系统默认外观，没有复用课程编辑器已有的箭头和边距。现在统一使用 `SelectField` 包装原生 `select`，保留原生菜单、标签关联与键盘选择行为。
+
+- 普通选择框统一为 40 px 高，右侧预留 32 px 给自绘箭头；长选项省略显示，紧凑题型选择框保持 108 × 34 px。
+- 同步修正曲线切换和实验参数控件的布局选择器，明确宽度与收缩规则；焦点、禁用、浅色与深色状态共用应用样式。
+- 在 1280 px、1568 px 桌面布局和 390 px 窄屏检查，选择框与容器等宽，页面没有水平溢出；窄屏长预设名称未遮挡箭头。
+- 实际操作验证变量控件切换、公式来源键盘选择（空格展开、方向键选择、回车确认）、电阻选项对电流与功率的联动，以及曲线结果切换。未保存测试编辑。
+- 类型与运行边界检查、构建、64 / 64 项测试、相关文件 `git diff --check` 通过，浏览器控制台无警告或错误。此轮为样式与公共控件整理，没有新增单元测试或宿主改动。
+
+证据：[修复前](../../../../prototypes/learning-rich-content/qa/select-desktop-before.png)、[桌面修复后](../../../../prototypes/learning-rich-content/qa/select-desktop-after.png)、[宽桌面](../../../../prototypes/learning-rich-content/qa/select-desktop-wide.png)、[窄屏](../../../../prototypes/learning-rich-content/qa/select-mobile-after.png)、[深色主题](../../../../prototypes/learning-rich-content/qa/select-dark-after.png)。
+
+## 通用公式与实验更新（2026-10-03）
+
+本次沿用既有设计方向与内容块的上下布局，扩展配置能力；没有新增宿主能力或权限。以下首版与布局调整章节保留为历史记录，当前范围以本节为准。
+
+- 公式编辑：正文支持行内与独立公式；新增分式、根式、幂、求和、积分、矩阵快捷插入、符号说明、分步推导，以及与实验计算结果的绑定。
+- 实验编辑：模型与公式、输入变量、展示方式、教学任务四个区域；提供五种预设，可配置滑块、数字输入、下拉选项、开关与多个计算结果。
+- 学习体验：数值、SVG 曲线、采样表可组合；支持自由探索、数值 / 区间目标、曲线匹配，保存最近 8 次观察并恢复。不同单位的结果切换曲线查看。
+- 桌面配置区在可用宽度足够时并列展示设置与学生预览，窄屏顺序排列。保留“保存课时 → 保存课程”的原有层级。
+
+浏览器实际验证：
+
+1. 二次函数自由探索：记录 `a=1, x=2 → y=4` 与 `a=3, x=2 → y=12`，切换页签后恢复参数和两条记录。
+2. 欧姆定律：电阻由 200 Ω 改为 400 Ω 后，电流为 0.03 A、功率为 0.36 W；断开开关，两项结果均为 0。切换功率曲线，显示正确的单位与非线性变化。
+3. 成本收益挑战：销量 50 时利润 −400，检查未通过；销量 100 时利润 200，目标通过。销量越界后显示错误，禁用记录及导师分析入口。
+4. 课程编辑：修改计算式、删除不用的变量、修改横轴范围；关联公式即时更新。将任务改为匹配 `3*x^2`，不达标的参考解阻止保存；预览调到 `a=3` 后检查最大采样误差为 0，并可设为有效参考解。
+5. 公式编辑：分式按钮替换当前选区；独立公式与关联公式可切换；新增符号说明及推导步骤，预览正确渲染。
+6. 保存链路：修改电路公式的等价写法、结果名称与公式说明，依次保存课时和课程；返回学习页后，公式、说明、名称及计算结果正确恢复。修改内容后的旧观察记录不沿用。
+7. 响应式：1568 px 桌面编辑、760 px 学习页与 390 px 学习 / 编辑布局检查；手机端实际操作选项与记录，根页面无水平溢出。默认窗口与深色主题复核通过。
+8. 发现公式卡片继承正文行高后产生多余纵向滚动条；调整 MathML 行高与公式留白，复核滚动尺寸等于可用尺寸，且公式完整显示。
+9. 最终新预览页控制台无警告或错误。旧页曾出现共享 Chat UI 热更新的属性重复定义错误；未改动宿主，新页面验证正常。
+
+自动验证：
+
+- `pnpm --filter @mewvis/learning test`：**64 / 64 通过**。
+- `pnpm --filter @mewvis/learning check`：类型与运行边界检查通过。
+- `pnpm --filter @mewvis/learning build`：最终构建通过，JavaScript 约 689 KiB，低于 768 KiB 预算。
+- 覆盖表达式优先级与非法语法、域错误与预算、变量 / 依赖校验、五种预设、参考解与采样目标、观察记录恢复 / 隔离 / 存储失败、旧一次函数及高精度目标兼容、公式绑定与 AI 采用。
+
+当前界面证据：
+
+- [公式讲解](../../../../prototypes/learning-rich-content/qa/generic-formula-lesson.png)、[通用实验台](../../../../prototypes/learning-rich-content/qa/generic-ohm-lab.png)
+- [公式编辑](../../../../prototypes/learning-rich-content/qa/generic-formula-editor.png)、[实验配置](../../../../prototypes/learning-rich-content/qa/generic-experiment-editor.png)
+- [手机实验台](../../../../prototypes/learning-rich-content/qa/generic-lab-mobile.png)、[手机操作](../../../../prototypes/learning-rich-content/qa/generic-lab-mobile-controls.png)、[手机编辑](../../../../prototypes/learning-rich-content/qa/generic-editor-mobile.png)
+- [平板实验台](../../../../prototypes/learning-rich-content/qa/generic-lab-tablet.png)、[深色主题](../../../../prototypes/learning-rich-content/qa/generic-lab-dark.png)
+
+限制：计算引擎支持有界标量表达式，不运行 JavaScript；不做符号求解、量纲校验或自动验证推导。曲线挑战只判断采样点误差。浏览器使用内存存储和模拟聊天；真实模型、宿主数据库及宿主重启未做端到端联调，持久化与恢复逻辑由自动测试覆盖。没有发现仍需修复的 P0 / P1 / P2 项。
 
 ## 教学内容编辑调整（2026-10-03）
 

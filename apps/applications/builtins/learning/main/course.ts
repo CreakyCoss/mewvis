@@ -1,4 +1,4 @@
-import { blocksToText, restoreExperimentAttempt, validateBlocks, validateExperiment, type ContentBlock, type ExperimentAttempt, type FunctionExperimentConfig } from "./richContent";
+import { blocksToText, restoreExperimentAttempt, validateBlocks, validateExperiment, type ContentBlock, type ExperimentAttempt, type ExperimentConfig } from "./richContent";
 
 type QuestionBase = {
   id: string;
@@ -28,7 +28,7 @@ export type Lesson = {
   objective: string;
   content: string;
   blocks?: ContentBlock[];
-  experiment?: FunctionExperimentConfig;
+  experiment?: ExperimentConfig;
   example: string;
   takeaways: string[];
   questions: Question[];
@@ -124,8 +124,8 @@ function questionPoints(value: unknown): number {
 }
 export function validateLesson(value: unknown, id: string): Lesson {
   const lesson = object(value, "课时");
-  const blocks = lesson.blocks === undefined ? undefined : validateBlocks(lesson.blocks);
   const experiment = lesson.experiment == null ? undefined : validateExperiment(lesson.experiment);
+  const blocks = lesson.blocks === undefined ? undefined : validateBlocks(lesson.blocks, experiment);
   const questions = list(lesson.questions, "每课测验", 1, 3).map(
     (entry, j): Question => {
       const q = object(entry, "题目");
@@ -175,7 +175,7 @@ export function validateLesson(value: unknown, id: string): Lesson {
     id,
     title: text(lesson.title, "课时标题", 120),
     objective: text(lesson.objective, "学习目标", 500),
-    content: text(blocks ? blocksToText(blocks) : lesson.content, "课时正文", 8000),
+    content: text(blocks ? blocksToText(blocks, experiment) : lesson.content, "课时正文", 8000),
     ...(blocks ? { blocks } : {}),
     ...(experiment ? { experiment } : {}),
     example: text(lesson.example, "示例", 4000),

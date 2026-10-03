@@ -1,3 +1,4 @@
+import { SelectField } from "./SelectField";
 import { useEffect, useRef, useState } from "react";
 import {
   ArrowDown,
@@ -13,8 +14,10 @@ import {
   Plus,
   Trash2,
 } from "lucide-react";
-import { type ContentBlock } from "./richContent";
-import { Diagram, Formula, RichLesson } from "./RichLesson";
+import { type ContentBlock, type ExperimentConfig } from "./richContent";
+import { Diagram, RichLesson } from "./RichLesson";
+
+import { FormulaEditor } from "./FormulaEditor";
 
 const labels = {
   text: "正文",
@@ -60,12 +63,12 @@ function TextBlockEditor({
   first: boolean;
 }) {
   const ref = useRef<HTMLTextAreaElement>(null);
-  const format = (before: string, after = before) => {
+  const format = (before: string, after = before, placeholder = "文字") => {
     const field = ref.current;
     if (!field) return;
     const start = field.selectionStart,
       end = field.selectionEnd;
-    const selected = block.text.slice(start, end) || "文字";
+    const selected = block.text.slice(start, end) || placeholder;
     change({
       ...block,
       text:
@@ -110,7 +113,15 @@ function TextBlockEditor({
         >
           <List size={16} />
         </button>
-        <small>支持 Markdown</small>
+        <button
+          type="button"
+          title="插入行内公式"
+          aria-label="插入行内公式"
+          onClick={() => format("$", "$", "x^2")}
+        >
+          ƒ
+        </button>
+        <small>支持 Markdown · $公式$</small>
       </div>
       <textarea
         ref={ref}
@@ -127,9 +138,11 @@ function TextBlockEditor({
 }
 export function RichContentEditor({
   blocks,
+  experiment,
   onChange,
 }: {
   blocks: ContentBlock[];
+  experiment?: ExperimentConfig;
   onChange: (blocks: ContentBlock[]) => void;
 }) {
   const [preview, setPreview] = useState(false);
@@ -177,7 +190,7 @@ export function RichContentEditor({
             </label>
             <label>
               排列方向
-              <select
+              <SelectField
                 value={diagram.direction}
                 onChange={(e) =>
                   change({
@@ -188,7 +201,7 @@ export function RichContentEditor({
               >
                 <option value="horizontal">从左到右</option>
                 <option value="vertical">从上到下</option>
-              </select>
+              </SelectField>
             </label>
             <div className="learn-block-toolbar">
               <strong>节点 · {diagram.nodes.length} / 8</strong>
@@ -355,7 +368,7 @@ export function RichContentEditor({
       </div>
       {preview ? (
         <div className="learn-rich-editor-preview">
-          <RichLesson blocks={blocks} />
+          <RichLesson blocks={blocks} experiment={experiment} />
         </div>
       ) : (
         <div className="learn-edit-blocks">
@@ -426,33 +439,11 @@ export function RichContentEditor({
                     first={index === 0}
                   />
                 ) : block.type === "formula" ? (
-                  <>
-                    <label>
-                      公式表达式
-                      <input
-                        aria-label="公式表达式"
-                        maxLength={1500}
-                        value={block.latex}
-                        onChange={(e) =>
-                          change({ ...block, latex: e.target.value })
-                        }
-                        placeholder="例如：y = kx + b"
-                      />
-                    </label>
-                    <div className="learn-formula-preview">
-                      <Formula latex={block.latex} />
-                    </div>
-                    <label>
-                      公式说明（可选）
-                      <input
-                        maxLength={500}
-                        value={block.caption}
-                        onChange={(e) =>
-                          change({ ...block, caption: e.target.value })
-                        }
-                      />
-                    </label>
-                  </>
+                  <FormulaEditor
+                    block={block}
+                    experiment={experiment}
+                    onChange={change}
+                  />
                 ) : block.type === "diagram" ? (
                   <>
                     <Diagram block={block} />

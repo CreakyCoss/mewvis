@@ -1,9 +1,11 @@
+import { SelectField } from "./SelectField";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Lesson, Question } from "./course";
 import { Notice, errorText } from "./components";
-import { blocksToText, defaultExperiment, validateBlocks, validateExperiment, type ContentBlock } from "./richContent";
+import { blocksToText, formulaLatex, validateBlocks, validateExperiment, type ContentBlock, type ExperimentConfig } from "./richContent";
 import { RichContentEditor } from "./RichContentEditor";
 import { ExperimentEditor } from "./ExperimentEditor";
+import { createExperimentPreset } from "./experimentPresets";
 
 type EditableQuestion = {
   type: Question["type"];
@@ -45,7 +47,7 @@ export function LessonEditor({
   const [initialBlocks] = useState<ContentBlock[]>(() => lesson?.blocks ?? [{ id: crypto.randomUUID(), type: "text", text: lesson?.content ?? "" }]);
   const [blocks, setBlocks] = useState(initialBlocks);
   const [experimentEnabled, setExperimentEnabled] = useState(!!lesson?.experiment);
-  const [experiment, setExperiment] = useState(lesson?.experiment ?? defaultExperiment());
+  const [experiment, setExperiment] = useState<ExperimentConfig>(lesson?.experiment ?? createExperimentPreset());
   const [value, setValue] = useState({
     title,
     objective,
@@ -65,7 +67,7 @@ export function LessonEditor({
   );
   const editorValue = useMemo(() => ({
     ...value,
-    content: lesson && !lesson.blocks && JSON.stringify(blocks) === JSON.stringify(initialBlocks) ? lesson.content : blocksToText(blocks),
+    content: lesson && !lesson.blocks && JSON.stringify(blocks) === JSON.stringify(initialBlocks) ? lesson.content : blocksToText(blocks, experimentEnabled ? experiment : undefined),
     ...(lesson?.blocks || JSON.stringify(blocks) !== JSON.stringify(initialBlocks) ? { blocks } : {}),
     ...(experimentEnabled ? { experiment } : {}),
     takeaways: value.takeaways.split("\n").map(s => s.trim()).filter(Boolean),
@@ -96,7 +98,7 @@ export function LessonEditor({
     requireText("title", value.title, "课时标题");
     requireText("objective", value.objective, "学习目标");
     try {
-      const content = blocksToText(validateBlocks(blocks));
+      const content = blocksToText(validateBlocks(blocks, experimentEnabled ? experiment : undefined), experimentEnabled ? experiment : undefined);
       if (content.length > 8000) invalid.content = "教学内容合计不能超过 8,000 字";
     } catch (e) { invalid.content = errorText(e); }
     if (experimentEnabled) {
@@ -247,7 +249,7 @@ export function LessonEditor({
             >
               <legend>教学内容</legend>
               {fieldErrors.content && <p className="learn-field-error" role="alert">{fieldErrors.content}</p>}
-              <RichContentEditor blocks={blocks} onChange={(next) => { setBlocks(next); setFieldErrors({}); }} />
+              <RichContentEditor experiment={experimentEnabled ? experiment : undefined} blocks={blocks} onChange={(next) => { setBlocks(next); setFieldErrors({}); }} />
               <label>
                 具体示例
                 <textarea
@@ -288,7 +290,7 @@ export function LessonEditor({
             <fieldset id="learn-lesson-experiment" disabled={busy} hidden={activeTab !== "experiment"}>
               <legend>动手实验</legend>
               {fieldErrors.experiment && <p className="learn-field-error" role="alert">{fieldErrors.experiment}</p>}
-              <ExperimentEditor enabled={experimentEnabled} value={experiment} onToggle={setExperimentEnabled} onChange={(next) => { setExperiment(next); setFieldErrors({}); }} />
+              <ExperimentEditor enabled={experimentEnabled} value={experiment} onToggle={(enabled) => { if (!enabled) setBlocks(current => current.map(block => { if (block.type !== "formula" || !block.experimentOutput) return block; let latex = block.latex; try { latex = formulaLatex(block, experiment); } catch {} const { experimentOutput, ...independent } = block; return { ...independent, latex }; })); setExperimentEnabled(enabled); }} onChange={(next) => { setExperiment(next); setFieldErrors({}); }} />
             </fieldset>
             <div id="learn-lesson-quiz" hidden={activeTab !== "quiz"}>
             <div className="learn-quiz-heading">
@@ -317,29 +319,27 @@ export function LessonEditor({
                   <div className="learn-question-controls">
                     <label className="learn-question-type">
                       <span>题型</span>
-                      <span className="learn-select-wrap">
-                        <select
-                          aria-label={`第 ${i + 1} 题题型`}
-                          value={q.type}
-                          onChange={(e) => {
-                            const type = e.target.value as Question["type"];
-                            update(i, {
-                              type,
-                              answer: type === "multiple_choice" ? [] : "",
-                              options:
-                                type === "short_answer"
-                                  ? []
-                                  : q.options.length >= 2
-                                    ? q.options
-                                    : blankQuestion().options,
-                            });
-                          }}
-                        >
-                          <option value="single_choice">单选</option>
-                          <option value="multiple_choice">多选</option>
-                          <option value="short_answer">简答</option>
-                        </select>
-                      </span>
+                      <SelectField
+                        aria-label={`第 ${i + 1} 题题型`}
+                        value={q.type}
+                        onChange={(e) => {
+                          const type = e.target.value as Question["type"];
+                          update(i, {
+                            type,
+                            answer: type === "multiple_choice" ? [] : "",
+                            options:
+                              type === "short_answer"
+                                ? []
+                                : q.options.length >= 2
+                                  ? q.options
+                                  : blankQuestion().options,
+                          });
+                        }}
+                      >
+                        <option value="single_choice">单选</option>
+                        <option value="multiple_choice">多选</option>
+                        <option value="short_answer">简答</option>
+                      </SelectField>
                     </label>
                     <label className="learn-question-points">
                       <span>分值</span>

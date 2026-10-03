@@ -309,7 +309,7 @@ export function Studio({
                     本次修改：{changed.join("、")}。采用后只更新这一课的内容。
                   </p>
                 )}
-                {lesson.blocks ? <RichLesson blocks={lesson.blocks} /> : <Text value={lesson.content} />}
+                {lesson.blocks ? <RichLesson blocks={lesson.blocks} experiment={lesson.experiment} /> : <Text value={lesson.content} />}
                 {lesson.experiment && <p>动手实验：{lesson.experiment.task}</p>}
                 <h4>示例</h4>
                 <Text value={lesson.example} />
