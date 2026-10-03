@@ -92,7 +92,7 @@ export const ProviderSelector = ({
                   setOpen(false);
                 }}
               >
-                {option.label}
+                {option.value === option.label ? option.value : `${option.value} (${option.label})`}
               </CommandItem>
             ))}
           </CommandList>
