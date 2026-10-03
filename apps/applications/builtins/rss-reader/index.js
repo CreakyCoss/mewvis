@@ -1,5 +1,10 @@
 import { defineApplication, defineSkill } from "@mewvis/app-sdk";
-import { apply as applyRss } from "dsh-rss";
+import {
+  resolveConfig,
+  RSS_SETTINGS_NAMESPACE,
+  RssSettingsSchema,
+} from "dsh-rss";
+import { buildReaderTools } from "./reader-tools.js";
 
 export const name = "@mewvis/rss-reader";
 export const inject = ["settings", "tools", "skills"];
@@ -25,8 +30,27 @@ const rssReaderSkill = defineSkill({
 });
 
 export function apply(ctx, config) {
-  const overrides = config && typeof config === "object" && !Array.isArray(config) ? config : {};
-  applyRss(ctx, { ...defaultConfig, ...overrides });
+  const overrides =
+    config && typeof config === "object" && !Array.isArray(config)
+      ? config
+      : {};
+  const resolved = resolveConfig({ ...defaultConfig, ...overrides });
+  const scope = ctx.settings.register(
+    RSS_SETTINGS_NAMESPACE,
+    RssSettingsSchema,
+    {
+      base: { feedsYaml: resolved.feedsYaml },
+      applies: "live",
+    },
+  );
+  const disposers = buildReaderTools(resolved, scope).map((tool) =>
+    ctx.tools.register(tool),
+  );
+  if (typeof ctx.on === "function")
+    ctx.on("dispose", () => {
+      for (const dispose of disposers)
+        if (typeof dispose === "function") dispose();
+    });
   ctx.skills.register(rssReaderSkill);
 }
 

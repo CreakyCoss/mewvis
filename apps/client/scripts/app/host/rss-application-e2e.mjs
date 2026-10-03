@@ -113,11 +113,11 @@ try {
   assert.equal(application.uiError, null);
   assert.deepEqual(application.ui, { kind: "sandbox", title: "RSS 阅读器" });
   const uiDocument = await request("uiDocument", { applicationId: "@mewvis/rss-reader" });
-  assert.match(uiDocument.script, /mewvisApplication\.executeTool\("rss_list"/);
-  assert.match(uiDocument.script, /mewvisApplication\.openExternal/);
+  assert.match(uiDocument.script, /rss_list/);
+  assert.match(uiDocument.script, /openExternal/);
   assert.match(uiDocument.style, /\.rss-app/);
   const toolNames = new Set(application.tools.map((tool) => tool.name));
-  for (const toolName of ["rss_list", "rss_add", "rss_remove", "rss_fetch"]) {
+  for (const toolName of ["rss_list", "rss_add", "rss_remove", "rss_fetch", "rss_update", "rss_opml_preview"]) {
     assert.equal(toolNames.has(toolName), true, `RSS 应用缺少 ${toolName}`);
   }
 
@@ -151,6 +151,7 @@ try {
   assert.equal(fetched.value.entries.length, 1);
   assert.equal(fetched.value.entries[0].title, "First portable entry");
   assert.match(fetched.value.entries[0].summary, /^Readable summary\s*\.$/);
+  assert.match(fetched.value.entries[0].contentHtml, /<strong>summary<\/strong>/);
 
   await configure();
   const persisted = await request("execute", {

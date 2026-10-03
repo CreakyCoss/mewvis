@@ -5,6 +5,7 @@ import { packApplication, validateApplication } from "@mewvis/app-dev/tooling";
 import { loadRegistrations } from "../../scripts/registrations.mjs";
 import { buildBook } from "./docs/book.mjs";
 import { prepareRuntime } from "../builtins/app-workshop/scripts/runtime.mjs";
+import { buildRssUi } from "../builtins/rss-reader/scripts/build-ui.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const outputRoot = join(root, "dist");
@@ -16,6 +17,7 @@ const builtinApplications = await loadRegistrations(
 );
 await buildBook();
 await prepareRuntime();
+await buildRssUi();
 
 await rm(outputRoot, { recursive: true, force: true });
 await mkdir(outputRoot, { recursive: true });

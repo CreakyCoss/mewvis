@@ -9,3 +9,4 @@ packages:
   - "apps/applications/builtins/story"
   - "apps/applications/builtins/learning"
   - "apps/applications/builtins/app-workshop"
+  - "apps/applications/builtins/rss-reader"

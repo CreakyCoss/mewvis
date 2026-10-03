@@ -1,13 +1,32 @@
 {
   "name": "@mewvis/rss-reader",
   "version": "0.1.0",
-  "description": "Mewvis 原生 RSS/Atom 阅读应用，提供订阅管理、抓取工具、模型技能与应用自带界面。",
+  "description": "RSS 今日阅读：聚合订阅、未读与稍后读、收藏搜索、舒适正文和 OPML 管理。",
   "type": "module",
   "main": "./index.js",
   "exports": "./index.js",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build:ui": "node scripts/build-ui.mjs",
+    "check": "tsc -p tsconfig.json",
+    "test": "node --experimental-strip-types --test test/*.test.mjs"
+  },
   "dependencies": {
-    "@mewvis/app-sdk": "^0.1.0",
-    "dsh-rss": "0.2.0"
+    "@mewvis/app-sdk": "workspace:*",
+    "dsh-rss": "0.2.0",
+    "fast-xml-parser": "^5.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "dompurify": "^3.3.0",
+    "esbuild": "^0.28.0",
+    "lucide-react": "^0.500.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "typescript": "~5.8.3",
+    "vite": "^7.0.4"
   },
   "mewvis": {
     "app": {
