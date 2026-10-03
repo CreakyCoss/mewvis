@@ -20,12 +20,6 @@ type RawCatalogProvider = {
 
 type RawModelCatalog = Record<string, RawCatalogProvider>;
 
-// Keep app-facing provider IDs short while sourcing model metadata from models.dev IDs.
-const providerIdAliases: Record<string, string> = {
-  zhipuai: "glm",
-  xiaomi: "mimo",
-};
-
 const rawModelCatalog = RAW_MODEL_CATALOG satisfies RawModelCatalog;
 
 const toCatalogModel = (model: RawCatalogModel): RuntimeModelSummary => ({
@@ -72,8 +66,7 @@ const buildCatalogProvider = (
 const buildModelCatalog = (): RuntimeModelCatalog => {
   const catalog: RuntimeModelCatalog = {};
 
-  for (const [sourceProvider, rawProviderCatalog] of Object.entries(rawModelCatalog)) {
-    const provider = providerIdAliases[sourceProvider] ?? sourceProvider;
+  for (const [provider, rawProviderCatalog] of Object.entries(rawModelCatalog)) {
     const providerCatalog = buildCatalogProvider(provider, rawProviderCatalog);
     if (!providerCatalog) continue;
 

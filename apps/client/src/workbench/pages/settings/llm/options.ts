@@ -1,4 +1,4 @@
-import { MODEL_CATALOG, MODEL_PROVIDER_ID_ALIASES } from "@/agent-client/model-catalog";
+import { MODEL_CATALOG } from "@/agent-client/model-catalog";
 import type { RuntimeApiFormat } from "@/agent-client/wire";
 
 // Suggestions only: providers may accept values outside this list.
@@ -42,9 +42,9 @@ const apiFormatLabels = new Map<RuntimeApiFormat, string>(apiFormatLabelEntries)
 const providerLabels = new Map<string, string>([
   ["deepseek", "DeepSeek"],
   ["minimax-cn", "MiniMax"],
-  ["glm", "GLM"],
+  ["zhipuai", "GLM"],
   ["moonshotai-cn", "Kimi"],
-  ["mimo", "MiMo"],
+  ["xiaomi", "MiMo"],
 ]);
 
 const apiFormatEndpointSuffix: Partial<Record<RuntimeApiFormat, string>> = {
@@ -72,10 +72,7 @@ const resolveApiEndpoint = (provider: string, apiFormat: RuntimeApiFormat) => {
 };
 
 export const getProviderCatalog = (provider: string) => {
-  const catalogProvider = MODEL_PROVIDER_ID_ALIASES[provider] ?? provider;
-  return Object.prototype.hasOwnProperty.call(MODEL_CATALOG, catalogProvider)
-    ? MODEL_CATALOG[catalogProvider]
-    : undefined;
+  return Object.prototype.hasOwnProperty.call(MODEL_CATALOG, provider) ? MODEL_CATALOG[provider] : undefined;
 };
 
 export const getProviderModels = (provider: string) => {
@@ -103,8 +100,7 @@ export const getProviderOptions = (): ProviderOption[] => {
 };
 
 export const getProviderOption = (provider: string) => {
-  const optionProvider = MODEL_PROVIDER_ID_ALIASES[provider] ?? provider;
-  return getProviderOptions().find((option) => option.value === optionProvider);
+  return getProviderOptions().find((option) => option.value === provider);
 };
 
 export const getProviderWebsiteUrl = (provider: string) => {

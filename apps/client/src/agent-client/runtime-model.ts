@@ -1,4 +1,4 @@
-import { MODEL_CATALOG, MODEL_PROVIDER_ID_ALIASES } from "./model-catalog";
+import { MODEL_CATALOG } from "./model-catalog";
 import type { RuntimeModelSummary, RuntimeApiFormat, RuntimeModelInput, RuntimeModelThinking } from "./wire";
 
 export type ProviderModel = {
@@ -81,9 +81,8 @@ const getCatalogModel = (
   provider: Pick<LlmProvider, "provider">,
   model: Pick<ProviderModel, "modelId">,
 ): RuntimeModelSummary | null => {
-  const catalogProvider = MODEL_PROVIDER_ID_ALIASES[provider.provider] ?? provider.provider;
-  return Object.prototype.hasOwnProperty.call(MODEL_CATALOG, catalogProvider)
-    ? (MODEL_CATALOG[catalogProvider]?.models[model.modelId] ?? null)
+  return Object.prototype.hasOwnProperty.call(MODEL_CATALOG, provider.provider)
+    ? (MODEL_CATALOG[provider.provider]?.models[model.modelId] ?? null)
     : null;
 };
 
