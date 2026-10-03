@@ -76,6 +76,10 @@ const server = await createServer({
     host: "127.0.0.1",
     port: Number(process.env.MEWVIS_WORKSHOP_PORT ?? 5183),
     strictPort: true,
+    // Stable visual QA can opt out of reloads from concurrent workspace builds.
+    ...(process.env.MEWVIS_WORKSHOP_PREVIEW_STABLE === "1"
+      ? { hmr: false, watch: null }
+      : {}),
     fs: { allow: [searchForWorkspaceRoot(root)] },
   },
   plugins: [

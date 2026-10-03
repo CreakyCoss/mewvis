@@ -58,10 +58,10 @@ const services = (f, definitions) => {
   };
 };
 
-test("the shipped catalog is empty; discovery and initialization create no projects or journal", async (t) => {
+test("an empty catalog initializes without projects or a journal", async (t) => {
   const f = await fixture(t);
-  assert.deepEqual(await f.run("workshop_list_builtins"), { builtins: [] });
-  assert.deepEqual(await f.run("workshop_initialize_builtins"), {
+  const { builtins } = services(f, []);
+  assert.deepEqual(await builtins.initialize(), {
     builtins: [],
     errors: [],
   });
@@ -73,6 +73,31 @@ test("the shipped catalog is empty; discovery and initialization create no proje
   );
   assert.equal(f.tools.get("workshop_initialize_builtins").risk, "medium");
   assert.equal(f.tools.get("workshop_create_from_builtin").risk, "medium");
+});
+
+test("the shipped cat mini-app initializes as a runnable saved version without duplicate installation", async (t) => {
+  const f = await fixture(t);
+  const catalog = (await f.run("workshop_list_builtins")).builtins;
+  assert.ok(
+    catalog.some(
+      (item) => item.id === "cat-packing" && item.name === "猫猫收纳所",
+    ),
+  );
+  assert.deepEqual((await f.run("workshop_initialize_builtins")).errors, []);
+  const first = (await f.run("workshop_list_projects")).projects;
+  const cat = first.find((item) => item.name === "猫猫收纳所");
+  assert.ok(cat?.savedVersionId);
+  const { artifact } = await f.run("workshop_read_build", {
+    workspaceId: cat.id,
+    mode: "saved",
+  });
+  assert.match(artifact.script, /cat-packing-v1/);
+  assert.match(artifact.script, /data:image\/webp;base64/);
+  await f.run("workshop_initialize_builtins");
+  assert.deepEqual(
+    (await f.run("workshop_list_projects")).projects.map((item) => item.id),
+    first.map((item) => item.id),
+  );
 });
 
 test("concurrent initialization and restart install one runnable V1 per template in catalog order", async (t) => {
