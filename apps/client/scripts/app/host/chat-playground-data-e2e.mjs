@@ -127,7 +127,7 @@ try {
           build.onResolve(
             {
               filter:
-                /^(?:@\/transport$|@\/api\/(applications$|workspace$|agent-runtime$)|@\/workbench\/pages\/stories\/)/,
+                /^(?:@\/transport$|@\/api\/(applications$|workspace$|agent-runtime$|extensions$)|@\/workbench\/pages\/stories\/)/,
             },
             ({ path }) => ({ path, namespace: "fixture" }),
           );
@@ -140,8 +140,10 @@ try {
                   : path === "@/api/workspace"
                     ? "export const listWorkspaces = async () => globalThis.__playgroundFixture.workspaces();"
                     : path === "@/api/agent-runtime"
-                      ? "export const listAgentRuntimeTools = async () => ({tools:[{name:'host',label:'Host',description:'Host tool'}]}); export const releaseAgentRuntimeSession = async () => {};"
-                      : "export const loadStoryById = async () => null; export const prepareStoryChatProfile = () => {throw new Error('Unexpected story access')};",
+                      ? "export const listAgentRuntimeTools = async () => ({tools:[{name:'host',label:'Host',description:'Host tool'}]}); export const releaseAgentRuntimeSession = async () => {}; export const listExtensionCommands = async () => [];"
+                      : path === "@/api/extensions"
+                        ? "export const listExtensions = async () => [];"
+                        : "export const loadStoryById = async () => null; export const prepareStoryChatProfile = () => {throw new Error('Unexpected story access')};",
           }));
         },
       },

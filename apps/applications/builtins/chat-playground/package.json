@@ -1,23 +1,27 @@
 {
   "name": "@mewvis/chat-playground",
   "version": "0.1.0",
-  "description": "Mewvis 内置调试台：工作区与会话选择、默认和组合 Chat、会话状态以及回显工具。",
+  "description": "Mewvis 应用能力实验室：体验聊天、工具与技能、审批、数据工作区、内嵌视图和宿主集成。",
   "type": "module",
   "dependencies": {
     "@mewvis/app-sdk": "workspace:*",
+    "design-system": "workspace:*",
+    "lucide-react": "^0.500.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
   },
   "private": true,
   "scripts": {
-    "dev": "mewvis-app dev",
-    "build": "mewvis-app build",
-    "check": "mewvis-app check"
+    "prepare:view": "node scripts/build-view.mjs",
+    "dev": "pnpm prepare:view && mewvis-app dev",
+    "build": "pnpm prepare:view && mewvis-app build",
+    "check": "pnpm prepare:view && mewvis-app check"
   },
   "devDependencies": {
     "@mewvis/app-dev": "workspace:*",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
-    "@types/node": "^22.0.0"
+    "@types/node": "^22.0.0",
+    "esbuild": "^0.28.0"
   }
 }

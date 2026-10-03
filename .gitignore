@@ -18,6 +18,9 @@ build/
 *.so
 *.dll
 
+# Local design prototypes
+/prototypes/
+
 # Logs
 logs
 *.log

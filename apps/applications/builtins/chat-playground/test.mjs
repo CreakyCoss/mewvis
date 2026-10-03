@@ -47,6 +47,8 @@ assert.deepEqual(manifest.mewvis.permissions, [
   "chat-knowledge",
   "application-workspaces",
   "application-data",
+  "embedded-views",
+  "open-external",
 ]);
 assert.equal(
   (await readFile(join(outputRoot, "index.js"), "utf8")).includes("react-dom"),

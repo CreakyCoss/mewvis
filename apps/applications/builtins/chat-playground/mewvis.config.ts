@@ -3,7 +3,15 @@ import { defineConfig } from "@mewvis/app-dev";
 export default defineConfig({
   displayName: "调试台",
   defaultEnabled: true,
-  permissions: ["chat", "workspace-files", "chat-knowledge", "application-workspaces", "application-data"],
+  permissions: [
+    "chat",
+    "workspace-files",
+    "chat-knowledge",
+    "application-workspaces",
+    "application-data",
+    "embedded-views",
+    "open-external",
+  ],
   agentAccess: {
     filesystem: { read: "all", write: "all" },
     network: { hosts: "all" },
