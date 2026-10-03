@@ -309,18 +309,7 @@ export default function App() {
           )}
           {chatVisited && (
             <div hidden={page !== "chat"} className="showcase-chat-page">
-              <PageHeading
-                title="把对话带进你的应用"
-                description="新建或恢复会话，体验流式回复、自定义界面和同一会话的双视图。"
-              />
-              {preset && (
-                <p className="showcase-chat-preset">
-                  当前示例：<strong>{preset.label}</strong> ·
-                  连接会话后，点击「填入此示例」开始。
-                </p>
-              )}
-              <ChatLab preset={preset} />
-              <CodeExample code={chatCode} />
+              <ChatLab preset={preset} code={chatCode} />
             </div>
           )}
           {page === "permissions" && <Permissions openChat={openChat} />}

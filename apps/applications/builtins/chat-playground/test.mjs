@@ -6,6 +6,9 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { createInterface } from "node:readline";
+import { runInNewContext } from "node:vm";
+import * as React from "react";
+import { PRODUCT_KEYS } from "@mewvis/product-config";
 import { packApplication } from "@mewvis/app-dev/tooling";
 import { dshBundleCompatibilityPlugin } from "@mewvis/app-dev/dsh";
 import { build } from "esbuild";
@@ -233,7 +236,29 @@ try {
   const document = await rpc("uiDocument", { applicationId: manifest.name });
   assert.ok(Buffer.byteLength(document.script) < 512 * 1024);
   assert.ok(Buffer.byteLength(document.style) < 256 * 1024);
-  assert.match(document.script, /mewvisApplicationChatUI/);
+  // Verify the public host bridge access even when its key is computed at build time.
+  const chatUiAccess = new Error("Shared Chat UI requested");
+  assert.throws(
+    () =>
+      runInNewContext(
+        document.script,
+        {
+          [PRODUCT_KEYS.applicationReactGlobal]: {
+            React,
+            ReactDOMClient: {},
+            JSXRuntime: {},
+          },
+          [PRODUCT_KEYS.applicationChatGlobal]: {
+            get Chat() {
+              throw chatUiAccess;
+            },
+          },
+        },
+        { timeout: 1000 },
+      ),
+    (error) => error === chatUiAccess,
+    "应用 bundle 应读取当前宿主的共享 Chat UI",
+  );
   assert.match(document.style, /lab-custom-chat/);
   const result = await rpc("execute", {
     applicationId: manifest.name,

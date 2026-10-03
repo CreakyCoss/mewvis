@@ -28,6 +28,17 @@ import {
   type ApplicationWorkspace,
 } from "@mewvis/app-sdk/data";
 import { createPlaygroundPreferences } from "./preferences";
+import {
+  Code2,
+  History,
+  MessageCircle,
+  Plus,
+  RefreshCw,
+  SlidersHorizontal,
+  Sparkles,
+} from "lucide-react";
+import { CodeExample } from "./components/Example";
+import { LabDialog } from "./components/LabDialog";
 
 export type ChatPreset = {
   label: string;
@@ -42,7 +53,7 @@ const profile = {
 };
 const phases: Record<ChatPhase, string> = {
   initializing: "初始化",
-  idle: "空闲",
+  idle: "就绪",
   preparing: "准备中",
   submitting: "提交中",
   running: "生成中",
@@ -80,28 +91,35 @@ const prompts = [
 function QuickPrompts({
   preset,
   session,
+  open,
+  onClose,
+  onApplied,
 }: {
   preset?: ChatPreset;
   session: ApplicationChatSession;
+  open: boolean;
+  onClose(): void;
+  onApplied(): void;
 }) {
   const binding = useChatComposer();
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
-  const applyPreset = async () => {
-    if (!preset || pending) return;
+  const apply = async (example: ChatPreset) => {
+    if (pending || binding.disabled) return;
     setPending(true);
     setError("");
     try {
-      if (preset.permissionMode) {
+      if (example.permissionMode) {
         const result = await session.updateConfig({
-          permissionMode: preset.permissionMode,
+          permissionMode: example.permissionMode,
         });
         if (!result.ok) throw new Error(result.error);
       }
       binding.setDraft({
-        text: preset.text,
-        blocks: [{ type: "text", content: preset.text }],
+        text: example.text,
+        blocks: [{ type: "text", content: example.text }],
       });
+      onApplied();
     } catch (error) {
       setError(errorText(error));
     } finally {
@@ -109,39 +127,47 @@ function QuickPrompts({
     }
   };
   return (
-    <div className="lab-prompts">
+    <LabDialog open={open} title="体验示例" onClose={onClose}>
+      <p className="lab-panel-intro">选择一个示例填入输入框，确认后发送。</p>
       {preset && (
-        <button
-          type="button"
-          className="lab-preset-button"
-          disabled={binding.disabled || pending}
-          onClick={() => void applyPreset()}
-        >
-          {pending ? "准备中…" : "填入此示例"}
-        </button>
+        <section className="lab-selected-example">
+          <span>当前选择</span>
+          <h3>{preset.label}</h3>
+          <p>{preset.text}</p>
+          {preset.permissionMode && (
+            <p className="lab-help">
+              填入时将切换到 {preset.permissionMode} 权限档位。
+            </p>
+          )}
+          <button
+            type="button"
+            className="lab-button lab-primary"
+            disabled={binding.disabled || pending}
+            onClick={() => void apply(preset)}
+          >
+            {pending ? "准备中…" : "填入此示例"}
+          </button>
+        </section>
       )}
+      <div className="lab-example-list">
+        {prompts.map((example) => (
+          <button
+            type="button"
+            key={example.label}
+            disabled={binding.disabled || pending}
+            onClick={() => void apply(example)}
+          >
+            <strong>{example.label}</strong>
+            <span>{example.text}</span>
+          </button>
+        ))}
+      </div>
       {error && (
-        <span className="lab-error" role="alert">
+        <p className="lab-error" role="alert">
           {error}
-        </span>
+        </p>
       )}
-      <span>填入示例</span>
-      {prompts.map(({ label, text }) => (
-        <button
-          type="button"
-          key={label}
-          disabled={binding.disabled}
-          onClick={() =>
-            binding.setDraft({
-              text,
-              blocks: [{ type: "text", content: text }],
-            })
-          }
-        >
-          {label}
-        </button>
-      ))}
-    </div>
+    </LabDialog>
   );
 }
 function renderMessage(message: ChatMessage, content: ReactNode) {
@@ -185,7 +211,7 @@ function Inspector({ session }: { session: ApplicationChatSession }) {
   return (
     <aside className="lab-inspector" aria-label="会话检查器">
       <div className="lab-section-heading">
-        <h2>会话检查器</h2>
+        <h3>会话状态</h3>
         <span className="lab-badge">实时</span>
       </div>
       <dl className="lab-metrics">
@@ -205,6 +231,10 @@ function Inspector({ session }: { session: ApplicationChatSession }) {
         </div>
       </dl>
       <dl className="lab-facts">
+        <dt>会话 ID</dt>
+        <dd>
+          <code>{session.identity.id}</code>
+        </dd>
         <dt>任务 ID</dt>
         <dd>{state.activeTaskId ?? "暂无任务"}</dd>
         <dt>模型</dt>
@@ -252,36 +282,37 @@ function Inspector({ session }: { session: ApplicationChatSession }) {
           关闭会话
         </button>
       </div>
-      <p className="lab-help">
-        关闭会话会停止任务并保存。再次点击顶部「连接会话」可恢复历史。
-      </p>
-      <label className="lab-context-label" htmlFor="lab-context">
-        本轮业务上下文
-      </label>
-      <textarea
-        id="lab-context"
-        value={context}
-        maxLength={16000}
-        rows={4}
-        placeholder="例如：本轮请使用表格回答。"
-        disabled={state.phase !== "idle" || !!pending}
-        onChange={(event) => setContext(event.target.value)}
-      />
-      <button
-        className="lab-context-apply"
-        type="button"
-        disabled={state.phase !== "idle" || !!pending}
-        onClick={() =>
-          void run("应用上下文", () =>
-            session.setContext({ requestContext: context }),
-          )
-        }
-      >
-        应用到后续请求
-      </button>
-      <p className="lab-help">
-        上下文在宿主会话内生效；此输入不随应用页面重载恢复。
-      </p>
+      <p className="lab-help">关闭会话会停止任务并保存，可从对话页重新连接。</p>
+      <details className="lab-disclosure">
+        <summary>业务上下文</summary>
+        <label className="lab-context-label" htmlFor="lab-context">
+          本轮业务上下文
+        </label>
+        <textarea
+          id="lab-context"
+          value={context}
+          maxLength={16000}
+          rows={4}
+          placeholder="例如：本轮请使用表格回答。"
+          disabled={state.phase !== "idle" || !!pending}
+          onChange={(event) => setContext(event.target.value)}
+        />
+        <button
+          className="lab-context-apply"
+          type="button"
+          disabled={state.phase !== "idle" || !!pending}
+          onClick={() =>
+            void run("应用上下文", () =>
+              session.setContext({ requestContext: context }),
+            )
+          }
+        >
+          应用到后续请求
+        </button>
+        <p className="lab-help">
+          上下文在宿主会话内生效；此输入不随应用页面重载恢复。
+        </p>
+      </details>
       {pending && <p role="status">正在{pending}…</p>}
       {notice && (
         <p className="lab-notice" role="status">
@@ -318,128 +349,256 @@ function Inspector({ session }: { session: ApplicationChatSession }) {
 function Workbench({
   session,
   preset,
+  showPreset,
+  onPresetShown,
+  reconnect,
 }: {
   session: ApplicationChatSession;
   preset?: ChatPreset;
+  showPreset: boolean;
+  onPresetShown(): void;
+  reconnect(): void;
 }) {
   const state = useChatSnapshot();
   const [mode, setMode] = useState<"custom" | "default">("custom");
   const [visible, setVisible] = useState(true);
   const [compare, setCompare] = useState(false);
+  const [comparePane, setComparePane] = useState<"primary" | "secondary">(
+    "primary",
+  );
   const [inspect, setInspect] = useState(false);
+  const [examples, setExamples] = useState(false);
+  const [notice, setNotice] = useState("");
   useEffect(() => {
-    if (preset) {
-      setMode("custom");
+    if (preset && showPreset) {
       setVisible(true);
+      setComparePane("primary");
+      setExamples(true);
+      onPresetShown();
     }
-  }, [preset]);
+  }, [preset, showPreset, onPresetShown]);
   return (
     <>
-      {state.pendingApproval && (
-        <p className="lab-approval-notice" role="status">
-          此操作正在等待宿主审批，请在 {APP_DISPLAY_NAME} 宿主窗口确认或拒绝。
-        </p>
-      )}
       <div className="lab-session-bar">
         <span className="lab-status" data-phase={state.phase}>
           <i aria-hidden="true" />
           {phases[state.phase]}
         </span>
-        <div className="lab-tabs" aria-label="聊天界面模式">
-          <button
-            type="button"
-            aria-pressed={mode === "custom"}
-            onClick={() => setMode("custom")}
-          >
-            定制界面
-          </button>
-          <button
-            type="button"
-            aria-pressed={mode === "default"}
-            onClick={() => setMode("default")}
-          >
-            默认界面
-          </button>
-        </div>
+        <span className="lab-mode-note">
+          {compare ? "双视图" : mode === "custom" ? "定制界面" : "默认界面"}
+        </span>
         <div className="lab-view-actions">
           <button
             type="button"
-            aria-pressed={compare}
-            onClick={() => setCompare(!compare)}
+            className="lab-button lab-quiet"
+            onClick={() => setExamples(true)}
+            aria-haspopup="dialog"
           >
-            双视图
-          </button>
-          <button type="button" onClick={() => setVisible(!visible)}>
-            {visible ? "隐藏聊天" : "恢复聊天"}
+            <Sparkles aria-hidden="true" />
+            体验示例
           </button>
           <button
             type="button"
-            aria-pressed={inspect}
-            onClick={() => setInspect(!inspect)}
+            className="lab-button lab-quiet"
+            onClick={() => setInspect(true)}
+            aria-haspopup="dialog"
           >
-            检查器
+            <SlidersHorizontal aria-hidden="true" />
+            调试与设置
           </button>
         </div>
       </div>
-      <div className={`lab-workbench ${inspect ? "lab-with-inspector" : ""}`}>
+      {state.pendingApproval && (
+        <p className="lab-approval-notice" role="status">
+          此操作正在等待宿主审批，请在 {APP_DISPLAY_NAME} 宿主窗口确认或拒绝。
+        </p>
+      )}
+      {state.phase === "closed" && (
+        <div className="lab-closed-notice" role="status">
+          <span>会话已关闭，消息已保留。</span>
+          <button type="button" className="lab-button" onClick={reconnect}>
+            重新连接
+          </button>
+        </div>
+      )}
+      <span className="lab-sr-only" role="status">
+        {notice}
+      </span>
+      <div className="lab-workbench">
+        {visible && compare && (
+          <div
+            className="lab-compare-switch"
+            role="group"
+            aria-label="双视图切换"
+          >
+            <button
+              type="button"
+              aria-pressed={comparePane === "primary"}
+              onClick={() => setComparePane("primary")}
+            >
+              主视图
+            </button>
+            <button
+              type="button"
+              aria-pressed={comparePane === "secondary"}
+              onClick={() => setComparePane("secondary")}
+            >
+              第二视图
+            </button>
+            <span>共享消息，草稿独立</span>
+          </div>
+        )}
         <div
           className={`lab-chat-panes ${visible && compare ? "lab-compare" : ""}`}
         >
           {!visible ? (
             <div className="lab-empty">
+              <MessageCircle aria-hidden="true" className="lab-empty-icon" />
               <h2>聊天视图已隐藏</h2>
-              <p>会话继续运行，可以恢复视图查看结果。</p>
-              <button type="button" onClick={() => setVisible(true)}>
+              <p>会话继续运行，恢复视图即可查看结果。</p>
+              <button
+                type="button"
+                className="lab-button"
+                onClick={() => setVisible(true)}
+              >
                 恢复聊天视图
               </button>
             </div>
           ) : (
             <>
-              <section className="lab-chat-pane" aria-label="主聊天视图">
+              <section
+                className={`lab-chat-pane ${comparePane === "primary" ? "is-active" : ""}`}
+                aria-label="主聊天视图"
+              >
+                {compare && (
+                  <div className="lab-pane-heading">
+                    主视图 · {mode === "custom" ? "定制界面" : "默认界面"}
+                  </div>
+                )}
                 {mode === "default" ? (
-                  <Chat session={session} viewId="playground" />
+                  <Chat
+                    session={session}
+                    viewId="playground"
+                    className="lab-default-chat"
+                    composer={{ className: "lab-composer" }}
+                  />
                 ) : (
                   <Chat.Layout className="lab-custom-chat">
-                    <div className="lab-chat-heading">
-                      <span>CHAT LAB</span>
-                      <p>试一条消息，观察每一次变化。</p>
-                    </div>
-                    <Chat.Messages
-                      className="lab-messages"
-                      renderMessage={renderMessage}
-                    />
+                    {state.messages.length ? (
+                      <Chat.Messages
+                        className="lab-messages"
+                        renderMessage={renderMessage}
+                      />
+                    ) : (
+                      <div className="lab-empty lab-chat-intro">
+                        <MessageCircle
+                          aria-hidden="true"
+                          className="lab-empty-icon"
+                        />
+                        <h2>发送第一条消息</h2>
+                        <p>体验流式回复，或从一个示例开始。</p>
+                        <button
+                          type="button"
+                          className="lab-button lab-quiet"
+                          onClick={() => setExamples(true)}
+                        >
+                          选择体验示例
+                        </button>
+                      </div>
+                    )}
                     <Chat.Footer className="lab-footer">
                       <Chat.Error />
                       <Chat.Question />
-                      <QuickPrompts preset={preset} session={session} />
                       <Chat.Composer
                         className="lab-composer"
-                        placeholder="发送一条消息，开始调试…"
-                      >
-                        <span className="lab-composer-note">
-                          共享会话 · 自定义布局
-                        </span>
-                      </Chat.Composer>
+                        placeholder="输入消息，或从体验示例开始…"
+                      />
                     </Chat.Footer>
                   </Chat.Layout>
                 )}
               </section>
               {compare && (
                 <section
-                  className="lab-chat-pane lab-secondary"
+                  className={`lab-chat-pane lab-secondary ${comparePane === "secondary" ? "is-active" : ""}`}
                   aria-label="第二聊天视图"
                 >
-                  <div className="lab-secondary-heading">
-                    同一会话 · 独立草稿
-                  </div>
-                  <Chat session={session} viewId="playground-secondary" />
+                  <div className="lab-pane-heading">第二视图 · 独立草稿</div>
+                  <Chat
+                    session={session}
+                    viewId="playground-secondary"
+                    className="lab-default-chat"
+                    composer={{ className: "lab-composer" }}
+                  />
                 </section>
               )}
             </>
           )}
         </div>
-        {inspect && <Inspector session={session} />}
       </div>
+      <QuickPrompts
+        preset={preset}
+        session={session}
+        open={examples}
+        onClose={() => setExamples(false)}
+        onApplied={() => {
+          setExamples(false);
+          setVisible(true);
+          setComparePane("primary");
+          setNotice("示例已填入主视图，确认后发送。");
+        }}
+      />
+      <LabDialog
+        open={inspect}
+        title="调试与设置"
+        onClose={() => setInspect(false)}
+      >
+        <section className="lab-settings-section">
+          <h3>界面模式</h3>
+          <div className="lab-tabs" role="group" aria-label="聊天界面模式">
+            <button
+              type="button"
+              aria-pressed={mode === "custom"}
+              onClick={() => setMode("custom")}
+            >
+              定制界面
+            </button>
+            <button
+              type="button"
+              aria-pressed={mode === "default"}
+              onClick={() => setMode("default")}
+            >
+              默认界面
+            </button>
+          </div>
+          <p className="lab-help">切换布局时保留同一会话与主视图草稿。</p>
+          <label className="lab-setting-toggle">
+            <span>
+              <strong>双视图对照</strong>
+              <small>在两个视图中观察同一会话；窄窗可切换查看。</small>
+            </span>
+            <input
+              type="checkbox"
+              checked={compare}
+              onChange={(event) => {
+                setCompare(event.target.checked);
+                setComparePane("primary");
+              }}
+            />
+          </label>
+          <label className="lab-setting-toggle">
+            <span>
+              <strong>隐藏聊天视图</strong>
+              <small>暂时卸载聊天界面，后台任务继续运行。</small>
+            </span>
+            <input
+              type="checkbox"
+              checked={!visible}
+              onChange={(event) => setVisible(!event.target.checked)}
+            />
+          </label>
+        </section>
+        <Inspector session={session} />
+      </LabDialog>
     </>
   );
 }
@@ -448,11 +607,15 @@ function Connection({
   retry,
   onSaved,
   preset,
+  showPreset,
+  onPresetShown,
 }: {
   input: ApplicationChatOpenInput;
   retry(): void;
   onSaved(): void;
   preset?: ChatPreset;
+  showPreset: boolean;
+  onPresetShown(): void;
 }) {
   const { session, error } = useApplicationChatSession(input);
   useEffect(() => {
@@ -484,11 +647,30 @@ function Connection({
     );
   return (
     <Chat.Provider session={session} viewId="playground">
-      <Workbench session={session} preset={preset} />
+      <Workbench
+        session={session}
+        preset={preset}
+        showPreset={showPreset}
+        onPresetShown={onPresetShown}
+        reconnect={retry}
+      />
     </Chat.Provider>
   );
 }
-export default function ChatLab({ preset }: { preset?: ChatPreset }) {
+export default function ChatLab({
+  preset,
+  code,
+}: {
+  preset?: ChatPreset;
+  code: string;
+}) {
+  const [sessionsOpen, setSessionsOpen] = useState(false);
+  const [codeOpen, setCodeOpen] = useState(false);
+  const [viewedPreset, setViewedPreset] = useState<ChatPreset>();
+  const acknowledgePreset = useCallback(
+    () => setViewedPreset(preset),
+    [preset],
+  );
   const [workspaces, setWorkspaces] = useState<ApplicationWorkspace[]>([]);
   const [workspaceId, setWorkspaceId] = useState("");
   const selectedWorkspaceId = useRef("");
@@ -645,6 +827,7 @@ export default function ChatLab({ preset }: { preset?: ChatPreset }) {
     )
       return;
     resume.current = undefined;
+    setSessionsOpen(false);
     setChatId(nextId.trim());
     persistSelection(workspaceId, nextId.trim());
     setConnection((previous) => ({
@@ -671,6 +854,7 @@ export default function ChatLab({ preset }: { preset?: ChatPreset }) {
         sceneId: "debug",
         profile,
       });
+      setSessionsOpen(false);
       setChatId(session.identity.id);
       persistSelection(targetWorkspace, session.identity.id);
       setConnection((previous) => ({
@@ -715,15 +899,139 @@ export default function ChatLab({ preset }: { preset?: ChatPreset }) {
       setCreatingWorkspace(false);
     }
   };
+  const activeWorkspace = workspaces.find((item) => item.id === workspaceId);
+  const activeTitle =
+    history.workspaceId === workspaceId
+      ? history.items.find((item) => item.chatId === connection?.input.chatId)
+          ?.title
+      : undefined;
+  const busy = loading || creating || creatingWorkspace;
   return (
     <section className="lab-app" aria-label="聊天能力体验">
-      <div className="lab-connection-form">
-        <label>
-          工作区
+      <header className="lab-toolbar">
+        <div className="lab-title">
+          <h1>AI 与对话</h1>
+          <p title={activeTitle || activeWorkspace?.name}>
+            {activeWorkspace?.name ?? (loading ? "加载工作区…" : "选择工作区")}
+            {connection && <> · {activeTitle || "新对话"}</>}
+          </p>
+        </div>
+        <div className="lab-toolbar-actions">
+          <button
+            type="button"
+            className="lab-button"
+            aria-label="会话与工作区"
+            aria-haspopup="dialog"
+            onClick={() => setSessionsOpen(true)}
+          >
+            <History aria-hidden="true" />
+            <span>会话</span>
+          </button>
+          <button
+            type="button"
+            className="lab-button lab-primary"
+            disabled={busy || !workspaceId}
+            onClick={() => void create()}
+          >
+            <Plus aria-hidden="true" />
+            <span>{creating ? "创建中…" : "新对话"}</span>
+          </button>
+          <button
+            type="button"
+            className="lab-icon-button"
+            aria-label="查看接入代码"
+            title="查看接入代码"
+            aria-haspopup="dialog"
+            onClick={() => setCodeOpen(true)}
+          >
+            <Code2 aria-hidden="true" />
+          </button>
+        </div>
+      </header>
+      {storageError && (
+        <p className="lab-top-error" role="alert">
+          选择保存失败：{storageError}
+        </p>
+      )}
+      {error && (
+        <p className="lab-top-error" role="alert">
+          {error}
+        </p>
+      )}
+      {connection ? (
+        <Connection
+          key={`${connection.input.workspaceId}:${connection.input.chatId}:${connection.version}`}
+          input={connection.input}
+          preset={preset}
+          showPreset={preset !== viewedPreset}
+          onPresetShown={acknowledgePreset}
+          onSaved={reloadHistory}
+          retry={() =>
+            setConnection(
+              (value) => value && { ...value, version: value.version + 1 },
+            )
+          }
+        />
+      ) : (
+        <div className="lab-empty lab-welcome">
+          <MessageCircle aria-hidden="true" className="lab-empty-icon" />
+          <h2>{preset ? `体验${preset.label}` : "开始一段对话"}</h2>
+          <p>
+            {!loading && !workspaces.length
+              ? "先选择一个工作区，用来保存对话。"
+              : "发送消息、体验工具调用，随时恢复历史对话。"}
+          </p>
+          {activeWorkspace ? (
+            <button
+              type="button"
+              className="lab-button lab-primary"
+              disabled={busy}
+              onClick={() => void create()}
+            >
+              <Plus aria-hidden="true" />
+              {creating ? "创建中…" : "新建对话"}
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="lab-button lab-primary"
+              onClick={() => setSessionsOpen(true)}
+            >
+              选择工作区
+            </button>
+          )}
+          <button
+            type="button"
+            className="lab-button lab-quiet"
+            onClick={() => setSessionsOpen(true)}
+          >
+            查看历史对话
+          </button>
+        </div>
+      )}
+      <LabDialog
+        open={sessionsOpen}
+        title="会话与工作区"
+        onClose={() => setSessionsOpen(false)}
+      >
+        <section className="lab-manager-section">
+          <div className="lab-section-heading">
+            <h3>工作区</h3>
+            <button
+              type="button"
+              className="lab-icon-button"
+              aria-label="刷新工作区"
+              title="刷新工作区"
+              disabled={busy}
+              onClick={() => void reload()}
+            >
+              <RefreshCw aria-hidden="true" />
+            </button>
+          </div>
           <select
             aria-label="工作区"
             value={workspaceId}
-            disabled={loading || creating || creatingWorkspace}
+            disabled={busy}
             onChange={(event) => {
               const workspace = workspaces.find(
                 (item) => item.id === event.target.value,
@@ -744,194 +1052,165 @@ export default function ChatLab({ preset }: { preset?: ChatPreset }) {
               </option>
             ))}
           </select>
-        </label>
-        <button
-          type="button"
-          className="lab-refresh"
-          disabled={loading || creating || creatingWorkspace}
-          onClick={() => void reload()}
-        >
-          刷新工作区
-        </button>
-        <button
-          type="button"
-          disabled={loading || creating || creatingWorkspace}
-          aria-expanded={addingWorkspace}
-          onClick={() => setAddingWorkspace((value) => !value)}
-        >
-          新增工作区
-        </button>
-        <label className="lab-history-select">
-          应用对话
-          <select
-            aria-label="应用对话"
-            disabled={
-              loading ||
-              creating ||
-              creatingWorkspace ||
-              !workspaceId ||
-              history.workspaceId !== workspaceId ||
-              history.loading
-            }
-            value={
-              connection?.input.workspaceId === workspaceId &&
-              history.items.some(
-                (item) => item.chatId === connection.input.chatId,
-              )
-                ? connection.input.chatId
-                : ""
-            }
-            onChange={(event) => {
-              if (event.target.value) connect(event.target.value);
-            }}
+          {activeWorkspace && (
+            <p className="lab-workspace-path">
+              <code>{activeWorkspace.path}</code>
+            </p>
+          )}
+          <button
+            type="button"
+            className="lab-button lab-quiet"
+            disabled={busy}
+            aria-expanded={addingWorkspace}
+            onClick={() => setAddingWorkspace((value) => !value)}
           >
-            <option value="">
-              {history.loading
-                ? "加载对话…"
-                : history.items.length
-                  ? "选择已保存对话"
-                  : "暂无已保存对话"}
-            </option>
-            {history.workspaceId === workspaceId &&
+            <Plus aria-hidden="true" />
+            新增工作区
+          </button>
+          {addingWorkspace && (
+            <div className="lab-workspace-create">
+              <label htmlFor="lab-workspace-name">工作区名称</label>
+              <input
+                id="lab-workspace-name"
+                value={workspaceName}
+                maxLength={512}
+                disabled={creatingWorkspace}
+                onChange={(event) => setWorkspaceName(event.target.value)}
+              />
+              <div className="lab-form-actions">
+                <button
+                  type="button"
+                  className="lab-button lab-primary"
+                  disabled={busy || !workspaceName.trim()}
+                  onClick={() => void addWorkspace()}
+                >
+                  {creatingWorkspace ? "等待目录选择…" : "选择目录并创建"}
+                </button>
+                <button
+                  type="button"
+                  className="lab-button"
+                  disabled={creatingWorkspace}
+                  onClick={() => setAddingWorkspace(false)}
+                >
+                  取消
+                </button>
+              </div>
+            </div>
+          )}
+        </section>
+        <section className="lab-manager-section">
+          <div className="lab-section-heading">
+            <h3>历史对话</h3>
+            <button
+              type="button"
+              className="lab-icon-button"
+              aria-label="刷新对话"
+              title="刷新对话"
+              disabled={busy || !workspaceId || history.loading}
+              onClick={() => void reloadHistory()}
+            >
+              <RefreshCw aria-hidden="true" />
+            </button>
+          </div>
+          {history.error && history.workspaceId === workspaceId && (
+            <p className="lab-error" role="alert">
+              对话列表加载失败：{history.error}
+            </p>
+          )}
+          <div
+            className="lab-history-list"
+            aria-label="应用对话"
+            aria-busy={history.loading}
+          >
+            {history.workspaceId === workspaceId && history.items.length ? (
               history.items.map((item) => (
-                <option key={item.chatId} value={item.chatId}>
-                  {item.title} · {item.messageCount} 条消息
-                </option>
-              ))}
-          </select>
-        </label>
-        <button
-          type="button"
-          disabled={!workspaceId || history.loading}
-          onClick={() => void reloadHistory()}
-        >
-          刷新对话
-        </button>
-        <button
-          type="button"
-          disabled={loading || creating || creatingWorkspace || !workspaceId}
-          onClick={() => void create()}
-        >
-          {creating ? "创建中…" : "新会话"}
-        </button>
-      </div>
-      <details className="lab-advanced-connect">
-        <summary>通过会话 ID 连接</summary>
-        <div>
-          <label>
-            已有会话 ID
+                <button
+                  key={item.chatId}
+                  type="button"
+                  disabled={busy || history.loading}
+                  aria-current={
+                    connection?.input.chatId === item.chatId
+                      ? "true"
+                      : undefined
+                  }
+                  onClick={() => connect(item.chatId)}
+                >
+                  <MessageCircle aria-hidden="true" />
+                  <span>
+                    <strong>{item.title}</strong>
+                    <small>
+                      {item.messageCount} 条消息
+                      {connection?.input.chatId === item.chatId
+                        ? " · 当前对话"
+                        : ""}
+                    </small>
+                  </span>
+                </button>
+              ))
+            ) : (
+              <p className="lab-list-empty">
+                {history.loading
+                  ? "加载对话…"
+                  : "发送第一条消息后，对话会保存在这里。"}
+              </p>
+            )}
+          </div>
+          <button
+            type="button"
+            className="lab-button"
+            disabled={busy || !workspaceId}
+            onClick={() => void create()}
+          >
+            <Plus aria-hidden="true" />
+            新建对话
+          </button>
+        </section>
+        <details className="lab-disclosure">
+          <summary>通过会话 ID 连接</summary>
+          <div className="lab-connect-by-id">
+            <label htmlFor="lab-chat-id">已有会话 ID</label>
             <input
+              id="lab-chat-id"
               aria-label="会话 ID"
               value={chatId}
               maxLength={128}
+              disabled={busy}
               onChange={(event) => setChatId(event.target.value)}
               onKeyDown={(event) => {
                 if (event.key === "Enter") connect();
               }}
             />
-          </label>
-          <button
-            type="button"
-            className="lab-primary"
-            disabled={
-              loading ||
-              creating ||
-              creatingWorkspace ||
-              !workspaceId ||
-              !chatId.trim()
-            }
-            onClick={() => connect()}
-          >
-            连接会话
-          </button>
-        </div>
-      </details>
-      {addingWorkspace && (
-        <div className="lab-connection-form lab-workspace-create">
-          <label>
-            工作区名称
-            <input
-              aria-label="工作区名称"
-              value={workspaceName}
-              maxLength={512}
-              disabled={creatingWorkspace}
-              onChange={(event) => setWorkspaceName(event.target.value)}
-            />
-          </label>
-          <button
-            type="button"
-            className="lab-primary"
-            disabled={
-              loading || creating || creatingWorkspace || !workspaceName.trim()
-            }
-            onClick={() => void addWorkspace()}
-          >
-            {creatingWorkspace ? "等待目录选择…" : "选择目录并创建"}
-          </button>
-          <button
-            type="button"
-            disabled={creatingWorkspace}
-            onClick={() => setAddingWorkspace(false)}
-          >
-            取消
-          </button>
-        </div>
-      )}
-      {workspaces.find((item) => item.id === workspaceId) && (
-        <p className="lab-workspace-path">
-          工作区目录：
-          <code>
-            {workspaces.find((item) => item.id === workspaceId)?.path}
-          </code>
-        </p>
-      )}
-      {storageError && (
-        <p className="lab-top-error" role="alert">
-          选择保存失败：{storageError}
-        </p>
-      )}
-      {history.error && history.workspaceId === workspaceId && (
-        <p className="lab-top-error" role="alert">
-          对话列表加载失败：{history.error}
-        </p>
-      )}
-      {error && (
-        <p className="lab-top-error" role="alert">
-          {error}
-        </p>
-      )}
-      {connection ? (
-        <>
-          <div className="lab-connected-to">
-            当前连接：
-            {workspaces.find((item) => item.id === connection.input.workspaceId)
-              ?.name ?? connection.input.workspaceId}
-            <span> / </span>
-            <code>{connection.input.chatId}</code>
+            <button
+              type="button"
+              className="lab-button"
+              disabled={busy || !workspaceId || !chatId.trim()}
+              onClick={() => connect()}
+            >
+              连接会话
+            </button>
           </div>
-          <Connection
-            key={`${connection.input.workspaceId}:${connection.input.chatId}:${connection.version}`}
-            input={connection.input}
-            preset={preset}
-            onSaved={reloadHistory}
-            retry={() =>
-              setConnection(
-                (value) => value && { ...value, version: value.version + 1 },
-              )
-            }
-          />
-        </>
-      ) : (
-        <div className="lab-empty lab-welcome">
-          <h2>从一个会话开始</h2>
-          <p>
-            {!loading && !workspaces.length
-              ? "工作区尚未加载成功，请重试或新增工作区。"
-              : "选择工作区后新建会话，或从应用对话列表恢复历史。"}
+        </details>
+        {error && (
+          <p className="lab-error" role="alert">
+            {error}
           </p>
-          <p className="lab-help">切换会话或隐藏界面时，后台任务会继续。</p>
-        </div>
-      )}
+        )}
+        {storageError && (
+          <p className="lab-error" role="alert">
+            选择保存失败：{storageError}
+          </p>
+        )}
+      </LabDialog>
+      <LabDialog
+        open={codeOpen}
+        title="接入对话能力"
+        onClose={() => setCodeOpen(false)}
+      >
+        <p className="lab-panel-intro">
+          创建工作区内的会话，再交给共享 Chat 组件渲染。
+        </p>
+        <CodeExample code={code} open title="最小接入示例" />
+      </LabDialog>
     </section>
   );
 }
