@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
 import { pathToFileURL } from "node:url";
+import { Script } from "node:vm";
 import { packApplication } from "@mewvis/app-dev/tooling";
 import { repositoryRoot } from "../../../applications/scripts/docs/book.mjs";
 
@@ -115,7 +116,8 @@ try {
     "额外路径不能改变读取目标",
   );
   const ui = await rpc("uiDocument", { applicationId: manifest.name });
-  assert.match(ui.script, /mewvis_docs_search/);
+  new Script(ui.script, { filename: manifest.mewvis.ui.entry });
+  assert.match(ui.script, /_docs_search/);
   assert.match(ui.style, /\.docs-app/);
   assert.ok(Buffer.byteLength(ui.script) <= 512 * 1024);
   await rpc("shutdown");

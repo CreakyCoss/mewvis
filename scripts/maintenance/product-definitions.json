@@ -101,7 +101,7 @@
       ]
     ]
   },
-  "packages/app/host/schema/mewvis-manifest.schema.json": {
+  "packages/app/host/schema/package-manifest.schema.json": {
     "keys": [],
     "values": [
       [
@@ -118,7 +118,7 @@
       ]
     ]
   },
-  "packages/app/host/schema/mewvis-app.schema.json": {
+  "packages/app/host/schema/application-manifest.schema.json": {
     "keys": [],
     "values": [
       [
@@ -135,7 +135,7 @@
       ]
     ]
   },
-  "packages/app/host/schema/mewvis-ui.schema.json": {
+  "packages/app/host/schema/application-ui.schema.json": {
     "keys": [],
     "values": [
       [

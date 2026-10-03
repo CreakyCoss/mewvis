@@ -366,7 +366,7 @@ test("the distribution includes template source and installs without the develop
   await cp(join(applicationRoot, "main"), join(source, "main"), {
     recursive: true,
   });
-  for (const name of ["package.json", "mewvis.config.ts", "tsconfig.json"])
+  for (const name of ["package.json", "app.config.ts", "tsconfig.json"])
     await cp(join(applicationRoot, name), join(source, name));
   await symlink(
     join(applicationRoot, "node_modules"),

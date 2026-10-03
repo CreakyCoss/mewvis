@@ -7,6 +7,7 @@ import { loadRegistrations } from "../../scripts/registrations.mjs";
 import { buildBook } from "./docs/book.mjs";
 import { prepareRuntime } from "../builtins/app-workshop/scripts/runtime.mjs";
 import { buildRssUi } from "../builtins/rss-reader/scripts/build-ui.mjs";
+import { buildDocsUi } from "../builtins/docs-reader/scripts/build-ui.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const outputRoot = join(root, "dist");
@@ -17,6 +18,7 @@ const builtinApplications = await loadRegistrations(
   applicationsRoot,
 );
 await buildBook();
+await buildDocsUi();
 await prepareRuntime();
 await buildRssUi();
 

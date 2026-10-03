@@ -615,12 +615,12 @@ test("built installation keeps permissions minimal, includes license and stays b
   ]);
   assert.equal(Object.hasOwn(manifest.mewvis.ui, "layout"), false);
   assert.ok(
-    (await readFile(join(root, "dist/mewvis/mewvis-ui.js"))).byteLength <
+    (await readFile(join(root, "dist/mewvis/app-ui.js"))).byteLength <
       // KaTeX + Markdown are bundled locally; retain a 768 KiB app budget (host limit is higher).
       768 * 1024,
   );
   assert.ok(
-    (await readFile(join(root, "dist/mewvis/mewvis-ui.css"))).byteLength <
+    (await readFile(join(root, "dist/mewvis/app-ui.css"))).byteLength <
       256 * 1024,
   );
   assert.match(

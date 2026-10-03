@@ -16,7 +16,7 @@ pnpm docs:build
 pnpm docs:test
 ```
 
-`docs:check` 验证目录覆盖、重复条目、文件链接与文档锚点，并阻止自有源码目录再出现 README。`docs:build` 生成 `docs/.generated/book.json`；它是忽略提交的派生产物，不应手工修改。正常内置应用打包也会先重新生成，防止旧内容进入应用。
+`docs:check` 验证目录覆盖、重复条目、文件链接与文档锚点，并阻止自有源码目录再出现 README。`docs:build` 生成 `docs/.generated/book.json`，并构建文档应用的 `app-ui.js` 入口。文档索引是忽略提交的派生产物，不应手工修改。正常内置应用打包也会先重新生成，防止旧内容进入应用。
 
 ## 保留的资源
 

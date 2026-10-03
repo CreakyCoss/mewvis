@@ -2,7 +2,7 @@
 
 `@mewvis/app-sdk` 是 Mewvis 应用的公开开发接口。
 
-托管 React 项目使用 [应用工程工具链](development.md)，由其管理启动、预览和构建；业务代码位于 `main/`，`mewvis.config.ts` 生成下述清单权限。
+托管 React 项目使用 [应用工程工具链](development.md)，由其管理启动、预览和构建；业务代码位于 `main/`，`app.config.ts` 生成下述清单权限。
 
 浏览器业务从 `@mewvis/app-sdk/browser` 导入 `getApplicationHost`。`getApplicationHost().executeTool(name, args)` 调用本应用的 Node 工具，返回 `{ value, content, meta }`。SDK 使用宿主认证的沙箱桥，不暴露 Tauri，也不要求手写 postMessage。`getHost()` 返回安全元数据与主题；`openExternal()` 需要用户操作触发。模板演示了通过 React 按钮执行真实 Node crypto 工具。
 

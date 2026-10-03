@@ -1,7 +1,7 @@
 import { productId } from "@mewvis/product-config";
 import { sandboxDocument } from "../../src/workbench/pages/applications/application-frame.tsx";
-import script from "../../../applications/builtins/docs-reader/mewvis-ui.js?raw";
-import style from "../../../applications/builtins/docs-reader/mewvis-ui.css?raw";
+import script from "../../../applications/builtins/docs-reader/app-ui.js?raw";
+import style from "../../../applications/builtins/docs-reader/app-ui.css?raw";
 import book from "../../../../docs/.generated/book.json";
 import { createLibrary } from "../../../applications/builtins/docs-reader/library.js";
 

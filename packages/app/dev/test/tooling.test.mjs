@@ -87,7 +87,7 @@ test("React scaffold checks and builds outside the Mewvis repository", async () 
     source,
     quiet: true,
   });
-  assert.equal(manifest.mewvis.ui.entry, "./mewvis-ui.js");
+  assert.equal(manifest.mewvis.ui.entry, "./app-ui.js");
   assert.deepEqual(manifest.mewvis.agentAccess.filesystem.read, [
     { base: "workspace" },
   ]);
@@ -95,7 +95,7 @@ test("React scaffold checks and builds outside the Mewvis repository", async () 
     { base: "workspace" },
   ]);
   assert.equal(manifest.dependencies, undefined);
-  const ui = await readFile(join(outputRoot, "mewvis-ui.js"), "utf8");
+  const ui = await readFile(join(outputRoot, "app-ui.js"), "utf8");
   assert.match(ui, /mewvis-app-root/);
   assert.doesNotMatch(ui, /@mewvis\/product-config|from ["']/);
   assert.doesNotMatch(ui, /node:crypto|createHash/);
@@ -136,7 +136,7 @@ test("React application UI is packaged without configurable layouts", async () =
 });
 
 test("embedded-views is declared in the built manifest and its browser SDK bundles outside the repository", async () => {
-  const configFile = join(source, "mewvis.config.ts");
+  const configFile = join(source, "app.config.ts");
   const appFile = join(source, "main/App.tsx");
   const originalConfig = await readFile(configFile, "utf8");
   const originalApp = await readFile(appFile, "utf8");
@@ -162,7 +162,7 @@ export default function App() {
     const result = await packApplication({ source, quiet: true });
     assert.deepEqual(result.manifest.mewvis.permissions, ["embedded-views"]);
     assert.match(
-      await readFile(join(result.outputRoot, "mewvis-ui.js"), "utf8"),
+      await readFile(join(result.outputRoot, "app-ui.js"), "utf8"),
       /embedded-views/,
     );
   } finally {
@@ -172,7 +172,7 @@ export default function App() {
 });
 
 test("a full host entry captures the existing application workspace context", async () => {
-  const configFile = join(source, "mewvis.config.ts");
+  const configFile = join(source, "app.config.ts");
   const entryFile = join(source, "main/host/index.ts");
   const original = await readFile(configFile, "utf8");
   const dev = createDevHost({ hostEntry: entryFile });
@@ -231,7 +231,7 @@ export default defineApplication({
 });
 
 test("agentAccess uses the protocol schema and rejects typos or invalid ranges before packaging", async () => {
-  const file = join(source, "mewvis.config.ts");
+  const file = join(source, "app.config.ts");
   const original = await readFile(file, "utf8");
   try {
     for (const agentAccess of [
@@ -271,7 +271,7 @@ test("SDK browser entry reports a missing bridge and preserves host errors", asy
 });
 
 test("skills-only hosts build for Mewvis and DSH and reload definitions without tool access", async () => {
-  const configFile = join(source, "mewvis.config.ts");
+  const configFile = join(source, "app.config.ts");
   const skillsEntry = join(source, "main/host/skills.ts");
   const config = await readFile(configFile, "utf8");
   const original = await readFile(skillsEntry, "utf8");
@@ -325,7 +325,7 @@ test("skills-only hosts build for Mewvis and DSH and reload definitions without 
 });
 
 test("skill validation rejects invalid definitions and paths before replacing a build", async () => {
-  const configFile = join(source, "mewvis.config.ts");
+  const configFile = join(source, "app.config.ts");
   const skillsFile = join(source, "main/host/skills.ts");
   const appFile = join(source, "main/App.tsx");
   const [config, skills, app] = await Promise.all(
@@ -441,7 +441,7 @@ test("ordinary React JSON and image imports typecheck and embed in the sandbox b
     await checkApplication(source);
     const { outputRoot } = await packApplication({ source, quiet: true });
     assert.match(
-      await readFile(join(outputRoot, "mewvis-ui.js"), "utf8"),
+      await readFile(join(outputRoot, "app-ui.js"), "utf8"),
       /data:image\/svg/,
     );
   } finally {
@@ -570,7 +570,7 @@ test("browser code cannot import a host module, even one using browser-compatibl
 });
 
 test("plain React and host-only projects need no chat permission; duplicate metadata is rejected", async () => {
-  const configFile = join(source, "mewvis.config.ts"),
+  const configFile = join(source, "app.config.ts"),
     appFile = join(source, "main/App.tsx"),
     pkgFile = join(source, "package.json");
   const originals = await Promise.all(
@@ -588,7 +588,7 @@ test("plain React and host-only projects need no chat permission; duplicate meta
     await checkApplication(source);
     const result = await packApplication({ source, quiet: true });
     assert.doesNotMatch(
-      await readFile(join(result.outputRoot, "mewvis-ui.js"), "utf8"),
+      await readFile(join(result.outputRoot, "app-ui.js"), "utf8"),
       /mewvisApplicationChatUI/,
     );
     await writeFile(

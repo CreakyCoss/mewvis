@@ -4,7 +4,7 @@
   "title": "Mewvis Package Manifest",
   "type": "object",
   "properties": {
-    "app": { "$ref": "./mewvis-app.schema.json" },
+    "app": { "$ref": "./application-manifest.schema.json" },
     "displayName": { "type": "string", "minLength": 1 },
     "defaultEnabled": { "type": "boolean" },
     "permissions": {

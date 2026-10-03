@@ -42,8 +42,8 @@ if (bundled) {
     );
   }
 }
-assert.equal(manifest.mewvis.ui.entry, "./mewvis-ui.js");
-assert.equal(manifest.mewvis.ui.style, "./mewvis-ui.css");
+assert.equal(manifest.mewvis.ui.entry, "./app-ui.js");
+assert.equal(manifest.mewvis.ui.style, "./app-ui.css");
 assert.deepEqual(manifest.mewvis.permissions, [
   "chat",
   "workspace-files",

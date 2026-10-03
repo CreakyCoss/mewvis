@@ -4,10 +4,10 @@
 
 - `main/App.tsx` 默认导出 React 页面，不需要编写 React 启动或宿主桥接代码。
 - `main/host/tools.ts` 默认导出宿主工具数组，由工具链生成注册入口。
-- `main/host/skills.ts` 默认导出 `defineSkill()` 数组，在 `mewvis.config.ts` 的 `host.skills` 中指定入口，由工具链自动注册。
+- `main/host/skills.ts` 默认导出 `defineSkill()` 数组，在 `app.config.ts` 的 `host.skills` 中指定入口，由工具链自动注册。
 - 页面通过 `@mewvis/app-sdk/browser` 的 `getApplicationHost().executeTool()` 调用自己的工具，通过 Chat SDK 使用聊天。
 - `main/contracts.ts` 放共享数据类型，页面不能直接导入 `main/host/` 实现。
-- 应用身份和版本以 package.json 为准，权限和能力只在 mewvis.config.ts 声明。
+- 应用身份和版本以 package.json 为准，权限和能力只在 app.config.ts 声明。
 - 工作区通过 `@mewvis/app-sdk/data` 查询，只包含本应用的登记目录；模板声明 `application-workspaces`，不会读取宿主默认工作区。保存业务结构时另行申请 `application-data` 并使用 `storage`。
 
 开发预览中的聊天、工作区、历史由公共内存宿主提供，刷新清空，不访问真实用户数据；宿主工具通过开发服务在本机 Node 进程执行真实业务代码。真实模型与安装权限需要在 Mewvis 内验收。

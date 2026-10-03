@@ -14,7 +14,7 @@ import {
   type CordisApplicationHostOptions,
 } from "./cordis-host.js";
 import { DshApplicationAdapter } from "./dsh-compat/adapter.js";
-import { MewvisApplicationAdapter } from "./mewvis-adapter.js";
+import { MewvisApplicationAdapter } from "./application-adapter.js";
 
 export type ApplicationHostOptions = CordisApplicationHostOptions;
 

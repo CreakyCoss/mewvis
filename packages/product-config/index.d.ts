@@ -16,16 +16,16 @@ export declare const PRODUCT_CONFIG: {
   readonly "bundleIdentifier": "com.mewvis.desktop";
   readonly "description": "Mewvis Desktop Client";
   readonly "assets": {
-  readonly "brandMark": "/assets/startup/mewvis-i-dot.png";
+  readonly "brandMark": "/assets/startup/brand-mark.png";
 };
   readonly "schemas": {
   readonly "applicationOrigin": "https://mewvis.app";
   readonly "runtimeOrigin": "https://mewvis.local";
 };
   readonly "files": {
-  readonly "appConfig": "mewvis.config.ts";
-  readonly "appUiScript": "mewvis-ui.js";
-  readonly "appUiStyle": "mewvis-ui.css";
+  readonly "appConfig": "app.config.ts";
+  readonly "appUiScript": "app-ui.js";
+  readonly "appUiStyle": "app-ui.css";
 };
   readonly "cli": {
   readonly "application": "mewvis-app";

@@ -13,8 +13,8 @@
     "ui": {
       "version": 1,
       "kind": "sandbox",
-      "entry": "./mewvis-ui.js",
-      "style": "./mewvis-ui.css",
+      "entry": "./app-ui.js",
+      "style": "./app-ui.css",
       "title": "Portable UI Fixture"
     }
   }

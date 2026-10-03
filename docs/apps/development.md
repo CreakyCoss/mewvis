@@ -21,7 +21,7 @@ pnpm dev
 ```text
 my-application/
 ├── package.json          # 身份、版本、依赖和命令
-├── mewvis.config.ts        # 权限、UI 和宿主能力配置
+├── app.config.ts         # 权限、UI 和宿主能力配置
 ├── tsconfig.json         # 继承工具链提供的配置
 └── main/
     ├── App.tsx           # 默认导出 React 页面
@@ -34,7 +34,7 @@ my-application/
 
 页面可以自由拆分为 components、hooks、services；由宿主加载的工具实现和技能定义放在 host。
 纯 UI 应用可删除 host 配置及目录；纯工具或技能应用设置 `ui: false`；`host.tools` 和 `host.skills` 可以单独使用。
-package.json 不再维护一份重复的 `mewvis` 清单，构建时从 `mewvis.config.ts` 生成。
+package.json 不再维护一份重复的 `mewvis` 清单，构建时从 `app.config.ts` 生成。
 
 ## 页面与宿主工具
 
@@ -60,7 +60,7 @@ SDK 提供完整的发送、停止、能力选择、流式事件、保存和多�
 
 ## Agent 访问范围
 
-`mewvis.config.ts` 的 `agentAccess` 与 `permissions` 同级，打包后原样写入
+`app.config.ts` 的 `agentAccess` 与 `permissions` 同级，打包后原样写入
 `package.json` 的 `mewvis.agentAccess`。`defineConfig` 直接使用协议生成的
 `AgentAccess` 类型；打包检查、后端解析使用同一份协议 schema。
 
@@ -90,7 +90,7 @@ SDK 提供完整的发送、停止、能力选择、流式事件、保存和多�
 ## 应用技能
 
 ```ts
-// mewvis.config.ts
+// app.config.ts
 import { defineConfig } from "@mewvis/app-dev";
 
 export default defineConfig({
@@ -182,7 +182,7 @@ Node 应用确认 `context.chat` 可用后，使用 `createApplicationToolClient
 
 开发页面自动提供 React Refresh、主题切换和内存聊天宿主。聊天核心与 UI 来自 Mewvis 的同一份实现，仅模型和存储使用测试适配。页面上会标明“内存聊天预览”，刷新清空记录，不调用真实模型、不访问真实工作区。
 
-宿主工具在开发服务的 Node Worker 内执行原始业务代码。页面通过带开发连接令牌的本机接口调用，校验工具归属、输入和输出；最多四个并发请求，超时释放 Worker，下一次请求可以恢复。修改 host 模块会清理旧 Worker 并刷新预览、工具目录和技能定义；修改共享 TS/JS 业务模块会让下次调用加载新代码。React 页面和样式使用热更新。修改 mewvis.config.ts 后需要手动重启应用开发命令。
+宿主工具在开发服务的 Node Worker 内执行原始业务代码。页面通过带开发连接令牌的本机接口调用，校验工具归属、输入和输出；最多四个并发请求，超时释放 Worker，下一次请求可以恢复。修改 host 模块会清理旧 Worker 并刷新预览、工具目录和技能定义；修改共享 TS/JS 业务模块会让下次调用加载新代码。React 页面和样式使用热更新。修改 app.config.ts 后需要手动重启应用开发命令。
 
 开发宿主只加载这里声明的工具与技能数组，不模拟完整 Cordis settings/services 生命周期，也不提供生产权限隔离。真实模型、文件权限和安装沙箱应在 Mewvis 中验证。
 

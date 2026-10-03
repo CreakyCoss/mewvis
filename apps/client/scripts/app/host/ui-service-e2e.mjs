@@ -282,7 +282,7 @@ try {
 
   const largeRoot = join(tempDir, "large-ui-application");
   cpSync(fixtureRoot, largeRoot, { recursive: true });
-  writeFileSync(join(largeRoot, "mewvis-ui.js"), `/*${"x".repeat(5 * 1024 * 1024)}*/`);
+  writeFileSync(join(largeRoot, "app-ui.js"), `/*${"x".repeat(5 * 1024 * 1024)}*/`);
   writeFileSync(join(largeRoot, "index.js"), `
     export default { name: "large-response", inject: ["tools"], apply(ctx) {
       ctx.tools.register({ name: "large_response", description: "Response limit fixture", risk: "low",

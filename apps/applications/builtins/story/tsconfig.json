@@ -1,6 +1,6 @@
 {
   "extends": "@mewvis/app-dev/tsconfig.json",
-  "include": ["main", "core", "mewvis.config.ts"],
+  "include": ["main", "core", "app.config.ts"],
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {

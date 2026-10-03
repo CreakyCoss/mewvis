@@ -3,7 +3,7 @@
 调试台是使用 `@mewvis/app-dev` 的内置「应用能力实验室」。从能力总览选择示例，运行体验、查看结果，再参考公开 SDK 接入代码。应用默认启用；已有用户的禁用设置仍然优先。
 
 ```text
-mewvis.config.ts                   权限与能力配置
+app.config.ts                   权限与能力配置
 main/App.tsx                       能力展厅、分类导航和接入文档
 main/ChatLab.tsx                   工作区、会话、默认／组合 Chat 和检查器
 main/components/LabDialog.tsx      会话、示例、调试设置和代码的原生弹窗

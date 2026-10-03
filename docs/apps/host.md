@@ -46,7 +46,7 @@ Mewvis 包通过自己的清单暴露 Cordis 应用入口：
 
 默认 React 脚手架由 [应用工程工具链](development.md) 管理。在 `apps/client` 运行 `pnpm app:create -- /absolute/path/my-application --name @example/my-application --local`，然后在新项目安装依赖。工具尚未发布时，`--local` 使用当前检出的 SDK 和工具链。
 
-`pnpm dev` 开发，`pnpm check` 检查，`pnpm build` 构建。页面位于 `main/App.tsx`，可选 Node 工具位于 `main/host/tools.ts`。权限与能力统一在 `mewvis.config.ts` 声明，由其生成安装清单。
+`pnpm dev` 开发，`pnpm check` 检查，`pnpm build` 构建。页面位于 `main/App.tsx`，可选 Node 工具位于 `main/host/tools.ts`。权限与能力统一在 `app.config.ts` 声明，由其生成安装清单。
 
 `--template tools` 使用 JavaScript 工具／技能模板，它继续在 package.json 声明 `mewvis.app`。`app:validate` 检查原生入口与资源，不求值入口；React 项目会求值受信任的 TS 配置。`app:pack` 将依赖打包到 `dist/<target>`，拒绝覆盖没有 Mewvis 构建标记的目录。
 

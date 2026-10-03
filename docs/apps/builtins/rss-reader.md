@@ -31,7 +31,7 @@ Mewvis 中 `dsh-rss` 设置命名空间保存于 `<app-data>/apps/dsh-rss/settin
 
 ## 构建与分发
 
-界面源码位于 `ui/`，`mewvis-ui.js` 和 `mewvis-ui.css` 为生成文件，修改后在仓库根目录执行：
+界面源码位于 `ui/`，`app-ui.js` 和 `app-ui.css` 为生成文件，修改后在仓库根目录执行：
 
 ```sh
 pnpm --filter @mewvis/rss-reader check

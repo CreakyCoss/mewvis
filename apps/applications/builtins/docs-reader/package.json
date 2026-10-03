@@ -5,9 +5,15 @@
   "type": "module",
   "main": "./index.js",
   "exports": "./index.js",
+  "scripts": {
+    "build:ui": "node scripts/build-ui.mjs"
+  },
   "dependencies": {
     "@mewvis/app-sdk": "^0.1.0",
     "@mewvis/product-config": "workspace:*"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.0"
   },
   "mewvis": {
     "app": {
@@ -22,8 +28,8 @@
     "ui": {
       "version": 1,
       "kind": "sandbox",
-      "entry": "./mewvis-ui.js",
-      "style": "./mewvis-ui.css",
+      "entry": "./app-ui.js",
+      "style": "./app-ui.css",
       "title": "文档中心"
     }
   }

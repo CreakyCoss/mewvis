@@ -15,16 +15,16 @@
   "bundleIdentifier": "com.mewvis.desktop",
   "description": "Mewvis Desktop Client",
   "assets": {
-    "brandMark": "/assets/startup/mewvis-i-dot.png"
+    "brandMark": "/assets/startup/brand-mark.png"
   },
   "schemas": {
     "applicationOrigin": "https://mewvis.app",
     "runtimeOrigin": "https://mewvis.local"
   },
   "files": {
-    "appConfig": "mewvis.config.ts",
-    "appUiScript": "mewvis-ui.js",
-    "appUiStyle": "mewvis-ui.css"
+    "appConfig": "app.config.ts",
+    "appUiScript": "app-ui.js",
+    "appUiStyle": "app-ui.css"
   },
   "cli": {
     "application": "mewvis-app",
