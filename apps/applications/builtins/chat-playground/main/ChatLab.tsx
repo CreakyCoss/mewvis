@@ -33,12 +33,12 @@ import {
   History,
   MessageCircle,
   Plus,
-  RefreshCw,
   SlidersHorizontal,
   Sparkles,
 } from "lucide-react";
 import { CodeExample } from "./components/Example";
 import { LabDialog } from "./components/LabDialog";
+import { SessionManager } from "./components/SessionManager";
 
 export type ChatPreset = {
   label: string;
@@ -674,8 +674,6 @@ export default function ChatLab({
   const [workspaces, setWorkspaces] = useState<ApplicationWorkspace[]>([]);
   const [workspaceId, setWorkspaceId] = useState("");
   const selectedWorkspaceId = useRef("");
-  const [workspaceName, setWorkspaceName] = useState("");
-  const [addingWorkspace, setAddingWorkspace] = useState(false);
   const [creatingWorkspace, setCreatingWorkspace] = useState(false);
   const creatingWorkspaceRef = useRef(false);
   const [selectionVersion, setSelectionVersion] = useState(0);
@@ -692,10 +690,11 @@ export default function ChatLab({
       )),
     [],
   );
-  const [chatId, setChatId] = useState("");
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const creatingRef = useRef(false);
+  const [opening, setOpening] = useState(false);
+  const openingRef = useRef(false);
   const [error, setError] = useState("");
   const [storageError, setStorageError] = useState("");
   const [connection, setConnection] = useState<{
@@ -720,18 +719,6 @@ export default function ChatLab({
           setStorageError(errorText(error));
       });
   };
-  const selectWorkspace = (workspace: ApplicationWorkspace) => {
-    historyGeneration.current++;
-    selectedWorkspaceId.current = workspace.id;
-    setWorkspaceId(workspace.id);
-    setChatId("");
-    setConnection(undefined);
-    resume.current = {
-      workspaceId: workspace.id,
-      chatId: getPreferences().chat(workspace.id),
-    };
-    setSelectionVersion((value) => value + 1);
-  };
   const reloadHistory = useCallback(async () => {
     const current = ++historyGeneration.current;
     if (!workspaceId) {
@@ -754,7 +741,6 @@ export default function ChatLab({
           resume.current = undefined;
           // Empty sessions are not saved until their first message; never recreate a missing record.
           if (items.some((item) => item.chatId === chatId)) {
-            setChatId(chatId);
             setConnection((previous) => ({
               input: { workspaceId, chatId },
               version: (previous?.version ?? 0) + 1,
@@ -779,88 +765,108 @@ export default function ChatLab({
     };
   }, [reloadHistory]);
   const generation = useRef(0);
-  const reload = useCallback(async () => {
-    const current = ++generation.current;
-    setLoading(true);
-    setError("");
-    try {
-      const prefs = getPreferences();
-      const [next] = await Promise.all([
-        getApplicationDataClient().workspaces.list(),
-        prefs.load(),
-      ]);
-      if (current !== generation.current) return;
-      setWorkspaces(next);
-      const selected = prefs.workspace(next);
-      if (selected) {
-        if (selectedWorkspaceId.current !== selected.id) {
-          setChatId("");
-          setConnection(undefined);
+  const reload = useCallback(
+    async (restoreSelection = true) => {
+      const current = ++generation.current;
+      setLoading(true);
+      setError("");
+      try {
+        const prefs = getPreferences();
+        const [next] = await Promise.all([
+          getApplicationDataClient().workspaces.list(),
+          prefs.load(),
+        ]);
+        if (current !== generation.current) return;
+        setWorkspaces(next);
+        if (!restoreSelection) return;
+        const selected = prefs.workspace(next);
+        if (selected) {
+          if (selectedWorkspaceId.current !== selected.id) {
+            setConnection(undefined);
+          }
+          selectedWorkspaceId.current = selected.id;
+          setWorkspaceId(selected.id);
+          resume.current = {
+            workspaceId: selected.id,
+            chatId: prefs.chat(selected.id),
+          };
+          setSelectionVersion((value) => value + 1);
         }
-        selectedWorkspaceId.current = selected.id;
-        setWorkspaceId(selected.id);
-        resume.current = {
-          workspaceId: selected.id,
-          chatId: prefs.chat(selected.id),
-        };
-        setSelectionVersion((value) => value + 1);
+      } catch (error) {
+        if (current === generation.current) setError(errorText(error));
+      } finally {
+        if (current === generation.current) setLoading(false);
       }
-    } catch (error) {
-      if (current === generation.current) setError(errorText(error));
-    } finally {
-      if (current === generation.current) setLoading(false);
-    }
-  }, [getPreferences]);
+    },
+    [getPreferences],
+  );
   useEffect(() => {
     void reload();
     return () => {
       generation.current++;
     };
   }, [reload]);
-  const connect = (nextId = chatId) => {
-    if (
-      !workspaceId ||
-      !nextId.trim() ||
-      loading ||
-      creatingWorkspaceRef.current ||
-      creatingRef.current
-    )
-      return;
+  const activateSession = (targetWorkspace: string, targetChat: string) => {
     resume.current = undefined;
+    if (selectedWorkspaceId.current !== targetWorkspace) {
+      historyGeneration.current++;
+      selectedWorkspaceId.current = targetWorkspace;
+      setWorkspaceId(targetWorkspace);
+      setSelectionVersion((value) => value + 1);
+    }
     setSessionsOpen(false);
-    setChatId(nextId.trim());
-    persistSelection(workspaceId, nextId.trim());
+    persistSelection(targetWorkspace, targetChat);
     setConnection((previous) => ({
-      input: { workspaceId, chatId: nextId.trim() },
+      input: { workspaceId: targetWorkspace, chatId: targetChat },
       version: (previous?.version ?? 0) + 1,
     }));
   };
-  const create = async () => {
+  const connect = async (nextId: string, targetWorkspace: string) => {
     if (
-      !workspaceId ||
+      !targetWorkspace ||
+      !nextId.trim() ||
       loading ||
+      creatingWorkspaceRef.current ||
       creatingRef.current ||
-      creatingWorkspaceRef.current
+      openingRef.current
     )
       return;
-    resume.current = undefined;
+    openingRef.current = true;
+    setOpening(true);
+    setError("");
+    try {
+      // Validate before dismissing the manager so failures stay next to the input.
+      await getApplicationChatClient().openSession({
+        workspaceId: targetWorkspace,
+        chatId: nextId.trim(),
+      });
+      activateSession(targetWorkspace, nextId.trim());
+    } catch (error) {
+      setError(errorText(error));
+    } finally {
+      openingRef.current = false;
+      setOpening(false);
+    }
+  };
+  const create = async (targetWorkspace = workspaceId) => {
+    if (
+      !targetWorkspace ||
+      loading ||
+      creatingRef.current ||
+      creatingWorkspaceRef.current ||
+      openingRef.current
+    )
+      return;
     creatingRef.current = true;
     setCreating(true);
     setError("");
-    const targetWorkspace = workspaceId;
     try {
       const session = await getApplicationChatClient().createSession({
         workspaceId: targetWorkspace,
         sceneId: "debug",
         profile,
       });
-      setSessionsOpen(false);
-      setChatId(session.identity.id);
-      persistSelection(targetWorkspace, session.identity.id);
-      setConnection((previous) => ({
-        input: { workspaceId: targetWorkspace, chatId: session.identity.id },
-        version: (previous?.version ?? 0) + 1,
-      }));
+      activateSession(targetWorkspace, session.identity.id);
     } catch (error) {
       setError(errorText(error));
     } finally {
@@ -868,36 +874,41 @@ export default function ChatLab({
       setCreating(false);
     }
   };
-  const addWorkspace = async () => {
+  const addWorkspace = async (
+    name: string,
+  ): Promise<ApplicationWorkspace | null> => {
     if (
-      !workspaceName.trim() ||
+      !name.trim() ||
       loading ||
       creatingRef.current ||
-      creatingWorkspaceRef.current
+      creatingWorkspaceRef.current ||
+      openingRef.current
     )
-      return;
+      return null;
     creatingWorkspaceRef.current = true;
     setCreatingWorkspace(true);
     setError("");
     try {
       const workspace = await getApplicationDataClient().workspaces.create({
-        name: workspaceName.trim(),
+        name: name.trim(),
       });
-      if (!workspace) return;
+      if (!workspace) return null;
       setWorkspaces((items) => [
         ...items.filter((item) => item.id !== workspace.id),
         workspace,
       ]);
-      selectWorkspace(workspace);
-      persistSelection(workspace.id);
-      setAddingWorkspace(false);
-      setWorkspaceName("");
+      return workspace;
     } catch (error) {
       setError(errorText(error));
+      return null;
     } finally {
       creatingWorkspaceRef.current = false;
       setCreatingWorkspace(false);
     }
+  };
+  const openSessions = () => {
+    setError("");
+    setSessionsOpen(true);
   };
   const activeWorkspace = workspaces.find((item) => item.id === workspaceId);
   const activeTitle =
@@ -905,7 +916,7 @@ export default function ChatLab({
       ? history.items.find((item) => item.chatId === connection?.input.chatId)
           ?.title
       : undefined;
-  const busy = loading || creating || creatingWorkspace;
+  const busy = loading || creating || creatingWorkspace || opening;
   return (
     <section className="lab-app" aria-label="聊天能力体验">
       <header className="lab-toolbar">
@@ -922,7 +933,7 @@ export default function ChatLab({
             className="lab-button"
             aria-label="会话与工作区"
             aria-haspopup="dialog"
-            onClick={() => setSessionsOpen(true)}
+            onClick={openSessions}
           >
             <History aria-hidden="true" />
             <span>会话</span>
@@ -953,7 +964,7 @@ export default function ChatLab({
           选择保存失败：{storageError}
         </p>
       )}
-      {error && (
+      {error && !sessionsOpen && (
         <p className="lab-top-error" role="alert">
           {error}
         </p>
@@ -995,7 +1006,7 @@ export default function ChatLab({
             <button
               type="button"
               className="lab-button lab-primary"
-              onClick={() => setSessionsOpen(true)}
+              onClick={openSessions}
             >
               选择工作区
             </button>
@@ -1003,204 +1014,30 @@ export default function ChatLab({
           <button
             type="button"
             className="lab-button lab-quiet"
-            onClick={() => setSessionsOpen(true)}
+            onClick={openSessions}
           >
             查看历史对话
           </button>
         </div>
       )}
-      <LabDialog
+      <SessionManager
         open={sessionsOpen}
-        title="会话与工作区"
-        onClose={() => setSessionsOpen(false)}
-      >
-        <section className="lab-manager-section">
-          <div className="lab-section-heading">
-            <h3>工作区</h3>
-            <button
-              type="button"
-              className="lab-icon-button"
-              aria-label="刷新工作区"
-              title="刷新工作区"
-              disabled={busy}
-              onClick={() => void reload()}
-            >
-              <RefreshCw aria-hidden="true" />
-            </button>
-          </div>
-          <select
-            aria-label="工作区"
-            value={workspaceId}
-            disabled={busy}
-            onChange={(event) => {
-              const workspace = workspaces.find(
-                (item) => item.id === event.target.value,
-              );
-              if (workspace) {
-                selectWorkspace(workspace);
-                persistSelection(workspace.id);
-              }
-            }}
-          >
-            {!workspaces.length && (
-              <option value="">{loading ? "加载中…" : "暂无工作区"}</option>
-            )}
-            {workspaces.map((workspace) => (
-              <option key={workspace.id} value={workspace.id}>
-                {workspace.name}
-                {workspace.isDefault ? " · 默认" : ""}
-              </option>
-            ))}
-          </select>
-          {activeWorkspace && (
-            <p className="lab-workspace-path">
-              <code>{activeWorkspace.path}</code>
-            </p>
-          )}
-          <button
-            type="button"
-            className="lab-button lab-quiet"
-            disabled={busy}
-            aria-expanded={addingWorkspace}
-            onClick={() => setAddingWorkspace((value) => !value)}
-          >
-            <Plus aria-hidden="true" />
-            新增工作区
-          </button>
-          {addingWorkspace && (
-            <div className="lab-workspace-create">
-              <label htmlFor="lab-workspace-name">工作区名称</label>
-              <input
-                id="lab-workspace-name"
-                value={workspaceName}
-                maxLength={512}
-                disabled={creatingWorkspace}
-                onChange={(event) => setWorkspaceName(event.target.value)}
-              />
-              <div className="lab-form-actions">
-                <button
-                  type="button"
-                  className="lab-button lab-primary"
-                  disabled={busy || !workspaceName.trim()}
-                  onClick={() => void addWorkspace()}
-                >
-                  {creatingWorkspace ? "等待目录选择…" : "选择目录并创建"}
-                </button>
-                <button
-                  type="button"
-                  className="lab-button"
-                  disabled={creatingWorkspace}
-                  onClick={() => setAddingWorkspace(false)}
-                >
-                  取消
-                </button>
-              </div>
-            </div>
-          )}
-        </section>
-        <section className="lab-manager-section">
-          <div className="lab-section-heading">
-            <h3>历史对话</h3>
-            <button
-              type="button"
-              className="lab-icon-button"
-              aria-label="刷新对话"
-              title="刷新对话"
-              disabled={busy || !workspaceId || history.loading}
-              onClick={() => void reloadHistory()}
-            >
-              <RefreshCw aria-hidden="true" />
-            </button>
-          </div>
-          {history.error && history.workspaceId === workspaceId && (
-            <p className="lab-error" role="alert">
-              对话列表加载失败：{history.error}
-            </p>
-          )}
-          <div
-            className="lab-history-list"
-            aria-label="应用对话"
-            aria-busy={history.loading}
-          >
-            {history.workspaceId === workspaceId && history.items.length ? (
-              history.items.map((item) => (
-                <button
-                  key={item.chatId}
-                  type="button"
-                  disabled={busy || history.loading}
-                  aria-current={
-                    connection?.input.chatId === item.chatId
-                      ? "true"
-                      : undefined
-                  }
-                  onClick={() => connect(item.chatId)}
-                >
-                  <MessageCircle aria-hidden="true" />
-                  <span>
-                    <strong>{item.title}</strong>
-                    <small>
-                      {item.messageCount} 条消息
-                      {connection?.input.chatId === item.chatId
-                        ? " · 当前对话"
-                        : ""}
-                    </small>
-                  </span>
-                </button>
-              ))
-            ) : (
-              <p className="lab-list-empty">
-                {history.loading
-                  ? "加载对话…"
-                  : "发送第一条消息后，对话会保存在这里。"}
-              </p>
-            )}
-          </div>
-          <button
-            type="button"
-            className="lab-button"
-            disabled={busy || !workspaceId}
-            onClick={() => void create()}
-          >
-            <Plus aria-hidden="true" />
-            新建对话
-          </button>
-        </section>
-        <details className="lab-disclosure">
-          <summary>通过会话 ID 连接</summary>
-          <div className="lab-connect-by-id">
-            <label htmlFor="lab-chat-id">已有会话 ID</label>
-            <input
-              id="lab-chat-id"
-              aria-label="会话 ID"
-              value={chatId}
-              maxLength={128}
-              disabled={busy}
-              onChange={(event) => setChatId(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") connect();
-              }}
-            />
-            <button
-              type="button"
-              className="lab-button"
-              disabled={busy || !workspaceId || !chatId.trim()}
-              onClick={() => connect()}
-            >
-              连接会话
-            </button>
-          </div>
-        </details>
-        {error && (
-          <p className="lab-error" role="alert">
-            {error}
-          </p>
-        )}
-        {storageError && (
-          <p className="lab-error" role="alert">
-            选择保存失败：{storageError}
-          </p>
-        )}
-      </LabDialog>
+        workspaces={workspaces}
+        activeWorkspaceId={workspaceId}
+        activeChatId={connection?.input.chatId}
+        busy={busy}
+        creatingWorkspace={creatingWorkspace}
+        error={error || (storageError ? `选择保存失败：${storageError}` : "")}
+        onClose={() => {
+          setSessionsOpen(false);
+          setError("");
+        }}
+        onClearError={() => setError("")}
+        onRefresh={() => reload(false)}
+        onCreate={create}
+        onConnect={connect}
+        onAddWorkspace={addWorkspace}
+      />
       <LabDialog
         open={codeOpen}
         title="接入对话能力"

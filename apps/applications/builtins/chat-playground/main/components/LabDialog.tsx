@@ -6,11 +6,13 @@ export function LabDialog({
   title,
   onClose,
   children,
+  className = "",
 }: {
   open: boolean;
   title: string;
   onClose(): void;
   children: ReactNode;
+  className?: string;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const titleId = useId();
@@ -23,7 +25,7 @@ export function LabDialog({
   return (
     <dialog
       ref={dialog}
-      className="lab-dialog"
+      className={`lab-dialog ${className}`}
       aria-labelledby={titleId}
       onCancel={(event) => {
         event.preventDefault();

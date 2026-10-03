@@ -1,0 +1,401 @@
+.lab-dialog.lab-session-manager {
+  width: min(820px, calc(100% - 40px));
+  height: min(560px, calc(100dvh - 48px));
+  max-height: none;
+  border-color: var(--border);
+  border-radius: 14px;
+}
+.lab-session-manager .lab-dialog-content {
+  height: 100%;
+}
+.lab-session-manager .lab-dialog-heading {
+  padding: 12px 18px 12px 22px;
+}
+.lab-session-manager .lab-dialog-body {
+  display: flex;
+  flex: 1;
+  padding: 0;
+  overflow: hidden;
+}
+.manager-layout {
+  display: grid;
+  grid-template-columns: 196px minmax(0, 1fr);
+  width: 100%;
+  min-height: 0;
+}
+.manager-sidebar {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  background: var(--background);
+  border-right: 1px solid var(--border);
+}
+.manager-sidebar-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-left: 8px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+.manager-workspaces {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+.manager-workspace,
+.manager-add-workspace {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 8px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  text-align: left;
+  line-height: 20px;
+}
+.manager-workspace + .manager-workspace {
+  margin-top: 4px;
+}
+.manager-workspace svg,
+.manager-add-workspace svg {
+  width: 16px;
+  height: 16px;
+  color: var(--muted-foreground);
+}
+.manager-workspace > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.manager-workspace small {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--muted-foreground);
+}
+.lab-app .manager-workspace[aria-pressed="true"],
+.lab-app .manager-add-workspace[aria-pressed="true"] {
+  color: var(--primary);
+  background: var(--primary-subtle);
+  border-color: var(--primary-border);
+}
+.manager-workspace[aria-pressed="true"] > svg {
+  color: var(--primary);
+}
+.manager-add-workspace {
+  flex-shrink: 0;
+  color: var(--muted-foreground);
+}
+.manager-sidebar-empty {
+  padding: 12px 8px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+.manager-main {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+}
+.manager-main-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  gap: 16px;
+  padding: 22px 22px 18px;
+}
+.manager-workspace-info {
+  min-width: 0;
+}
+.lab-app .manager-workspace-info h3 {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 15px;
+  line-height: 22px;
+}
+.lab-app .manager-workspace-info p {
+  margin-top: 3px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--muted-foreground);
+}
+.manager-main-heading .lab-button {
+  flex-shrink: 0;
+}
+.manager-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  margin: 0 22px;
+}
+.manager-search > svg {
+  position: absolute;
+  left: 11px;
+  width: 15px;
+  height: 15px;
+  color: var(--muted-foreground);
+  pointer-events: none;
+}
+.lab-app .lab-session-manager .manager-search input {
+  padding: 8px 38px 8px 34px;
+  height: 36px;
+  border-radius: 7px;
+  background: var(--background);
+  font-size: 12px;
+}
+.manager-search .lab-icon-button {
+  position: absolute;
+  right: 2px;
+  width: 30px;
+  min-height: 30px;
+}
+.manager-list-heading {
+  display: flex;
+  justify-content: space-between;
+  flex-shrink: 0;
+  padding: 18px 24px 8px;
+  color: var(--muted-foreground);
+  font-size: 11px;
+}
+.manager-conversations {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+  gap: 4px;
+  overflow-y: auto;
+  padding: 0 12px 12px;
+  overscroll-behavior: contain;
+}
+.manager-conversation {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  text-align: left;
+  background: transparent;
+}
+.lab-app .manager-conversation[aria-current="true"] {
+  background: var(--primary-subtle);
+  border-color: var(--primary-border);
+}
+.manager-conversation > svg {
+  width: 16px;
+  height: 16px;
+  color: var(--muted-foreground);
+}
+.manager-conversation-copy {
+  flex: 1;
+  min-width: 0;
+}
+.manager-conversation-copy strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  line-height: 20px;
+  font-weight: 500;
+}
+.manager-conversation-copy > span {
+  display: flex;
+  gap: 6px;
+  margin-top: 3px;
+  color: var(--muted-foreground);
+  font-size: 11px;
+}
+.manager-current {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 3px;
+  color: var(--primary);
+  font-size: 11px;
+}
+.manager-current svg {
+  width: 13px;
+  height: 13px;
+}
+.manager-open-arrow {
+  opacity: 0;
+}
+.manager-conversation:is(:hover, :focus-visible) .manager-open-arrow {
+  opacity: 1;
+}
+.manager-empty {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 150px;
+  padding: 24px;
+  text-align: center;
+  color: var(--muted-foreground);
+}
+.manager-empty > svg {
+  width: 26px;
+  height: 26px;
+  margin-bottom: 4px;
+  stroke-width: 1.5;
+}
+.manager-empty h4 {
+  margin: 0;
+  color: var(--foreground);
+  font-size: 14px;
+  font-weight: 500;
+}
+.manager-empty p,
+.manager-empty > span {
+  max-width: 250px;
+  font-size: 12px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+.manager-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  gap: 8px;
+  padding: 10px 16px 10px 22px;
+  border-top: 1px solid var(--border);
+  color: var(--muted-foreground);
+  font-size: 11px;
+}
+.manager-step {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 18px 24px 24px;
+}
+.manager-back {
+  margin-left: -10px;
+}
+.manager-step-heading {
+  margin: 24px 0;
+}
+.manager-step-heading > svg {
+  width: 28px;
+  height: 28px;
+  margin-bottom: 14px;
+  stroke-width: 1.5;
+  color: var(--primary);
+}
+.lab-app .manager-step-heading h3 {
+  font-size: 17px;
+  margin-bottom: 6px;
+}
+.manager-step-heading p,
+.lab-app .manager-form-help {
+  color: var(--muted-foreground);
+  font-size: 12px;
+  line-height: 1.7;
+}
+.manager-step form label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 12px;
+}
+.lab-app .manager-form-help {
+  margin-top: 8px;
+}
+.manager-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 24px;
+}
+.lab-app .manager-action-error {
+  flex-shrink: 0;
+  max-height: 76px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 10px 22px;
+  border-top: 1px solid var(--border);
+  background: var(--error-subtle);
+  color: var(--destructive);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 620px) {
+  .lab-dialog.lab-session-manager {
+    width: calc(100% - 24px);
+    height: min(660px, calc(100dvh - 32px));
+  }
+  .manager-layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+  .manager-sidebar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 4px;
+    padding: 8px 12px 10px;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .manager-sidebar-heading {
+    grid-column: 1 / -1;
+    height: 26px;
+    padding-left: 0;
+  }
+  .manager-workspaces {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding: 3px;
+    scrollbar-width: thin;
+  }
+  .manager-workspace {
+    width: auto;
+    max-width: 210px;
+    flex-shrink: 0;
+    padding: 7px 9px;
+  }
+  .manager-workspace + .manager-workspace {
+    margin-top: 0;
+  }
+  .manager-add-workspace {
+    width: auto;
+    padding-inline: 6px;
+    font-size: 12px;
+  }
+  .manager-main-heading {
+    padding: 18px 16px 14px;
+  }
+  .manager-search {
+    margin-inline: 16px;
+  }
+  .manager-list-heading {
+    padding-inline: 18px;
+  }
+  .manager-conversations {
+    padding-inline: 8px;
+  }
+  .manager-footer {
+    padding-inline: 16px 10px;
+  }
+  .manager-step {
+    padding: 14px 18px 20px;
+  }
+  .manager-step-heading {
+    margin: 16px 0;
+  }
+}
