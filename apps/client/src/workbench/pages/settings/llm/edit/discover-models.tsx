@@ -60,7 +60,10 @@ export const DiscoverModelsDialog = ({ provider, onConfirm, onClose }: DiscoverM
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="!flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-[640px]">
+      <DialogContent
+        overlayClassName="z-60 bg-overlay/20 supports-backdrop-filter:backdrop-blur-none"
+        className="!flex z-70 max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-[640px]"
+      >
         <DialogHeader className="shrink-0 border-b border-border/70 px-6 py-5 pr-14">
           <DialogTitle className="flex items-center gap-2 text-lg font-semibold">
             <Download className="size-5 text-primary" />

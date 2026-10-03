@@ -17,17 +17,26 @@ const Status = ({ children }: { children: string }) => (
   </span>
 );
 
-const ProviderRow = ({ provider, onOpen }: { provider: LlmProvider; onOpen: () => void }) => {
+const providerColumns =
+  "grid grid-cols-[minmax(160px,1.15fr)_minmax(140px,0.85fr)_minmax(200px,1.35fr)_100px_120px_72px_136px] gap-4 max-lg:grid-cols-[minmax(140px,1.1fr)_minmax(120px,0.9fr)_100px_116px_116px] max-lg:gap-3 max-md:grid-cols-[minmax(86px,1fr)_56px_84px_96px] max-md:gap-2";
+
+const ProviderRow = ({
+  provider,
+  onEdit,
+  onDelete,
+}: {
+  provider: LlmProvider;
+  onEdit: () => void;
+  onDelete: () => void;
+}) => {
   const apiEndpoint = provider.apiEndpoint?.trim() || getProviderWebsiteUrl(provider.provider).trim();
 
   return (
-    <button
-      type="button"
-      className="group grid min-h-15 w-full min-w-0 grid-cols-[minmax(160px,1.15fr)_minmax(140px,0.85fr)_minmax(200px,1.35fr)_110px_120px_72px] items-center gap-4 border-b border-border/70 px-4 text-left transition-colors hover:bg-accent/20 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-ring/20 max-lg:grid-cols-[minmax(160px,1.15fr)_minmax(130px,0.9fr)_100px_116px]"
-      onClick={onOpen}
-      aria-label={`编辑 ${provider.name || "未命名 Provider"}`}
+    <div
+      className={`${providerColumns} min-h-15 w-full min-w-0 items-center border-b border-border/70 px-4 text-left max-md:px-3`}
+      role="row"
     >
-      <span className="flex min-w-0 items-center gap-2.5">
+      <span className="flex min-w-0 items-center gap-2.5" role="cell">
         <span className="truncate text-sm font-medium">{provider.name || "未命名 Provider"}</span>
         {provider.isDefault && (
           <Badge variant="secondary" className="shrink-0 bg-primary/9 px-2 py-0.5 text-xs font-medium text-primary">
@@ -36,26 +45,68 @@ const ProviderRow = ({ provider, onOpen }: { provider: LlmProvider; onOpen: () =
         )}
       </span>
 
-      <span className="truncate text-sm text-muted-foreground">{getApiFormatLabel(provider.apiFormat)}</span>
-      <span className="truncate text-sm text-muted-foreground max-lg:hidden">{apiEndpoint || "未设置 Endpoint"}</span>
-      <span className="text-sm text-foreground">{provider.models.length} 个模型</span>
-      {provider.apiKey?.trim() ? <Status>凭据已配置</Status> : <span className="text-sm text-warning">缺少凭据</span>}
-      <span className="inline-flex items-center gap-2 text-sm text-foreground max-lg:hidden">
+      <span className="truncate text-sm text-muted-foreground max-md:hidden" role="cell">
+        {getApiFormatLabel(provider.apiFormat)}
+      </span>
+      <span className="truncate text-sm text-muted-foreground max-lg:hidden" role="cell">
+        {apiEndpoint || "未设置 Endpoint"}
+      </span>
+      <span className="truncate text-sm text-foreground" role="cell">
+        {provider.models.length} 个模型
+      </span>
+      <span role="cell">
+        {provider.apiKey?.trim() ? <Status>凭据已配置</Status> : <span className="text-sm text-warning">缺少凭据</span>}
+      </span>
+      <span className="inline-flex items-center gap-2 text-sm text-foreground max-lg:hidden" role="cell">
         <span className="size-1.5 shrink-0 rounded-full bg-success" aria-hidden="true" />
         可用
       </span>
-    </button>
+      <span className="flex items-center justify-start gap-4" role="cell">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-auto min-w-0 rounded-none p-0 text-primary hover:bg-transparent"
+          aria-label={`编辑 ${provider.name || "未命名 Provider"}`}
+          title="编辑"
+          onClick={onEdit}
+        >
+          编辑
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-auto min-w-0 rounded-none p-0 text-destructive hover:bg-transparent hover:text-destructive"
+          aria-label={`删除 ${provider.name || "未命名 Provider"}`}
+          title="删除"
+          onClick={onDelete}
+        >
+          删除
+        </Button>
+      </span>
+    </div>
   );
 };
 
 const ProviderTableHeader = () => (
-  <div className="grid min-h-15 grid-cols-[minmax(160px,1.15fr)_minmax(140px,0.85fr)_minmax(200px,1.35fr)_110px_120px_72px] items-center gap-4 border-b border-border/70 px-4 text-xs font-medium text-muted-foreground max-lg:grid-cols-[minmax(160px,1.15fr)_minmax(130px,0.9fr)_100px_116px]">
-    <span>Provider</span>
-    <span>API 格式</span>
-    <span className="max-lg:hidden">Endpoint</span>
-    <span>可用模型</span>
-    <span>凭据状态</span>
-    <span className="max-lg:hidden">状态</span>
+  <div
+    className={`${providerColumns} min-h-15 items-center border-b border-border/70 px-4 text-xs font-medium text-muted-foreground max-md:px-3`}
+    role="row"
+  >
+    <span role="columnheader">Provider</span>
+    <span className="max-md:hidden" role="columnheader">
+      API 格式
+    </span>
+    <span className="max-lg:hidden" role="columnheader">
+      Endpoint
+    </span>
+    <span role="columnheader">可用模型</span>
+    <span role="columnheader">凭据状态</span>
+    <span className="max-lg:hidden" role="columnheader">
+      状态
+    </span>
+    <span role="columnheader">操作</span>
   </div>
 );
 
@@ -81,6 +132,10 @@ export const LlmSettingsPage = () => {
 
   const openEditProvider = (provider: LlmProvider) => {
     providerEditDialogRef.current?.open({ mode: "edit", provider });
+  };
+
+  const confirmDeleteProvider = (provider: LlmProvider) => {
+    providerEditDialogRef.current?.confirmDelete(provider);
   };
 
   const handleSettingsSaved = async () => {
@@ -113,11 +168,18 @@ export const LlmSettingsPage = () => {
           )}
 
           {providers.length > 0 ? (
-            <div className="w-full">
-              <ProviderTableHeader />
-              <div aria-label="已配置的 Provider">
+            <div className="w-full" role="table" aria-label="已配置的 Provider">
+              <div role="rowgroup">
+                <ProviderTableHeader />
+              </div>
+              <div role="rowgroup">
                 {providers.map((provider) => (
-                  <ProviderRow key={provider.id} provider={provider} onOpen={() => openEditProvider(provider)} />
+                  <ProviderRow
+                    key={provider.id}
+                    provider={provider}
+                    onEdit={() => openEditProvider(provider)}
+                    onDelete={() => confirmDeleteProvider(provider)}
+                  />
                 ))}
               </div>
             </div>

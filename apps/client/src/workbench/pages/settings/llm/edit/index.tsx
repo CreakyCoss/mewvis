@@ -1,5 +1,5 @@
 import { useImperativeHandle, useRef, useState, type Ref } from "react";
-import { Download, Eye, EyeOff, Loader2, Pencil, Plus, Save, ServerCog, Trash2 } from "lucide-react";
+import { Download, Eye, EyeOff, Loader2, Plus, Save, ServerCog, Zap } from "lucide-react";
 import {
   getModelThinking,
   type LlmProvider,
@@ -8,7 +8,6 @@ import {
 } from "@/agent-client/runtime-model";
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -23,6 +22,7 @@ import { Label } from "design-system/components/ui/label";
 import { NativeSelect, NativeSelectOption } from "design-system/components/ui/native-select";
 import { Switch } from "design-system/components/ui/switch";
 import { saveLlmSettings } from "@/api/llm";
+import { runAgentRuntimeChat } from "@/api/agent-runtime";
 import { getProviderApiFormatOptions, getProviderOption } from "../options";
 import {
   applyApiFormatDefaults,
@@ -48,6 +48,7 @@ type ProviderEditDialogOpenOptions = { mode: "create" } | { mode: "edit"; provid
 
 export type ProviderEditDialogHandle = {
   open: (options?: ProviderEditDialogOpenOptions) => void;
+  confirmDelete: (provider: LlmProvider) => void;
 };
 
 type ProviderEditDialogProps = {
@@ -62,16 +63,26 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
   const [providerDraft, setProviderDraft] = useState<LlmProviderConfig | null>(null);
   const [modelEditor, setModelEditor] = useState<{ model?: ProviderModelConfig } | null>(null);
   const [isDiscoveryOpen, setIsDiscoveryOpen] = useState(false);
+  const [isTestingConnection, setIsTestingConnection] = useState(false);
+  const [connectionTest, setConnectionTest] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const connectionTestRun = useRef(0);
   const modelFocusTarget = useRef<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isApiKeyVisible, setIsApiKeyVisible] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [error, setError] = useState("");
 
+  const clearConnectionTest = () => {
+    connectionTestRun.current += 1;
+    setIsTestingConnection(false);
+    setConnectionTest(null);
+  };
+
   const resetTransientState = () => {
     setError("");
     setModelEditor(null);
     setIsDiscoveryOpen(false);
+    clearConnectionTest();
     modelFocusTarget.current = null;
     setIsApiKeyVisible(false);
     setIsDeleteConfirmOpen(false);
@@ -93,6 +104,17 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
     setOpen(true);
   };
 
+  const confirmDeleteProvider = (provider: LlmProvider) => {
+    const providerConfig = toProviderConfig(provider);
+    if (!providerConfig) return;
+
+    setOpen(false);
+    setMode("edit");
+    setProviderDraft(cloneProviderConfig(providerConfig));
+    resetTransientState();
+    setIsDeleteConfirmOpen(true);
+  };
+
   const closeDialog = () => {
     setOpen(false);
     setProviderDraft(null);
@@ -110,16 +132,73 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
 
         openCreateProvider();
       },
+      confirmDelete: confirmDeleteProvider,
     }),
     [providers.length],
   );
 
   const selectedProviderOption = providerDraft ? getProviderOption(providerDraft.provider) : undefined;
   const selectedApiFormatOptions = providerDraft ? getProviderApiFormatOptions(providerDraft.provider) : [];
-  const canDelete = mode === "edit" && providers.length > 1;
 
   const updateProviderDraft = (updater: (provider: LlmProviderConfig) => LlmProviderConfig) => {
     setProviderDraft((current) => (current ? updater(current) : current));
+  };
+
+  const testConnection = async () => {
+    if (!providerDraft) return;
+
+    const model = providerDraft.models.find((item) => item.modelId.trim());
+    if (!model) {
+      setConnectionTest({ type: "error", message: "请先添加一个模型，再测速" });
+      return;
+    }
+
+    const run = ++connectionTestRun.current;
+    const startedAt = performance.now();
+    setIsTestingConnection(true);
+    setConnectionTest(null);
+
+    try {
+      const result = await runAgentRuntimeChat({
+        stream: false,
+        runtimeModel: {
+          provider: providerDraft.provider,
+          apiFormat: providerDraft.apiFormat,
+          apiKey: providerDraft.apiKey,
+          catalogModelId: model.modelId,
+          modelId:
+            model.isOneMillionContext && !model.modelId.endsWith("[1m]") ? `${model.modelId}[1m]` : model.modelId,
+          apiEndpoint: providerDraft.apiEndpoint,
+          thinkingLevel: getModelThinking(providerDraft, model)?.defaultLevel,
+        },
+        messages: [{ role: "user", content: "请只回复 OK。" }],
+      });
+      if (run !== connectionTestRun.current) return;
+      const responseText = result.text.trim();
+      const wrappedError = /^模型(?:返回错误|请求失败)：([\s\S]*)$/u.exec(responseText);
+      if (wrappedError) {
+        throw new Error(wrappedError[1]?.trim() || "连接失败");
+      }
+      if (!responseText || responseText.startsWith("模型未返回可展示文本。")) {
+        throw new Error(responseText || "模型没有返回内容");
+      }
+      setConnectionTest({
+        type: "success",
+        message: `${Math.round(performance.now() - startedAt)}ms`,
+      });
+    } catch (caught) {
+      if (run === connectionTestRun.current) {
+        const message = caught instanceof Error ? caught.message : String(caught);
+        setConnectionTest({
+          type: "error",
+          message: /(?:timeout|timed?\s*out|超时)/iu.test(message) ? "超时" : "连接失败",
+        });
+      }
+    } finally {
+      if (run === connectionTestRun.current) {
+        setIsTestingConnection(false);
+      }
+    }
   };
 
   const saveProviders = async (nextProviders: LlmProviderConfig[]) => {
@@ -163,7 +242,7 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
   };
 
   const deleteProvider = async () => {
-    if (!providerDraft || mode !== "edit" || providers.length <= 1) return;
+    if (!providerDraft || mode !== "edit") return;
 
     const providerConfigs = toLlmSettingsConfig({ providers }).providers;
     const didSave = await saveProviders(
@@ -190,7 +269,7 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
 
   return (
     <>
-      <Dialog open={open && !isDiscoveryOpen} onOpenChange={handleOpenChange}>
+      <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent
           aria-describedby={undefined}
           className="!flex max-h-[calc(100vh-2rem)] w-[min(720px,calc(100vw-2rem))] flex-col gap-0 overflow-hidden border-border/70 bg-popover p-0 shadow-[var(--shadow-floating)] sm:max-w-[720px] [&>[data-slot=dialog-close]]:top-2.5"
@@ -256,9 +335,11 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
                         id="llm-provider"
                         value={providerDraft.provider}
                         onValueChange={(provider) => {
+                          clearConnectionTest();
                           updateProviderDraft((current) => updateProviderIdentifier(current, provider));
                         }}
                         onPresetSelect={(provider) => {
+                          clearConnectionTest();
                           updateProviderDraft((current) => applyProviderDefaults(current, provider));
                         }}
                       />
@@ -274,7 +355,10 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
                           const value = selectedApiFormatOptions.find(
                             (apiFormat) => apiFormat.value === event.currentTarget.value,
                           )?.value;
-                          if (value) updateProviderDraft((current) => applyApiFormatDefaults(current, value));
+                          if (value) {
+                            clearConnectionTest();
+                            updateProviderDraft((current) => applyApiFormatDefaults(current, value));
+                          }
                         }}
                       >
                         {selectedApiFormatOptions.map((apiFormat) => (
@@ -295,6 +379,7 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
                           value={providerDraft.apiKey}
                           onChange={(event) => {
                             const value = event.currentTarget.value;
+                            clearConnectionTest();
                             updateProviderDraft((current) => ({ ...current, apiKey: value }));
                           }}
                         />
@@ -319,6 +404,7 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
                         value={providerDraft.apiEndpoint}
                         onChange={(event) => {
                           const value = event.currentTarget.value;
+                          clearConnectionTest();
                           updateProviderDraft((current) => ({ ...current, apiEndpoint: value }));
                         }}
                         placeholder={
@@ -392,7 +478,7 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
                           <th scope="col" className="w-24 px-2 py-2.5 font-normal sm:w-36 sm:px-3">
                             思考等级
                           </th>
-                          <th scope="col" className="w-20 px-2 py-2.5 text-center font-normal sm:w-24 sm:px-3">
+                          <th scope="col" className="w-20 px-2 py-2.5 font-normal sm:w-24 sm:px-3">
                             操作
                           </th>
                         </tr>
@@ -438,19 +524,19 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
                                   <span className="text-muted-foreground">未配置</span>
                                 )}
                               </td>
-                              <td className="px-2 py-3 text-center sm:px-3">
+                              <td className="px-2 py-3 sm:px-3">
                                 <Button
                                   id={`llm-model-${model.id}`}
                                   type="button"
                                   variant="ghost"
-                                  className="h-9 min-w-16 gap-1.5 px-2.5 text-primary"
+                                  size="sm"
+                                  className="h-auto min-w-0 rounded-none p-0 text-primary hover:bg-transparent"
                                   aria-label={`编辑模型 ${model.modelName || model.modelId || "未命名模型"}`}
                                   onClick={(event) => {
                                     modelFocusTarget.current = event.currentTarget.id;
                                     setModelEditor({ model });
                                   }}
                                 >
-                                  <Pencil className="size-3.5" />
                                   编辑
                                 </Button>
                               </td>
@@ -464,18 +550,28 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
               </div>
 
               <DialogFooter className="shrink-0 border-t border-border/70 bg-card/35 px-6 py-4 sm:justify-between">
-                <div>
-                  {canDelete && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                      onClick={() => setIsDeleteConfirmOpen(true)}
-                      disabled={isSaving}
+                <div className="flex min-w-0 flex-wrap items-center gap-2 sm:max-w-[65%]">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="h-7 gap-1 bg-primary/10 px-2 text-primary hover:bg-primary/15"
+                    disabled={isTestingConnection || isSaving}
+                    onClick={() => void testConnection()}
+                  >
+                    {isTestingConnection ? (
+                      <Loader2 className="size-3 animate-spin motion-reduce:animate-none" />
+                    ) : (
+                      <Zap className="size-3" />
+                    )}
+                    <span>{isTestingConnection ? "测速中…" : "测速"}</span>
+                  </Button>
+                  {connectionTest && (
+                    <p
+                      role={connectionTest.type === "error" ? "alert" : "status"}
+                      className={`min-w-0 break-words text-xs ${connectionTest.type === "success" ? "text-success" : "text-destructive"}`}
                     >
-                      <Trash2 className="size-4" />
-                      <span>删除 Provider</span>
-                    </Button>
+                      {connectionTest.message}
+                    </p>
                   )}
                 </div>
                 <div className="flex justify-end gap-2">
@@ -560,13 +656,18 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
             <AlertDialogDescription>
               删除后，此 Provider 下的模型将不再出现在对话、角色和应用中。此操作无法撤销。
             </AlertDialogDescription>
+            {error && (
+              <p role="alert" className="text-sm text-destructive">
+                {error}
+              </p>
+            )}
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isSaving}>取消</AlertDialogCancel>
-            <AlertDialogAction variant="destructive" disabled={isSaving} onClick={() => void deleteProvider()}>
+            <Button variant="destructive" disabled={isSaving} onClick={() => void deleteProvider()}>
               {isSaving && <Loader2 className="size-4 animate-spin motion-reduce:animate-none" />}
               确认删除
-            </AlertDialogAction>
+            </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

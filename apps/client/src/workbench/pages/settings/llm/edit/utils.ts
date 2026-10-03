@@ -112,10 +112,6 @@ export const normalizeLlmSettingsConfig = (draft: LlmSettingsConfig): LlmSetting
 };
 
 export const validateLlmSettingsConfig = (draft: LlmSettingsConfig) => {
-  if (draft.providers.length === 0) {
-    return "至少添加一个 Provider";
-  }
-
   for (const provider of draft.providers) {
     if (!provider.name.trim()) {
       return "Provider 名称不能为空";
@@ -150,10 +146,6 @@ export const validateLlmSettingsConfig = (draft: LlmSettingsConfig) => {
         return "模型名称不能为空";
       }
     }
-  }
-
-  if (!draft.providers.some((provider) => provider.models.length > 0)) {
-    return "至少添加一个模型";
   }
 
   return "";

@@ -332,6 +332,9 @@ importers:
       '@earendil-works/pi-coding-agent':
         specifier: workspace:*
         version: link:../../ai/pi/packages/coding-agent
+      '@langchain/langgraph':
+        specifier: ^1.4.7
+        version: 1.4.7(@langchain/core@1.2.1)(react-dom@19.1.0)(react@19.1.0)(zod@4.4.3)
       '@mewvis/app-host':
         specifier: workspace:*
         version: link:../../packages/app/host
@@ -341,9 +344,6 @@ importers:
       '@mewvis/extension-host':
         specifier: workspace:*
         version: link:../../packages/extension/host
-      '@langchain/langgraph':
-        specifier: ^1.4.7
-        version: 1.4.7(@langchain/core@1.2.1)(react-dom@19.1.0)(react@19.1.0)(zod@4.4.3)
       '@mewvis/product-config':
         specifier: workspace:*
         version: link:../../packages/product-config
@@ -720,6 +720,15 @@ importers:
       '@earendil-works/pi-coding-agent':
         specifier: workspace:*
         version: link:../../ai/pi/packages/coding-agent
+      '@langchain/core':
+        specifier: ^1.2.1
+        version: 1.2.1
+      '@langchain/langgraph':
+        specifier: ^1.4.7
+        version: 1.4.7(@langchain/core@1.2.1)(react-dom@19.1.0)(react@19.1.0)(zod@4.4.3)
+      '@lexical/react':
+        specifier: ^0.48.0
+        version: 0.48.0(react-dom@19.1.0)(react@19.1.0)(typescript@5.8.3)(yjs@13.6.31)
       '@mewvis/app-sdk':
         specifier: workspace:*
         version: link:../../packages/app/sdk
@@ -732,15 +741,6 @@ importers:
       '@mewvis/extension-host':
         specifier: workspace:*
         version: link:../../packages/extension/host
-      '@langchain/core':
-        specifier: ^1.2.1
-        version: 1.2.1
-      '@langchain/langgraph':
-        specifier: ^1.4.7
-        version: 1.4.7(@langchain/core@1.2.1)(react-dom@19.1.0)(react@19.1.0)(zod@4.4.3)
-      '@lexical/react':
-        specifier: ^0.48.0
-        version: 0.48.0(react-dom@19.1.0)(react@19.1.0)(typescript@5.8.3)(yjs@13.6.31)
       '@mewvis/product-config':
         specifier: workspace:*
         version: link:../../packages/product-config
