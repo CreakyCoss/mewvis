@@ -933,7 +933,7 @@ export default function App({ preview = false }: { preview?: boolean }) {
             <input
               id="reader-size"
               type="range"
-              min={15}
+              min={14}
               max={24}
               step={1}
               value={prefs.fontSize}

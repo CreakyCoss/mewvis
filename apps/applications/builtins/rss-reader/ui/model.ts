@@ -209,8 +209,8 @@ export function preferences(value: unknown): Preferences {
   return {
     fontSize:
       typeof item.fontSize === "number"
-        ? Math.min(24, Math.max(15, item.fontSize))
-        : 18,
+        ? Math.min(24, Math.max(14, item.fontSize))
+        : 16,
     sort: item.sort === "oldest" ? "oldest" : "newest",
   };
 }

@@ -27,7 +27,7 @@ export function useReader() {
   const [caches, setCaches] = useState<FeedCache[]>([]);
   const [marks, setMarks] = useState<MarkMap>({});
   const [prefs, setPrefs] = useState<Preferences>({
-    fontSize: 18,
+    fontSize: 16,
     sort: "newest",
   });
   const [loading, setLoading] = useState(true),
