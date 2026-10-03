@@ -20,6 +20,7 @@ export const ProviderSelector = ({
   const input = useRef<HTMLInputElement>(null);
   const menu = useRef<HTMLDivElement>(null);
   const interactedOutside = useRef(false);
+  const preserveInputFocusOnOpen = useRef(false);
 
   return (
     <Popover
@@ -45,11 +46,20 @@ export const ProviderSelector = ({
             aria-expanded={open}
             value={value}
             onChange={(event) => onValueChange(event.currentTarget.value)}
+            onClick={() => {
+              preserveInputFocusOnOpen.current = true;
+              setOpen(true);
+            }}
             onKeyDown={(event) => {
               if (event.key === "ArrowDown" && !event.nativeEvent.isComposing) {
                 event.preventDefault();
                 interactedOutside.current = false;
-                setOpen(true);
+                preserveInputFocusOnOpen.current = false;
+                if (open) {
+                  menu.current?.focus();
+                } else {
+                  setOpen(true);
+                }
               }
             }}
           />
@@ -70,7 +80,7 @@ export const ProviderSelector = ({
         className="w-[var(--radix-popover-anchor-width)] gap-0 overflow-hidden p-0"
         onOpenAutoFocus={(event) => {
           event.preventDefault();
-          menu.current?.focus();
+          if (!preserveInputFocusOnOpen.current) menu.current?.focus();
         }}
         onInteractOutside={() => {
           interactedOutside.current = true;
@@ -78,6 +88,7 @@ export const ProviderSelector = ({
         onCloseAutoFocus={(event) => {
           event.preventDefault();
           if (!interactedOutside.current) input.current?.focus();
+          preserveInputFocusOnOpen.current = false;
         }}
       >
         <Command ref={menu} tabIndex={-1} label="供应商" defaultValue={value} loop>
@@ -87,12 +98,20 @@ export const ProviderSelector = ({
                 key={option.value}
                 value={option.value}
                 data-checked={option.value === value}
+                className="data-[checked=true]:bg-primary/8 data-[checked=true]:font-semibold [&>svg]:hidden"
                 onSelect={() => {
                   onPresetSelect(option.value);
                   setOpen(false);
                 }}
               >
-                {option.value === option.label ? option.value : `${option.value} (${option.label})`}
+                <span className="flex min-w-0 flex-1 items-center gap-2">
+                  <code className="min-w-0 truncate font-medium">{option.value}</code>
+                  {option.value !== option.label && (
+                    <span className="ml-auto shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground group-data-selected/command-item:bg-background/70 group-data-selected/command-item:text-accent-foreground">
+                      {option.label}
+                    </span>
+                  )}
+                </span>
               </CommandItem>
             ))}
           </CommandList>
