@@ -1015,14 +1015,17 @@
 .learn-config-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) minmax(0, 0.7fr);
+  align-items: start;
   gap: 10px;
+  margin-bottom: 18px;
 }
 .learn-config-row.two {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
-.learn-lesson-dialog .learn-manual-editor .learn-config-row label {
+.learn-lesson-dialog .learn-manual-editor .learn-config-row > label {
   min-width: 0;
   font-size: 12px;
+  margin: 0;
 }
 .learning-app .learn-model-settings input:not([type="checkbox"]) {
   min-width: 0;
@@ -1039,9 +1042,6 @@
 .learn-option-editor .learn-config-row {
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
   align-items: end;
-}
-.learn-option-editor .learn-config-row > button {
-  margin-bottom: 18px;
 }
 .learn-view-options {
   display: flex;

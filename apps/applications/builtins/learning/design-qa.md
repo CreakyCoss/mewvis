@@ -6,6 +6,15 @@
 - 实现入口：`main/FormulaEditor.tsx`、`main/ExperimentEditor.tsx`、`main/InteractiveExperiment.tsx`、`main/experiments.ts`、`main/expression.ts`、`main/rich-content.css`。
 - 本地预览：<http://127.0.0.1:5178/>；课程库点击“互动实验示例”，可体验抛物线、电路、成本与收益、正弦曲线。
 
+## 显示名称与单位对齐修复（2026-10-03）
+
+- 原因：配置网格中的最后一个标签继承 `label:last-child` 的零底部间距，其他标签有 18 px 底部间距；网格拉伸后，“单位”输入框比“显示名称”下移 9 px 且增高 9 px。
+- 修复：配置行统一管理底部间距，行内标签清除独立外边距并从顶部对齐；选项行的删除按钮同步移除旧间距补偿。
+- 实测：1568 px 下结果标识、显示名称、单位三项输入框顶部坐标与高度完全一致；输入变量、成对数值字段、选项行及公式符号字段复核通过。390 px 下三项字段等宽、等高，页面无水平溢出。
+- 类型与运行边界检查、构建、相关文件 `git diff --check` 通过，浏览器控制台无警告或错误。本轮仅修改 CSS，未新增或重复运行单元测试。
+
+证据：[修复前](../../../../prototypes/learning-rich-content/qa/field-alignment-before.png)、[桌面修复后](../../../../prototypes/learning-rich-content/qa/field-alignment-desktop.png)、[窄屏](../../../../prototypes/learning-rich-content/qa/field-alignment-mobile.png)。
+
 ## 桌面下拉样式修复（2026-10-03）
 
 新增的公式、图解与实验选择框此前直接使用系统默认外观，没有复用课程编辑器已有的箭头和边距。现在统一使用 `SelectField` 包装原生 `select`，保留原生菜单、标签关联与键盘选择行为。
