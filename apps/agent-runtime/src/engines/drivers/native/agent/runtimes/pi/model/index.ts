@@ -41,11 +41,19 @@ const piApiForFormat = (apiFormat: RuntimeApiFormat): Api => {
   }
 };
 
-const readCatalogPiModel = (runtimeModel: RuntimeModelInput): Model<Api> | undefined =>
-  (getBuiltinModel as (provider: string, modelId: string) => Model<Api> | undefined)(
-    runtimeModel.provider,
+const readCatalogPiModel = (runtimeModel: RuntimeModelInput): Model<Api> | undefined => {
+  const providerAliases: Record<string, string> = {
+    glm: "zai",
+    mimo: "xiaomi",
+    zhipuai: "zai",
+  };
+  const provider = providerAliases[runtimeModel.provider] ?? runtimeModel.provider;
+
+  return (getBuiltinModel as (provider: string, modelId: string) => Model<Api> | undefined)(
+    provider,
     runtimeModel.catalogModelId,
   );
+};
 
 const PI_THINKING_LEVELS: readonly string[] = ["minimal", "low", "medium", "high", "xhigh", "max"];
 

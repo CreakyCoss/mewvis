@@ -47,7 +47,7 @@ export const MODEL_PROVIDER_CONFIG: Record<string, CatalogProviderConfig> = {
       },
     ],
   },
-  zhipuai: {
+  glm: {
     websiteUrl: "https://bigmodel.cn",
     models: {
       "glm-5.3": {},
@@ -79,7 +79,7 @@ export const MODEL_PROVIDER_CONFIG: Record<string, CatalogProviderConfig> = {
       },
     ],
   },
-  xiaomi: {
+  mimo: {
     websiteUrl: "https://platform.xiaomimimo.com",
     models: {
       "mimo-v2.6-pro": {},
