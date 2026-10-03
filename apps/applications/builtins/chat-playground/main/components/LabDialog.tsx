@@ -1,4 +1,10 @@
-import { useEffect, useId, useRef, type ReactNode } from "react";
+import {
+  useEffect,
+  useId,
+  useRef,
+  type ReactNode,
+  type RefObject,
+} from "react";
 import { X } from "lucide-react";
 
 export function LabDialog({
@@ -7,21 +13,26 @@ export function LabDialog({
   onClose,
   children,
   className = "",
+  initialFocus,
 }: {
   open: boolean;
   title: string;
   onClose(): void;
   children: ReactNode;
   className?: string;
+  initialFocus?: RefObject<HTMLElement | null>;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const titleId = useId();
   useEffect(() => {
     const element = dialog.current;
     if (!element) return;
-    if (open && !element.open) element.showModal();
+    if (open && !element.open) {
+      element.showModal();
+      initialFocus?.current?.focus();
+    }
     if (!open && element.open) element.close();
-  }, [open]);
+  }, [open, initialFocus]);
   return (
     <dialog
       ref={dialog}

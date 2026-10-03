@@ -90,7 +90,7 @@
   opacity: 0.45;
   cursor: not-allowed;
 }
-.lab-app button:not([data-slot]):not(:disabled):hover {
+.lab-app button:not([data-slot], .lab-primary):not(:disabled):hover {
   background: var(--muted);
 }
 .lab-app .lab-primary:not(:disabled):hover {

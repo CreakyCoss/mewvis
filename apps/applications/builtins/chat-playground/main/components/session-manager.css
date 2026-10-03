@@ -78,8 +78,7 @@
   font-size: 11px;
   color: var(--muted-foreground);
 }
-.lab-app .manager-workspace[aria-pressed="true"],
-.lab-app .manager-add-workspace[aria-pressed="true"] {
+.lab-app .manager-workspace[aria-pressed="true"] {
   color: var(--primary);
   background: var(--primary-subtle);
   border-color: var(--primary-border);
@@ -308,7 +307,8 @@
   font-size: 12px;
   line-height: 1.7;
 }
-.manager-step form label {
+.manager-step form label,
+.manager-create-form label {
   display: block;
   margin-bottom: 8px;
   font-size: 12px;
@@ -321,6 +321,19 @@
   justify-content: flex-end;
   gap: 8px;
   margin-top: 24px;
+}
+.lab-dialog.lab-create-workspace-dialog {
+  width: min(420px, calc(100% - 32px));
+  border-radius: 12px;
+}
+.lab-create-workspace-dialog::backdrop {
+  background: color-mix(in srgb, var(--overlay) 18%, transparent);
+}
+.lab-app .manager-create-description {
+  margin-bottom: 20px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+  line-height: 1.7;
 }
 .lab-app .manager-action-error {
   flex-shrink: 0;
