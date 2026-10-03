@@ -252,7 +252,7 @@ try {
   assert.equal(await page.locator(".learn-lesson-card").count(), 0);
   await button("添加课时").click();
   assert.equal(await page.getByRole("dialog", { name: "添加课时" }).count(), 1);
-  await button("保存").click();
+  await button("保存课时").click();
   await page.getByText("请填写课时标题").waitFor();
   assert.equal(await page.locator(".learn-lesson-card").count(), 0);
   await button("取消").click();
@@ -541,7 +541,7 @@ try {
     .fill("手动修正的课程正文。主动回忆应包含提取与反馈。");
   await page.getByLabel("题干", { exact: true }).first().fill("修订后的单选题");
   await page.screenshot({ path: `${out}/manual-editor.png`, fullPage: true });
-  await button("保存").click();
+  await button("保存课时").click();
   await button("下一步：项目实训").click();
   await button("保存课程").click();
   await page
@@ -643,7 +643,7 @@ try {
   await page.getByLabel("第 1 题选项 B").fill("忽略概念");
   await page.getByLabel("第 1 题正确答案 A").check();
   await page.getByLabel("答案解析", { exact: true }).fill("理解概念是第一步。");
-  await button("保存").click();
+  await button("保存课时").click();
   await page
     .locator(".learn-lesson-card")
     .first()

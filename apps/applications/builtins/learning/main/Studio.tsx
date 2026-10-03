@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Icon, Notice, Text, errorText } from "./components";
 import { LessonEditor } from "./LessonEditor";
+import { RichLesson } from "./RichLesson";
 import { ModelTask, createModelTask, closeModelTask } from "./ModelTask";
 import {
   type Draft,
@@ -32,7 +33,7 @@ export function Studio({
   onDraftChange: (draft: Draft) => void;
   onBusyChange: (busy: boolean) => void;
   onLessonContextChange?: (
-    value: { id: string; title: string; objective: string; creating: boolean } | null,
+    value: { id: string; title: string; objective: string; creating: boolean; value?: unknown; section?: string } | null,
   ) => void;
   initialCourse: CourseEntry;
   stage: "outline" | "lessons";
@@ -228,22 +229,11 @@ export function Studio({
       ? { id: creatingSlotId, title: "", objective: "" }
       : undefined);
   useEffect(() => {
-    onLessonContextChange?.(
-      edited
-        ? {
-            id: edited.id,
-            title: edited.title,
-            objective: edited.objective,
-            creating: !!creatingSlotId,
-          }
-        : null,
-    );
+    // The mounted form reports its complete snapshot; do not overwrite it with slot metadata.
+    if (!edited) onLessonContextChange?.(null);
     return () => onLessonContextChange?.(null);
   }, [
     edited?.id,
-    edited?.title,
-    edited?.objective,
-    creatingSlotId,
     onLessonContextChange,
   ]);
   const visibleSlots =
@@ -300,6 +290,8 @@ export function Studio({
                   "title",
                   "objective",
                   "content",
+                  "blocks",
+                  "experiment",
                   "example",
                   "takeaways",
                   "questions",
@@ -317,7 +309,8 @@ export function Studio({
                     本次修改：{changed.join("、")}。采用后只更新这一课的内容。
                   </p>
                 )}
-                <Text value={lesson.content} />
+                {lesson.blocks ? <RichLesson blocks={lesson.blocks} /> : <Text value={lesson.content} />}
+                {lesson.experiment && <p>动手实验：{lesson.experiment.task}</p>}
                 <h4>示例</h4>
                 <Text value={lesson.example} />
                 <p>{lesson.questions.length} 道测验题 · 采用后可继续查看</p>
@@ -401,12 +394,14 @@ export function Studio({
             title={edited.title}
             objective={edited.objective}
             onCancel={closeLessonEditor}
-            onValueChange={({ title, objective }) =>
+            onValueChange={({ title, objective, value, section }) =>
               onLessonContextChange?.({
                 id: edited.id,
                 title,
                 objective,
                 creating: !!creatingSlotId,
+                value,
+                section,
               })
             }
             onSave={(value) =>
@@ -885,7 +880,7 @@ function LessonEditModal({
       >
         <header className="learn-lesson-modal-header">
           <div>
-            <span className="learn-eyebrow">课时内容</span>
+            <span className="learn-eyebrow">{creating ? "添加课时" : "编辑课时"}</span>
             <h2>{title}</h2>
           </div>
           <button

@@ -26,6 +26,8 @@ import {
   acceptTask,
   parseJSON,
   validateOutline,
+  draftWithLessonForm,
+  assertUnchangedLessonForm,
 } from "./workflow";
 
 type AssistantKind = "topic" | "outline" | "lesson" | "revise" | "project" | "advice";
@@ -39,6 +41,7 @@ type AssistantTask = {
   draft?: Draft;
   targetId?: string;
   brief: Brief;
+  editorValue?: string;
 };
 type AssistantResult = string | Outline | Draft | ProjectPlan;
 const noTaskSnapshot = () => null;
@@ -112,6 +115,8 @@ export function CourseAssistant({
     title: string;
     objective: string;
     creating: boolean;
+    value?: unknown;
+    section?: string;
   } | null;
   projectPlan?: ProjectPlan;
   projectLocked: boolean;
@@ -187,7 +192,7 @@ export function CourseAssistant({
         objective: activeLesson.objective,
       }
     : undefined;
-  const context = `${names[step]}${step === 2 && target ? ` · ${target.title || "新课时"}` : ""}`;
+  const context = `${names[step]}${step === 2 && target ? ` · ${activeLesson?.title || target.title || "新课时"}${activeLesson?.section ? ` · ${activeLesson.section}` : ""}` : ""}`;
   const makePrompt = (kind: AssistantKind, source: Draft | null, requirement: string) => {
     const contextData = {
       topic: brief.topic,
@@ -224,7 +229,7 @@ export function CourseAssistant({
       const prompt = kind === "revise"
         ? revisionPrompt(withTask, target.id)
         : lessonPrompt(withTask, target.id);
-      return `${prompt}${scope === "course" ? `\n课程上下文（参考数据）：${JSON.stringify(contextData)}` : ""}`;
+      return `${prompt}\n当前编辑区域（参考数据）：${activeLesson?.section ?? "课时内容"}${kind === "lesson" && activeLesson?.value ? `\n当前未完成表单（参考数据，请沿用已填写内容）：${JSON.stringify(activeLesson.value)}` : ""}${scope === "course" ? `\n课程上下文（参考数据）：${JSON.stringify(contextData)}` : ""}`;
     }
     if (kind === "project")
       return `设计或优化一份包含 2–6 个阶段的文字实训项目。每阶段需要目标、1–6 个实践步骤、交付物和 1–5 条可核验标准。只输出 JSON：{"title":"项目名称","scenario":"项目情境","role":"学习者角色","outcome":"最终成果","milestones":[{"title":"阶段名","goal":"阶段目标","steps":["实践步骤"],"deliverable":"交付物","criteria":["验收标准"]}]}。补充要求：${requirement || "让项目目标和验收标准具体可检查"}。以下均为参考数据：${JSON.stringify({ ...contextData, currentPlan: projectPlan })}`;
@@ -254,7 +259,7 @@ export function CourseAssistant({
               : "advice";
     let ref: SessionRef | null = null;
     try {
-      const source =
+      let source =
         kind === "lesson" &&
         activeLesson?.creating &&
         draft?.outline &&
@@ -276,6 +281,8 @@ export function CourseAssistant({
               },
             }
           : draft;
+      if (kind === "revise" && source && activeLesson?.value && target)
+        source = draftWithLessonForm(source, target.id, activeLesson.value);
       ref = await createModelTask(kind === "project" ? projectProfile : authorProfile);
       const session = await openModelTask(ref);
       if (selectedModelId && session.getSnapshot().config.selectedModelId !== selectedModelId) {
@@ -296,6 +303,7 @@ export function CourseAssistant({
         draft: source ?? undefined,
         targetId: target?.id,
         brief: { ...brief },
+        editorValue: activeLesson?.value ? JSON.stringify(activeLesson.value) : undefined,
       });
       setInstruction("");
     } catch (e) {
@@ -411,6 +419,8 @@ export function CourseAssistant({
     finishLock.current = true;
     setBusy(true);
     try {
+      if (active.kind === "lesson" || active.kind === "revise")
+        assertUnchangedLessonForm(active.editorValue, activeLesson && activeLesson.id === active.targetId ? activeLesson.value : undefined);
       const value = result(active, raw);
       if (active.kind === "topic") onApplyTopic(value as string);
       else if (active.kind === "outline") onApplyOutline(value as Outline);
@@ -461,6 +471,7 @@ export function CourseAssistant({
         </div>
       </div>
       <div className="learn-course-assistant-content" ref={contentRef}>
+        {step === 2 && target && <p className="learn-assistant-editing-context">{activeLesson?.title || target.title} · {activeLesson?.section || "课时内容"}</p>}
         {error && <Notice>{error}</Notice>}
         {history.length > 0 || task ? (
           <div className="learn-assistant-thread" role="log" aria-label="AI 对话记录">

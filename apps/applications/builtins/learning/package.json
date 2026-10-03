@@ -12,12 +12,16 @@
   },
   "dependencies": {
     "@mewvis/app-sdk": "workspace:*",
+    "katex": "^0.16.22",
     "lucide-react": "^0.500.0",
     "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react-dom": "^19.1.0",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
     "@mewvis/app-dev": "workspace:*",
+    "@types/katex": "^0.16.7",
     "@types/node": "^22.0.0",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",

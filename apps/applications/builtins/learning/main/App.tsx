@@ -1,4 +1,5 @@
 import "./styles.css";
+import "./rich-content.css";
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import {
   BookOpen,
@@ -25,6 +26,7 @@ import {
 import { repository, upsertCourseEntry } from "./repository";
 import { clearOldChats } from "./clearOldChats";
 import { exampleCourse } from "./example";
+import { functionCourse } from "./functionCourse";
 import {
   Icon,
   Notice,
@@ -40,6 +42,8 @@ import { closeModelTask } from "./ModelTask";
 import { RecallCards } from "./RecallCards";
 import { ProjectLab } from "./ProjectLab";
 import { CourseDialog } from "./CourseDialog";
+import { RichLesson } from "./RichLesson";
+import { FunctionExperiment } from "./FunctionExperiment";
 import { type CourseEntry, type Draft } from "./workflow";
 
 const repo = () => repository(getApplicationDataClient().storage);
@@ -69,7 +73,7 @@ export default function App() {
   const [confirmCompletion, setConfirmCompletion] = useState(false);
   const [copiedCourse, setCopiedCourse] = useState("");
   const [focus, setFocus] = useState<FocusTarget | null>(null);
-  const [tab, setTab] = useState<"lesson" | "quiz" | "project">("lesson");
+  const [tab, setTab] = useState<"lesson" | "experiment" | "quiz" | "project">("lesson");
   const [tutorExpanded, setTutorExpanded] = useState(false);
   const [tutorWidth, setTutorWidth] = useState<number | null>(null);
   const [tutorRequest, setTutorRequest] = useState<{
@@ -353,6 +357,12 @@ export default function App() {
             </span>
           </button>
           <div className="learn-nav-links">
+            <button className="learn-button text compact" disabled={loading || loadFailed || busy} onClick={() => void run(async () => {
+              const existing = courses.find(item => entryId(item) === functionCourse.id);
+              if (existing?.status === "ready") { open(existing); return; }
+              const demo = { ...functionCourse, id: existing ? crypto.randomUUID() : functionCourse.id, createdAt: Date.now() };
+              await save(demo); open(demo);
+            })}>函数实验示例</button>
             <label className="learn-nav-import">
               <Upload size={17} aria-hidden="true" />
               导入课程
@@ -443,7 +453,7 @@ export default function App() {
               </div>
             </header>
             <div
-              className={`learn-classroom with-tutor ${tab === "project" ? "is-project" : ""} ${tutorExpanded ? "mobile-tutor-expanded" : ""}`}
+              className={`learn-classroom with-tutor ${tab === "project" ? "is-project" : ""} ${tab === "experiment" ? "is-experiment" : ""} ${tutorExpanded ? "mobile-tutor-expanded" : ""}`}
               style={tutorWidth === null ? undefined : { "--learn-tutor-width": `${tutorWidth}px` } as CSSProperties}
             >
               <aside className="learn-outline" aria-label="课程目录">
@@ -597,6 +607,7 @@ export default function App() {
                     >
                       课程讲解
                     </button>
+                    {lesson.experiment && <button role="tab" id="experiment-tab" aria-controls="lesson-panel" aria-selected={tab === "experiment"} onClick={() => setTab("experiment")}>动手实验</button>}
                     <button
                       role="tab"
                       id="quiz-tab"
@@ -615,6 +626,7 @@ export default function App() {
                   aria-labelledby={
                     tab === "lesson"
                       ? "lesson-tab"
+                      : tab === "experiment" ? "experiment-tab"
                       : tab === "quiz"
                         ? "quiz-tab"
                         : undefined
@@ -624,7 +636,7 @@ export default function App() {
                     <ProjectLab key={course.id} course={course} mode="learn" />
                   ) : tab === "lesson" ? (
                     <article className="learn-article">
-                      <Text value={lesson.content} />
+                      {lesson.blocks ? <RichLesson blocks={lesson.blocks} /> : <Text value={lesson.content} />}
                       <section
                         id="learning-focus-example"
                         className={`learn-example ${focus === "example" ? "learn-focused" : ""}`}
@@ -669,6 +681,17 @@ export default function App() {
                         </button>
                       </div>
                     </article>
+                  ) : tab === "experiment" && lesson.experiment ? (
+                    <FunctionExperiment key={lesson.id} config={lesson.experiment} attempt={currentProgress.experiments?.[lesson.id]} disabled={busy}
+                      onCheck={async (attempt) => {
+                        if (lock.current) throw new Error("正在保存，请稍后重试");
+                        lock.current = true; setBusy(true);
+                        try {
+                          const latest = progressRef.current[course.id] ?? emptyProgress(course);
+                          await updateProgress(restoreProgress(course, { ...latest, experiments: { ...latest.experiments, [lesson.id]: attempt } }));
+                        } finally { lock.current = false; setBusy(false); }
+                      }}
+                      onAsk={(prompt) => { setTutorRequest({ id: crypto.randomUUID(), courseId: course.id, lessonId: lesson.id, prompt }); if (window.matchMedia("(max-width: 760px)").matches) setTutorExpanded(true); }} />
                   ) : (
                     <Quiz
                       key={`${lesson.id}:${currentProgress.attempts[lesson.id]?.submittedAt ?? "blank"}:${retryIds ? retryRequest?.nonce : "latest"}`}

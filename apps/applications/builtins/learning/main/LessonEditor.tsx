@@ -1,6 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Lesson, Question } from "./course";
 import { Notice, errorText } from "./components";
+import { blocksToText, defaultExperiment, validateBlocks, validateExperiment, type ContentBlock } from "./richContent";
+import { RichContentEditor } from "./RichContentEditor";
+import { ExperimentEditor } from "./ExperimentEditor";
 
 type EditableQuestion = {
   type: Question["type"];
@@ -36,9 +39,13 @@ export function LessonEditor({
   objective: string;
   onSave: (value: unknown) => Promise<void>;
   onCancel: () => void;
-  onValueChange?: (value: { title: string; objective: string }) => void;
+  onValueChange?: (value: { title: string; objective: string; value: unknown; section: string }) => void;
 }) {
-  const [activeTab, setActiveTab] = useState<"basics" | "content" | "quiz">("basics");
+  const [activeTab, setActiveTab] = useState<"basics" | "content" | "experiment" | "quiz">("basics");
+  const [initialBlocks] = useState<ContentBlock[]>(() => lesson?.blocks ?? [{ id: crypto.randomUUID(), type: "text", text: lesson?.content ?? "" }]);
+  const [blocks, setBlocks] = useState(initialBlocks);
+  const [experimentEnabled, setExperimentEnabled] = useState(!!lesson?.experiment);
+  const [experiment, setExperiment] = useState(lesson?.experiment ?? defaultExperiment());
   const [value, setValue] = useState({
     title,
     objective,
@@ -48,9 +55,6 @@ export function LessonEditor({
   });
   const onValueChangeRef = useRef(onValueChange);
   onValueChangeRef.current = onValueChange;
-  useEffect(() => {
-    onValueChangeRef.current?.({ title: value.title, objective: value.objective });
-  }, [value.title, value.objective]);
   const [questions, setQuestions] = useState<EditableQuestion[]>(
     lesson?.questions.map((q) => ({
       ...q,
@@ -59,6 +63,17 @@ export function LessonEditor({
       rubric: q.type === "short_answer" ? q.rubric : "",
     })) ?? [blankQuestion()],
   );
+  const editorValue = useMemo(() => ({
+    ...value,
+    content: lesson && !lesson.blocks && JSON.stringify(blocks) === JSON.stringify(initialBlocks) ? lesson.content : blocksToText(blocks),
+    ...(lesson?.blocks || JSON.stringify(blocks) !== JSON.stringify(initialBlocks) ? { blocks } : {}),
+    ...(experimentEnabled ? { experiment } : {}),
+    takeaways: value.takeaways.split("\n").map(s => s.trim()).filter(Boolean),
+    questions: questions.map(question => ({ ...question, points: Number(question.points) })),
+  }), [value, blocks, initialBlocks, lesson, experimentEnabled, experiment, questions]);
+  useEffect(() => {
+    onValueChangeRef.current?.({ title: value.title, objective: value.objective, value: editorValue, section: { basics: "课时信息", content: "教学内容", experiment: "动手实验", quiz: "课后测验" }[activeTab] });
+  }, [editorValue, activeTab, value.title, value.objective]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -80,7 +95,13 @@ export function LessonEditor({
     };
     requireText("title", value.title, "课时标题");
     requireText("objective", value.objective, "学习目标");
-    requireText("content", value.content, "课时正文");
+    try {
+      const content = blocksToText(validateBlocks(blocks));
+      if (content.length > 8000) invalid.content = "教学内容合计不能超过 8,000 字";
+    } catch (e) { invalid.content = errorText(e); }
+    if (experimentEnabled) {
+      try { validateExperiment(experiment); } catch (e) { invalid.experiment = errorText(e); }
+    }
     requireText("example", value.example, "具体示例");
     const takeaways = value.takeaways
       .split("\n")
@@ -121,7 +142,7 @@ export function LessonEditor({
       setActiveTab(
         first === "title" || first === "objective"
           ? "basics"
-          : first.startsWith("q")
+          : first === "experiment" ? "experiment" : first.startsWith("q")
             ? "quiz"
             : "content",
       );
@@ -147,17 +168,7 @@ export function LessonEditor({
           lock.current = true;
           setBusy(true);
           setError("");
-          void onSave({
-            ...value,
-            takeaways: value.takeaways
-              .split("\n")
-              .map((s) => s.trim())
-              .filter(Boolean),
-            questions: questions.map((question) => ({
-              ...question,
-              points: Number(question.points),
-            })),
-          })
+          void onSave(editorValue)
             .catch((e) => setError(errorText(e)))
             .finally(() => {
               lock.current = false;
@@ -170,6 +181,7 @@ export function LessonEditor({
             {[
               ["basics", "课时信息"],
               ["content", "教学内容"],
+              ["experiment", "动手实验"],
               ["quiz", "课后测验"],
             ].map(([tab, label]) => (
               <button
@@ -234,24 +246,8 @@ export function LessonEditor({
               hidden={activeTab !== "content"}
             >
               <legend>教学内容</legend>
-              <label>
-                课时正文
-                <textarea
-                  required
-                  rows={10}
-                  maxLength={8000}
-                  aria-label="课时正文"
-                  data-lesson-field="content"
-                  aria-invalid={!!fieldErrors.content}
-                  value={value.content}
-                  onChange={(e) => changeValue("content", e.target.value)}
-                />
-                {fieldErrors.content && (
-                  <small className="learn-field-error">
-                    {fieldErrors.content}
-                  </small>
-                )}
-              </label>
+              {fieldErrors.content && <p className="learn-field-error" role="alert">{fieldErrors.content}</p>}
+              <RichContentEditor blocks={blocks} onChange={(next) => { setBlocks(next); setFieldErrors({}); }} />
               <label>
                 具体示例
                 <textarea
@@ -288,6 +284,11 @@ export function LessonEditor({
                   </small>
                 )}
               </label>
+            </fieldset>
+            <fieldset id="learn-lesson-experiment" disabled={busy} hidden={activeTab !== "experiment"}>
+              <legend>动手实验</legend>
+              {fieldErrors.experiment && <p className="learn-field-error" role="alert">{fieldErrors.experiment}</p>}
+              <ExperimentEditor enabled={experimentEnabled} value={experiment} onToggle={setExperimentEnabled} onChange={(next) => { setExperiment(next); setFieldErrors({}); }} />
             </fieldset>
             <div id="learn-lesson-quiz" hidden={activeTab !== "quiz"}>
             <div className="learn-quiz-heading">
@@ -561,6 +562,7 @@ export function LessonEditor({
           </div>
         </div>
         <footer className="learn-actions learn-lesson-editor-footer">
+          <small className="learn-muted learn-lesson-save-note">修改尚未保存到课程</small>
           <button
             type="button"
             className="learn-button"
@@ -574,7 +576,7 @@ export function LessonEditor({
             className="learn-button primary"
             disabled={busy}
           >
-            {busy ? "保存中…" : "保存"}
+            {busy ? "保存中…" : "保存课时"}
           </button>
         </footer>
       </form>

@@ -1,3 +1,5 @@
+import { blocksToText, restoreExperimentAttempt, validateBlocks, validateExperiment, type ContentBlock, type ExperimentAttempt, type FunctionExperimentConfig } from "./richContent";
+
 type QuestionBase = {
   id: string;
   question: string;
@@ -25,6 +27,8 @@ export type Lesson = {
   title: string;
   objective: string;
   content: string;
+  blocks?: ContentBlock[];
+  experiment?: FunctionExperimentConfig;
   example: string;
   takeaways: string[];
   questions: Question[];
@@ -61,6 +65,7 @@ export type Progress = {
   attempts: Record<string, Attempt>;
   /** Earlier submissions, newest first. The current submission stays in attempts. */
   history: Record<string, Attempt[]>;
+  experiments?: Record<string, ExperimentAttempt>;
 };
 export type Brief = {
   topic: string;
@@ -119,6 +124,8 @@ function questionPoints(value: unknown): number {
 }
 export function validateLesson(value: unknown, id: string): Lesson {
   const lesson = object(value, "课时");
+  const blocks = lesson.blocks === undefined ? undefined : validateBlocks(lesson.blocks);
+  const experiment = lesson.experiment == null ? undefined : validateExperiment(lesson.experiment);
   const questions = list(lesson.questions, "每课测验", 1, 3).map(
     (entry, j): Question => {
       const q = object(entry, "题目");
@@ -168,7 +175,9 @@ export function validateLesson(value: unknown, id: string): Lesson {
     id,
     title: text(lesson.title, "课时标题", 120),
     objective: text(lesson.objective, "学习目标", 500),
-    content: text(lesson.content, "课时正文", 8000),
+    content: text(blocks ? blocksToText(blocks) : lesson.content, "课时正文", 8000),
+    ...(blocks ? { blocks } : {}),
+    ...(experiment ? { experiment } : {}),
     example: text(lesson.example, "示例", 4000),
     takeaways: list(lesson.takeaways, "知识要点", 1, 6).map((s) =>
       text(s, "知识要点", 500),
@@ -282,7 +291,12 @@ export function restoreProgress(course: Course, value: unknown): Progress {
   const ids = new Set(course.lessons.map((l) => l.id));
   const attempts: Progress["attempts"] = {};
   const history: Progress["history"] = {};
+  const experiments: NonNullable<Progress["experiments"]> = {};
   for (const lesson of course.lessons) {
+    if (lesson.experiment) {
+      const attempt = restoreExperimentAttempt(lesson.experiment, raw.experiments?.[lesson.id]);
+      if (attempt) experiments[lesson.id] = attempt;
+    }
     const current = restoreAttempt(lesson, raw.attempts?.[lesson.id]);
     if (current) attempts[lesson.id] = current;
     const prior = raw.history?.[lesson.id];
@@ -311,6 +325,7 @@ export function restoreProgress(course: Course, value: unknown): Progress {
       : [],
     attempts,
     history,
+    ...(Object.keys(experiments).length ? { experiments } : {}),
   };
   while (
     new TextEncoder().encode(JSON.stringify(restored)).byteLength >

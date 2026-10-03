@@ -86,6 +86,8 @@ export function CourseDialog({
     title: string;
     objective: string;
     creating: boolean;
+    value?: unknown;
+    section?: string;
   } | null>(null);
   const [assistantBusy, setAssistantBusy] = useState(false);
   const [assistantHistory, setAssistantHistory] = useState<AssistantTurn[]>([]);
