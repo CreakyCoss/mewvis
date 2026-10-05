@@ -130,6 +130,10 @@ pnpm dev:web
 
 欢迎通过 Issue 反馈问题或提出功能建议，通过 Pull Request 改进代码、文档、应用和插件。提交问题时，请提供运行环境、复现步骤与相关日志。
 
+## 🌐 社区
+
+欢迎访问 [LINUX DO](https://linux.do/) 交流。
+
 ## 💖 致谢
 
 Mewvis 使用了 [Pi](https://github.com/earendil-works/pi) 的模型接入与 Agent 能力：
