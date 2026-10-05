@@ -4,7 +4,7 @@
 
 <h1 align="center">🐾 Mewvis</h1>
 
-<p align="center"><strong>可扩展的 AI 工作台</strong></p>
+<p align="center"><strong>快速把想法做成可使用的 AI 应用</strong></p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/Tauri-2-24C8D8?style=flat-square&amp;logo=tauri&amp;logoColor=white" alt="Tauri 2" />
