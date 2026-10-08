@@ -4,7 +4,7 @@
 
 <h1 align="center">🐾 Mewvis</h1>
 
-<p align="center"><strong>有想法，就有能用的 AI 应用</strong></p>
+<p align="center"><strong>从想法到应用，触手可及</strong></p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/Tauri-2-24C8D8?style=flat-square&amp;logo=tauri&amp;logoColor=white" alt="Tauri 2" />
@@ -13,148 +13,345 @@
 </p>
 
 <p align="center">
-  <a href="#设计理念">设计理念</a> ·
-  <a href="#核心模块">核心模块</a> ·
-  <a href="#界面预览">界面预览</a> ·
-  <a href="#快速开始">快速开始</a> ·
+  <a href="#getting-started">快速开始</a> ·
+  <a href="#create-application"><strong>创建应用</strong></a> ·
+  <a href="#extensions">插件扩展</a> ·
   <a href="docs/README.md">开发文档</a>
 </p>
 
 ---
 
-> **从想法到应用，触手可及。** Mewvis 把 AI 应用最难的「基座」都搭好了，你只要出想法，剩下交给它。
+> **基础交给 Mewvis，应用由你定义。** Mewvis 提供现成的基础能力与开发工具，方便你创建自己的 AI 应用，并按需通过插件扩展功能。
 
-Mewvis 把模型接入、Agent、工具、数据存储、工作区这些 AI 应用都会用到的底层能力，收进一个安全可控的基座，再通过一套 SDK 交出去。
+Mewvis 已准备好模型连接、聊天和数据保存等常用功能，让你把精力放在自己的 AI 应用上。你可以做一个按自己习惯整理资料的助手、一套适合自己的写作工具，或一个跟着课程学习的系统，自由安排界面、内容和 AI 参与的方式。
 
-有了它，想到什么，随时都能做成一个能用的应用：想写小说就做个写作助手，想学一门课就做个学习导师，想看书就做个阅读器。每个应用只是固定目录里的一份代码，照着 SDK 写就行，AI 也能照着同一份 SDK 直接写出来。
+作为 AI 项目基座，Mewvis 提供现成的 SDK 与开发工具。通常只需开发自己的应用，复用已有的基础能力。代码可以自己写，也可以让 AI 参考开发文档和示例来编写，再放到 Mewvis 中运行和使用。
 
-日常只需要守住基座这一份代码，业务应用的代码质量不必逐个操心；以后 AI 进化、出现更好玩的能力，也只需要把基座变强，再按需调整几个业务应用，不必推倒重来。
+需要进一步扩展 AI 的工作方式时，可以使用或编写插件，例如让不同角色分工协作，或按自己的规则判断任务结果。仓库中现有的应用，以及角色协作、智能判断等插件，都是可供参考和改造的实现示例。
 
-## 💡 设计理念
+<a id="application-first"></a>
 
-### 🧱 基座做通用，应用做自己
+## 🧭 从应用开始
 
-一个 AI 应用里，真正费力的往往是那些每次都一样的底层能力。把它们收进基座，应用就只写自己独有的业务——应用代码被压到最小，守住基座这一份，就等于守住了所有应用。
+- **先开发应用**：设计自己的界面，组织业务数据，接入 AI 对话，添加需要的工具和技能。大多数需求可以在应用里实现，通过 `@mewvis/app-sdk` 使用基座能力，通常无需修改基础源码。
+- **按需扩展插件**：当需求涉及不同应用共用的会话处理、任务协作等功能时，通过 `@mewvis/extension-sdk` 接入现有流程，由宿主统一管理启停和配置。
+- **必要时修改基座**：只有应用 SDK 和插件扩展点都无法满足要求时，才修改相应的基础源码，增加新的能力。
 
-### 🔗 两种扩展，各司其职
+详细边界见 [应用与宿主插件边界](docs/architecture/extensibility.md)。
 
-Mewvis 把「扩展」拆成两条清晰、互不混淆的边界：**应用**是一段拥有独立界面、数据与会话的完整体验；**插件**是向现有会话和 Agent 流程贡献能力的扩展点。使用者得到完整专注的场景，扩展者也清楚该在哪里接入。
+<a id="foundation"></a>
 
-### 🛡️ Agent 会动手，也受约束
+## 🧱 基座提供什么
 
-Agent 不只是能回话的助手，它能真正读写文件、执行命令。但每一次动手都要经过权限与审批，并可在沙箱里执行——安全不是事后补丁，而是执行模型的一部分。
+开发应用时，可以复用这些能力，将精力集中在自己的业务上：
 
-### 🔀 协作靠编排，不靠祈祷
+| 能力 | 可以复用的内容 |
+| --- | --- |
+| **模型接入** | 统一配置模型服务与凭据，支持 OpenAI、Anthropic、Google Gemini 及 OpenAI 兼容接口 |
+| **Agent 与任务执行** | 文件读取与修改、命令执行、子任务运行，以及执行权限、审批和可配置沙箱 |
+| **会话与聊天** | 创建和恢复会话、流式消息、停止与追问；应用可使用默认 Chat，也可组合自己的聊天界面 |
+| **数据与工作区** | 应用独立的业务存储、版本化设置和工作区管理，通过 SDK 接入持久化能力 |
+| **应用工具与技能** | 定义业务工具和操作规则，让 AI 使用应用自己的功能 |
+| **插件扩展** | 按需增加命令、监听事件、处理上下文，并通过宿主能力组织任务 |
+| **开发与运行环境** | 应用模板、开发预览、检查与打包，插件创建、构建与校验，以及桌面和本机 Web 宿主 |
 
-当任务需要分工时，为多个 Agent 配置不同的角色、模型和工具，把「谁做什么、什么时候做、依赖什么」明确地写下来，而不是靠提示词去祈祷模型「自觉」配合。
+应用可以围绕自己的操作流程安排界面，同时复用同一套模型配置、聊天与数据服务。
 
-### 📁 本地优先，模型无关
+项目文件和应用数据保存在本机，模型调用连接你配置的服务。执行范围与隔离能力随权限和平台配置生效，详见 [安全架构](docs/runtime/security/overview.md)。
 
-工作区就是一个本地目录，数据存在你自己的机器上、由你掌控；模型接入也不绑定任何一家服务商。
-
-### 🎛️ 一个聊天内核，多种界面
-
-聊天能力被收敛成一个与界面分离的核心：从无界面的脚本、默认的聊天界面，到自由组合的业务界面，底层都是同一套会话逻辑。这让「聊天」成为能嵌入任何场景的基础能力。
-
-## 🧩 核心模块
-
-| 模块 | 说明 |
-| :--- | :--- |
-| 📦 **应用** | 承载完整场景的最小单位，拥有独立的界面、设置、数据与会话。开发者通过应用 SDK 接入聊天、宿主工具、数据存储和工作区能力。内置应用工坊、故事工坊、学习工坊、RSS 阅读器、文档中心和调试台。 |
-| 🔌 **插件** | 扩展已有会话与 Agent 执行流程，提供工具、技能、命令、上下文处理与会话侧栏，可在插件管理中配置、启用或停用。内置协作流程、智能判断和会话链路查看器，也支持通过插件 SDK 接入。 |
-| 🤖 **模型与 Agent** | 统一管理模型服务与对话，支持 OpenAI、Anthropic、Google Gemini 及 OpenAI 兼容接口。Agent 可读取文件、修改内容、执行命令，经权限与审批控制执行范围；多 Agent 可配置不同角色、模型和工具，用工作流组织协作。 |
-| 🗂️ **工作区** | 以本地目录组织项目，集中管理文件与会话，可保存和继续已有对话。 |
-
-## 🖼️ 界面预览
-
-### 🏠 应用选择
-
-集中浏览已启用的应用，查看功能与权限声明，选择应用进入创作、学习或阅读界面。
-
-![Mewvis 应用入口：应用选择、功能介绍与权限声明](docs/assets/screenshots/home-applications.jpg)
-
-### ✍️ 故事工坊
-
-章节目录、正文编辑区与创作助手集中在同一界面，也可以查看大纲、角色和伏笔等项目资料。
-
-![Mewvis 故事工坊：小说章节、正文编辑区与创作助手](docs/assets/screenshots/story-workshop.png)
-
-### 📖 课程学习
-
-课时目录、教学内容与 AI 导师在同一界面中呈现，支持逐课学习、公式讲解、互动实验和测验。
-
-![Mewvis 学习内页：课时目录、公式内容与 AI 导师](docs/assets/screenshots/learning-lesson.jpg)
-
-### 📰 RSS 阅读器
-
-聚合订阅源和未读文章，在今日阅读中浏览文章，并管理稍后读、收藏和订阅源。
-
-![Mewvis RSS 阅读器：今日阅读、订阅源与未读文章](docs/assets/screenshots/rss-reader.png)
-
-### 🐱 办公室
-
-猫咪在像素办公室中按各自偏好走动、休息和切换活动。点击角色或显示器，可以查看活动详情与工位屏幕。
-
-![Mewvis 办公室：猫咪角色、像素工位与不同活动的屏幕](docs/assets/screenshots/office.jpg)
+<a id="getting-started"></a>
 
 ## 🚀 快速开始
 
-### ⚙️ 环境要求
+先启动 Mewvis，再用应用模板开始自己的项目。下面的开发流程使用仓库内的 SDK。
+
+### 1. 准备环境
 
 - Node.js **22.19 或更高版本**
 - pnpm **8.15.9**
-- 桌面端开发需要 Rust 和 Tauri 2 的平台依赖，详见 [桌面开发与构建](docs/guide/desktop.md)
+- Git
+- Linux：安装原生依赖需要 Python、C/C++ 编译工具和 make
+- 桌面端：另需 Rust 和 Tauri 2 的平台依赖，见 [桌面开发与构建](docs/guide/desktop.md)
 
-### ▶️ 安装与启动
-
-在仓库根目录安装依赖并构建 AI 包：
+### 2. 获取源码与安装依赖
 
 ```sh
+git clone https://github.com/CreakyCoss/mewvis.git
+cd mewvis
 pnpm install --frozen-lockfile
 pnpm build:ai
 ```
 
-**桌面端**
+### 3. 启动并配置模型
+
+选择一种启动方式，在仓库根目录执行：
+
+| 方式 | 命令 | 入口 |
+| --- | --- | --- |
+| 桌面端 | `pnpm dev:desktop` | Tauri 应用窗口 |
+| 本机 Web | `pnpm dev:web` | 终端输出的浏览器地址，默认 `http://127.0.0.1:1420` |
+
+启动后，在「设置 → 模型设置」中添加模型服务、填写所需凭据并选择模型。配置与应用数据默认位于 `~/.mewvis`，项目文件位于所选工作区。桌面与 Web 共用数据目录，切换入口前需退出当前后端。
+
+<a id="create-application"></a>
+
+## 🛠️ 创建自己的应用
+
+从应用模板开始，逐步加入自己的界面、业务数据、工具和技能。开发工具链提供 React 模板、开发预览、类型检查与打包，应用通过 SDK 接入聊天、数据和工作区等能力。
+
+可以在 Mewvis 仓库内开发，也可以单独维护一个应用项目。两种方式使用同一套应用 SDK，主要区别是源码放在哪里、如何构建和安装。根据自己的维护方式，选择下面一套流程即可。
+
+| 开发方式 | 源码位置 | 构建与使用 |
+| --- | --- | --- |
+| **内部应用** | `apps/applications/builtins/<应用目录>` | 登记后随 Mewvis 一起构建，适合随项目维护和分发 |
+| **外部应用** | 仓库外的独立项目 | 单独构建，通过「应用管理」导入，适合独立维护自己的应用 |
+
+### 内部应用：在仓库中开发
+
+#### 1. 创建应用项目
+
+在 Mewvis 仓库根目录执行，目标目录需尚不存在：
 
 ```sh
-pnpm dev:desktop
+pnpm --filter client build:chat-ui
+pnpm --filter client app:create -- "$PWD/apps/applications/builtins/my-ai-app" --name @example/my-ai-app --local
 ```
 
-**Web**
+#### 2. 接入工作区与打包流程
+
+创建后，完成以下配置：
+
+- 在新应用的 `package.json` 中，将 `@mewvis/app-sdk`、`@mewvis/product-config` 和 `@mewvis/app-dev` 三项依赖从 `link:...` 改为 `workspace:*`，其余依赖保留。
+- 在 [pnpm-workspace.yaml](pnpm-workspace.yaml) 的 `packages` 列表中追加 `apps/applications/builtins/my-ai-app`，让 pnpm 管理新应用的依赖和命令。
+- 在 [应用打包清单](apps/applications/registry.json) 的 `applications` 数组中追加目录名 `my-ai-app`，让它随 Mewvis 构建。这里填写目录名，应用 ID 则来自 `package.json` 的 `name`。
+- 仓库文档统一放在 `docs/`。将模板生成的 `README.md` 移到 `docs/apps/my-ai-app.md`，调整其中的相对链接，并在 [文档目录](docs/SUMMARY.md) 中登记。
+
+随后在仓库根目录安装依赖并启动应用预览：
 
 ```sh
+pnpm install
+pnpm --filter @example/my-ai-app dev
+```
+
+#### 3. 构建并在 Mewvis 中验证
+
+完成修改后，在仓库根目录执行：
+
+```sh
+pnpm --filter @example/my-ai-app build
 pnpm dev:web
 ```
 
-启动后，在设置中添加模型服务并选择模型，再打开或创建工作区。内置应用从应用列表进入。
+`build` 会检查并生成应用产物。`pnpm dev:web` 会重新构建已登记的内部应用。在「应用管理」中启用应用，验证真实模型、工具与数据流程。也可以使用 `pnpm dev:desktop` 启动桌面端。
 
-应用数据默认保存在 `~/.mewvis`，项目文件保存在所选工作区。安装包构建与平台配置见 [桌面开发与构建](docs/guide/desktop.md)，Web 服务配置见 [后端服务](docs/runtime/server.md)。
+后续修改需要重新构建并重启 Mewvis，以加载新的产物。需要随桌面安装包分发时，在仓库根目录运行 `pnpm build:desktop`。
+
+### 外部应用：作为独立项目开发
+
+#### 1. 创建与预览
+
+在 Mewvis 仓库根目录执行下面的命令，在仓库旁边创建一个新的应用项目：
+
+```sh
+pnpm --filter client build:chat-ui
+pnpm --filter client app:create -- "$PWD/../my-ai-app" --name @example/my-ai-app --local
+cd ../my-ai-app
+pnpm install
+pnpm dev
+```
+
+`--local` 让新项目链接当前仓库的 SDK 与开发工具链，适合这些工具包尚未独立发布时使用。项目目录需尚不存在。外部应用无需加入 Mewvis 的工作区或打包清单。
+
+#### 2. 构建并导入
+
+在应用项目中运行：
+
+```sh
+pnpm build
+```
+
+将生成的 `dist/mewvis` 目录通过 Mewvis「应用管理」导入并启用。
+
+更新时，先重新构建，再卸载旧应用包并导入新产物。卸载只移除安装包，保留应用数据。
+
+### 实现自己的需求
+
+无论选择哪种开发方式，都可以从模板中的三个位置开始：
+
+| 位置 | 主要用途 |
+| --- | --- |
+| `main/App.tsx` | 编写业务界面，接入默认 Chat 或组合聊天组件 |
+| `main/host/` | 定义业务工具与技能，让 AI 使用应用自己的功能 |
+| `app.config.ts` | 声明应用权限、Agent 访问范围和界面、宿主入口 |
+
+如果由 AI 辅助开发，可以将自己的需求与 [应用开发](docs/apps/development.md)、[应用 SDK](docs/apps/sdk.md) 和 [应用聊天](docs/apps/chat.md) 一起提供给它，让它按公开接口实现界面、工具和数据逻辑。
+
+> **开发预览**
+>
+> 预览使用内存聊天与测试适配，方便调整界面和工具。真实模型与工作区中的行为需在 Mewvis 中启用应用后验证。
+
+<a id="examples"></a>
+
+## 🖼️ 应用示例
+
+现有应用展示了如何使用基座实现不同的需求。开发自己的应用时，可以参考其中的界面、工具和数据处理方式。
+
+| 示例 | 可以参考的实现 |
+| --- | --- |
+| [故事工坊](apps/applications/builtins/story) | 业务编辑器、项目资料与 AI 会话的组合 |
+| [学习工坊](apps/applications/builtins/learning) | 课程内容、互动界面与 AI 导师的组合 |
+| [RSS 阅读器](apps/applications/builtins/rss-reader) | 订阅与文章管理、业务数据持久化 |
+| [应用工坊](apps/applications/builtins/app-workshop) | AI 辅助编辑源码、浏览器子视图、构建与版本管理 |
+
+<details>
+<summary><strong>展开查看界面截图</strong> · 故事工坊、学习工坊、RSS 阅读器与应用工坊</summary>
+
+### 故事工坊
+
+故事工坊将章节编辑器与 AI 助手放在同一界面中：
+
+![故事工坊示例：章节目录、业务编辑器与 AI 助手](docs/assets/screenshots/story-workshop.png)
+
+### 学习工坊
+
+学习工坊围绕课程组织内容与交互：
+
+![学习工坊示例：课时目录、课程内容与 AI 导师](docs/assets/screenshots/learning-lesson.jpg)
+
+### RSS 阅读器
+
+RSS 阅读器将订阅源、未读文章和稍后读集中在同一界面中：
+
+![RSS 阅读器示例：今日阅读、订阅源与未读文章](docs/assets/screenshots/rss-reader.png)
+
+### 应用工坊
+
+应用工坊将应用预览与 AI 创作放在同一界面中，方便边试用边调整：
+
+![应用工坊示例：猫猫收纳所预览与 AI 应用创作](docs/assets/screenshots/app-workshop.png)
+
+</details>
+
+<a id="extensions"></a>
+
+## 🔌 通过插件扩展能力
+
+插件可以扩展应用与会话共用的能力，让 AI 按需要的方式处理任务。仓库中的几个插件展示了这类需求如何实现：
+
+| 插件示例 | 扩展的能力 |
+| --- | --- |
+| [角色协作](apps/extensions/collaboration) | 定义不同角色和执行步骤，让多个角色按顺序协作，并查看进度、暂停或取消任务 |
+| [智能判断](apps/extensions/decisions) | 设置自己的判断规则，让 AI 对任务结果给出判断、选择或评分，也可供协作流程调用 |
+| [会话链路](apps/extensions/session-ledger) | 在会话侧栏查看运行过程和工具记录，并生成摘要 |
+
+需要类似的功能时，可以使用现有插件，也可以从一个工具或命令开始编写自己的插件，再按需增加事件处理、上下文调整和界面扩展。
+
+插件也可以在仓库内开发，或作为独立项目开发。两种方式使用同一套插件接口。
+
+| 开发方式 | 源码位置 | 构建与使用 |
+| --- | --- | --- |
+| **内部插件** | `apps/extensions/<插件目录>` | 登记后随 Mewvis 构建，启动后由宿主发现和加载 |
+| **外部插件** | 仓库外的独立项目 | 单独构建，通过「插件」管理页添加 |
+
+### 内部插件：随 Mewvis 一起构建
+
+#### 1. 创建并编写插件
+
+在仓库根目录执行，目标目录需尚不存在：
+
+```sh
+pnpm extension create apps/extensions/my-feature --id example.my-feature
+pnpm install --ignore-scripts
+```
+
+模板生成 `package.json` 和 `src/index.ts`，包含一个可修改的命令示例。将它改成自己的逻辑，并在清单中声明需要的能力。有界面需求时，再增加 UI 模块与贡献声明。
+
+#### 2. 登记、构建与验证
+
+`apps/extensions/*` 已包含在 pnpm 工作区中，无需逐个添加路径。要让新插件随 Mewvis 打包，还需在 [插件打包清单](apps/extensions/registry.json) 的 `extensions` 数组中追加目录名 `my-feature`。这里填写目录名，插件 ID 是创建时指定的 `example.my-feature`。
+
+在仓库根目录检查构建结果，然后启动 Mewvis：
+
+```sh
+pnpm extension build apps/extensions/my-feature
+pnpm extension validate apps/extensions/my-feature/dist/plugin
+pnpm dev:web
+```
+
+启动命令会重新构建已登记的内部插件，也可使用 `pnpm dev:desktop` 启动桌面端。在「插件」管理页即可看到新插件，无需手动添加。内部插件默认启用，可以调整配置或停用。
+
+修改源码后，重新构建并重启 Mewvis。需要随桌面安装包分发时，在仓库根目录运行 `pnpm build:desktop`。
+
+### 外部插件：独立构建与添加
+
+#### 1. 创建项目并链接 SDK
+
+当前插件模板默认使用 `workspace:*` 依赖，放到仓库外时需改为本地 SDK 链接。以下示例假定 `mewvis` 与 `my-feature` 位于同一个父目录。在 Mewvis 仓库根目录执行：
+
+```sh
+pnpm extension create "$PWD/../my-feature" --id example.my-feature
+```
+
+将新项目 `package.json` 中的两项 Mewvis 依赖改为以下链接，其他字段保留。如果目录布局不同，相应调整链接路径：
+
+```json
+{
+  "dependencies": {
+    "@mewvis/extension-sdk": "link:../mewvis/packages/extension/sdk"
+  },
+  "devDependencies": {
+    "@mewvis/extension-dev": "link:../mewvis/packages/extension/dev"
+  }
+}
+```
+
+外部插件无需加入 Mewvis 的工作区或打包清单。编写 `src/index.ts` 并按需调整清单，开发接口与内部插件相同。
+
+#### 2. 构建、添加与更新
+
+进入插件项目，安装依赖并构建：
+
+```sh
+cd ../my-feature
+pnpm install --ignore-scripts
+pnpm build
+pnpm run validate
+```
+
+在 Mewvis「插件」管理页通过「添加插件」选择生成的 `dist/plugin` 目录，按需启用和配置。宿主登记的是这个目录的路径，需保留构建产物。
+
+更新后重新构建，并重启 Mewvis 验证新代码。
+
+需要分发时，可在插件项目中运行 `pnpm run pack` 生成 `dist/<插件ID>-<版本>.tgz`。接收者解压后，通过「添加插件」选择其中的 `package/` 目录。
+
+完整流程见 [插件开发](docs/extensions/development.md)，能力与类型见 [插件 SDK](docs/extensions/sdk.md)。也可以把这些文档交给 AI，辅助编写和修改插件。
+
+<a id="documentation"></a>
 
 ## 📚 开发文档
 
-完整中文文档见 [文档首页](docs/README.md)与 [目录](docs/SUMMARY.md)，也可在应用内的「文档中心」离线阅读。
-
-| 文档 | 内容 |
+| 想了解什么 | 文档 |
 | --- | --- |
-| [应用开发](docs/apps/development.md) | 创建、调试和打包应用 |
-| [应用 SDK](docs/apps/sdk.md) | 接入界面、聊天、数据与工作区能力 |
-| [插件开发](docs/extensions/development.md) | 扩展宿主工具与 Agent 执行流程 |
-| [Agent 运行时](docs/runtime/overview.md) | 运行时架构、SDK 与通信协议 |
-| [桌面开发](docs/guide/desktop.md) | 平台准备、开发与安装包构建 |
+| 应用创建、预览与打包 | [应用开发](docs/apps/development.md) |
+| 应用可以调用的基座接口 | [应用 SDK](docs/apps/sdk.md) |
+| 默认 Chat、组合界面与无界面聊天 | [应用聊天](docs/apps/chat.md) |
+| 插件创建、加载、启停与配置 | [插件开发](docs/extensions/development.md) |
+| 插件能力、模块与宿主服务 | [插件 SDK](docs/extensions/sdk.md) |
+| Agent 运行时与通信协议 | [运行时概览](docs/runtime/overview.md) |
+| 桌面构建与本机 Web 服务 | [桌面开发](docs/guide/desktop.md) · [后端服务](docs/runtime/server.md) |
 
-## 🤝 参与贡献
+完整中文文档见 [文档首页](docs/README.md) 与 [目录](docs/SUMMARY.md)，也可在示例应用「文档中心」中离线阅读。
 
-欢迎通过 Issue 反馈问题或提出功能建议，通过 Pull Request 改进代码、文档、应用和插件。提交问题时，请提供运行环境、复现步骤与相关日志。
+<a id="contributing"></a>
 
-## 🌐 社区
+## 🤝 反馈与贡献
 
-欢迎访问 [LINUX DO](https://linux.do/) 交流。
+欢迎通过 [Issue](https://github.com/CreakyCoss/mewvis/issues) 反馈问题或提出需求，通过 Pull Request 改进基座、SDK、开发工具链与示例。提交问题时，请提供运行环境、复现步骤和相关日志。也欢迎在 [LINUX DO](https://linux.do/) 交流。
 
-## 💖 致谢
+<a id="license"></a>
 
-Mewvis 使用了 [Pi](https://github.com/earendil-works/pi) 的模型接入与 Agent 能力：
+## 📄 许可证与致谢
 
-- `@earendil-works/pi-ai`：统一的模型调用接口。
-- `@earendil-works/pi-coding-agent`：Agent 会话与工具执行能力。
+Mewvis 使用 [MIT 许可证](LICENSE)。第三方依赖与资源保留各自的许可证。
 
-Pi 源码通过 Git Subtree 引入，保存在 [`ai/pi`](ai/pi) 中，并保留其 [MIT 许可证](ai/pi/LICENSE)。感谢 Mario Zechner 和 Pi 的贡献者。其他开源依赖与第三方资源的来源和许可证保留在各自目录中。
+模型接入与 Agent 能力使用了 [Pi](https://github.com/earendil-works/pi) 的 `@earendil-works/pi-ai` 和 `@earendil-works/pi-coding-agent`。Pi 源码通过 Git Subtree 引入到 [`ai/pi`](ai/pi)，并保留其 [MIT 许可证](ai/pi/LICENSE)。感谢 Mario Zechner 和 Pi 的贡献者。
