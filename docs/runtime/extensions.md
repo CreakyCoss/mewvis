@@ -59,7 +59,7 @@ export default defineExtension({
 
 `registerCommand` 注册 `{ name, description, parameters, execute }` 显式命令；`ctx.on(type, handler)` 订阅标准 Agent 事件；`ctx.session.get/set/delete` 访问当前插件的会话 JSON 状态。命令 ID 为 `extensionId/commandName`，可通过宿主 SDK 或协议调用，不自动解析斜杠指令，也不会注册为模型工具。命令输入和返回值必须为 JSON，参数在宿主和 worker 双重校验。`ExtensionSource.commandRisks` 与工具风险配置一样由宿主审核提供；未声明时按未知副作用处理，沿用现有审批流程。
 
-工具 schema 使用 JSON Schema object，输入、输出和进度必须是 JSON。第一版输出支持文本 content 和 JSON details。插件不直接声明执行风险；宿主可在审核后用 `ExtensionSource.toolRisks` 配置，未配置的工具按未知副作用处理。
+工具 schema 使用 JSON Schema object，输入、输出和进度必须是 JSON。当前输出支持文本 content 和 JSON details。插件不直接声明执行风险；宿主可在审核后用 `ExtensionSource.toolRisks` 配置，未配置的工具按未知副作用处理。
 
 插件工具的完整身份是 `extensionId/toolName`；模型可见名称由 `extensionToolName()` 生成，例如 `ext_example_greeting__hello`。插件 ID 中的点和连字符转换为下划线，转换后发生冲突或名称超过 64 字符时拒绝加载，不覆盖已有工具。
 
@@ -118,10 +118,10 @@ SDK 将声明数据与调用接口分开：`ExtensionCatalog` 是可序列化的
 | 工具             | 原生 `registerTool`，执行时调用宿主绑定                                | `addTool`，脚本按名称调用             |
 | 命令             | 原生 `registerCommand`，参数为 JSON 对象文本，结果写入自定义消息       | `addCommand`，脚本 `command` 步骤调用 |
 | 内联技能         | 原生 `before_agent_start` 注入系统提示（模拟）                         | 注册指令（模拟）                      |
-| 工具事件         | 原生 `tool_execution_start/end` 映射到 Mewvis 事件                       | Mock 原生工具观察器                   |
-| 消息与回合事件   | 原生 message / turn 钩子映射为 Mewvis 快照                               | Mock 原生消息与回合观察器             |
+| 工具事件         | 原生 `tool_execution_start/end` 映射到 Mewvis 事件                     | Mock 原生工具观察器                   |
+| 消息与回合事件   | 原生 message / turn 钩子映射为 Mewvis 快照                             | Mock 原生消息与回合观察器             |
 | 压缩前决策与结果 | 原生 session_before_compact / session_compact / session_compact_failed | Mock 原生 beforeCompact / onCompact   |
-| 运行事件与状态   | Mewvis 运行边界与会话事务服务（模拟）                                    | 同一宿主服务（模拟）                  |
+| 运行事件与状态   | Mewvis 运行边界与会话事务服务（模拟）                                  | 同一宿主服务（模拟）                  |
 
 Pi 原生命令由适配器注册。这是适配器在 Pi 内部提供的注册；桌面聊天输入框仍未提供插件斜杠解析，也不内置通用命令面板。
 
@@ -181,7 +181,7 @@ SDK 提供插件入口
 
 工具执行前复制参数；宿主风险配置不由 worker 的声明覆盖。Pi 的安全钩子把插件工具交给共享入口检查，避免重复审批。输入 schema 在宿主和 worker 都校验。初始化、工具、命令和单个插件事件投递各有 60 秒 RPC 超时；取消或超时关闭 worker，不重放不确定的调用，同一轮重复调用 ID 会被拒绝。
 
-正常释放实例和激活失败时由 Chord 释放登记资源，`own` 不再随每一轮完成触发。强制终止不保证插件清理回调完成，因此外部写入仍需插件自己设计恢复语义。会话事件、分叉和切换钩子仍待实现。
+正常释放实例和激活失败时由 Chord 释放登记资源，`own` 不随每一轮完成触发。强制终止不保证插件清理回调完成，因此外部写入仍需插件自己设计恢复语义。当前支持[会话压缩钩子及结果事件](../extensions/session-control.md)；分叉、切换和树导航钩子尚未开放。
 
 ## 当前边界与源码
 

@@ -4,7 +4,7 @@
 
 ## 独立开关
 
-`policy.ts` 的 `SAFETY_CONFIG.enabled` 控制整个调用前安全层，与 `../execution/policy.ts` 的 `enabled` 独立，默认均为 true。
+`policy.ts` 的 `SAFETY_CONFIG.enabled` 控制整个调用前安全层，默认开启；它与 `../execution/policy.ts` 的沙箱开关独立。沙箱在 macOS/Linux 默认开启，在 Windows 默认关闭，用户可在设置中切换。
 
 | 安全层 | 沙箱  | 行为                                     |
 | ------ | ----- | ---------------------------------------- |

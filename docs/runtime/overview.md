@@ -1,7 +1,6 @@
 # Agent 运行时
 
-Runtime 源码位于 `apps/agent-runtime`，作为 `@mewvis/agent-runtime` 工作区包维护。仓库根目录执行 `pnpm build:runtime` 构建，`pnpm --filter @mewvis/agent-runtime check` 检查类型。`dist/cli.js` 是 stdio worker 入口，由 `apps/server` 中的 Supervisor 按需启动；Runtime 不负责 HTTP 服务或桌面生命周期。应用宿主通过 `@mewvis/app-host` 包复用，内置应用由 `@mewvis/builtin-applications` 构建，产品配置来自 `apps/product.config.json`。故事核心仍复用 `apps/client/core`，构建不会启动桌面。
-
+Runtime 源码位于 `apps/agent-runtime`，作为 `@mewvis/agent-runtime` 工作区包维护。仓库根目录执行 `pnpm build:runtime` 构建，`pnpm --filter @mewvis/agent-runtime check` 检查类型。`dist/cli.js` 是 stdio worker 入口，由 `apps/server` 中的 Supervisor 按需启动；Runtime 不负责 HTTP 服务或桌面生命周期。应用宿主通过 `@mewvis/app-host` 包复用，内置应用由 `@mewvis/builtin-applications` 构建，产品配置来自 `apps/product.config.json`。运行时不依赖故事等具体应用的业务实现。
 
 `apps/agent-runtime` 是 Mewvis Agent 的可复用运行时边界。外部适配器选择 CLI 或 SDK 并归一化输入；引擎层拥有标准协议，可替换协议背后的实现。
 
@@ -36,7 +35,7 @@ cli   -> engines/index
                                                                    -> runtimes/native
 ```
 
-应用通常调用前端 `createAgentClient()`；Tauri 等宿主通过 stdio 调用 CLI；测试和嵌入式 Node 集成可直接使用 SDK。
+前端通过 `createAgentClient()` 调用 Node Server；Server Supervisor 通过 stdio 调用 Runtime CLI。Tauri 管理桌面交互与 Node 后端生命周期，测试和嵌入式 Node 集成可直接使用 SDK。
 
 运行时不应导入应用专有业务逻辑。桌面打包直接使用 `src/cli/index.ts`；需要自定义转换、条件或路由的产品应围绕 SDK 或引擎命令协议建立自己的小型进程入口。
 

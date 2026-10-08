@@ -77,7 +77,7 @@ export async function apply(ctx) {
 
 ## 业务存储与应用工作区
 
-`@mewvis/app-sdk/data` 提供应用独立的持久化键值存储，以及工作区新增与查询；桌面应用页面和原生 ApplicationHost 已接入宿主落库服务。两类接口分别要求 `application-data`、`application-workspaces`。工作区使用与宿主遵循相同的文件操作规则，SDK 不修改 Agent／Pi 流程或增加文件访问限制。详见 [应用数据与工作区 SDK](data.md)。
+`@mewvis/app-sdk/data` 提供应用独立的持久化键值存储，以及工作区新增与查询；桌面与 Web 应用页面、原生 ApplicationHost 均接入宿主落库服务。两类接口分别要求 `application-data`、`application-workspaces`。工作区使用与宿主遵循相同的文件操作规则，SDK 不修改 Agent／Pi 流程或增加文件访问限制。详见 [应用数据与工作区 SDK](data.md)。
 
 ## 聊天
 

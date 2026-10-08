@@ -10,16 +10,16 @@
 
 ## 当前能提供什么
 
-| 领域  | 能力                                                  | 详细契约                                                                                                          |
-| ----- | ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| Agent | 注册工具、技能、命令                                  | [agent/resources.d.ts](../../packages/extension/sdk/agent/resources.d.ts)                                         |
-| Agent | 观察运行、工具、回合、消息及压缩结果事件              | [agent/events.d.ts](../../packages/extension/sdk/agent/events.d.ts)                                               |
-| Agent | 干预输入、系统提示、上下文、工具调用/结果、会话压缩   | [agent/middleware.d.ts](../../packages/extension/sdk/agent/middleware.d.ts)                                       |
-| Agent | 插件会话状态、压缩请求与结果                          | [agent/session.d.ts](../../packages/extension/sdk/agent/session.d.ts)                                             |
-| Agent | 同步 setup、异步激活、资源清理与注册入口              | [agent/index.d.ts](../../packages/extension/sdk/agent/index.d.ts)                                                 |
-| UI    | 设置、状态、侧栏、会话操作和弹窗贡献 | [ui/slots.d.ts](../../packages/extension/sdk/ui/slots.d.ts)、[插槽目录](../../packages/extension/sdk/ui/slots.js) |
-| Host  | 会话读取、只读账本、一次性摘要、能力协商和标准错误    | [host/services.d.ts](../../packages/extension/sdk/host/services.d.ts)                                             |
-| UI    | 浏览器视图挂载、取消信号与清理                        | [ui/browser.d.ts](../../packages/extension/sdk/ui/browser.d.ts)                                                   |
+| 领域  | 能力                                                       | 详细契约                                                                                                          |
+| ----- | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Agent | 注册工具、技能、命令                                       | [agent/resources.d.ts](../../packages/extension/sdk/agent/resources.d.ts)                                         |
+| Agent | 观察运行、工具、回合、消息及压缩结果事件                   | [agent/events.d.ts](../../packages/extension/sdk/agent/events.d.ts)                                               |
+| Agent | 干预输入、系统提示、上下文、工具调用/结果、会话压缩        | [agent/middleware.d.ts](../../packages/extension/sdk/agent/middleware.d.ts)                                       |
+| Agent | 插件会话状态、压缩请求与结果                               | [agent/session.d.ts](../../packages/extension/sdk/agent/session.d.ts)                                             |
+| Agent | 同步 setup、异步激活、资源清理与注册入口                   | [agent/index.d.ts](../../packages/extension/sdk/agent/index.d.ts)                                                 |
+| UI    | 设置、状态、侧栏、会话操作和弹窗贡献                       | [ui/slots.d.ts](../../packages/extension/sdk/ui/slots.d.ts)、[插槽目录](../../packages/extension/sdk/ui/slots.js) |
+| Host  | 会话与账本读取、摘要、配置、任务、活动控制、判断与能力协商 | [host/services.d.ts](../../packages/extension/sdk/host/services.d.ts)                                             |
+| UI    | 浏览器视图挂载、取消信号与清理                             | [ui/browser.d.ts](../../packages/extension/sdk/ui/browser.d.ts)                                                   |
 
 UI 协议定义数据，具体 Slot 约束渲染参数，页面决定布局与展示时机。当前提供 `SidebarSlot`、`TextSlot`、`StatusSlot`、`ActionSlot`、`SettingsSlot` 和 `DialogSlot`；text 是静态结构化文本，可使用默认展示或由页面自行绘制。插件视图的内部内容仍由插件绘制。
 
@@ -36,7 +36,7 @@ import { defineExtension } from "@mewvis/extension-sdk/agent";
 import { defineUIExtension, uiSlotDefinitions } from "@mewvis/extension-sdk/ui";
 ```
 
-`shared.d.ts` 是 JSON 等跨领域基础类型。领域内部引用具体契约文件，不反向依赖 SDK 根入口。`host` 是宿主接入协议，不是清单中的可执行插件模块。清单顶层 `host.required/optional` 声明服务需求，插件通过 `ctx.host` 调用；当前由 UI 视图绑定，Agent worker 尚未注入此服务客户端。详见[宿主服务协议与适配](host-services.md)。
+`shared.d.ts` 是 JSON 等跨领域基础类型。领域内部引用具体契约文件，不反向依赖 SDK 根入口。`host` 是宿主接入协议，不是清单中的可执行插件模块。清单顶层 `host.required/optional` 声明服务需求，插件通过 `ctx.host` 调用；UI 视图与 Agent worker 分别绑定当前环境可用的能力。提供标准判断的插件另用 `host.provides` 声明提供者。详见[宿主服务协议与适配](host-services.md)。
 
 ## 校验与实现边界
 
@@ -121,7 +121,6 @@ import { uiSlotDefinitions } from "@mewvis/extension-host/ui";
 结构化数据只由相应协议提供。例如 `TextSlot` 的 `render={({ text, tone }) => ...}` 让页面自由绘制文本，它不提供 `renderView`。当前 sidebar 提供插件视图，尚未额外声明结构化内容；后续按具体业务协议增加精确字段，不使用无约束的通用 `data`。
 
 新增类型的流程是：修改协议源并生成 → 插件声明贡献 → 按需提供具体 Slot → 页面传入 render。无需修改全局适配器注册表。页面不挂载或返回 `null` 就不会展示；只有页面渲染了视图才会执行插件 UI。若新能力需要新的受控服务或执行方式，也必须实现对应宿主服务。
-
 
 ### 弹窗贡献
 

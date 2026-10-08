@@ -5,7 +5,6 @@
 ## 开发入门
 
 - [桌面应用开发](guide/desktop.md)
-- [办公室中枢](guide/office.md)
 - [Git 与上游同步](guide/git.md)
 - [脚本目录](guide/scripts.md)
 - [文档维护](guide/documentation.md)
@@ -16,8 +15,9 @@
 - [应用与宿主插件边界](architecture/extensibility.md)
 - [插件协议与能力映射](architecture/extensions.md)
 - [前端 Agent 契约](architecture/client-contracts.md)
-- [知识检索设计](architecture/rag.md)
+- [知识库与检索](architecture/rag.md)
 - [视觉系统](architecture/design-system.md)
+- [办公室中枢](guide/office.md)
 - [智能体头像](architecture/agent-avatars.md)
 
 ## Agent 运行时
@@ -63,7 +63,3 @@
 - [文档中心](apps/builtins/docs-reader.md)
 - [RSS 阅读器](apps/builtins/rss-reader.md)
 - [调试台](apps/builtins/chat-playground.md)
-
-## 质量记录
-
-- [酒馆提示词评估](quality/tavern-prompts.md)

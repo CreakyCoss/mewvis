@@ -10,7 +10,12 @@
 - `app/chat/`：应用聊天 SDK 构建、契约测试与浏览器验证。
 - `chat/`：聊天核心与桌面宿主适配验证。
 - `app/dev/`：应用开发工具链与预览验证。
-- `docs/`：中文文档索引生成、链接检查与阅读器验证。
+- `docs/`：离线文档阅读器的预览与端到端验证。
+
+文档构建和检查另有两个入口：
+
+- `apps/applications/scripts/docs/`：离线文档索引生成、Markdown 与目录链接检查。
+- 仓库根目录 `scripts/docs/`：共用的 `SUMMARY.md` 解析与在线文档站产物检查。
 
 故事与酒馆业务测试位于 `apps/applications/builtins/story/test/`；客户端的 `test:story:*` 命令仅转发到该应用。
 

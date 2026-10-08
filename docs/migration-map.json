@@ -19,7 +19,6 @@
   "packages/app/sdk/chat/README.md": "docs/apps/chat.md",
   "apps/desktop/applications/builtins/chat-playground/README.md": "docs/apps/builtins/chat-playground.md",
   "apps/desktop/applications/builtins/rss-reader/README.md": "docs/apps/builtins/rss-reader.md",
-  "apps/desktop/docs/tavern-prompt-quality-eval.md": "docs/quality/tavern-prompts.md",
   "docs/RAG_DESIGN.md": "docs/architecture/rag.md",
   "docs/design-system.md": "docs/architecture/design-system.md",
   "docs/git.md": "docs/guide/git.md"

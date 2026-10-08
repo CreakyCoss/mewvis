@@ -1,28 +1,31 @@
 # Server 配置接口
 
-[Node Agent 服务](server.md)提供模型与聊天智能体配置。协作流程在[角色协作插件](../extensions/collaboration.md)中管理。以下命令均通过已认证的 `POST /api/commands/<命令名>` 调用，沿用 Tauri 的 camelCase 参数及返回字段。
+[Node 后端服务](server.md)提供模型与聊天智能体配置。协作流程在[角色协作插件](../extensions/collaboration.md)中管理。以下命令均通过已认证的 `POST /api/commands/<命令名>` 调用，参数及返回字段使用 camelCase。
 
 点击侧边栏左下角的圆形「M」图标打开应用菜单，面板顶部显示应用名称，下面展示可用操作。选择「设置」打开 `/settings` 一级页面，显示“模型设置”和“沙箱设置”两个入口，分别进入 `/settings/llm` 和 `/settings/sandbox`。两个内页标题左侧均提供“返回设置”按钮，点击后回到 `/settings`。
 
 ## 命令与参数
 
-| 命令                                | 请求体                                                      | 返回                         |
-| ----------------------------------- | ----------------------------------------------------------- | ---------------------------- |
-| `get_llm_settings`                  | `{}`                                                        | `{providers: [...]}`         |
-| `save_llm_settings`                 | `{input: {providers: [...]}}`                               | 完整模型配置                 |
-| `get_agent_settings`                | `{}`                                                        | `{agents: [...]}`            |
-| `get_agent_templates`               | `{}`                                                        | `{templates: [...]}`         |
-| `add_agent_from_template`           | `{templateId}`                                              | 完整智能体列表               |
-| `reset_agent`                       | `{id}`                                                      | 完整智能体列表               |
-| `save_agent`                        | `{input: {id?, name, avatar, category, instructions, ...}}` | 完整智能体列表               |
-| `delete_agent`                      | `{id}`                                                      | 完整智能体列表               |
-| `get_agent_runtime_sandbox_status`  | `{}`                                                        | 沙箱开关及就绪状态           |
-| `set_agent_runtime_sandbox_enabled` | `{enabled: boolean}`                                        | 保存后的沙箱开关及就绪状态   |
-| `initialize_agent_runtime_sandbox`  | `{}`                                                        | 初始化后的沙箱开关及就绪状态 |
+| 命令                                | 请求体                                                      | 返回                               |
+| ----------------------------------- | ----------------------------------------------------------- | ---------------------------------- |
+| `get_llm_settings`                  | `{}`                                                        | `{providers: [...]}`               |
+| `save_llm_settings`                 | `{input: {providers: [...]}}`                               | 完整模型配置                       |
+| `discover_provider_models`          | `{input: {apiFormat, apiEndpoint, apiKey?}}`                | `{models: [{modelId, modelName}]}` |
+| `get_agent_settings`                | `{}`                                                        | `{agents: [...]}`                  |
+| `get_agent_templates`               | `{}`                                                        | `{templates: [...]}`               |
+| `add_agent_from_template`           | `{templateId}`                                              | 完整智能体列表                     |
+| `reset_agent`                       | `{id}`                                                      | 完整智能体列表                     |
+| `save_agent`                        | `{input: {id?, name, avatar, category, instructions, ...}}` | 完整智能体列表                     |
+| `delete_agent`                      | `{id}`                                                      | 完整智能体列表                     |
+| `get_agent_runtime_sandbox_status`  | `{}`                                                        | 沙箱开关及就绪状态                 |
+| `set_agent_runtime_sandbox_enabled` | `{enabled: boolean}`                                        | 保存后的沙箱开关及就绪状态         |
+| `initialize_agent_runtime_sandbox`  | `{}`                                                        | 初始化后的沙箱开关及就绪状态       |
 
 沙箱开关保存到 Server 数据目录的 `sandbox.json`，从下一次 Agent 运行生效。Windows 默认关闭沙箱，macOS/Linux 默认开启。开启开关不会自动安装；Windows 用户按需主动初始化，关闭时无需配置隔离账户。返回值中的 `enabled` 表示用户选择，与依赖是否就绪分开；`state` 为 `ready`、`setup-required`、`unavailable` 或 `disabled`。详见[程序执行与沙箱](security/execution.md)。
 
-读取返回的记录包含 `createdAt`、`updatedAt` 等元数据，保存时只传输入契约中的字段。Server 拒绝未知字段和错误类型；删除不存在的记录按 Tauri 行为成功返回当前配置。
+读取返回的记录包含 `createdAt`、`updatedAt` 等元数据，保存时只传输入契约中的字段。Server 拒绝未知字段和错误类型；删除不存在的智能体成功返回当前配置。
+
+`discover_provider_models` 使用提交的连接草稿获取模型列表，不读取或保存模型设置。当前支持 OpenAI Completions、Responses、OpenRouter、Anthropic Messages 和 Google Generative AI 格式；不支持的格式或请求失败时，可手动添加模型。
 
 模型保存示例：
 
@@ -78,13 +81,13 @@
 
 ## 存储与错误处理
 
-配置默认使用 `~/.mewvis/config.db`，也可通过 `MEWVIS_SERVER_DATA_DIR` 指定根目录。模型、智能体、工作区、故事、技能和知识库配置共用同一份数据库；桌面与 Web 共用该数据目录。
+配置默认使用 `~/.mewvis/config.db`，也可通过 `MEWVIS_SERVER_DATA_DIR` 指定根目录。模型、智能体、工作区、技能和知识库配置共用同一份数据库；桌面与 Web 共用该数据目录。旧故事登记表为历史数据保留。
 
 配置库当前为 schema v27，不设置 Node 专属 `application_id`。v26 用 `agent_definitions` 保存“我的智能体”的完整定义，配置来源 ID 保存在定义 JSON 中；系统配置库从服务端读取，不自动写入用户数据。旧 `ai_agents` 表直接删除，旧角色不兼容、不迁移，原 `get_ai_agent_settings`、`save_ai_agent`、`delete_ai_agent` 命令已移除。旧会话中失效的角色选择会清空，聊天记录仍保留。
 
 历史 v4–v25 升级规则仍用于模型、知识库等保留配置；v27 移除模型启用字段，保留全部模型及其上下文、思考等级配置，原先停用的模型也直接可用。为兼容历史数据库，原 `collaboration_workflows` 表及已有数据继续保留，但宿主不再读写，旧流程不迁移到插件。数据库升级与版本写入在同一事务内完成，失败会整体回滚。更高版本、不兼容或损坏库保留原文件，通过状态接口报告初始化错误，不自动删库重建。
 
-API Key 与 Tauri 字段契约一致存入 SQLite，并由受认证的模型读取接口返回。支持 POSIX 权限的平台上，配置文件权限为 0600，新建数据目录为 0700。配置错误响应不包含 SQL、参数或凭据。
+API Key 存入 SQLite，并由受认证的模型读取接口返回。支持 POSIX 权限的平台上，配置文件权限为 0600，新建数据目录为 0700。配置错误响应不包含 SQL、参数或凭据。
 
 - `404 AGENT_NOT_FOUND`：重置时指定的智能体已删除。
 - `400 INVALID_ARGUMENT`：输入字段、类型或必填内容不合法。
@@ -94,4 +97,4 @@ API Key 与 Tauri 字段契约一致存入 SQLite，并由受认证的模型读�
 
 当前配置读写为同步、小规模操作，HTTP 请求仍受 1 MiB 限制。文件扫描与网络 Embedding 使用异步操作；知识索引复用原 `rag/index.sqlite`，向量查询使用 sqlite-vec。大规模索引仍受本机资源和同步 SQLite 提交耗时约束，限制见业务接口文档。
 
-这些接口只管理配置记录。桌面与 Web 已统一使用 Node，任务仍显式提交 `runtimeModel` 与智能体工作指令。[工作区登记接口](server-workspaces.md)以及[技能、知识库和应用接口](server-interfaces.md)均已迁移。
+这些接口只管理配置记录。桌面与 Web 已统一使用 Node，任务仍显式提交 `runtimeModel` 与智能体工作指令。[工作区登记接口](server-workspaces.md)以及[技能、知识库和应用接口](server-interfaces.md)由同一后端提供。

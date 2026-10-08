@@ -46,11 +46,11 @@ Client 装配 PluginUIProvider（注入目录和传输）
                      独立的隔离视图实例
 ```
 
-插槽实现集中于 `packages/extension/host/ui/slots`，视图执行位于 `ui/views`。`apps/client/src/extensions` 仅保留目录订阅和依赖装配；页面不导入 SDK，也不依赖插件管理页。
+插槽实现集中于 `packages/extension/host/ui/slots`，视图执行位于 `ui/views`。客户端的目录订阅与传输位于 `apps/client/src/api/extensions.ts`，Provider 在 `apps/client/src/workbench/index.tsx` 装配；页面不导入 SDK，也不依赖插件管理页。
 
 `host/ui/protocol/contracts.js` 是内部插槽定义源，`host` 的 generate/check:ui 独立生成和检查内部声明与 Schema。SDK 保留自己的插槽定义与生成流程，映射器转换声明；不同版本不能通过类型别名静默混用。
 
-当前有 `session.sidebar`（必需标题、图标和视图引用）和 `session.status`（结构化文本）。页面可以不挂载插槽，也可以在 render 中返回 null。Slot 不接收页面提供的 contributions，不管理整个页面布局，不自动选择具体面板。发布贡献不等于执行视图；只有实际调用并渲染 renderView，才加载插件。
+当前支持设置、侧栏、状态、操作与弹窗插槽，完整清单见[插件包开发与管理](../extensions/development.md#ui-模块与会话插槽)。`session.sidebar` 提供标题、图标和视图引用；`session.composer-status` 展示运行活动；`session.status` 为静态结构化文本。页面可以不挂载插槽，也可以在 render 中返回 null。Slot 不接收页面提供的 contributions，不管理整个页面布局，不自动选择具体面板。发布贡献不等于执行视图；只有实际调用并渲染 renderView，才加载插件。
 
 聊天页面使用普通 `ChatPanels`/`ChatPanel`，一个面板一次声明图标、标题和内容。原生文件、版本面板之后放置一个 SidebarSlot。选择、展开和 portal 由页面组件负责，Slot 将插件贡献交给 render。原生账本面板已由 `apps/extensions/session-ledger` 插件替代。
 
@@ -58,11 +58,11 @@ Client 装配 PluginUIProvider（注入目录和传输）
 
 ## Host 服务消费点
 
-原生 UI 使用 `ctx.services`；SDK UI 使用 `ctx.host`，由 Mewvis 适配器转换。宿主服务目前接入 UI，Agent worker 尚未注入此服务客户端。服务需求声明不等同于可执行的 Host 插件模块。
+原生插件使用 `ctx.services`；SDK 插件使用 `ctx.host`，由 Mewvis 适配器转换。UI 视图和 Agent worker 均可消费宿主服务，可用能力由执行环境和清单声明决定，通过 `supports()` 查询。服务需求声明不等同于可执行的 Host 插件模块。
 
 `host/services/dispatch.ts` 统一协商能力、校验请求、处理错误与取消，`host/ui/server/views.ts` 管理作用域和视图租约。Server 的 `bootstrap/extensions.ts` 仅将现有会话和模型服务注入宿主接口；业务存储和模型实现仍留在原模块。
 
-当前支持公开会话读取、诊断账本读取和一次性摘要。账本插件可直接调用内部服务，不需要 SDK；SDK 统计插件通过适配后的服务调用进入相同分发。摘要调用无会话的模型请求，不压缩、不持久化、不改变后续上下文。能力范围、错误和取消见[宿主服务协议](../extensions/host-services.md)。
+当前支持会话与诊断账本读取、一次性摘要、插件配置、隔离任务、活动控制和标准判断。账本插件直接调用内部服务，协作与判断插件通过 SDK 适配调用。摘要使用一次性模型请求，不压缩、不持久化、不改变后续上下文。能力范围、错误和取消见[宿主服务协议](../extensions/host-services.md)。
 
 ## Agent 消费点
 

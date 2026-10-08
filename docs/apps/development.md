@@ -5,7 +5,7 @@
 
 ## 在当前仓库创建项目
 
-本轮没有发布 npm 包，下面先使用仓库内的 SDK 和工具链。先在仓库根目录执行 `pnpm install` 和 `pnpm --filter client build:chat-ui`，然后：
+以下流程使用当前仓库内的 SDK 和工具链。先在仓库根目录执行 `pnpm install` 和 `pnpm --filter client build:chat-ui`，然后：
 
 ```sh
 pnpm --filter client app:create -- /absolute/path/my-application --name @example/my-application --local
@@ -166,7 +166,7 @@ Node 应用确认 `context.chat` 可用后，使用 `createApplicationToolClient
 
 调试台省略场景白名单，由宿主每轮计算「当前可用工具 ∩ 用户勾选工具 ∩ 场景请求工具」，省略场景名单视为不进一步限制。已有会话和恢复的历史会话也会重新检查；授权读取失败时不发起执行，不使用旧授权回退。名单中已下架或未注册的工具不进入提交的工具集合，也不阻止聊天或授权配置保存。宿主不维护技能名称与工具依赖的对应表，不因技能缺少工具提前拒绝聊天。
 
-这里的交集是宿主提交的工具名单。现有 Agent 运行时仍会为内置技能自动补充依赖工具；该行为可能扩大实际可用工具集合，本次没有修改这部分执行逻辑。
+这里的交集是宿主提交的工具名单。Agent 运行时还会为内置技能自动补充依赖工具，因此实际工具集合可能更大；文件、网络与进程范围仍由 `agentAccess` 和执行沙箱限制。
 
 修改授权对后续调用和聊天下一轮生效，已经执行的任务继续使用本轮授权。UI 的 `executeTool` 仍只能调用本应用工具，并检查最新勾选结果。工具授权不能替代 `agentAccess`、沙箱与权限档位：禁用 `write` 工具本身不等于禁止其他工具写文件。
 

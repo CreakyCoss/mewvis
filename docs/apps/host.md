@@ -44,7 +44,7 @@ Mewvis 包通过自己的清单暴露 Cordis 应用入口：
 
 ## 开发流程
 
-默认 React 脚手架由 [应用工程工具链](development.md) 管理。在 `apps/client` 运行 `pnpm app:create -- /absolute/path/my-application --name @example/my-application --local`，然后在新项目安装依赖。工具尚未发布时，`--local` 使用当前检出的 SDK 和工具链。
+默认 React 脚手架由 [应用工程工具链](development.md) 管理。在 `apps/client` 运行 `pnpm app:create -- /absolute/path/my-application --name @example/my-application --local`，然后在新项目安装依赖。`--local` 使用当前检出的 SDK 和工具链。
 
 `pnpm dev` 开发，`pnpm check` 检查，`pnpm build` 构建。页面位于 `main/App.tsx`，可选 Node 工具位于 `main/host/tools.ts`。权限与能力统一在 `app.config.ts` 声明，由其生成安装清单。
 
@@ -70,7 +70,7 @@ DSH 目标保留附加的 `mewvis` 元数据并生成 DSH 声明。含 `chat` �
 
 ## 数据与界面
 
-应用应用根目录保留宿主的 `registry.json` 与共享安装缓存，每个应用的配置、SDK 数据库、默认工作区和外部安装包统一归入完整应用 ID 对应的目录。启动时先完成旧目录和配置迁移，再加载应用；安装包位于 `package/`，可以独立升级和卸载。详见[持久化与工作区](data.md)。包可通过 `mewvis.ui` 增加沙箱页面，详见[应用界面协议](ui.md)。
+应用数据根目录保留宿主的 `registry.json` 与共享安装缓存，每个应用的配置、SDK 数据库、默认工作区和外部安装包统一归入完整应用 ID 对应的目录。启动时先完成旧目录和配置迁移，再加载应用；安装包位于 `package/`，可以独立升级和卸载。详见[持久化与工作区](data.md)。包可通过 `mewvis.ui` 增加沙箱页面，详见[应用界面协议](ui.md)。
 
 内置桌面对话不加载应用。应用对话仅加载所属应用，并结合分配的内置工具使用；从宿主历史重新打开仍保留同一归属。
 
@@ -78,4 +78,4 @@ DSH 目标保留附加的 `mewvis` 元数据并生成 DSH 声明。含 `chat` �
 
 `packages/app/host` 以私有工作区包 `@mewvis/app-host` 提供宿主 API，Runtime 通过包名导入。执行 `pnpm --filter @mewvis/app-host build` 生成库模块及 `dist/service.mjs`、`dist/migrate-layout.mjs`，不依赖桌面项目的构建命令。
 
-内置应用由 `apps/applications` 中的 `@mewvis/builtin-applications` 包管理，执行 `pnpm --filter @mewvis/builtin-applications build` 输出到该模块的 `dist/`；文档生成脚本位于 `scripts/docs/`。应用 Chat UI 仍由 client 中的共享 React 实现构建。Runtime 构建最后将宿主和内置应用产物复制到自己的 `dist/app-host`、`dist/apps`，保持分发和运行时路径不变。
+内置应用由 `apps/applications` 中的 `@mewvis/builtin-applications` 包管理，执行 `pnpm --filter @mewvis/builtin-applications build` 输出到该模块的 `dist/`；文档生成脚本位于 `apps/applications/scripts/docs/`。应用 Chat UI 仍由 client 中的共享 React 实现构建。Runtime 构建最后将宿主和内置应用产物复制到自己的 `dist/app-host`、`dist/apps`，保持分发和运行时路径不变。

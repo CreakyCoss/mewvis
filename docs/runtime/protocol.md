@@ -37,7 +37,7 @@ if (agentRuntimeEventGuards.textDelta(event)) {
 
 权限模式、展示信息、默认模式和调用前安全规则在 `src/security/safety/policy.ts` 维护。生成器据此生成 `v1/schema/permissions.schema.json` 和 `packages/chat-contracts` 的公开权限声明。`agent/tools/list` 返回 `permissionOptions`，供界面展示和校验；生成的 `agentPermissionOptions` 快照用于预览。操作系统沙箱及其独立开关位于 `src/security/execution/policy.ts`。
 
-生成器和 Node 依赖位于协议目录。生成过程还需读取运行时定义并更新共享 Chat 类型，因此应在本仓库内执行。修改 Schema、OpenRPC 方法或权限定义后，在 `apps/client` 执行：
+生成器和 Node 依赖位于协议目录。生成过程还需读取运行时定义并更新共享 Chat 类型，因此应在本仓库内执行。修改 Schema、OpenRPC 方法或权限定义后，在仓库根目录执行：
 
 ```sh
 cd apps/agent-runtime/protocol
@@ -46,7 +46,7 @@ pnpm generate
 pnpm check
 ```
 
-Rust 生成还需 `rustfmt`。桌面包提供 `pnpm generate:agent-runtime:protocol` 和 `pnpm check:agent-runtime:protocol-bindings` 两个便捷入口。
+Rust 生成还需 `rustfmt`。也可在仓库根目录使用客户端便捷入口：`pnpm --filter client generate:agent-runtime:protocol` 和 `pnpm --filter client check:agent-runtime:protocol-bindings`。
 
 ## 版本管理
 

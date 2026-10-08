@@ -1,6 +1,6 @@
 # Mewvis Chat
 
-应用内的可复用 Chat 库。当前使用 `@/chat/core`、`@/chat/react`、`@/chat/desktop` 三个独立入口，没有 `chat` 根入口把 UI 带进核心；会话与消息契约由无运行时依赖的工作区类型包 `@mewvis/chat-contracts` 统一提供。
+应用内的可复用 Chat 库。当前使用 `@/chat/core`、`@/chat/react`、`@/chat/desktop` 三个独立入口，没有 `chat` 根入口把 UI 带进核心；会话与消息契约由无运行时依赖的工作区类型包 `@mewvis/chat-contracts` 统一提供。`desktop` 目录保留宿主适配层的历史命名，当前由桌面与 Web 共用。
 
 ## 文件和依赖
 
@@ -34,7 +34,7 @@ src/chat/
     react.tsx         DesktopChatEnvironment / useDesktopChatSession / useDesktopChatRecord
 ```
 
-依赖方向：`react → core`；`desktop → core + 现有 AgentClient/API`；`desktop/react → desktop + react`。核心只依赖现有纯 TypeScript 事件契约，不导入 AgentClient 的 Tauri 工厂。React 层可以使用现有设计系统、样式和 Lexical，不导入桌面 API 或普通聊天页面。
+依赖方向：`react → core`；`desktop → core + 现有 AgentClient/API`；`desktop/react → desktop + react`。核心只依赖现有纯 TypeScript 事件契约，不导入宿主 AgentClient 工厂。React 层可以使用现有设计系统、样式和 Lexical，不导入桌面 API 或普通聊天页面。
 
 消息、会话和运行配置类型只在 `packages/chat-contracts/index.d.ts` 定义。核心内部直接从定义文件或共享包导入；`core/index.ts` 集中对外导出共享类型与核心 API，业务和其他层继续使用 `@/chat/core`。内部文件不再重复转导出共享类型，也不通过本层公共入口反向导入。
 
@@ -81,7 +81,7 @@ terminal.onExit(async () => {
 });
 ```
 
-`scripts/chat/stdio-e2e.mjs` 是可直接运行的无 UI 示例和集成测试：它使用现有 Runtime 的 stdio JSON-RPC 客户端与 mock profile，在临时工作区完成两轮请求和历史恢复。
+`apps/client/scripts/chat/stdio-e2e.mjs` 是可直接运行的无 UI 示例和集成测试：它使用现有 Runtime 的 stdio JSON-RPC 客户端与 mock profile，在临时工作区完成两轮请求和历史恢复。
 
 ### 默认 Chat
 
@@ -188,7 +188,7 @@ Pi 继续使用 `chats/<chatId>/session` 下的原执行上下文和账本。核
 
 模型目录、发送和账本摘要共用 `api/llm.ts` 的宿主配置缓存；目录读取安全的 `getLlmModelOptions`，执行和摘要通过 `resolveLlmModel` 按 ID 解析。首次读取和显式刷新才查询 Node 配置，并发读取合并为一次。`saveLlmSettings` 串行保存并用后端成功结果更新缓存；读取等待正在保存的配置，迟到的旧读取或错误不会覆盖新配置。返回副本避免调用方修改缓存。缓存仅在当前宿主实例的内存中，不写入浏览器存储。
 
-`session.refreshResources()` 向目录传入 `{ refresh: true }`，强制重新读取模型配置；模型设置页的显式加载也会刷新。刷新失败会暴露错误、保留当前选择，下次读取可以重试；禁用或删除模型后不会继续返回旧的可执行配置。
+`session.refreshResources()` 向目录传入 `{ refresh: true }`，强制重新读取模型配置；模型设置页的显式加载也会刷新。刷新失败会暴露错误、保留当前选择，下次读取可以重试；删除模型后不会继续返回旧的可执行配置。
 
 凭据在宿主准备请求时解析并留在 dispatch 闭包，快照和 UI props 只包含安全的选项描述。工具选择不等于授予应用权限。应用 SDK、iframe／Node 宿主桥和共享 UI 已接入；用法与边界见 [应用聊天说明](../apps/chat.md)。未迁移酒馆、RSS 或其他具体应用。
 
@@ -198,13 +198,13 @@ Pi 继续使用 `chats/<chatId>/session` 下的原执行上下文和账本。核
 
 `workbench/shell/chat-service.ts` 连接实际应用权限、工作区和 service；`chat-integration.tsx` 内的局部方法 `connectBackendApplicationChat` 统一接入后端应用聊天事件，StrictMode 共用后端事件监听。`ApplicationFrame` 连接 iframe 消息。应用 UI 按需加载由 `build:chat-ui` 从应用源码生成的共享脚本和样式；脚本和样式产物不提交。同一构建还生成 `packages/app/sdk/chat/react.d.ts`，该声明随 SDK 保留在仓库中；组件、hook 和 UI 类型不再手写第二份字段结构。生成器读取 SDK 的实际运行导出，保留公开类型名，并将核心契约和应用协议保留为包导入。
 
-`pnpm check:chat-ui-types` 检查声明是否与源码同步，不改写声明。生成和检查均验证声明只引用公共依赖，并在不使用应用别名、不跳过声明检查的环境下进行 TypeScript 检查；应用契约测试另双向对照实际组件签名。
+在 `apps/client` 执行 `pnpm check:chat-ui-types`，检查声明是否与源码同步，不改写声明。生成和检查均验证声明只引用公共依赖，并在不使用应用别名、不跳过声明检查的环境下进行 TypeScript 检查；应用契约测试另双向对照实际组件签名。
 
 应用通过 `createSession({ workspaceId, sceneId, profile })` 明确创建会话，宿主返回的 `session.identity.id` 就是 `meta.id`。`openSession({ workspaceId, chatId })` 只打开已有记录；React 的 `useApplicationChatSession` 只负责打开和观察，不创建。不同创建操作生成不同 ID，多视图打开同一 ID 共用一个拥有者。应用不传真实路径或凭据。
 
-`meta.workspaceId` 保存所属工作区；`meta.origin` 是来源和场景的唯一依据：内置普通聊天是 `{ kind: "builtin", sceneId: "chat" }`，故事助手是 `{ kind: "builtin", sceneId: "story-assistant" }`，应用是 `{ kind: "application", applicationId, sceneId }`。场景配置保存在 `options.profile`，其中 `id` 只标识配置，动态上下文也经同一队列保存。运行选择和展示偏好保留原字段位置。保存不能更改已有记录的来源和工作区。
+`meta.workspaceId` 保存所属工作区；`meta.origin` 是来源和场景的唯一依据：内置普通聊天是 `{ kind: "builtin", sceneId: "chat" }`，应用是 `{ kind: "application", applicationId, sceneId }`。场景配置保存在 `options.profile`，其中 `id` 只标识配置，动态上下文也经同一队列保存。运行选择和展示偏好保留原字段位置。保存不能更改已有记录的来源和工作区。
 
-`openRecord` 返回可运行的 `session` 或只读 `history`。侧栏按元数据恢复原场景，应用恢复仍需验证当前权限、工具归属和工作区；已有故事助手使用原故事配置。来源缺失、场景未知或应用不可用时，公共 `Chat.History` 保留消息与复制，不创建运行会话。应用撤销事件使打开的历史视图重新解析；重新启用后可点击「重新连接」。绑定公开 `connecting` 和 `retryError`，重试期间保留消息并禁用按钮，失败时显示具体原因。`history.canRetry` 表示当前只读原因是否支持重试；来源信息缺失或宿主没有恢复入口时不显示按钮。本阶段不实现旧来源格式的补齐或迁移。
+`openRecord` 返回可运行的 `session` 或只读 `history`。侧栏按元数据恢复原场景，应用恢复仍需验证当前权限、工具归属和工作区。故事助手作为故事应用会话接入，旧的内置 `story-assistant` 场景不再提供运行入口。来源缺失、场景未知或应用不可用时，公共 `Chat.History` 保留消息与复制，不创建运行会话。应用撤销事件使打开的历史视图重新解析；重新启用后可点击「重新连接」。绑定公开 `connecting` 和 `retryError`，重试期间保留消息并禁用按钮，失败时显示具体原因。`history.canRetry` 表示当前只读原因是否支持重试；来源信息缺失或宿主没有恢复入口时不显示按钮。当前不自动补齐或迁移旧来源格式。
 
 `chat.listSessions({ workspaceId })` 直接从元数据过滤当前应用、工作区，返回记录 ID 和场景摘要；不读取消息和提示词。动态上下文用 `setContext()`，模型与能力用 `updateConfig()`。Provider 卸载只取消观察，关闭应用或禁用／移除应用才停止、保存并释放相应会话。
 
@@ -219,7 +219,7 @@ pnpm test:chat:application
 pnpm check:chat-ui-types
 pnpm exec tsc --noEmit
 pnpm exec vite build
-cargo test --manifest-path src-tauri/Cargo.toml services::chats::tests
+pnpm --filter @mewvis/server test
 node scripts/agent-runtime/frontend-contract-e2e.mjs
 node scripts/agent-runtime/user-input-e2e.mjs
 ```
@@ -232,9 +232,7 @@ Node 存储回归测试覆盖元数据来源不可变、配置不覆盖归属、
 
 手动重试时，桌面绑定让 loading 至少显示 400 毫秒以避免快速失败时闪烁，请求会立即发起；较慢的请求持续显示 loading 直到结束。首次自动打开不增加这段反馈时间。
 
-本轮流程收拢通过 16 项核心、14 项桌面宿主和 10 项应用测试，新增授权取消、迟到结果隔离、打开失败归属回滚和定向观察回归；DSH Schema、SDK 公共 UI 声明、应用打包与实际 Node Host、无 UI stdio、TypeScript 和前端构建均通过。
-
-已有 1420 服务通过 41 项浏览器断言，覆盖默认／组合 UI、StrictMode、多视图、后台运行、只读历史和重连反馈。另在真实聊天路由的内存预览中验证了发送与保存，在内置调试应用预览中验证了授权等待时停止、迟到授权不派发、不写记录、上下文更新、工具／思考事件及默认与定制界面切换。浏览器无错误或警告。真实模型及原生应用界面尚未验收；没有启动或重启开发服务，Vite 保留已有大 chunk 警告。
+验证应覆盖授权等待时停止、迟到授权不派发、不写记录、打开失败后的归属恢复、定向观察、上下文更新，以及默认与定制界面切换。浏览器夹具使用内存数据；涉及模型或原生能力的修改仍需在对应环境验证。
 
 ## 执行权限与审批
 

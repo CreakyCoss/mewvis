@@ -1,6 +1,6 @@
 # Node 后端服务
 
-桌面和 Web 共用的唯一 Node 业务后端，已覆盖迁移前 Tauri 注册的全部 104 个命令，包括 Agent、配置、工作区、文件、聊天、酒馆、Git、技能、知识库、应用与数据库维护。前端共用命令传输层：桌面与浏览器均连接 Node，Tauri 仅保留桌面交互和 Node 主进程管理。完整范围与宿主交互适配见 [Server 业务接口](server-interfaces.md)。
+桌面和 Web 共用 Node 业务后端，提供 Agent、模型与智能体配置、工作区、文件、聊天、Git、技能、知识库、应用、插件和数据库维护接口。前端共用命令传输层：桌面与浏览器均连接 Node，Tauri 负责桌面交互和 Node 主进程管理。故事与酒馆业务由故事应用负责，协作流程由角色协作插件管理。完整范围与宿主交互适配见 [Server 业务接口](server-interfaces.md)。
 
 ```text
 Web 静态页面 / HTTP 命令 / SSE 事件
@@ -23,25 +23,24 @@ apps/server/
 │   ├── server.ts              startServer 公共入口
 │   ├── bootstrap/
 │   │   ├── services.ts        依赖组装、资源初始化与关闭
-│   │   └── commands.ts        104 个原命令及新增命令的显式注册
+│   │   └── commands.ts        后端命令的显式注册
 │   ├── config/runtime.ts      运行参数、产品配置及原数据路径
 │   ├── modules/               按业务聚合
 │   │   ├── agent/             Agent 宿主、沙箱、runtime 进程管理
 │   │   ├── applications/      应用包、SDK 数据与 ApplicationHost
-│   │   ├── settings/          模型、聊天角色配置
+│   │   ├── settings/          模型、智能体与系统配置库
+│   │   ├── extensions/        插件安装、配置与宿主服务
 │   │   ├── workspaces/        工作区登记与默认工作区保护
 │   │   ├── knowledge/         知识配置、文档分块、Embedding、索引
 │   │   ├── files/             工作区文件与监听
 │   │   ├── chats/             聊天存档
-│   │   ├── tavern/            酒馆存档
-│   │   ├── stories/           故事登记
 │   │   ├── skills/            技能安装与分组
 │   │   ├── version-control/   Git 操作
 │   │   └── database-admin/    数据库维护接口
 │   ├── storage/               跨模块共用的原数据存储
 │   │   ├── config/            config.db 连接、schema、升级和默认记录
 │   │   ├── workspace.ts       workspace.db 及目录初始化
-│   │   ├── lease.ts           原 apps/.layout.lock 的持有与释放
+│   │   ├── lease.ts           数据目录 apps/.layout.lock 的持有与释放
 │   │   └── errors.ts          数据库错误转换
 │   ├── infrastructure/        文件路径/JSON/归档、文件锁、进程、网络、事件
 │   ├── transport/             HTTP/SSE、Web 静态资源、命令注册表与参数封装
@@ -59,7 +58,7 @@ apps/server/
 
 `bootstrap/services.ts` 负责创建依赖和持有资源，即使初始化中途失败也能关闭已创建的对象。`bootstrap/commands.ts` 只注册命令，不打开数据库或启动 worker。`server.ts` 连接这两部分与 HTTP 生命周期，保留现有 `startServer()` 调用方式。
 
-依赖方向由构建时的 `scripts/check-boundaries.mjs` 检查：
+依赖方向由构建时的 `apps/server/scripts/check-boundaries.mjs` 检查：
 
 - `shared/` 不依赖其他层；`infrastructure/` 只依赖自身和通用工具。
 - `storage/` 可以使用系统工具，不能反向依赖业务模块或传输层。
@@ -122,17 +121,17 @@ Node 新增 `open_system_dialog`，接收 `{ input: { directory, multiple, title
 
 开发验证使用 `pnpm test:web`，临时目录覆盖真实 HTTP 代理、持久化、Agent 流及交互、文件监听、应用数据、SSE 补发与过期处理。
 
-| 环境变量                       | 用途                                              |
-| ------------------------------ | ------------------------------------------------- |
+| 环境变量                         | 用途                                              |
+| -------------------------------- | ------------------------------------------------- |
 | `MEWVIS_WEB_PORT`                | Web 端口，默认开发 1420、正式模式 4173            |
 | `MEWVIS_SERVER_WEB_ROOT`         | 正式 Web 构建目录，默认 `apps/client/dist`        |
 | `MEWVIS_SERVER_PORT`             | HTTP 端口，默认 1422；0 表示分配空闲端口          |
 | `MEWVIS_SERVER_TOKEN`            | 自定义 Bearer token，至少 24 字节；省略时随机生成 |
-| `MEWVIS_SERVER_DATA_DIR`         | 共用业务数据目录，默认 `~/.mewvis`             |
+| `MEWVIS_SERVER_DATA_DIR`         | 共用业务数据目录，默认 `~/.mewvis`                |
 | `MEWVIS_SERVER_RUNTIME_DATA_DIR` | 覆盖 Tauri runtime 数据目录，通常无需设置         |
 | `MEWVIS_SERVER_RESOURCES`        | 打包后的 Runtime、协议和产品资源根目录            |
 | `MEWVIS_SERVER_RUNTIME_CLI`      | Runtime CLI 构建产物的绝对路径                    |
-| `AGENT_RUNTIME_PROFILE_ID`     | Runtime profile；`mock` 用于离线验证              |
+| `AGENT_RUNTIME_PROFILE_ID`       | Runtime profile；`mock` 用于离线验证              |
 
 开发时 Server 从 `apps/agent-runtime` 读取协议，通过 `@mewvis/product-config` 读取由 `apps/product.config.json` 生成的产品配置。桌面构建会将 Server、原生依赖、协议、产品配置及技能打包进 Runtime 资源目录；通过 `MEWVIS_SERVER_RESOURCES` 定位，不依赖源码仓库或系统 Node。Node 可执行文件继续随桌面分发。Windows ARM64 使用原生 ARM64 Node；打包时从固定版本且经 SHA-256 校验的 sqlite-vec 0.1.9 源码编译 `server/native/vec0.dll`，同时复制上游许可证。其他平台继续使用 npm 的目标原生依赖。
 
@@ -146,13 +145,13 @@ Windows ARM64 的本机构建需在 Visual Studio 的 ARM64 Native Tools 开发�
 
 | 数据                                        | 默认位置                                                    |
 | ------------------------------------------- | ----------------------------------------------------------- |
-| 模型、Agent、工作区、故事、技能、知识库配置 | `~/.mewvis/config.db`，schema v27                        |
-| 默认工作区                                  | `~/.mewvis/default-workspace`                            |
-| 宿主技能                                    | `~/.mewvis/skills`                                       |
-| 应用包、配置、SDK 数据、应用工作区          | `~/.mewvis/apps/<应用命名空间>/`                         |
-| 应用目录锁                                  | `~/.mewvis/apps/.layout.lock`                            |
-| 知识索引                                    | `~/.mewvis/rag/index.sqlite`                             |
-| 工作区聊天、酒馆、Runtime 会话              | 原工作区内的 `.mewvis/`                                  |
+| 模型、Agent、工作区、故事、技能、知识库配置 | `~/.mewvis/config.db`，schema v27                           |
+| 默认工作区                                  | `~/.mewvis/default-workspace`                               |
+| 宿主技能                                    | `~/.mewvis/skills`                                          |
+| 应用包、配置、SDK 数据、应用工作区          | `~/.mewvis/apps/<应用命名空间>/`                            |
+| 应用目录锁                                  | `~/.mewvis/apps/.layout.lock`                               |
+| 知识索引                                    | `~/.mewvis/rag/index.sqlite`                                |
+| 工作区聊天、酒馆、Runtime 会话              | 原工作区内的 `.mewvis/`                                     |
 | Agent runtime 持久目录、诊断日志            | Tauri 系统应用数据目录下的 `pi-agent/`、`agent-runtime.log` |
 
 Tauri 的系统应用数据目录与业务根目录不同：macOS 为 `~/Library/Application Support/com.mewvis.desktop`；Windows 为 `%APPDATA%/com.mewvis.desktop`；Linux 为 `${XDG_DATA_HOME:-~/.local/share}/com.mewvis.desktop`。这些名称均来自现有产品配置。
@@ -173,7 +172,7 @@ Tauri 的系统应用数据目录与业务根目录不同：macOS 为 `~/Library
 
 ## HTTP 契约
 
-`POST /api/commands/<Tauri 命令名>` 接受原 `invoke(name, args)` 中的 `args`，成功时直接返回原命令结果；void 对应 JSON `null`。失败时返回非 2xx 状态与：
+`POST /api/commands/<命令名>` 接受前端 `invoke(name, args)` 中的 `args`，成功时直接返回命令结果；void 对应 JSON `null`。失败时返回非 2xx 状态与：
 
 ```json
 { "error": { "code": "INVALID_ARGUMENT", "message": "错误说明" } }
@@ -204,7 +203,7 @@ Tauri 的系统应用数据目录与业务根目录不同：macOS 为 `~/Library
 
 额外提供：
 
-- `GET /api/commands`：列出本版已实现的命令。
+- `GET /api/commands`：列出当前已注册的命令。
 - `GET /api/status`：worker 状态与任务快照，不包含提交时的模型配置、凭据和完整指令。
 - `GET /api/tasks/<taskId>`：单任务快照；等待用户输入时包含 `pendingInput`。
 - `GET /api/events`：SSE 事件流。
@@ -294,13 +293,13 @@ curl -N http://127.0.0.1:1422/api/events \
 
 建议先订阅，再提交任务。重连时使用 `Last-Event-ID` 补发缓存中的事件。缓存最多 1024 条、8 MiB，游标包含进程 epoch；缓存过期或 Server 重启时返回 `409 EVENT_CURSOR_EXPIRED`。此时先建立不带旧游标的新订阅，再查询任务快照恢复显示状态，避免在查询和订阅之间遗漏事件。
 
-任务状态保留全部活动任务及最近最多 512 个终态任务。任务快照和事件缓存都在内存中，Server 重启不会恢复运行中的任务或审批；Runtime 会话文件仍按原逻辑持久化。第一版不承诺持久化任务调度或完整事件重放。
+任务状态保留全部活动任务及最近最多 512 个终态任务。任务快照和事件缓存都在内存中，Server 重启不会恢复运行中的任务或审批；Runtime 会话文件仍按原逻辑持久化。当前不提供持久化任务调度或完整事件重放。
 
 请求上限 1 MiB，响应与 Runtime 单行输出上限 16 MiB。SSE 慢消费者达到缓冲阈值时断开，随后可按游标重连，避免拖住 worker 或持续占用内存。
 
-## 本版边界
+## 当前边界
 
-- 全部 104 个历史 Tauri 业务命令已提供 Node 实现，另有 `answer_application_workspace_interaction` 与 `open_system_dialog`，共 106 个业务命令。历史命令清单保存在测试快照中；Tauri 仅注册一个启动连接命令。
+- 当前命令清单通过认证后的 `GET /api/commands` 查询。历史兼容测试检查保留接口，并确认已退役接口不再注册；Tauri 仅注册启动连接命令。
 - `applicationId` 由应用登记与权限声明解析，只注入所属应用；应用必须启用并声明 `chat`。客户端不能直接注入 `resources.applications` 或 `agentAccess`。
 - 配置、应用数据、知识索引及 Runtime 持久数据直接复用 Rust 原目录、命名与格式。切换后端无需导入或搬动历史数据；活动进程与内存中的排队任务不跨后端接管。
 - Tauri Channel 文件监听及原生目录选择/共享确认已改为 SSE 和宿主回复接口，详见 [交互适配](server-interfaces.md#宿主交互适配)。Web 前端已接入这些事件。
@@ -314,6 +313,6 @@ pnpm test:server:runtime
 pnpm test:server:interop
 ```
 
-前者还核对全部 Tauri 注册命令覆盖，使用真实 Git 临时仓库、真实 Node ApplicationHost、临时文件/数据库及本地 Embedding HTTP fixture 验证新业务。沙箱安装使用控制程序 fixture，不在测试中安装用户沙箱；技能 ZIP 安装使用离线包，公开市场下载不作为离线测试依赖。基础进程测试使用真实子进程 fixture 验证排队、取消、追问、审批、崩溃、错误输出、心跳、空闲回收、关闭清理、HTTP 与 SSE，并使用临时 SQLite 验证配置接口、持久化、回滚、锁冲突和 schema 边界。后者使用现有 Runtime 构建和 mock profile，通过 HTTP 验证 Agent、协作、聊天、会话读取、摘要、释放与删除；不消耗模型额度。缺少 Runtime 构建时测试失败并提示构建，不静默跳过。
+`test:server` 核对保留的历史命令与退役接口，使用真实 Git 临时仓库、真实 Node ApplicationHost、临时文件/数据库及本地 Embedding HTTP fixture 验证业务行为。沙箱安装使用控制程序 fixture，不在测试中安装用户沙箱；技能 ZIP 安装使用离线包，公开市场下载不作为离线测试依赖。基础进程测试使用真实子进程 fixture 验证排队、取消、追问、审批、崩溃、错误输出、心跳、空闲回收、关闭清理、HTTP 与 SSE，并使用临时 SQLite 验证配置接口、持久化、回滚、锁冲突和 schema 边界。`test:server:runtime` 使用现有 Runtime 构建和 mock profile，通过 HTTP 验证 Agent、协作、聊天、会话读取、摘要、释放与删除；不消耗模型额度。缺少 Runtime 构建时测试失败并提示构建，不静默跳过。
 
 `test:server:interop` 需要 Rust 工具链，会编译 `test/support/legacy-rust` 中冻结的旧版 schema、迁移和 vector store 快照到测试辅助程序。测试在临时目录中验证 Rust → Node HTTP → Rust 的配置读写、同一 sqlite-vec 索引的双向搜索、原文件锁互斥及崩溃释放，以及原应用目录和旧版目录升级。辅助程序仅用于测试，启动 Node Server 不需要 Rust 服务或 Rust 编译器。常规测试核对保留配置/RAG 表定义、v3–v25 历史库升级和回滚，以及 v26 废弃旧角色而不迁移、v27 移除模型启用字段并保留所有已添加模型。冻结的 Rust 程序仍按 v25 初始化历史库，升级后用 SQL 核验保留配置。
