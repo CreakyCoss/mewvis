@@ -12,7 +12,6 @@
 
 ## 架构与设计
 
-- [技术规格（历史方案）](architecture/spec.md)
 - [Chat 架构](architecture/chat.md)
 - [应用与宿主插件边界](architecture/extensibility.md)
 - [插件协议与能力映射](architecture/extensions.md)
