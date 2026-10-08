@@ -11,6 +11,7 @@ Thumbs.db
 dist/
 dist-ssr
 docs/.generated/
+docs/.vitepress/cache/
 *.local
 build/
 *.class

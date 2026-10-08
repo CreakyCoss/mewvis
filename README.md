@@ -16,7 +16,7 @@
   <a href="#getting-started">快速开始</a> ·
   <a href="#create-application"><strong>创建应用</strong></a> ·
   <a href="#extensions">插件扩展</a> ·
-  <a href="docs/README.md">开发文档</a>
+  <a href="https://creakycoss.github.io/mewvis/">开发文档</a>
 </p>
 
 ---
@@ -340,7 +340,7 @@ pnpm run validate
 | Agent 运行时与通信协议 | [运行时概览](docs/runtime/overview.md) |
 | 桌面构建与本机 Web 服务 | [桌面开发](docs/guide/desktop.md) · [后端服务](docs/runtime/server.md) |
 
-完整中文文档见 [文档首页](docs/README.md) 与 [目录](docs/SUMMARY.md)，也可在示例应用「文档中心」中离线阅读。
+完整中文文档见 [在线文档](https://creakycoss.github.io/mewvis/)，也可查看 [仓库文档](docs/README.md) 与 [目录](docs/SUMMARY.md)，或在示例应用「文档中心」中离线阅读。
 
 <a id="contributing"></a>
 

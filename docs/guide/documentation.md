@@ -28,6 +28,24 @@ pnpm docs:test
 
 `docs/migration-map.json` 记录旧文档路径与新路径，便于定位历史引用。更新目录顺序只改 SUMMARY，不创建另一份侧栏配置。
 
+## 在线文档站
+
+[在线文档](https://creakycoss.github.io/mewvis/) 使用 VitePress，直接读取 `docs/` 的 Markdown，并从 `SUMMARY.md` 生成章节侧栏。应用内文档中心继续使用同一份正文与阅读顺序。
+
+在仓库根目录执行：
+
+```sh
+pnpm docs:site:dev
+pnpm docs:site:build
+pnpm docs:site:preview
+```
+
+`docs:site:dev` 启动开发预览；`docs:site:build` 生成 `docs/.vitepress/dist/`，并检查所有页面、锚点与资源链接；`docs:site:preview` 预览构建产物。预览地址为 `http://127.0.0.1:4175/mewvis/`。这些命令独立于离线阅读器的 `docs:build`。
+
+配置与样式位于 `docs/.vitepress/`。文档之间的相对链接保持原写法，指向文档目录外的源码链接会在网站构建时转换为 GitHub 地址。首页由 `docs/README.md` 映射，不另建一份首页正文。
+
+`.github/workflows/docs.yml` 在文档变更合并到 `main` 后自动构建并发布到 GitHub Pages，Pull Request 只进行构建检查。首次部署需在仓库的「Settings → Pages → Source」选择「GitHub Actions」。正文、目录与截图均从仓库更新，不直接修改网站构建产物。
+
 `design-qa.md` 和根目录 `.codex/` 中的截图属于本地验收记录，保留在本地并忽略提交。文档索引跳过这些记录，正式文档不引用它们。
 
 ## 阅读器渲染

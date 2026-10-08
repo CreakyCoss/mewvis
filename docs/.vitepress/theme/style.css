@@ -1,0 +1,37 @@
+:root {
+  --vp-c-brand-1: #5b50d8;
+  --vp-c-brand-2: #6a5fea;
+  --vp-c-brand-3: #7a70ed;
+  --vp-c-brand-soft: rgba(91, 80, 216, 0.1);
+  --vp-sidebar-width: 280px;
+  --vp-layout-max-width: 1440px;
+}
+
+.dark {
+  --vp-c-brand-1: #ada6ff;
+  --vp-c-brand-2: #8d82ff;
+  --vp-c-brand-3: #7569ef;
+}
+
+.VPNavBarTitle .logo {
+  width: 30px;
+  height: 30px;
+}
+
+.vp-doc {
+  line-height: 1.8;
+}
+
+.vp-doc h1 {
+  font-size: 30px;
+  line-height: 1.4;
+}
+
+.vp-doc h2 {
+  margin-top: 40px;
+  padding-top: 24px;
+}
+
+.vp-doc table {
+  width: 100%;
+}

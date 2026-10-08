@@ -1,4 +1,5 @@
 packages:
+  - "docs"
   - "ai/pi/packages/*"
   - "ai/pi/packages/session-backends/*"
   - "apps/*"
