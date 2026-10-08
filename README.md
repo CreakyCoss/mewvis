@@ -37,7 +37,7 @@ Mewvis 已准备好模型连接、聊天和数据保存等常用功能，让你�
 - **按需扩展插件**：当需求涉及不同应用共用的会话处理、任务协作等功能时，通过 `@mewvis/extension-sdk` 接入现有流程，由宿主统一管理启停和配置。
 - **必要时修改基座**：只有应用 SDK 和插件扩展点都无法满足要求时，才修改相应的基础源码，增加新的能力。
 
-详细边界见 [应用与宿主插件边界](docs/architecture/extensibility.md)。
+详细边界见 [应用与宿主插件边界](https://creakycoss.github.io/mewvis/architecture/extensibility.html)。
 
 <a id="foundation"></a>
 
@@ -57,7 +57,7 @@ Mewvis 已准备好模型连接、聊天和数据保存等常用功能，让你�
 
 应用可以围绕自己的操作流程安排界面，同时复用同一套模型配置、聊天与数据服务。
 
-项目文件和应用数据保存在本机，模型调用连接你配置的服务。执行范围与隔离能力随权限和平台配置生效，详见 [安全架构](docs/runtime/security/overview.md)。
+项目文件和应用数据保存在本机，模型调用连接你配置的服务。执行范围与隔离能力随权限和平台配置生效，详见 [安全架构](https://creakycoss.github.io/mewvis/runtime/security/overview.html)。
 
 <a id="getting-started"></a>
 
@@ -71,7 +71,7 @@ Mewvis 已准备好模型连接、聊天和数据保存等常用功能，让你�
 - pnpm **8.15.9**
 - Git
 - Linux：安装原生依赖需要 Python、C/C++ 编译工具和 make
-- 桌面端：另需 Rust 和 Tauri 2 的平台依赖，见 [桌面开发与构建](docs/guide/desktop.md)
+- 桌面端：另需 Rust 和 Tauri 2 的平台依赖，见 [桌面开发与构建](https://creakycoss.github.io/mewvis/guide/desktop.html)
 
 ### 2. 获取源码与安装依赖
 
@@ -184,7 +184,7 @@ pnpm build
 | `main/host/` | 定义业务工具与技能，让 AI 使用应用自己的功能 |
 | `app.config.ts` | 声明应用权限、Agent 访问范围和界面、宿主入口 |
 
-如果由 AI 辅助开发，可以将自己的需求与 [应用开发](docs/apps/development.md)、[应用 SDK](docs/apps/sdk.md) 和 [应用聊天](docs/apps/chat.md) 一起提供给它，让它按公开接口实现界面、工具和数据逻辑。
+如果由 AI 辅助开发，可以将自己的需求与 [应用开发](https://creakycoss.github.io/mewvis/apps/development.html)、[应用 SDK](https://creakycoss.github.io/mewvis/apps/sdk.html) 和 [应用聊天](https://creakycoss.github.io/mewvis/apps/chat.html) 一起提供给它，让它按公开接口实现界面、工具和数据逻辑。
 
 > **开发预览**
 >
@@ -324,7 +324,7 @@ pnpm run validate
 
 需要分发时，可在插件项目中运行 `pnpm run pack` 生成 `dist/<插件ID>-<版本>.tgz`。接收者解压后，通过「添加插件」选择其中的 `package/` 目录。
 
-完整流程见 [插件开发](docs/extensions/development.md)，能力与类型见 [插件 SDK](docs/extensions/sdk.md)。也可以把这些文档交给 AI，辅助编写和修改插件。
+完整流程见 [插件开发](https://creakycoss.github.io/mewvis/extensions/development.html)，能力与类型见 [插件 SDK](https://creakycoss.github.io/mewvis/extensions/sdk.html)。也可以把这些文档交给 AI，辅助编写和修改插件。
 
 <a id="documentation"></a>
 
@@ -332,13 +332,13 @@ pnpm run validate
 
 | 想了解什么 | 文档 |
 | --- | --- |
-| 应用创建、预览与打包 | [应用开发](docs/apps/development.md) |
-| 应用可以调用的基座接口 | [应用 SDK](docs/apps/sdk.md) |
-| 默认 Chat、组合界面与无界面聊天 | [应用聊天](docs/apps/chat.md) |
-| 插件创建、加载、启停与配置 | [插件开发](docs/extensions/development.md) |
-| 插件能力、模块与宿主服务 | [插件 SDK](docs/extensions/sdk.md) |
-| Agent 运行时与通信协议 | [运行时概览](docs/runtime/overview.md) |
-| 桌面构建与本机 Web 服务 | [桌面开发](docs/guide/desktop.md) · [后端服务](docs/runtime/server.md) |
+| 应用创建、预览与打包 | [应用开发](https://creakycoss.github.io/mewvis/apps/development.html) |
+| 应用可以调用的基座接口 | [应用 SDK](https://creakycoss.github.io/mewvis/apps/sdk.html) |
+| 默认 Chat、组合界面与无界面聊天 | [应用聊天](https://creakycoss.github.io/mewvis/apps/chat.html) |
+| 插件创建、加载、启停与配置 | [插件开发](https://creakycoss.github.io/mewvis/extensions/development.html) |
+| 插件能力、模块与宿主服务 | [插件 SDK](https://creakycoss.github.io/mewvis/extensions/sdk.html) |
+| Agent 运行时与通信协议 | [运行时概览](https://creakycoss.github.io/mewvis/runtime/overview.html) |
+| 桌面构建与本机 Web 服务 | [桌面开发](https://creakycoss.github.io/mewvis/guide/desktop.html) · [后端服务](https://creakycoss.github.io/mewvis/runtime/server.html) |
 
 完整中文文档见 [在线文档](https://creakycoss.github.io/mewvis/)，也可查看 [仓库文档](docs/README.md) 与 [目录](docs/SUMMARY.md)，或在示例应用「文档中心」中离线阅读。
 

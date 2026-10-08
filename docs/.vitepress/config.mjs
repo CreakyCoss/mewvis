@@ -61,12 +61,18 @@ export default defineConfig({
             translations: {
               button: { buttonText: "搜索文档", buttonAriaLabel: "搜索文档" },
               modal: {
+                displayDetails: "显示详细结果",
                 noResultsText: "没有找到相关内容",
                 resetButtonTitle: "清除搜索",
+                backButtonTitle: "关闭搜索",
                 footer: {
                   selectText: "选择",
+                  selectKeyAriaLabel: "回车键",
                   navigateText: "切换",
+                  navigateUpKeyAriaLabel: "向上键",
+                  navigateDownKeyAriaLabel: "向下键",
                   closeText: "关闭",
+                  closeKeyAriaLabel: "退出键",
                 },
               },
             },
