@@ -31,6 +31,6 @@ mewvis/
 
 正文默认使用简体中文，API 名称、路径、协议字段和可执行命令保留原名。页面中的源码相对路径以所介绍模块为基准，命令会注明执行目录。
 
-技术规格、设计方案和质量验收记录包含历史状态，不等同于当前功能承诺。[Chat 基座草案](CHAT_FOUNDATION_DRAFT.md)保留原稿，当前实现请以 [Chat 架构](architecture/chat.md)为准。
+技术规格、设计方案和质量验收记录包含历史状态，不等同于当前功能承诺。Chat 的当前接口与实现见 [Chat 架构](architecture/chat.md)。
 
 文档目录与离线阅读器共用 [SUMMARY.md](SUMMARY.md)。修改后执行 `pnpm docs:check` 检查覆盖和链接，执行 `pnpm docs:build` 更新离线索引。详见 [文档维护](guide/documentation.md)。

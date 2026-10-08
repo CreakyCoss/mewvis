@@ -24,7 +24,6 @@ pnpm docs:test
 - `apps/client/resources/skills/` 和运行时内置技能中的文档是技能资源；前者只打包 `apps/client/resources/registry.json` 登记的目录。
 - `packages/app/dev/templates/` 内的 README 是生成新应用时使用的模板资源，随工具包分发，不是 Mewvis 的重复文档入口。
 - `THIRD_PARTY_NOTICES.md`、LICENSE 等许可文件保持原位置和原文。
-- 已暂存的 `CHAT_FOUNDATION_DRAFT.md` 保留原位置和内容，目录中标记为历史草案。
 
 `docs/migration-map.json` 记录旧文档路径与新路径，便于定位历史引用。更新目录顺序只改 SUMMARY，不创建另一份侧栏配置。
 

@@ -20,7 +20,6 @@
 - [知识检索设计](architecture/rag.md)
 - [视觉系统](architecture/design-system.md)
 - [智能体头像](architecture/agent-avatars.md)
-- [Chat 基座草案（历史）](CHAT_FOUNDATION_DRAFT.md)
 
 ## Agent 运行时
 
