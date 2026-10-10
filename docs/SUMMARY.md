@@ -4,6 +4,7 @@
 
 ## 开发入门
 
+- [开发指南](guide/development-guide.md)
 - [桌面应用开发](guide/desktop.md)
 - [Git 与上游同步](guide/git.md)
 - [脚本目录](guide/scripts.md)

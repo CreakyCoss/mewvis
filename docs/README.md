@@ -4,6 +4,7 @@
 
 ## 从这里开始
 
+- [开发指南](guide/development-guide.md)：项目定位、SDK 对比与内置／外部应用实践。
 - [应用开发](apps/development.md)：从创建项目到工具、技能和界面接入。
 - [插件开发](extensions/development.md)：扩展聊天流程、宿主服务和界面。
 - [桌面应用开发](guide/desktop.md)：安装、启动与构建。
