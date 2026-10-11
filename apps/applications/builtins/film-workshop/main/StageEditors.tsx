@@ -1,3 +1,7 @@
+import {
+  NativeSelect,
+  NativeSelectOption,
+} from "design-system/components/ui/native-select";
 import { useRef, useState } from "react";
 import {
   DropdownMenu,
@@ -87,7 +91,8 @@ function Settings({ project, edit }: Props) {
           />
         </Field>
         <Field label="创作方向">
-          <select
+          <NativeSelect
+            className="w-full"
             value={project.kind}
             onChange={(e) =>
               edit((p) => ({
@@ -97,15 +102,16 @@ function Settings({ project, edit }: Props) {
             }
           >
             {Object.entries(PROJECT_KINDS).map(([key, label]) => (
-              <option key={key} value={key}>
+              <NativeSelectOption key={key} value={key}>
                 {label}
-              </option>
+              </NativeSelectOption>
             ))}
-          </select>
+          </NativeSelect>
         </Field>
       </div>
       <Field label="画面比例">
-        <select
+        <NativeSelect
+          className="w-full"
           value={project.aspectRatio}
           onChange={(e) =>
             edit((p) => ({
@@ -114,10 +120,10 @@ function Settings({ project, edit }: Props) {
             }))
           }
         >
-          <option>16:9</option>
-          <option>9:16</option>
-          <option>1:1</option>
-        </select>
+          <NativeSelectOption>16:9</NativeSelectOption>
+          <NativeSelectOption>9:16</NativeSelectOption>
+          <NativeSelectOption>1:1</NativeSelectOption>
+        </NativeSelect>
       </Field>
       <Field label="故事梗概">
         <textarea
@@ -489,14 +495,15 @@ function Storyboard(props: Props) {
         </Field>
         <div className="film-focused-camera">
           <Field label="景别">
-            <select
+            <NativeSelect
+              className="w-full"
               value={shot.framing}
               onChange={(e) => patch({ framing: e.target.value })}
             >
               {["远景", "全景", "中景", "近景", "特写"].map((v) => (
-                <option key={v}>{v}</option>
+                <NativeSelectOption key={v}>{v}</NativeSelectOption>
               ))}
-            </select>
+            </NativeSelect>
           </Field>
           <Field label="运镜">
             <input
@@ -540,17 +547,18 @@ function Storyboard(props: Props) {
               />
             </Field>
             <Field label="场景">
-              <select
+              <NativeSelect
+                className="w-full"
                 value={shot.sceneId}
                 onChange={(e) => patch({ sceneId: e.target.value })}
               >
-                <option value="">未指定场景</option>
+                <NativeSelectOption value="">未指定场景</NativeSelectOption>
                 {scenes.map((a) => (
-                  <option key={a.id} value={a.id}>
+                  <NativeSelectOption key={a.id} value={a.id}>
                     {a.name}
-                  </option>
+                  </NativeSelectOption>
                 ))}
-              </select>
+              </NativeSelect>
             </Field>
           </div>
           <fieldset className="film-character-options">
@@ -700,7 +708,8 @@ function MediaPlan(props: Props & { mode: "video" | "dubbing" }) {
                   <>
                     <div className="film-field-grid">
                       <Field label={`镜头 ${index + 1} 说话角色`}>
-                        <select
+                        <NativeSelect
+                          className="w-full"
                           value={shot.speakerId}
                           onChange={(e) =>
                             updateShot(props, shot.id, {
@@ -708,13 +717,15 @@ function MediaPlan(props: Props & { mode: "video" | "dubbing" }) {
                             })
                           }
                         >
-                          <option value="">未指定角色</option>
+                          <NativeSelectOption value="">
+                            未指定角色
+                          </NativeSelectOption>
                           {characters.map((a) => (
-                            <option key={a.id} value={a.id}>
+                            <NativeSelectOption key={a.id} value={a.id}>
                               {a.name}
-                            </option>
+                            </NativeSelectOption>
                           ))}
-                        </select>
+                        </NativeSelect>
                       </Field>
                       <Field label={`镜头 ${index + 1} 音色备注`}>
                         <input

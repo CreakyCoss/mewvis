@@ -1,3 +1,7 @@
+import {
+  NativeSelect,
+  NativeSelectOption,
+} from "design-system/components/ui/native-select";
 import { useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
@@ -189,7 +193,7 @@ export function Workbench({
           <h1 title={project.title}>{project.title || "未命名项目"}</h1>
         </div>
         <label className="film-context-menu film-current-episode">
-          <select
+          <NativeSelect
             aria-label="当前分集"
             value={episode.id}
             onChange={(e) => {
@@ -198,12 +202,11 @@ export function Workbench({
             }}
           >
             {project.episodes.map((e, index) => (
-              <option key={e.id} value={e.id}>
+              <NativeSelectOption key={e.id} value={e.id}>
                 第{index + 1}集 · {e.title || "未命名分集"}
-              </option>
+              </NativeSelectOption>
             ))}
-          </select>
-          <ChevronDown size={14} />
+          </NativeSelect>
         </label>
         <div className="film-workbench-actions">
           <span

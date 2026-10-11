@@ -1,3 +1,7 @@
+import {
+  NativeSelect,
+  NativeSelectOption,
+} from "design-system/components/ui/native-select";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getApplicationDataClient } from "@mewvis/app-sdk/data";
 import { getApplicationHost } from "@mewvis/app-sdk/browser";
@@ -180,16 +184,17 @@ export default function App() {
               />
             </Field>
             <Field label="创作方向">
-              <select
+              <NativeSelect
+                className="w-full"
                 value={kind}
                 onChange={(e) => setKind(e.target.value as ProjectKind)}
               >
                 {Object.entries(PROJECT_KINDS).map(([key, label]) => (
-                  <option key={key} value={key}>
+                  <NativeSelectOption key={key} value={key}>
                     {label}
-                  </option>
+                  </NativeSelectOption>
                 ))}
-              </select>
+              </NativeSelect>
             </Field>
             <p className="film-muted">
               先创建第一集，进入工作台后可以随时添加分集、调整风格和比例。

@@ -1,3 +1,4 @@
+import { NativeSelect, NativeSelectOption } from "design-system/components/ui/native-select";
 import { Ajv } from "ajv";
 import { Input } from "design-system/components/ui/input";
 import { Textarea } from "design-system/components/ui/textarea";
@@ -86,24 +87,24 @@ export function SchemaFields({
               {required ? <span className="ml-1 text-destructive">*</span> : null}
             </span>
             {choices ? (
-              <select
+              <NativeSelect
                 aria-label={label}
                 disabled={disabled}
                 required={required}
                 value={draft[key] ?? ""}
-                className="h-9 rounded-md border border-input bg-background px-3"
+                className="w-full"
                 onChange={(e) => set(e.target.value)}
               >
-                <option value="">请选择</option>
+                <NativeSelectOption value="">请选择</NativeSelectOption>
                 {choices.map((choice) => (
-                  <option
+                  <NativeSelectOption
                     key={JSON.stringify(choice)}
                     value={field.type === "string" ? String(choice) : JSON.stringify(choice)}
                   >
                     {choice === true ? "是" : choice === false ? "否" : String(choice)}
-                  </option>
+                  </NativeSelectOption>
                 ))}
-              </select>
+              </NativeSelect>
             ) : ["string", "number", "integer"].includes(field.type ?? "") ? (
               <Input
                 aria-label={label}
