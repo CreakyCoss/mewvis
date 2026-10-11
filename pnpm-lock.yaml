@@ -12227,7 +12227,7 @@ packages:
       fdir: 6.5.0(picomatch@4.0.4)
       jiti: 2.7.0
       picomatch: 4.0.4
-      postcss: 8.5.15
+      postcss: 8.5.29
       rollup: 4.60.4
       tinyglobby: 0.2.16
       yaml: 2.9.0
