@@ -1,0 +1,29 @@
+{
+  "name": "@mewvis/film-workshop",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "影视工坊：围绕项目、剧本、角色场景、分镜与制作清单组织影视创作。",
+  "scripts": {
+    "dev": "mewvis-app dev",
+    "check": "mewvis-app check",
+    "build": "mewvis-app build",
+    "test": "node --test test/*.test.mjs",
+    "test:browser": "node test/browser-smoke.mjs"
+  },
+  "dependencies": {
+    "@mewvis/app-sdk": "workspace:*",
+    "@mewvis/product-config": "workspace:*",
+    "design-system": "workspace:^",
+    "lucide-react": "^0.500.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@mewvis/app-dev": "workspace:*",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "esbuild": "^0.28.0"
+  }
+}

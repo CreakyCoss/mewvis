@@ -199,6 +199,7 @@ pnpm build
 | 示例 | 可以参考的实现 |
 | --- | --- |
 | [故事工坊](apps/applications/builtins/story) | 业务编辑器、项目资料与 AI 会话的组合 |
+| [影视工坊](apps/applications/builtins/film-workshop) | 剧本、素材、分镜与影视制作计划的组合 |
 | [学习工坊](apps/applications/builtins/learning) | 课程内容、互动界面与 AI 导师的组合 |
 | [RSS 阅读器](apps/applications/builtins/rss-reader) | 订阅与文章管理、业务数据持久化 |
 | [应用工坊](apps/applications/builtins/app-workshop) | AI 辅助编辑源码、浏览器子视图、构建与版本管理 |

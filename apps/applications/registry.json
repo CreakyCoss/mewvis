@@ -2,6 +2,7 @@
   "applications": [
     "app-workshop",
     "story",
+    "film-workshop",
     "learning",
     "docs-reader",
     "rss-reader",

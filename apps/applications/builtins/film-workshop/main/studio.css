@@ -1,0 +1,1088 @@
+/* Story Workshop authoring layout; workbench-only, library keeps its own layout. */
+.film-studio {
+  --film-text-caption: 12px;
+  --film-directory-width: 272px;
+  --film-panel-width: 360px;
+}
+.film-studio .film-workbench-header {
+  height: 56px;
+  min-height: 56px;
+  padding: 8px 16px;
+  gap: 20px;
+}
+.film-studio .film-project-heading {
+  flex: 0 1 auto;
+  gap: 10px;
+}
+.film-studio .film-project-heading h1 {
+  font-size: 16px;
+  font-weight: 600;
+  max-width: 280px;
+}
+.film-studio .film-header-mark {
+  color: var(--primary);
+}
+.film-studio .film-current-episode {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 340px;
+  padding-left: 20px;
+  border-left: 1px solid var(--border);
+}
+.film-studio .film-current-episode select {
+  width: auto;
+  max-width: 100%;
+  border: 0;
+  min-height: 32px;
+  padding: 3px 20px 3px 0;
+  background: transparent;
+  appearance: none;
+  color: var(--muted-foreground);
+  font-size: 13px;
+}
+.film-studio .film-workbench-actions {
+  margin-left: auto;
+  gap: 8px;
+}
+.film-studio .film-focus-toggle {
+  border: 0;
+  background: transparent;
+  font-size: 13px;
+}
+.film-studio .film-workbench-body {
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--film-directory-width) minmax(0, 1fr) 0 56px;
+  flex: 1;
+  min-height: 0;
+}
+.film-studio.has-panel .film-workbench-body {
+  grid-template-columns:
+    var(--film-directory-width) minmax(0, 1fr) var(--film-panel-width)
+    56px;
+}
+.film-studio .film-shot-directory {
+  grid-column: 1;
+  grid-row: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  border-right: 1px solid var(--border);
+  background: var(--surface);
+}
+.film-studio .film-shot-directory > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 56px;
+  min-height: 56px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--card);
+}
+.film-studio .film-shot-directory > header strong {
+  font-size: 16px;
+  font-weight: 600;
+}
+.film-studio .film-directory-add {
+  padding: 5px;
+  width: 32px;
+  min-height: 32px;
+  border: 0;
+  background: var(--primary-subtle);
+  color: var(--primary);
+  border-radius: 6px;
+}
+.film-studio .film-directory-list {
+  flex: 1;
+  overflow: auto;
+  min-height: 0;
+  padding: 12px 8px;
+}
+.film-studio .film-directory-list details {
+  margin: 0 0 8px;
+}
+.film-studio .film-directory-list summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  list-style: none;
+  cursor: pointer;
+  padding: 8px 10px 12px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.film-studio .film-directory-list summary span {
+  overflow-wrap: anywhere;
+}
+.film-studio .film-directory-list summary::-webkit-details-marker {
+  display: none;
+}
+.film-studio .film-directory-list details:not([open]) summary svg {
+  transform: rotate(-90deg);
+}
+.film-studio .film-directory-shot {
+  width: 100%;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  padding: 12px 8px;
+  min-height: 92px;
+  margin: 4px 0;
+  text-align: left;
+  border-left: 2px solid transparent;
+}
+.film-studio .film-directory-shot.is-selected {
+  border-left-color: var(--primary);
+  background: var(--primary-subtle);
+}
+.film-studio .film-directory-shot > span {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.film-studio .film-directory-shot strong {
+  font-size: 13px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.film-studio .film-directory-shot small {
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+.film-studio .film-directory-shot .film-shot-art {
+  width: 100px;
+  height: 64px;
+  flex: 0 0 100px;
+  border-radius: 4px;
+  margin: 0;
+}
+.film-studio .film-directory-shot .film-shot-art img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.film-studio .film-directory-shot .film-shot-art figcaption {
+  font-size: 8px;
+  padding: 2px 4px;
+}
+.film-studio .film-directory-shot .film-text-shot {
+  min-height: 48px;
+  width: 76px;
+  flex: 0 0 76px;
+  font-size: 10px;
+  border-radius: 4px;
+  gap: 2px;
+  padding: 4px;
+}
+.film-studio .film-directory-shot .film-text-shot svg {
+  width: 18px;
+  height: 18px;
+}
+.film-studio .film-directory-empty {
+  padding: 12px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+.film-studio .film-shot-directory > footer {
+  flex-shrink: 0;
+  padding: 12px 16px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+.film-studio .film-workspace {
+  grid-column: 2;
+  grid-row: 1;
+  display: flex;
+  flex-direction: column;
+  width: auto;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+  background: var(--card);
+}
+.film-studio .film-step-navigation {
+  flex-shrink: 0;
+  height: 56px;
+  min-height: 56px;
+  border-bottom: 1px solid var(--border);
+  padding: 0 12px;
+  background: var(--card);
+  display: flex;
+  align-items: stretch;
+}
+.film-studio .film-step-carousel {
+  gap: 0;
+  grid-template-columns: 22px minmax(0, 1fr) 22px;
+}
+.film-studio .film-step-scroll-button {
+  width: 22px;
+  min-width: 22px;
+  min-height: 32px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.film-studio .film-seven-steps {
+  display: flex;
+  align-items: stretch;
+  flex-wrap: nowrap;
+  min-width: 0;
+  width: 100%;
+  gap: 2px;
+  padding: 0;
+  margin: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.film-studio .film-seven-steps .film-step-button {
+  display: flex;
+  flex: 1 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-width: 90px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  border-radius: 0;
+  padding: 0 6px;
+  min-height: 54px;
+  box-shadow: none;
+  color: var(--muted-foreground);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.film-studio .film-seven-steps .film-step-button strong {
+  font: inherit;
+  font-weight: 400;
+}
+.film-studio .film-seven-steps .film-step-button.is-active {
+  border-bottom-color: var(--primary);
+  color: var(--primary);
+  background: transparent;
+}
+.film-studio .film-seven-steps .film-step-button.is-active strong {
+  font-weight: 600;
+}
+.film-studio .film-step-number {
+  width: 22px;
+  height: 22px;
+  min-width: 22px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--muted-foreground);
+  background: var(--background);
+  border: 0;
+  box-shadow: none;
+}
+.film-studio .film-seven-steps .film-step-button.is-active .film-step-number {
+  background: var(--primary-subtle);
+  color: var(--primary);
+}
+.film-studio .film-stage-area {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  overflow: auto;
+  padding: 28px 32px 24px;
+  background: var(--card);
+}
+.film-studio .film-stage-title {
+  font-size: 22px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.film-studio .film-stage-intro {
+  color: var(--muted-foreground);
+  margin: 0 0 24px;
+  font-size: 13px;
+}
+.film-studio .film-stage-intro > span {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+}
+.film-studio .film-stage-footer {
+  min-height: 48px;
+  height: 48px;
+  padding: 6px 16px;
+  border-top: 1px solid var(--border);
+  background: var(--card);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.film-studio .film-stage-footer button {
+  min-height: 32px;
+  padding: 5px 8px;
+  font-size: 12px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+.film-studio .film-stage-footer > span {
+  display: block;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+.film-studio .film-focused-shot {
+  max-width: 800px;
+  margin: 0 auto;
+}
+.film-studio .film-focused-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.film-studio .film-focused-heading span {
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+.film-studio .film-focused-heading h3 {
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.5;
+  margin: 4px 0;
+}
+.film-studio .film-focused-heading p {
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+.film-studio .film-shot-preview {
+  width: 100%;
+  max-height: 400px;
+  margin: 0 auto 16px;
+  overflow: hidden;
+  border-radius: 6px;
+  background: var(--surface);
+}
+.film-studio .film-shot-preview .film-shot-art {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  border-radius: 6px;
+  aspect-ratio: auto;
+}
+.film-studio .film-shot-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.film-studio .film-shot-preview .film-text-shot {
+  width: 100%;
+  height: 100%;
+  padding: 24px;
+  border: 0;
+}
+.film-studio .film-focused-fields {
+  display: grid;
+  gap: 12px;
+}
+.film-studio .film-focused-fields .film-field {
+  gap: 6px;
+  font-weight: 400;
+}
+.film-studio .film-focused-fields .film-field > label {
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+.film-studio .film-focused-fields textarea {
+  min-height: 58px;
+  max-height: 220px;
+  padding: 8px 12px;
+  font-size: 13px;
+  line-height: 1.65;
+  border-color: var(--border);
+  border-radius: 6px;
+}
+.film-studio .film-focused-camera {
+  display: grid;
+  grid-template-columns: 1fr 1.35fr 1fr;
+  gap: 16px;
+}
+.film-studio .film-focused-camera .film-field {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+.film-studio .film-focused-camera input,
+.film-studio .film-focused-camera select {
+  min-height: 36px;
+  height: 36px;
+  padding: 6px 8px;
+  border-color: var(--border);
+  border-radius: 6px;
+}
+.film-studio .film-focused-options {
+  font-size: 12px;
+}
+.film-studio .film-focused-options > summary {
+  cursor: pointer;
+  padding: 4px 0;
+  color: var(--muted-foreground);
+}
+.film-studio .film-focused-options[open] {
+  padding-bottom: 12px;
+}
+.film-studio .film-focused-options > div,
+.film-studio .film-focused-options > fieldset {
+  margin-top: 12px;
+}
+.film-studio .film-dialogue-source {
+  color: var(--muted-foreground);
+  font-size: 12px;
+  margin-top: -10px;
+}
+.film-studio .film-side-panel {
+  grid-column: 3;
+  grid-row: 1;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+.film-studio .film-side-panel[hidden] {
+  display: none;
+}
+.film-studio .film-assistant,
+.film-studio .film-reference-panel {
+  position: relative;
+  inset: auto;
+  z-index: auto;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  background: var(--card);
+  border-left: 1px solid var(--border);
+}
+.film-studio .film-assistant > header,
+.film-studio .film-reference-panel > header {
+  height: 56px;
+  min-height: 56px;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.film-studio .film-assistant > header strong,
+.film-studio .film-reference-panel > header strong {
+  font-size: 16px;
+  color: var(--foreground);
+  font-weight: 600;
+}
+.film-studio .film-assistant-context {
+  margin: 0;
+  padding: 12px 16px;
+  font-size: 12px;
+}
+.film-studio .film-assistant-header-actions {
+  display: flex;
+  gap: 4px;
+}
+.film-studio .film-assistant-header-actions .film-icon-button {
+  width: 32px;
+  height: 32px;
+  min-height: 32px;
+  padding: 0;
+}
+.film-studio .film-assistant-action-error {
+  padding: 8px 16px;
+  color: var(--destructive);
+  font-size: 12px;
+}
+.film-studio .film-assistant-welcome {
+  padding: 24px 16px;
+}
+.film-studio .film-assistant-welcome h2 {
+  font-size: 16px;
+  margin-top: 12px;
+  font-weight: 600;
+}
+.film-studio .film-assistant-welcome p {
+  font-size: 13px;
+  line-height: 1.75;
+}
+.film-studio .film-assistant-suggestions button {
+  min-height: 44px;
+  padding: 12px 0;
+  font-size: 13px;
+}
+.film-studio .film-chat-layout {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+}
+.film-studio .film-chat-layout > div:first-child {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+.film-studio .film-assistant-chat .film-chat-layout .film-chat-footer {
+  padding: 0;
+  flex: 0 0 auto;
+  max-height: 55%;
+  overflow-y: auto;
+  border: 0;
+  background: transparent;
+}
+.film-studio .film-tool-rail {
+  grid-column: 4;
+  grid-row: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  padding: 8px 4px;
+  border-left: 1px solid var(--border);
+  background: var(--card);
+  gap: 8px;
+}
+.film-studio .film-tool-rail button {
+  border: 0;
+  background: transparent;
+  min-height: 68px;
+  padding: 8px 0;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--muted-foreground);
+  border-radius: 6px;
+}
+.film-studio .film-tool-rail button.is-active {
+  background: var(--primary-subtle);
+  color: var(--primary);
+}
+.film-studio .film-reference-content {
+  overflow: auto;
+  min-height: 0;
+  padding: 16px;
+  font-size: 13px;
+}
+.film-studio .film-reference-context {
+  font-size: 12px;
+  color: var(--muted-foreground);
+  margin: 0 0 20px;
+}
+.film-studio .film-reference-content section {
+  border-bottom: 1px solid var(--border);
+  padding: 0 0 20px;
+  margin-bottom: 20px;
+}
+.film-studio .film-reference-content h3 {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+.film-studio .film-reference-content p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.75;
+}
+.film-studio .film-reference-content .film-reference-script {
+  max-height: 240px;
+  overflow: auto;
+}
+.film-studio .film-reference-link {
+  background: transparent;
+  border: 0;
+  font-size: 12px;
+  color: var(--primary);
+  padding: 8px 0;
+  margin-top: 8px;
+}
+.film-studio .film-reference-asset {
+  margin-bottom: 16px;
+}
+.film-studio .film-reference-asset > strong {
+  display: block;
+  margin: 3px 0 5px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.film-studio .film-reference-asset small,
+.film-studio .film-reference-content section > small {
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+.film-studio .film-reference-content section > small {
+  display: block;
+  margin-top: 8px;
+}
+.film-studio .film-directory-toggle,
+.film-studio .film-directory-close,
+.film-studio .film-drawer-scrim {
+  display: none;
+}
+.film-studio.is-focused .film-workbench-body {
+  grid-template-columns: 0 minmax(0, 1fr) 0 0;
+}
+.film-studio.is-focused .film-shot-directory,
+.film-studio.is-focused .film-tool-rail {
+  display: none;
+}
+.film-studio.is-focused .film-stage-area {
+  padding-left: max(32px, calc((100% - 800px) / 2));
+  padding-right: max(32px, calc((100% - 800px) / 2));
+}
+/* Directly follows Story Workshop's sw-composer-area / sw-composer dimensions. */
+.film-studio .film-composer-area {
+  position: relative;
+  border-top: 1px solid var(--border);
+  padding: 12px 16px 16px;
+  background: var(--card);
+}
+.film-studio .film-composer-context {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  min-height: 32px;
+  margin-bottom: 8px;
+  color: var(--muted-foreground);
+}
+.film-studio .film-composer-context > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.film-studio .film-composer-context button {
+  border: 0;
+  background: transparent;
+  color: var(--primary);
+  font-size: 12px;
+  padding: 0;
+  min-height: 32px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.film-studio .film-composer {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  background: var(--background);
+  box-shadow: 0 2px 12px color-mix(in oklab, var(--foreground) 5%, transparent);
+}
+.film-studio .film-composer:focus-within {
+  border-color: var(--ring);
+  box-shadow:
+    0 0 0 2px color-mix(in oklab, var(--ring) 12%, transparent),
+    0 2px 12px color-mix(in oklab, var(--foreground) 5%, transparent);
+}
+.film-studio .film-assistant-chat .film-composer textarea {
+  display: block;
+  width: 100%;
+  border: 0;
+  outline: none;
+  resize: vertical;
+  min-height: 76px;
+  max-height: 180px;
+  height: 76px;
+  padding: 0;
+  line-height: 1.75;
+  background: transparent;
+  font-family: inherit;
+  font-size: 14px;
+  box-shadow: none;
+  color: var(--foreground);
+}
+.film-studio .film-composer-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+}
+.film-studio .film-composer-controls button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  min-height: 36px;
+  padding: 0;
+  cursor: pointer;
+  background: transparent;
+  color: var(--muted-foreground);
+}
+.film-studio .film-composer-controls button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.film-studio .film-composer-controls .film-model-trigger {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 180px;
+  gap: 5px;
+  padding: 5px 8px;
+  border-radius: 7px;
+  font-size: 12px;
+  text-align: left;
+}
+.film-studio .film-model-trigger span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.film-studio .film-model-trigger svg {
+  flex-shrink: 0;
+}
+.film-studio .film-permission-trigger {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 7px;
+}
+.film-studio .film-permission-trigger[data-mode="ask"] {
+  color: var(--primary);
+}
+.film-studio .film-permission-trigger[data-mode="auto"] {
+  color: var(--success);
+}
+.film-studio .film-permission-trigger[data-mode="full"] {
+  color: var(--warning);
+}
+.film-studio .film-composer-controls .film-send {
+  margin-left: auto;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  box-shadow: var(--shadow-primary);
+}
+.film-studio .film-model-trigger:hover:not(:disabled),
+.film-studio .film-permission-trigger:hover:not(:disabled) {
+  background: var(--muted);
+}
+/* Portalled components share the same tokens but sit outside the app root. */
+.film-popup,
+.film-context-popup {
+  z-index: 80;
+  min-width: 160px;
+  max-width: min(320px, calc(100vw - 24px));
+  max-height: var(--radix-dropdown-menu-content-available-height);
+  overflow: auto;
+  padding: 6px;
+  border: 1px solid var(--border);
+  background: var(--popover);
+  color: var(--popover-foreground);
+  border-radius: 8px;
+  box-shadow: var(--shadow-floating);
+  font:
+    13px/1.5 -apple-system,
+    BlinkMacSystemFont,
+    "PingFang SC",
+    sans-serif;
+}
+.film-popup [role="menuitem"],
+.film-popup [role="menuitemradio"] {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 28px 8px 10px;
+  min-height: 36px;
+  border-radius: 6px;
+  outline: none;
+  cursor: pointer;
+}
+.film-popup [data-disabled] {
+  opacity: 0.5;
+  pointer-events: none;
+}
+.film-popup [data-highlighted],
+.film-popup [data-state="checked"] {
+  background: var(--primary-subtle);
+  color: var(--primary);
+}
+.film-popup [data-variant="destructive"] {
+  color: var(--destructive);
+}
+.film-popup [data-slot="dropdown-menu-radio-item-indicator"] {
+  position: absolute;
+  right: 8px;
+  display: flex;
+}
+.film-popup [data-slot="dropdown-menu-radio-item-indicator"] svg {
+  width: 14px;
+  height: 14px;
+}
+.film-popup [data-slot="dropdown-menu-label"] {
+  padding: 6px 10px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+.film-popup.film-history-menu {
+  display: flex;
+  flex-direction: column;
+  width: min(300px, calc(100vw - 24px));
+  max-height: min(360px, var(--radix-dropdown-menu-content-available-height));
+  padding: 0;
+  overflow: hidden;
+  border-radius: 10px;
+  background: var(--card);
+}
+.film-history-menu .film-history-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.film-history-list {
+  min-height: 0;
+  padding: 5px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.film-popup .film-history-item {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 3px;
+  width: 100%;
+  min-height: 0;
+  padding: 9px 10px;
+  color: var(--foreground);
+}
+.film-history-item[aria-current="true"] {
+  background: var(--primary-subtle);
+}
+.film-history-item-title {
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 500;
+}
+.film-history-item-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  color: var(--muted-foreground);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.film-history-item-meta em {
+  color: var(--primary);
+  font-style: normal;
+}
+.film-history-empty {
+  margin: 0;
+  padding: 18px 12px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+.film-popup .film-permission-option {
+  min-height: 56px;
+}
+.film-popup .film-permission-option > span:last-child {
+  display: grid;
+}
+.film-popup .film-permission-option small {
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+.film-context-popup {
+  padding: 16px;
+}
+.film-context-popup p {
+  margin: 8px 0;
+  line-height: 1.75;
+}
+.film-context-popup small {
+  color: var(--muted-foreground);
+}
+@media (max-width: 1280px) {
+  .film-studio {
+    --film-directory-width: 208px;
+    --film-panel-width: 320px;
+  }
+  .film-studio .film-stage-area {
+    padding: 24px;
+  }
+  .film-studio .film-directory-shot .film-shot-art,
+  .film-studio .film-directory-shot .film-text-shot {
+    width: 64px;
+    flex-basis: 64px;
+    height: 42px;
+  }
+  .film-studio .film-directory-shot strong {
+    font-size: 12px;
+  }
+}
+@media (max-width: 1100px) {
+  .film-studio {
+    --film-directory-width: 0px;
+    --film-panel-width: 320px;
+  }
+  .film-studio .film-directory-toggle {
+    display: inline-flex;
+  }
+  .film-studio .film-shot-directory {
+    display: none;
+  }
+  .film-studio.directory-mobile-open .film-shot-directory {
+    display: flex;
+    position: absolute;
+    z-index: 45;
+    width: 248px;
+    height: 100%;
+    left: 0;
+    top: 0;
+    box-shadow: var(--shadow-floating);
+  }
+  .film-studio.directory-mobile-open .film-drawer-scrim {
+    display: block;
+    position: absolute;
+    inset: 0;
+    z-index: 44;
+    border: 0;
+    border-radius: 0;
+    background: color-mix(in srgb, var(--overlay) 20%, transparent);
+  }
+  .film-studio .film-directory-close {
+    display: inline-flex;
+    margin-left: 8px;
+  }
+  .film-studio .film-shot-directory > header strong {
+    margin-right: auto;
+  }
+  .film-studio .film-stage-footer > span {
+    display: none;
+  }
+}
+@media (max-width: 760px) {
+  .film-studio .film-workbench-header {
+    height: auto;
+    min-height: 56px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 8px;
+    padding: 8px 12px;
+  }
+  .film-studio .film-project-heading {
+    gap: 8px;
+    flex: 1 1 0;
+    width: auto;
+  }
+  .film-studio .film-project-heading h1 {
+    max-width: 136px;
+    font-size: 14px;
+  }
+  .film-studio .film-header-mark {
+    width: 20px;
+    height: 20px;
+  }
+  .film-studio .film-current-episode {
+    order: 3;
+    width: 100%;
+    max-width: none;
+    padding: 4px 0 0 36px;
+    border: 0;
+  }
+  .film-studio .film-workbench-actions {
+    width: auto;
+    margin-left: 0;
+    gap: 2px;
+  }
+  .film-studio .film-workbench-actions .film-save-status {
+    min-width: 0;
+    margin: 0;
+    font-size: 11px;
+  }
+  .film-studio .film-workbench-actions > button[aria-label="保存"],
+  .film-studio .film-focus-toggle {
+    display: none;
+  }
+  .film-studio .film-workbench-body,
+  .film-studio.has-panel .film-workbench-body {
+    grid-template-columns: 0 minmax(0, 1fr) 0 44px;
+  }
+  .film-studio .film-tool-rail {
+    padding: 4px 2px;
+    gap: 4px;
+  }
+  .film-studio .film-tool-rail button {
+    min-height: 60px;
+    font-size: 11px;
+  }
+  .film-studio .film-tool-rail svg {
+    width: 18px;
+    height: 18px;
+  }
+  .film-studio .film-side-panel {
+    display: none;
+  }
+  .film-studio.panel-mobile-open .film-side-panel:not([hidden]) {
+    display: flex;
+    position: absolute;
+    grid-area: auto;
+    inset: 0 44px 0 0;
+    z-index: 40;
+    background: var(--card);
+  }
+  .film-studio .film-step-navigation {
+    padding: 0 4px;
+  }
+  .film-studio .film-stage-area {
+    padding: 20px 16px;
+  }
+  .film-studio .film-focused-heading h3,
+  .film-studio .film-stage-title {
+    font-size: 20px;
+  }
+  .film-studio .film-focused-camera {
+    gap: 8px;
+    grid-template-columns: 1fr 1.2fr 0.8fr;
+  }
+  .film-studio .film-focused-camera .film-field {
+    display: flex;
+  }
+  .film-studio .film-stage-footer {
+    padding: 6px 8px;
+    height: auto;
+    min-height: 48px;
+  }
+  .film-studio .film-stage-footer button {
+    font-size: 11px;
+    padding: 5px;
+    gap: 3px;
+  }
+  .film-studio .film-stage-footer svg {
+    width: 13px;
+  }
+  .film-studio .film-side-panel .film-assistant {
+    position: relative;
+    inset: auto;
+    border-left: 0;
+  }
+  .film-studio .film-reference-panel {
+    border-left: 0;
+  }
+}
