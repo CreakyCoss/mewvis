@@ -21,6 +21,7 @@ const BRIDGE_SOURCE = String.raw`
   let nextId = 1;
   let host = null;
   /* EMBEDDED_VIEWS */
+  const previewListeners = new Set();
   const chatListeners = new Set();
   const headerListeners = new Set();
   let appliedThemeTokens = [];
@@ -60,6 +61,18 @@ const BRIDGE_SOURCE = String.raw`
         pending.set(id, { resolve, reject }); send({ type: "host:clipboard-write", id, text });
       });
     },
+    files: Object.freeze({
+      version: 1,
+      subscribe(listener) { previewListeners.add(listener); return () => previewListeners.delete(listener); },
+      request(request) {
+        const id = String(nextId++);
+        return new Promise((resolve, reject) => {
+          const timer = setTimeout(() => { pending.delete(id); reject(new Error("文件请求超时，请读取确认结果")); }, 30000);
+          pending.set(id, { resolve: (value) => { clearTimeout(timer); resolve(value); }, reject: (error) => { clearTimeout(timer); reject(error); } });
+          send({ type: "files:request", id, request });
+        });
+      },
+    }),
     data: Object.freeze({
       version: 1,
       request(request) {
@@ -110,6 +123,7 @@ const BRIDGE_SOURCE = String.raw`
     if (event.source !== parent) return;
     const message = event.data;
     if (!message || message.channel !== channel) return;
+    if (message.type === "files:preview-close") { previewListeners.forEach(listener=>listener(message.event)); return; }
     if (message.type === "chat:snapshot") { chatListeners.forEach((listener) => listener(message.event)); return; }
     if (message.type === "header:action" && message.action === "back") { headerListeners.forEach((listener) => listener(message.action)); return; }
     if (message.type === "host:init") {
@@ -151,13 +165,13 @@ const escapeStyle = (value: string) => value.replace(/<\/style/gi, "<\\/style");
 export const sandboxDocument = (
   document: ApplicationUiDocument,
   chat?: ApplicationUiDocument,
-  options: { embeddedViews?: boolean } = {},
+  options: { embeddedViews?: boolean; fileResourceSource?: string } = {},
 ) => `<!doctype html>
 <html>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; connect-src 'none'; form-action 'none'; frame-src ${options.embeddedViews ? "blob:" : "'none'"}; img-src data: blob:; media-src 'none'; object-src 'none'; font-src data: blob:; style-src 'unsafe-inline'; script-src 'unsafe-inline'" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; connect-src ${options.fileResourceSource ?? "'none'"}; form-action 'none'; frame-src ${options.embeddedViews ? "blob:" : "'none'"}; img-src data: blob: ${options.fileResourceSource ?? ""}; media-src ${options.fileResourceSource ?? "'none'"}; worker-src ${options.fileResourceSource ? "blob:" : "'none'"}; object-src 'none'; font-src data: blob:; style-src 'unsafe-inline'; script-src 'unsafe-inline' ${options.fileResourceSource ? "blob:" : ""}" />
     <style>${escapeStyle(themeTokensCss)}${chat ? escapeStyle(chat.style) : ""}${chat ? "html, body { height: 100%; margin: 0; }" : escapeStyle(BASE_STYLE)}${escapeStyle(document.style)}</style>
   </head>
   <body>

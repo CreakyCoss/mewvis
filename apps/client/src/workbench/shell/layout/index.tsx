@@ -1,3 +1,4 @@
+import { FilePreviewHost } from "../files";
 import { Toaster } from "design-system/components/ui/sonner";
 import { useMatch } from "react-router";
 import { ConfigDatabaseDialog } from "@/workbench/shell/recovery";
@@ -17,6 +18,7 @@ export const AppLayout = () => {
       <AppWorkspace sidebar={<AppSidebar />} contextualSidebar={chatHome || chat ? <ChatSidebar /> : null}>
         <MainOutlet />
       </AppWorkspace>
+      <FilePreviewHost />
       <ConfigDatabaseDialog onRecovered={refreshWorkspaces} />
       <Toaster position="top-center" />
     </>

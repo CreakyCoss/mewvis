@@ -1,3 +1,5 @@
+import { createBackendApplicationFileTransport } from "@/api/applications/files";
+import type { ApplicationFileRequest } from "@mewvis/app-sdk/files";
 import { productId } from "@mewvis/product-config";
 import { applicationChatHost } from "@/workbench/shell/chat-service";
 import type { ApplicationChatRequest } from "@mewvis/app-sdk/chat";
@@ -41,6 +43,7 @@ export const ApplicationFrame = ({
   const externalOpenInFlight = useRef(false);
   const frameLoadCount = useRef(0);
   const [uiDocument, setUiDocument] = useState<ApplicationUiDocument | null>(null);
+  const [fileResourceSource, setFileResourceSource] = useState<string>();
   const [chatRuntime, setChatRuntime] = useState<ApplicationUiDocument>();
   const [loadError, setLoadError] = useState("");
   const [runtimeError, setRuntimeError] = useState("");
@@ -48,9 +51,17 @@ export const ApplicationFrame = ({
   const [isFrameReady, setIsFrameReady] = useState(false);
   const embeddedViews =
     application.permissionStatus === "declared" && application.permissions.includes("embedded-views");
+  const filePreviewsEnabled =
+    application.permissionStatus === "declared" && application.permissions.includes("workspace-files");
   const source = useMemo(
-    () => (uiDocument ? sandboxDocument(uiDocument, chatRuntime, { embeddedViews }) : ""),
-    [uiDocument, chatRuntime, embeddedViews],
+    () =>
+      uiDocument
+        ? sandboxDocument(uiDocument, chatRuntime, {
+            embeddedViews,
+            fileResourceSource: filePreviewsEnabled ? fileResourceSource : undefined,
+          })
+        : "",
+    [uiDocument, chatRuntime, embeddedViews, filePreviewsEnabled, fileResourceSource],
   );
   const signature = JSON.stringify([
     application.version,
@@ -72,6 +83,7 @@ export const ApplicationFrame = ({
     frameLoadCount.current = 0;
     void Promise.all([
       loadDocument(application.id),
+      platform.getBackendConnection().then((backend) => `${backend?.url ?? location.origin}/api/file-previews/`),
       application.permissions.includes("chat")
         ? Promise.all([
             import("@/chat/react/dist/application-runtime.js?raw"),
@@ -79,8 +91,9 @@ export const ApplicationFrame = ({
           ]).then(([script, style]) => ({ script: script.default, style: style.default }))
         : undefined,
     ])
-      .then(([next, runtime]) => {
+      .then(([next, resourceSource, runtime]) => {
         if (!cancelled) {
+          setFileResourceSource(resourceSource);
           setUiDocument(next);
           setChatRuntime(runtime);
         }
@@ -103,7 +116,10 @@ export const ApplicationFrame = ({
     );
     const chatRequests = new Set<string>();
     const dataRequests = new Set<string>();
+    const fileRequests = new Set<string>();
+    const files = createBackendApplicationFileTransport(application.id);
     const data = createBackendApplicationDataTransport(application.id);
+    const unlistenPreview = files.subscribe?.((event) => post({ type: "files:preview-close", event }));
     let connected = true;
     const initialize = () =>
       post({
@@ -267,6 +283,47 @@ export const ApplicationFrame = ({
           .finally(() => chatRequests.delete(id));
         return;
       }
+      if (message.type === "files:request") {
+        const id = message.id;
+        const request = messageObject(message.request);
+        if (typeof id !== "string" || !id || id.length > 128 || !request) return;
+        const reject = (message: string) =>
+          post({ type: "host:result", id, result: { ok: false, error: { code: "INVALID_ARGUMENT", message } } });
+        if (fileRequests.has(id) || fileRequests.size >= MAX_CONCURRENT_CALLS) {
+          reject("文件请求重复或并发过多");
+          return;
+        }
+        try {
+          if (new TextEncoder().encode(JSON.stringify(request)).byteLength > MAX_ARGUMENT_BYTES) {
+            reject("文件请求超过 256 KiB");
+            return;
+          }
+        } catch {
+          reject("文件请求必须是 JSON");
+          return;
+        }
+        fileRequests.add(id);
+        void files
+          .request(request as unknown as ApplicationFileRequest)
+          .then(
+            (result) => {
+              if (connected) post({ type: "host:result", id, result });
+            },
+            (error) => {
+              if (connected)
+                post({
+                  type: "host:result",
+                  id,
+                  result: {
+                    ok: false,
+                    error: { code: error?.code ?? "FILE_ERROR", message: error?.message ?? "文件操作失败" },
+                  },
+                });
+            },
+          )
+          .finally(() => fileRequests.delete(id));
+        return;
+      }
       if (message.type === "data:request") {
         const id = message.id;
         const request = messageObject(message.request);
@@ -345,6 +402,8 @@ export const ApplicationFrame = ({
     window.addEventListener("message", onMessage);
     return () => {
       connected = false;
+      unlistenPreview?.();
+      files.dispose();
       data.dispose();
       chat.dispose();
       themeObserver.disconnect();
@@ -354,7 +413,7 @@ export const ApplicationFrame = ({
       inFlight.current.clear();
       externalOpenInFlight.current = false;
     };
-  }, [application.id, signature, toolNames, chatHost, registerHeader]);
+  }, [application.id, signature, toolNames, chatHost, registerHeader, filePreviewsEnabled]);
 
   useEffect(() => {
     if (!navigationBlocked) return;

@@ -1,6 +1,9 @@
 import type { RiskLevel } from "@mewvis/chat-contracts";
 import type { ApplicationChatClient } from "./chat/index.js";
-import type { ApplicationStorage, ApplicationWorkspaces } from "./data/index.js";
+import type {
+  ApplicationStorage,
+  ApplicationWorkspaces,
+} from "./data/index.js";
 
 export { default as schema } from "@deepseek-ai/schemastery";
 
@@ -100,6 +103,8 @@ export interface MewvisApplicationContext {
   readonly chat?: ApplicationChatClient;
   /** Requires a host implementing the data v1 contract and application-data permission. */
   readonly storage?: ApplicationStorage;
+  /** File access is checked by the host on every operation. Requires workspace-files. */
+  readonly files?: import("./files/index.js").ApplicationFileClient;
   /** Application-owned workspace membership; never the desktop workspace registry. */
   readonly workspaces?: ApplicationWorkspaces;
   readonly tools: MewvisToolRegistry;
@@ -113,7 +118,9 @@ export interface MewvisVersionedSettings<T extends object> {
   readonly namespace: string;
   readonly version: number;
   readonly schema: unknown;
-  register(context: MewvisApplicationContext): Promise<MewvisSettingsSection<T>>;
+  register(
+    context: MewvisApplicationContext,
+  ): Promise<MewvisSettingsSection<T>>;
 }
 
 export type MewvisApplicationMetadata = Readonly<{

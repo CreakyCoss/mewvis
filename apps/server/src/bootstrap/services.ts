@@ -1,3 +1,6 @@
+import { hostProtectedPaths } from "../modules/files/util.js";
+import { applicationDirectory } from "../modules/applications/packages.js";
+import { lstat, realpath } from "node:fs/promises";
 import { SystemDialogs } from "../modules/system-dialogs/service.js";
 import type { NativePicker } from "../infrastructure/dialogs/native-picker.js";
 import { join } from "node:path";
@@ -44,7 +47,33 @@ export class ServerServices {
     this.dialogs = new SystemDialogs(nativePicker);
     this.supervisor = new AgentRuntimeSupervisor(config);
     this.files = new WorkspaceFiles(this.supervisor.events);
-    this.applications = new Applications(config, this.supervisor);
+    this.applications = new Applications(config, this.supervisor, async () => {
+      const paths =
+        this.database?.connection
+          .prepare("SELECT path FROM workspaces")
+          .all()
+          .map((row) => String(row.path)) ?? [];
+      const workspacePaths = [];
+      for (const path of paths) {
+        try {
+          if (
+            (await lstat(path)).isDirectory() &&
+            (await realpath(path)) === path
+          )
+            workspacePaths.push(path);
+        } catch {}
+      }
+      const applications = await this.applications.packages.list();
+      const applicationDataPaths = applications.map((app) =>
+        applicationDirectory(this.applications.packages.path, app.id),
+      );
+      const protectedPaths = hostProtectedPaths(
+        config.dataDir,
+        applicationDataPaths,
+        workspacePaths,
+      );
+      return { dataPath: config.dataDir, workspacePaths, protectedPaths };
+    });
   }
 
   async initialize() {

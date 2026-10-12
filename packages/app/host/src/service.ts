@@ -1,3 +1,4 @@
+import { createNativeApplicationFiles } from "./files.js";
 import { productId } from "@mewvis/product-config";
 import type { ProductId } from "@mewvis/product-config";
 import type { AgentAccess } from "@mewvis/chat-contracts";
@@ -33,6 +34,7 @@ type RuntimeApplication = Readonly<{
   permissionStatus:
     "declared" | ProductId<"-upgrade-required"> | "dsh-unsupported";
   dataConnection?: string | null;
+  fileConnection?: string | null;
 }>;
 
 type HostConfiguration = Readonly<{
@@ -92,6 +94,9 @@ const createDataConnection = () =>
     protocolWrite(JSON.stringify(message) + "\n"),
   );
 let nativeData = createDataConnection();
+let nativeFiles = createNativeApplicationFiles((message) =>
+  protocolWrite(`${JSON.stringify(message)}\n`),
+);
 
 const asObject = (value: unknown, label: string): Record<string, unknown> => {
   if (!value || typeof value !== "object" || Array.isArray(value))
@@ -116,6 +121,7 @@ const disposeHost = async () => {
   uiDocuments = new Map();
   if (current) await current.dispose();
   nativeChat.dispose();
+  nativeFiles.dispose();
   nativeData.dispose();
 };
 
@@ -129,8 +135,16 @@ const configure = async (value: unknown) => {
   await disposeHost();
   applicationSettingsRoot = settingsPath;
   nativeData = createDataConnection();
+  nativeFiles = createNativeApplicationFiles((message) =>
+    protocolWrite(`${JSON.stringify(message)}\n`),
+  );
   const nextHost = await ApplicationHost.create({
     applicationSettingsRoot: settingsPath,
+    files: (id) =>
+      nativeFiles.client(
+        runtimeApplications.find((application) => application.id === id)
+          ?.fileConnection,
+      ),
     data: (id) =>
       nativeData.client(
         runtimeApplications.find((application) => application.id === id)
@@ -338,7 +352,7 @@ for await (const line of reader) {
   try {
     request = JSON.parse(line) as RpcRequest;
     if (nativeChat.receive(request)) continue;
-    if (nativeData.receive(request)) continue;
+    if (nativeFiles.receive(request) || nativeData.receive(request)) continue;
     if (request.id === undefined || typeof request.method !== "string")
       throw new Error("请求缺少 id 或 method。");
   } catch (error) {

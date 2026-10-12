@@ -35,6 +35,7 @@ export async function startServer(options: ServerOptions) {
       ...options,
       supervisor: resources.supervisor,
       commands: registerCommands(services),
+      filePreviews: services.applications.files,
       shutdown: () => resources.shutdown(),
       dispose: () => resources.dispose(),
     });

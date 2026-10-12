@@ -79,6 +79,10 @@ export async function apply(ctx) {
 
 `@mewvis/app-sdk/data` 提供应用独立的持久化键值存储，以及工作区新增与查询；桌面与 Web 应用页面、原生 ApplicationHost 均接入宿主落库服务。两类接口分别要求 `application-data`、`application-workspaces`。工作区使用与宿主遵循相同的文件操作规则，SDK 不修改 Agent／Pi 流程或增加文件访问限制。详见 [应用数据与工作区 SDK](data.md)。
 
+## 文件与预览
+
+`@mewvis/app-sdk/files` 提供完整路径的文件读写、原子保存、复制/移动，以及宿主只读预览。所有操作统一限制在当前调用者的数据目录和已登记工作区，范围外直接拒绝。浏览器与原生 `ctx.files` 共用协议，需声明 `workspace-files`。`@mewvis/app-sdk/files/react` 提供在应用自身 DOM 中渲染的 `FilePreview`，以及独立的 `FilePreviewDialog`，复用同一个 `FilePreviewInput`；普通 JS 使用 `preview.open(container, input)`，宿主弹窗使用 `preview.openDialog(input)`。见[应用文件与宿主预览](files.md)。
+
 ## 聊天
 
 [应用聊天](chat.md)介绍无界面客户端、默认与组合 React Chat、桌面 `ctx.chat` 接口、权限、生命周期及构建测试。SDK 根入口不会加载聊天 UI；需明确使用 `/chat` 或 `/chat/react` 子入口。

@@ -869,6 +869,43 @@ body {
 .showcase-view-stage .showcase-empty {
   min-height: 260px;
 }
+.showcase-file-stage {
+  height: 360px;
+  margin-top: 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--background);
+}
+.showcase-file-stage .showcase-empty {
+  height: 100%;
+}
+.showcase-file-import,
+.showcase-file-roots {
+  margin-top: 20px;
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+}
+.showcase-file-roots summary {
+  cursor: pointer;
+  color: var(--primary);
+}
+.showcase-file-roots code,
+.showcase-file-summary code {
+  display: block;
+  font-size: 12px;
+  color: var(--muted-foreground);
+  overflow-wrap: anywhere;
+  margin-top: 6px;
+}
+.showcase-file-summary {
+  margin-top: 14px;
+}
+.showcase-file-summary > span {
+  margin-left: 10px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
 .showcase-send-message {
   margin-top: 12px;
 }

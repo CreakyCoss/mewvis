@@ -1,3 +1,4 @@
+import type { ApplicationFiles } from "../files/application-files.js";
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { dirname, join } from "node:path";
@@ -33,12 +34,14 @@ export class ApplicationHost {
     }
   >();
   private dataConnections: string[] = [];
+  private fileConnections: string[] = [];
   private closing = false;
   constructor(
     private config: RuntimeConfig,
     private packages: Packages,
     private data: ApplicationData,
     private events: EventHub,
+    private files?: ApplicationFiles,
   ) {}
   private send(message: unknown) {
     if (!this.child || this.child.stdin.destroyed)
@@ -86,6 +89,32 @@ export class ApplicationHost {
   }
   private receive(message: any, connection: string) {
     if (connection !== this.connection) return;
+    if (message.type === "application-files:request" && this.files) {
+      void this.files
+        .request(message.connection, message.request)
+        .then(
+          (value) => ({ ok: true, value }),
+          (error) => ({
+            ok: false,
+            error: {
+              code: error instanceof ServiceError ? error.code : "FILE_ERROR",
+              message:
+                error instanceof ServiceError ? error.message : "文件操作失败",
+            },
+          }),
+        )
+        .then((response) => {
+          if (connection === this.connection)
+            try {
+              this.send({
+                type: "application-files:response",
+                id: message.id,
+                response,
+              });
+            } catch {}
+        });
+      return;
+    }
     if (message.type === "application-data:request") {
       void this.data
         .request(message.connection, message.request)
@@ -131,6 +160,9 @@ export class ApplicationHost {
     this.pending.clear();
     for (const token of this.dataConnections) this.data.disconnect(token);
     this.dataConnections = [];
+    for (const token of this.fileConnections)
+      void this.files?.disconnect(token);
+    this.fileConnections = [];
   }
   private async ensure() {
     if (this.closing || this.quarantined)
@@ -226,11 +258,21 @@ export class ApplicationHost {
             dataConnection = await this.data.connect(p.id);
             this.dataConnections.push(dataConnection);
           }
+          let fileConnection: string | null = null;
+          if (
+            this.files &&
+            p.permissionStatus === "declared" &&
+            p.permissions.includes("workspace-files")
+          ) {
+            fileConnection = await this.files.connect(p.id);
+            this.fileConnections.push(fileConnection);
+          }
           configured.push({
             ...p,
             kind: p.runtimeKind,
             packageRoot: p.path,
             dataConnection,
+            fileConnection,
           });
         }
         if (this.child !== child || generation !== this.generation)

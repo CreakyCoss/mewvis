@@ -1,3 +1,7 @@
+import {
+  createApplicationFileClient,
+  type ApplicationFileClient,
+} from "@mewvis/app-sdk/files";
 import { APP_DISPLAY_NAME, PRODUCT_NAMESPACE } from "@mewvis/product-config";
 import type { MewvisToolRisk } from "@mewvis/app-sdk";
 import { isRiskLevel } from "@mewvis/chat-contracts";
@@ -51,6 +55,7 @@ export type CordisToolCall = Readonly<{
 export type CordisApplicationHostOptions = Readonly<{
   chat?: (applicationId: string) => ApplicationChatClient | undefined;
   data?: (applicationId: string) => ApplicationDataClient;
+  files?: (applicationId: string) => ApplicationFileClient;
   toolPresentation?: "native" | "code" | "both";
   /** A YAML/JSON file keeps DSH's monolithic mode; a directory enables Mewvis namespace isolation. */
   settingsPath?: string;
@@ -306,6 +311,7 @@ export class CordisApplicationHost {
     private readonly skills: SkillRegistry,
     private readonly chatFactory?: CordisApplicationHostOptions["chat"],
     private readonly dataFactory?: CordisApplicationHostOptions["data"],
+    private readonly fileFactory?: CordisApplicationHostOptions["files"],
     private readonly applicationSettingsRoot?: string,
   ) {
     this.context = context;
@@ -359,6 +365,7 @@ export class CordisApplicationHost {
         skills,
         options.chat,
         options.data,
+        options.files,
         options.applicationSettingsRoot,
       );
     } catch (error) {
@@ -435,7 +442,8 @@ export class CordisApplicationHost {
     const scope = (await this.settingsScope(applicationId))
       .isolate("chat")
       .isolate("storage")
-      .isolate("workspaces");
+      .isolate("workspaces")
+      .isolate("files");
     const data =
       this.dataFactory?.(applicationId) ??
       createApplicationDataClient({
@@ -448,12 +456,26 @@ export class CordisApplicationHost {
           },
         }),
       });
+    const files =
+      this.fileFactory?.(applicationId) ??
+      createApplicationFileClient({
+        version: 1,
+        request: async () => ({
+          ok: false,
+          error: {
+            code: "CAPABILITY_UNAVAILABLE",
+            message: "当前运行环境未提供文件服务",
+          },
+        }),
+      });
+    const removeFiles = scope.provide("files", files);
     const removeStorage = scope.provide("storage", data.storage);
     const removeWorkspaces = scope.provide("workspaces", data.workspaces);
     const removeChat = chat ? scope.provide("chat", chat) : undefined;
     const releaseChat = () => {
       chat?.dispose();
       void removeChat?.();
+      void removeFiles();
       void removeStorage();
       void removeWorkspaces();
     };

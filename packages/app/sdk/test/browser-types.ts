@@ -1,3 +1,9 @@
+import { createElement } from "react";
+import { FilePreview, FilePreviewDialog } from "@mewvis/app-sdk/files/react";
+import {
+  getApplicationFileClient,
+  type ApplicationFileTransport,
+} from "@mewvis/app-sdk/files";
 import type { ApplicationBrowserHost } from "@mewvis/app-sdk/browser";
 import type { ApplicationDataTransport } from "@mewvis/app-sdk/data";
 import {
@@ -38,3 +44,39 @@ function owner(container: HTMLDivElement) {
   void child.request("echo", { value: () => true });
 }
 void owner;
+
+const fileTransport: ApplicationFileTransport = {
+  version: 1,
+  request: async () => ({ ok: true, value: null }),
+};
+const hostFiles: ApplicationBrowserHost["files"] = fileTransport;
+void hostFiles;
+const files = getApplicationFileClient();
+void files.writeText("/project/config.json", "{}", { overwrite: true });
+void files.preview.openDialog({ filePath: "/project/image.png" });
+// @ts-expect-error Binary writes accept bytes, not strings.
+void files.writeBinary("/project/image.png", "data");
+void files.preview.openDialog({
+  filePath: "/project/image.png",
+  // @ts-expect-error File access does not accept a caller-controlled application identity.
+  applicationId: "other",
+});
+
+void createElement(FilePreview, {
+  filePath: "/project/image.png",
+  style: { height: 360 },
+});
+void createElement(FilePreviewDialog, {
+  filePath: "/project/image.png",
+  open: true,
+});
+void createElement(FilePreview, {
+  filePath: "/project/image.png",
+  // @ts-expect-error Application preview identity comes from the owning host, not component props.
+  applicationId: "other",
+});
+
+function plainPreview(container: HTMLDivElement) {
+  void files.preview.open(container, { filePath: "/project/image.png" });
+}
+void plainPreview;

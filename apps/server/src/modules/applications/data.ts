@@ -1,3 +1,4 @@
+import { sqliteFilePaths } from "../files/util.js";
 import { APP_DATA_DIR_NAME, productDataName } from "@mewvis/product-config";
 import * as fs from "node:fs/promises";
 import { DatabaseSync } from "node:sqlite";
@@ -125,8 +126,7 @@ export class ApplicationData {
     );
     if (checked !== directory)
       fail("STORAGE_ERROR", "应用数据目录不能是符号链接");
-    for (const suffix of ["", "-wal", "-shm", "-journal"]) {
-      const path = join(directory, "storage.sqlite" + suffix);
+    for (const path of sqliteFilePaths(join(directory, "storage.sqlite"))) {
       if (
         (await exists(path)) &&
         ((await fs.lstat(path)).isSymbolicLink() ||
@@ -178,6 +178,21 @@ export class ApplicationData {
     } finally {
       db?.close();
     }
+  }
+  /** Host-owned membership metadata, without creating a default workspace. */
+  async fileWorkspaces(owner: string) {
+    const records = await this.records(owner);
+    const available = [];
+    for (const record of records) {
+      try {
+        await this.validate(owner, record);
+        available.push(record.path);
+      } catch (error) {
+        if (!(error instanceof ServiceError)) throw error;
+        // Missing or unadmitted directories never become an allowed file root.
+      }
+    }
+    return available;
   }
   private async marker(path: string) {
     const target = join(path, APP_DATA_DIR_NAME, "workspace.json");

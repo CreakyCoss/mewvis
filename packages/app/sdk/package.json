@@ -35,6 +35,18 @@
     "./views/runtime": {
       "types": "./views/runtime.d.ts",
       "default": "./views/runtime.js"
+    },
+    "./files": {
+      "types": "./files/index.d.ts",
+      "default": "./files/index.js"
+    },
+    "./files/react": {
+      "types": "./files/react.d.ts",
+      "default": "./files/react.js"
+    },
+    "./files/view": {
+      "types": "./files/view.d.ts",
+      "default": "./files/view.js"
     }
   },
   "files": [
@@ -44,7 +56,8 @@
     "browser",
     "data",
     "tools",
-    "views"
+    "views",
+    "files"
   ],
   "scripts": {
     "test": "node --test test/*.test.mjs"

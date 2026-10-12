@@ -1,13 +1,32 @@
+import {
+  applicationProtectedPaths,
+  hostProtectedPaths,
+} from "../files/util.js";
+import {
+  ApplicationFiles,
+  type FileScope,
+} from "../files/application-files.js";
 import { envName, productDataName, productId } from "@mewvis/product-config";
 import * as fs from "node:fs/promises";
 import { join, dirname } from "node:path";
-import { Packages, descriptor, readPackage } from "./packages.js";
+import {
+  Packages,
+  descriptor,
+  readPackage,
+  applicationDirectory,
+  assertApplicationPath,
+} from "./packages.js";
 import { ApplicationData } from "./data.js";
 import { ApplicationHost } from "./host.js";
 
 import { Serial } from "../../shared/serial.js";
 import { jsonWrite } from "../../infrastructure/filesystem/json.js";
-import { invalid, nonempty, type JsonObject } from "../../shared/validation.js";
+import {
+  invalid,
+  nonempty,
+  ServiceError,
+  type JsonObject,
+} from "../../shared/validation.js";
 import { exists } from "../../infrastructure/filesystem/paths.js";
 import { fetchJson } from "../../infrastructure/network/http.js";
 import { command } from "../../infrastructure/process/command.js";
@@ -22,26 +41,54 @@ export const applicationsBare = [
   "connect_application_data",
   "request_application_data",
   "disconnect_application_data",
+  "connect_application_files",
+  "request_application_files",
+  "disconnect_application_files",
+  "connect_host_files",
 ];
 export class Applications {
   readonly packages: Packages;
   readonly data: ApplicationData;
   readonly host: ApplicationHost;
+  readonly files: ApplicationFiles;
   private serial = new Serial();
   constructor(
     private config: RuntimeConfig,
     private supervisor: AgentRuntimeSupervisor,
+    hostScope?: () => Promise<FileScope>,
   ) {
     this.packages = new Packages(
       join(config.dataDir, "apps"),
       config.bundledApplicationsPath,
     );
     this.data = new ApplicationData(this.packages, supervisor.events);
+    this.files = new ApplicationFiles(async (id) => {
+      if (id === null)
+        return hostScope
+          ? hostScope()
+          : {
+              dataPath: config.dataDir,
+              workspacePaths: [],
+              protectedPaths: hostProtectedPaths(config.dataDir, [], []),
+            };
+      const app = await this.packages.authorize(id, "workspace-files");
+      const dataPath = applicationDirectory(this.packages.path, app.id);
+      await assertApplicationPath(this.packages.path, dataPath);
+      const workspacePaths = app.permissions.includes("application-workspaces")
+        ? await this.data.fileWorkspaces(app.id)
+        : [];
+      const protectedPaths = applicationProtectedPaths(
+        dataPath,
+        workspacePaths,
+      );
+      return { dataPath, workspacePaths, protectedPaths };
+    }, supervisor.events);
     this.host = new ApplicationHost(
       config,
       this.packages,
       this.data,
       supervisor.events,
+      this.files,
     );
   }
   async initialize() {
@@ -68,6 +115,7 @@ export class Applications {
     );
   }
   async close() {
+    await this.files.close();
     this.data.close();
     await this.host.close();
   }
@@ -91,6 +139,7 @@ export class Applications {
     };
   }
   private async revoke(id: string) {
+    await this.files.revoke(id);
     this.data.revoke(id);
     this.supervisor.abortApplication(id);
     this.supervisor.events.publish("application-chat:revoke", {
@@ -238,6 +287,36 @@ export class Applications {
         this.data.request(i.connection, i.request),
       disconnect_application_data: (i: JsonObject) => {
         this.data.disconnect(i.connection);
+        return null;
+      },
+      connect_application_files: (i: JsonObject) =>
+        this.files.connect(nonempty(i.applicationId, "applicationId")),
+      connect_host_files: () => this.files.connect(null),
+      request_application_files: async (i: JsonObject) => {
+        try {
+          return {
+            ok: true,
+            value: await this.files.request(i.connection, i.request),
+          };
+        } catch (error) {
+          return {
+            ok: false,
+            error: {
+              code: error instanceof ServiceError ? error.code : "FILE_ERROR",
+              message:
+                error instanceof ServiceError ? error.message : "文件操作失败",
+            },
+          };
+        }
+      },
+      disconnect_application_files: async (i: JsonObject) => {
+        await this.files.disconnect(i.connection);
+        return null;
+      },
+      get_file_preview: (i: JsonObject) =>
+        this.files.describePreview(nonempty(i.id, "id")),
+      close_file_preview: async (i: JsonObject) => {
+        await this.files.closePreview(nonempty(i.id, "id"));
         return null;
       },
       post_application_chat: (i: JsonObject) => this.host.post(i),

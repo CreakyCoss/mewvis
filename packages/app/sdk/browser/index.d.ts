@@ -30,6 +30,8 @@ export interface ApplicationBrowserHost {
   readonly version: 1;
   /** Optional host-rendered title and back action. Older and preview hosts omit it. */
   readonly header?: ApplicationHeaderHost;
+  /** Identity-bound file transport; requires workspace-files. */
+  readonly files?: import("../files/index.js").ApplicationFileTransport;
   /** Optional authenticated data v1 transport. Older hosts omit this capability. */
   readonly data?: import("../data/index.js").ApplicationDataTransport;
   /** Present only when the application declares embedded-views. Children receive no application bridge. */

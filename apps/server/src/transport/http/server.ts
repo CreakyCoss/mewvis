@@ -1,3 +1,4 @@
+import type { ApplicationFiles } from "../../modules/files/application-files.js";
 import { PRODUCT_NAMESPACE, productId } from "@mewvis/product-config";
 import {
   createServer,
@@ -13,6 +14,7 @@ import { object, ServiceError } from "../../shared/validation.js";
 import type { ServerEvent } from "../../infrastructure/events/event-hub.js";
 
 interface HttpServerOptions {
+  filePreviews?: ApplicationFiles;
   token: string;
   port?: number;
   allowedOrigins?: string[];
@@ -191,6 +193,71 @@ export async function startHttpServer(options: HttpServerOptions) {
           status: "ok",
           api: "/api/commands/:name",
           events: "/api/events",
+        });
+        return;
+      }
+      const previewMatch =
+        /^\/api\/file-previews\/([^/]+)\/([a-f0-9]{64})$/.exec(path);
+      if (
+        previewMatch &&
+        ["GET", "HEAD", "OPTIONS"].includes(request.method ?? "") &&
+        options.filePreviews
+      ) {
+        // This capability grants only one read-only file, never cookie or bearer authority.
+        if (request.headers.host !== new URL(url).host)
+          throw new ServiceError(403, "INVALID_HOST", "Host 不匹配");
+        response.setHeader("access-control-allow-origin", "*");
+        response.setHeader(
+          "access-control-expose-headers",
+          "content-range, accept-ranges, content-length",
+        );
+        const result = await options.filePreviews.streamPreview(
+          decodeURIComponent(previewMatch[1]),
+          previewMatch[2],
+          request.headers.range,
+          request.method === "HEAD" || request.method === "OPTIONS",
+        );
+        if (request.method === "OPTIONS") {
+          response.writeHead(204, {
+            "access-control-allow-methods": "GET, HEAD",
+            "access-control-allow-headers": "range",
+          });
+          response.end();
+          return;
+        }
+        response.writeHead(result.partial ? 206 : 200, {
+          "content-type": result.info.mimeType,
+          "content-length":
+            result.size === 0 ? 0 : result.end - result.start + 1,
+          "accept-ranges": "bytes",
+          ...(result.partial
+            ? {
+                "content-range": `bytes ${result.start}-${result.end}/${result.size}`,
+              }
+            : {}),
+          "cache-control": "private, no-store",
+          "x-content-type-options": "nosniff",
+          "referrer-policy": "no-referrer",
+          ...(result.info.kind === "pdf" ||
+          result.info.mimeType === "image/svg+xml"
+            ? { "content-security-policy": "sandbox; default-src 'none'" }
+            : {}),
+          "content-disposition": `${result.info.kind === "unsupported" ? "attachment" : "inline"}; filename*=UTF-8''${encodeURIComponent(result.info.name)}`,
+        });
+        if (!result.stream) {
+          response.end();
+          return;
+        }
+        await new Promise<void>((resolve, reject) => {
+          const stream = result.stream!;
+          const finish = () => {
+            stream.destroy();
+            resolve();
+          };
+          response.once("close", finish);
+          response.once("finish", finish);
+          stream.once("error", reject);
+          stream.pipe(response);
         });
         return;
       }
