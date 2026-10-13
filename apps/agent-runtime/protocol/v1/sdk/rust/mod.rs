@@ -779,6 +779,9 @@ pub struct RuntimeModelInput {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub api_key: Option<String>,
 
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub capabilities: Option<RuntimeModelCapabilities>,
+
     pub catalog_model_id: String,
 
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -833,6 +836,53 @@ pub enum RuntimeApiFormat {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct RuntimeModelCapabilities {
+    pub input: Vec<RuntimeModelModality>,
+
+    pub operations: Vec<RuntimeModelOperation>,
+
+    pub output: Vec<RuntimeModelModality>,
+
+    pub reasoning: bool,
+
+    pub tool_calling: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RuntimeModelModality {
+    Audio,
+
+    Image,
+
+    Text,
+
+    Video,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum RuntimeModelOperation {
+    Chat,
+
+    #[serde(rename = "image-editing")]
+    ImageEditing,
+
+    #[serde(rename = "image-generation")]
+    ImageGeneration,
+
+    Realtime,
+
+    Speech,
+
+    Transcription,
+
+    #[serde(rename = "video-generation")]
+    VideoGeneration,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RuntimeModelCost {
     pub cache_read: f64,
 
@@ -873,6 +923,12 @@ pub struct RuntimeModelCatalogApi {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RuntimeModelSummary {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub capabilities: Option<HashMap<String, RuntimeModelCapabilities>>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub capability_source_url: Option<String>,
+
     pub context_window: f64,
 
     pub cost: RuntimeModelCost,

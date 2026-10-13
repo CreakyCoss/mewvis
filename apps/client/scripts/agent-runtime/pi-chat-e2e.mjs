@@ -155,6 +155,16 @@ try {
   console.log(
     "PASS missing effort stays omitted; standard and custom thinking levels pass through real Pi request payloads",
   );
+  const capabilities = { operations: ["chat"], input: ["text", "image"], output: ["text"], reasoning: false, toolCalling: false };
+  await chat.chat(command({ ...runtimeModel, capabilities, thinkingLevel: "high" }), { maxRetries: 0 });
+  assert.equal(requests.at(-1).input.reasoning_effort, undefined);
+  const requestCount = requests.length;
+  await assert.rejects(
+    chat.chat(command({ ...runtimeModel, capabilities: { ...capabilities, operations: ["image-generation"], output: ["image"] } }), { maxRetries: 0 }),
+    /用途不支持文字对话/,
+  );
+  assert.equal(requests.length, requestCount);
+  console.log("PASS disabled reasoning stays omitted and media-only models are rejected before provider requests");
 } finally {
   server.closeAllConnections();
   await new Promise((resolve) => server.close(resolve));

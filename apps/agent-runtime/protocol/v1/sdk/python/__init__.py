@@ -150,6 +150,32 @@ class RuntimeAPIFormat(Enum):
     OPENROUTER = "openrouter"
 
 
+class RuntimeModelModality(Enum):
+    AUDIO = "audio"
+    IMAGE = "image"
+    TEXT = "text"
+    VIDEO = "video"
+
+
+class RuntimeModelOperation(Enum):
+    CHAT = "chat"
+    IMAGE_EDITING = "image-editing"
+    IMAGE_GENERATION = "image-generation"
+    REALTIME = "realtime"
+    SPEECH = "speech"
+    TRANSCRIPTION = "transcription"
+    VIDEO_GENERATION = "video-generation"
+
+
+@dataclass
+class RuntimeModelCapabilities:
+    input: list[RuntimeModelModality]
+    operations: list[RuntimeModelOperation]
+    output: list[RuntimeModelModality]
+    reasoning: bool
+    tool_calling: bool
+
+
 @dataclass
 class RuntimeModelCost:
     cache_read: float
@@ -171,6 +197,7 @@ class RuntimeModelInput:
     provider: str
     api_endpoint: str | None
     api_key: str | None
+    capabilities: RuntimeModelCapabilities | None
     context_window: float | None
     cost: RuntimeModelCost | None
     headers: dict[str, str] | None
@@ -218,6 +245,8 @@ class RuntimeModelSummary:
     max_tokens: float
     name: str
     reasoning: bool
+    capabilities: dict[str, RuntimeModelCapabilities] | None
+    capability_source_url: str | None
     headers: dict[str, str] | None
     thinking: dict[str, RuntimeModelThinking] | None
 

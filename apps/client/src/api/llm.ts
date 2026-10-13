@@ -85,6 +85,12 @@ export const getLlmModelOptions = async (options?: LoadOptions) =>
 export const resolveLlmModel = async (modelId: string, thinkingLevel?: string | null) => {
   const model = buildRuntimeModelInputs(await getLlmSettings())[modelId];
   if (!model) throw new Error("所选模型已不可用，请重新选择");
+  if (
+    !model.capabilities?.operations.includes("chat") ||
+    !model.input?.includes("text") ||
+    !model.capabilities.output.includes("text")
+  )
+    throw new Error("此模型不支持文字对话，请重新选择对话模型");
   if (thinkingLevel !== undefined) model.thinkingLevel = thinkingLevel;
   return model;
 };

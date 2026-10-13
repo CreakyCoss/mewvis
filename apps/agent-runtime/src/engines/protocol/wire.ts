@@ -43,6 +43,7 @@ export {
   type RuntimeDisplaySummary,
   type RuntimeLink,
   type RuntimeModelCatalog,
+  type RuntimeModelCapabilities,
   type RuntimeModelCatalogApi,
   type RuntimeModelInput,
   type RuntimeModelThinking,
@@ -64,3 +65,4 @@ export {
   type ShutdownAckResult,
   type TaskResult,
 } from "../../../protocol/v1/sdk/typescript/index.js";
+export type { RuntimeModelLimits, RuntimeModelModality, RuntimeModelOperation } from "@mewvis/chat-contracts";

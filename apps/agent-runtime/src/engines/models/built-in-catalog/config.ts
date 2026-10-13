@@ -1,9 +1,43 @@
-import type { RuntimeApiFormat, RuntimeModelCatalogApi, RuntimeModelThinking } from "../../protocol/wire.js";
+import type {
+  RuntimeModelCatalogApi,
+  RuntimeModelThinking,
+  RuntimeModelSummary,
+  RuntimeModelCapabilities,
+} from "../../protocol/wire.js";
 
 type CatalogProviderConfig = {
   websiteUrl: string;
-  models: Record<string, { thinking?: Partial<Record<RuntimeApiFormat, RuntimeModelThinking>> }>;
+  models: Record<
+    string,
+    Partial<
+      Pick<
+        RuntimeModelSummary,
+        "thinking" | "capabilities" | "input" | "capabilitySourceUrl"
+      >
+    >
+  >;
   apis: RuntimeModelCatalogApi[];
+};
+
+const chatCapabilities = (
+  input: RuntimeModelCapabilities["input"],
+): RuntimeModelCapabilities => ({
+  operations: ["chat"],
+  input,
+  output: ["text"],
+  reasoning: true,
+  toolCalling: true,
+});
+
+const openaiThinking: RuntimeModelThinking = {
+  levels: [
+    { value: "low", label: "低" },
+    { value: "medium", label: "中" },
+    { value: "high", label: "高" },
+    { value: "xhigh", label: "极高" },
+    { value: "max", label: "最高" },
+  ],
+  defaultLevel: "high",
 };
 
 // https://api-docs.deepseek.com/guides/thinking_mode/
@@ -19,11 +53,55 @@ const deepseekThinking: RuntimeModelThinking = {
 
 // App-level provider exposure policy for the built-in model catalog.
 export const MODEL_PROVIDER_CONFIG: Record<string, CatalogProviderConfig> = {
+  openai: {
+    websiteUrl: "https://platform.openai.com",
+    models: {
+      "gpt-6-astra": {
+        thinking: {
+          "openai-responses": openaiThinking,
+          "openai-completions": openaiThinking,
+        },
+        input: ["text", "image"],
+        capabilities: {
+          "openai-responses": chatCapabilities(["text", "image"]),
+          "openai-completions": chatCapabilities(["text", "image"]),
+        },
+        capabilitySourceUrl:
+          "https://developers.openai.com/api/docs/models/gpt-6-astra",
+      },
+      "gpt-6.1-sol": {},
+      "gpt-6-luna": {},
+      "gpt-5.6-sol": {},
+    },
+    apis: [
+      {
+        apiFormat: "openai-responses",
+        apiEndpoint: "https://api.openai.com/v1",
+      },
+      {
+        apiFormat: "openai-completions",
+        apiEndpoint: "https://api.openai.com/v1",
+      },
+    ],
+  },
   deepseek: {
     websiteUrl: "https://www.deepseek.com",
     models: {
-      "deepseek-v4-flash": { thinking: { "openai-completions": deepseekThinking } },
-      "deepseek-v4-pro": { thinking: { "openai-completions": deepseekThinking } },
+      "deepseek-flash": {
+        input: ["text", "image"],
+        thinking: { "openai-completions": deepseekThinking },
+        capabilities: {
+          "openai-completions": chatCapabilities(["text", "image"]),
+        },
+        capabilitySourceUrl: "https://api-docs.deepseek.com/guides/vision/",
+      },
+      "deepseek-v4-pro": {
+        input: ["text"],
+        thinking: { "openai-completions": deepseekThinking },
+        capabilities: { "openai-completions": chatCapabilities(["text"]) },
+        capabilitySourceUrl:
+          "https://api-docs.deepseek.com/quick_start/pricing/",
+      },
     },
     apis: [
       {
@@ -35,7 +113,19 @@ export const MODEL_PROVIDER_CONFIG: Record<string, CatalogProviderConfig> = {
   "minimax-cn": {
     websiteUrl: "https://www.minimax.com/",
     // These interfaces do not expose selectable effort levels; leave control to the provider.
-    models: { "MiniMax-M2.7": {}, "MiniMax-M2.7-highspeed": {}, "MiniMax-M3": {} },
+    models: {
+      "MiniMax-M3": {
+        input: ["text", "image"],
+        capabilities: {
+          "anthropic-messages": chatCapabilities(["text", "image", "video"]),
+          "openai-completions": chatCapabilities(["text", "image", "video"]),
+        },
+        capabilitySourceUrl:
+          "https://platform.minimax.io/docs/api-reference/text-openai-api",
+      },
+      "MiniMax-M2.7": { input: ["text"] },
+      "MiniMax-M2.7-highspeed": { input: ["text"] },
+    },
     apis: [
       {
         apiFormat: "anthropic-messages",

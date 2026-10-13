@@ -21,8 +21,13 @@
       "type": "object",
       "required": ["value", "label"],
       "properties": {
-        "value": { "$ref": "#/definitions/RuntimeThinkingLevel" },
-        "label": { "type": "string", "minLength": 1 }
+        "value": {
+          "$ref": "#/definitions/RuntimeThinkingLevel"
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1
+        }
       },
       "additionalProperties": false
     },
@@ -30,8 +35,15 @@
       "type": "object",
       "required": ["levels"],
       "properties": {
-        "levels": { "type": "array", "items": { "$ref": "#/definitions/RuntimeThinkingOption" } },
-        "defaultLevel": { "type": ["string", "null"] }
+        "levels": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/RuntimeThinkingOption"
+          }
+        },
+        "defaultLevel": {
+          "type": ["string", "null"]
+        }
       },
       "additionalProperties": false
     },
@@ -42,10 +54,18 @@
       "type": "object",
       "required": ["input", "output", "cacheRead", "cacheWrite"],
       "properties": {
-        "input": { "type": "number" },
-        "output": { "type": "number" },
-        "cacheRead": { "type": "number" },
-        "cacheWrite": { "type": "number" }
+        "input": {
+          "type": "number"
+        },
+        "output": {
+          "type": "number"
+        },
+        "cacheRead": {
+          "type": "number"
+        },
+        "cacheWrite": {
+          "type": "number"
+        }
       },
       "additionalProperties": false
     },
@@ -53,63 +73,143 @@
       "type": "object",
       "required": ["provider", "apiFormat", "catalogModelId", "modelId"],
       "properties": {
-        "provider": { "type": "string" },
-        "apiFormat": { "$ref": "#/definitions/RuntimeApiFormat" },
-        "apiKey": { "type": ["string", "null"] },
-        "catalogModelId": { "type": "string" },
-        "modelId": { "type": "string" },
-        "apiEndpoint": { "type": ["string", "null"] },
-        "reasoning": { "type": "boolean" },
+        "provider": {
+          "type": "string"
+        },
+        "apiFormat": {
+          "$ref": "#/definitions/RuntimeApiFormat"
+        },
+        "apiKey": {
+          "type": ["string", "null"]
+        },
+        "catalogModelId": {
+          "type": "string"
+        },
+        "modelId": {
+          "type": "string"
+        },
+        "apiEndpoint": {
+          "type": ["string", "null"]
+        },
+        "reasoning": {
+          "type": "boolean"
+        },
         "thinkingLevel": {
-          "oneOf": [{ "$ref": "#/definitions/RuntimeThinkingLevel" }, { "type": "null" }]
+          "oneOf": [
+            {
+              "$ref": "#/definitions/RuntimeThinkingLevel"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "input": {
           "type": "array",
-          "items": { "$ref": "#/definitions/RuntimeModelInputModality" }
+          "items": {
+            "$ref": "#/definitions/RuntimeModelInputModality"
+          }
         },
-        "cost": { "$ref": "#/definitions/RuntimeModelCost" },
-        "contextWindow": { "type": "number" },
-        "maxTokens": { "type": "number" },
+        "cost": {
+          "$ref": "#/definitions/RuntimeModelCost"
+        },
+        "contextWindow": {
+          "type": "number"
+        },
+        "maxTokens": {
+          "type": "number"
+        },
         "headers": {
           "type": "object",
-          "additionalProperties": { "type": "string" }
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "capabilities": {
+          "$ref": "#/definitions/RuntimeModelCapabilities"
         }
       },
       "additionalProperties": false
     },
     "RuntimeModel": {
-      "oneOf": [{ "$ref": "#/definitions/RuntimeModelInput" }, { "type": "null" }]
+      "oneOf": [
+        {
+          "$ref": "#/definitions/RuntimeModelInput"
+        },
+        {
+          "type": "null"
+        }
+      ]
     },
     "RuntimeModelCatalogApi": {
       "type": "object",
       "required": ["apiFormat"],
       "properties": {
-        "apiFormat": { "$ref": "#/definitions/RuntimeApiFormat" },
-        "apiEndpoint": { "type": "string" }
+        "apiFormat": {
+          "$ref": "#/definitions/RuntimeApiFormat"
+        },
+        "apiEndpoint": {
+          "type": "string"
+        }
       },
       "additionalProperties": false
     },
     "RuntimeModelSummary": {
       "type": "object",
-      "required": ["id", "name", "reasoning", "input", "cost", "contextWindow", "maxTokens"],
+      "required": [
+        "id",
+        "name",
+        "reasoning",
+        "input",
+        "cost",
+        "contextWindow",
+        "maxTokens"
+      ],
       "properties": {
-        "id": { "type": "string" },
-        "name": { "type": "string" },
-        "reasoning": { "type": "boolean" },
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "reasoning": {
+          "type": "boolean"
+        },
         "thinking": {
           "type": "object",
-          "additionalProperties": { "$ref": "#/definitions/RuntimeModelThinking" }
+          "additionalProperties": {
+            "$ref": "#/definitions/RuntimeModelThinking"
+          }
         },
         "input": {
           "type": "array",
-          "items": { "$ref": "#/definitions/RuntimeModelInputModality" }
+          "items": {
+            "$ref": "#/definitions/RuntimeModelInputModality"
+          }
         },
-        "cost": { "$ref": "#/definitions/RuntimeModelCost" },
-        "contextWindow": { "type": "number" },
-        "maxTokens": { "type": "number" },
+        "cost": {
+          "$ref": "#/definitions/RuntimeModelCost"
+        },
+        "contextWindow": {
+          "type": "number"
+        },
+        "maxTokens": {
+          "type": "number"
+        },
         "headers": {
           "type": "object",
-          "additionalProperties": { "type": "string" }
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "capabilities": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/RuntimeModelCapabilities"
+          }
+        },
+        "capabilitySourceUrl": {
+          "type": "string"
         }
       },
       "additionalProperties": false
@@ -120,19 +220,91 @@
       "properties": {
         "models": {
           "type": "object",
-          "additionalProperties": { "$ref": "#/definitions/RuntimeModelSummary" }
+          "additionalProperties": {
+            "$ref": "#/definitions/RuntimeModelSummary"
+          }
         },
-        "websiteUrl": { "type": "string" },
+        "websiteUrl": {
+          "type": "string"
+        },
         "apis": {
           "type": "array",
-          "items": { "$ref": "#/definitions/RuntimeModelCatalogApi" }
+          "items": {
+            "$ref": "#/definitions/RuntimeModelCatalogApi"
+          }
         }
       },
       "additionalProperties": false
     },
     "RuntimeModelCatalog": {
       "type": "object",
-      "additionalProperties": { "$ref": "#/definitions/RuntimeModelProviderSummary" }
+      "additionalProperties": {
+        "$ref": "#/definitions/RuntimeModelProviderSummary"
+      }
+    },
+    "RuntimeModelModality": {
+      "enum": ["text", "image", "audio", "video"]
+    },
+    "RuntimeModelOperation": {
+      "enum": [
+        "chat",
+        "image-generation",
+        "image-editing",
+        "video-generation",
+        "speech",
+        "transcription",
+        "realtime"
+      ]
+    },
+    "RuntimeModelCapabilities": {
+      "type": "object",
+      "required": ["operations", "input", "output", "reasoning", "toolCalling"],
+      "properties": {
+        "operations": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/definitions/RuntimeModelOperation"
+          }
+        },
+        "input": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/definitions/RuntimeModelModality"
+          }
+        },
+        "output": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/definitions/RuntimeModelModality"
+          }
+        },
+        "reasoning": {
+          "type": "boolean"
+        },
+        "toolCalling": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "RuntimeModelLimits": {
+      "type": "object",
+      "properties": {
+        "contextWindow": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        },
+        "maxTokens": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        }
+      },
+      "additionalProperties": false
     }
   }
 }

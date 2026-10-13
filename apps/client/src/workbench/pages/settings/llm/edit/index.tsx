@@ -2,6 +2,9 @@ import { useImperativeHandle, useRef, useState, type Ref } from "react";
 import { Download, Eye, EyeOff, Loader2, Plus, Save, ServerCog, Zap } from "lucide-react";
 import {
   getModelThinking,
+  getModelCapabilities,
+  getModelLimits,
+  createRuntimeModelInput,
   type LlmProvider,
   type LlmProviderConfig,
   type ProviderModelConfig,
@@ -23,7 +26,12 @@ import { NativeSelect, NativeSelectOption } from "design-system/components/ui/na
 import { Switch } from "design-system/components/ui/switch";
 import { saveLlmSettings } from "@/api/llm";
 import { runAgentRuntimeChat } from "@/api/agent-runtime";
-import { getProviderApiFormatOptions, getProviderOption } from "../options";
+import {
+  getProviderApiFormatOptions,
+  getProviderOption,
+  formatContextWindow,
+  MODEL_OPERATION_OPTIONS,
+} from "../options";
 import {
   applyApiFormatDefaults,
   applyProviderDefaults,
@@ -147,9 +155,11 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
   const testConnection = async () => {
     if (!providerDraft) return;
 
-    const model = providerDraft.models.find((item) => item.modelId.trim());
+    const model = providerDraft.models.find(
+      (item) => item.modelId.trim() && getModelCapabilities(providerDraft, item).available.operations.includes("chat"),
+    );
     if (!model) {
-      setConnectionTest({ type: "error", message: "请先添加一个模型，再测速" });
+      setConnectionTest({ type: "error", message: "请先添加一个可用于文字对话的模型，再测速" });
       return;
     }
 
@@ -161,16 +171,7 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
     try {
       const result = await runAgentRuntimeChat({
         stream: false,
-        runtimeModel: {
-          provider: providerDraft.provider,
-          apiFormat: providerDraft.apiFormat,
-          apiKey: providerDraft.apiKey,
-          catalogModelId: model.modelId,
-          modelId:
-            model.isOneMillionContext && !model.modelId.endsWith("[1m]") ? `${model.modelId}[1m]` : model.modelId,
-          apiEndpoint: providerDraft.apiEndpoint,
-          thinkingLevel: getModelThinking(providerDraft, model)?.defaultLevel,
-        },
+        runtimeModel: createRuntimeModelInput(providerDraft, model),
         messages: [{ role: "user", content: "请只回复 OK。" }],
       });
       if (run !== connectionTestRun.current) return;
@@ -272,7 +273,7 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
       <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent
           aria-describedby={undefined}
-          className="!flex max-h-[calc(100vh-2rem)] w-[min(720px,calc(100vw-2rem))] flex-col gap-0 overflow-hidden border-border/70 bg-popover p-0 shadow-[var(--shadow-floating)] sm:max-w-[720px] [&>[data-slot=dialog-close]]:top-2.5"
+          className={`!flex max-h-[calc(100vh-2rem)] w-[min(720px,calc(100vw-2rem))] flex-col gap-0 overflow-hidden border-border/70 bg-popover p-0 shadow-[var(--shadow-floating)] sm:max-w-[720px] [&>[data-slot=dialog-close]]:top-2.5 ${modelEditor ? "invisible" : ""}`}
           onOpenAutoFocus={(event) => {
             if (!modelFocusTarget.current) return;
             const target = document.getElementById(modelFocusTarget.current);
@@ -487,6 +488,7 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
                         {providerDraft.models.map((model) => {
                           const thinking = getModelThinking(providerDraft, model);
                           const defaultLevel = thinking?.levels.find((level) => level.value === thinking.defaultLevel);
+                          const capabilities = getModelCapabilities(providerDraft, model);
                           return (
                             <tr key={model.id} className="transition-colors hover:bg-muted/20">
                               <td className="px-3 py-3">
@@ -499,9 +501,23 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
                                 >
                                   {model.modelId || "待设置模型 ID"}
                                 </p>
+                                <div className="mt-1.5 flex flex-wrap gap-x-2 gap-y-1 text-[10px] text-muted-foreground">
+                                  {MODEL_OPERATION_OPTIONS.filter((option) =>
+                                    capabilities.declared.operations.includes(option.value),
+                                  ).map((option) => (
+                                    <span key={option.value}>
+                                      {option.label}
+                                      {capabilities.available.operations.includes(option.value) ? "" : "（待接入）"}
+                                    </span>
+                                  ))}
+                                  {capabilities.declared.input.includes("image") && <span>图片输入</span>}
+                                  {capabilities.declared.input.includes("audio") && <span>音频输入（待接入）</span>}
+                                  {capabilities.declared.input.includes("video") && <span>视频输入（待接入）</span>}
+                                  {capabilities.source === "custom" && <span className="text-primary">自定义能力</span>}
+                                </div>
                               </td>
                               <td className="hidden px-3 py-3 text-center text-xs text-muted-foreground sm:table-cell">
-                                {model.isOneMillionContext ? "1M" : "默认"}
+                                {formatContextWindow(getModelLimits(providerDraft, model).contextWindow)}
                               </td>
                               <td className="px-2 py-3 text-xs sm:px-3">
                                 {thinking?.levels.length ? (
@@ -521,7 +537,9 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
                                     </p>
                                   </>
                                 ) : (
-                                  <span className="text-muted-foreground">未配置</span>
+                                  <span className="text-muted-foreground">
+                                    {capabilities.declared.reasoning ? "服务默认" : "不支持"}
+                                  </span>
                                 )}
                               </td>
                               <td className="px-2 py-3 sm:px-3">

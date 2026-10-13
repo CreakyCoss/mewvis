@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "test:settings:models": "node scripts/settings/test-model-settings.mjs",
     "dev": "pnpm sync-product-config && pnpm build:agent-runtime && vite",
     "build": "pnpm sync-product-config && pnpm build:agent-runtime && tsc && vite build",
     "build:app-host": "pnpm --filter @mewvis/app-host build",

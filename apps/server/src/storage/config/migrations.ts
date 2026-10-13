@@ -16,7 +16,7 @@ export function validateConfigSchema(db: DatabaseSync) {
   }
 }
 
-/** Keeps the legacy upgrade chain; v26 retires roles and v27 retires model enablement. */
+/** Keeps legacy upgrades; v28 adds nullable model capability and limit overrides. */
 export function migrateConfig(db: DatabaseSync) {
   const version = Number(db.prepare("PRAGMA user_version").get()!.user_version);
   if (version > CONFIG_SCHEMA_VERSION)
@@ -57,6 +57,8 @@ export function migrateConfig(db: DatabaseSync) {
     if (!fresh && version === 0) {
       if (has("provider_models", "is_enabled"))
         db.exec("ALTER TABLE provider_models DROP COLUMN is_enabled");
+      add("provider_models", "capabilities_json", "TEXT");
+      add("provider_models", "limits_json", "TEXT");
       validateConfigSchema(db);
       db.exec(
         "DELETE FROM stories; DELETE FROM skill_settings WHERE key='readonly_skill_group_members'",
@@ -165,6 +167,10 @@ export function migrateConfig(db: DatabaseSync) {
           case 27:
             if (has("provider_models", "is_enabled"))
               db.exec("ALTER TABLE provider_models DROP COLUMN is_enabled");
+            break;
+          case 28:
+            add("provider_models", "capabilities_json", "TEXT");
+            add("provider_models", "limits_json", "TEXT");
             break;
         }
       }

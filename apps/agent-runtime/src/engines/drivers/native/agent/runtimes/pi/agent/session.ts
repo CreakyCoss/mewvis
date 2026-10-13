@@ -1,14 +1,25 @@
 import type { ExtensionBindings } from "@mewvis/extension-host";
-import { createAgentSession, SessionManager } from "@earendil-works/pi-coding-agent";
+import {
+  createAgentSession,
+  SessionManager,
+} from "@earendil-works/pi-coding-agent";
 import { mkdirSync } from "node:fs";
-import type { AgentRuntimeCallbacks, RuntimeAgentCommand } from "../../types.js";
-import { createPiModelRuntime, requirePiRuntimeConfig } from "../model/index.js";
+import type {
+  AgentRuntimeCallbacks,
+  RuntimeAgentCommand,
+} from "../../types.js";
+import {
+  createPiModelRuntime,
+  requirePiRuntimeConfig,
+} from "../model/index.js";
 import { createPiResourceLoader } from "./resources.js";
 import type { SafetyPolicy } from "../../../../../../../security/safety/index.js";
 import type { ExecutionPolicy } from "../../../../../../../security/execution/index.js";
 import type { ResolvedAgentAccess } from "../../../../../../../security/access/index.js";
 
-export type PiAgentSession = Awaited<ReturnType<typeof createAgentSession>>["session"];
+export type PiAgentSession = Awaited<
+  ReturnType<typeof createAgentSession>
+>["session"];
 
 export type PiAgentSessionOptions = {
   extensions?: ExtensionBindings;
@@ -35,7 +46,10 @@ export const createPiAgentSession = async (
   options: PiAgentSessionOptions = {},
 ): Promise<PiAgentSessionCreateResult> => {
   const runtimeModel = requirePiRuntimeConfig(command);
-  const { model, modelRuntime, thinkingLevel } = await createPiModelRuntime(runtimeModel, options.signal);
+  const { model, modelRuntime, thinkingLevel } = await createPiModelRuntime(
+    runtimeModel,
+    options.signal,
+  );
   const resources = await createPiResourceLoader(command, callbacks, options);
   const sessionManager = createPiSessionManager(command);
   try {
@@ -48,7 +62,10 @@ export const createPiAgentSession = async (
       settingsManager: resources.settingsManager,
       model,
       thinkingLevel: thinkingLevel ?? "off",
-      tools: resources.toolNames,
+      tools:
+        runtimeModel.capabilities?.toolCalling === false
+          ? []
+          : resources.toolNames,
     });
 
     resources.installSafety(session);
@@ -67,7 +84,10 @@ const createPiSessionManager = (command: RuntimeAgentCommand) => {
   const explicitSessionDir = resolvePiExplicitSessionDir(command);
   if (explicitSessionDir) {
     mkdirSync(explicitSessionDir, { recursive: true });
-    return SessionManager.continueRecent(command.workspacePath, explicitSessionDir);
+    return SessionManager.continueRecent(
+      command.workspacePath,
+      explicitSessionDir,
+    );
   }
 
   return SessionManager.inMemory(command.workspacePath);

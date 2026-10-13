@@ -189,12 +189,22 @@ export interface RuntimeModelInput {
   headers?: {
     [k: string]: string;
   };
+  capabilities?: RuntimeModelCapabilities;
 }
 export interface RuntimeModelCost {
   input: number;
   output: number;
   cacheRead: number;
   cacheWrite: number;
+}
+export interface RuntimeModelCapabilities {
+  operations: (
+    "chat" | "image-generation" | "image-editing" | "video-generation" | "speech" | "transcription" | "realtime"
+  )[];
+  input: ("text" | "image" | "audio" | "video")[];
+  output: ("text" | "image" | "audio" | "video")[];
+  reasoning: boolean;
+  toolCalling: boolean;
 }
 export interface ChatMessage {
   role: string;
@@ -683,6 +693,10 @@ export interface RuntimeModelSummary {
   headers?: {
     [k: string]: string;
   };
+  capabilities?: {
+    [k: string]: RuntimeModelCapabilities;
+  };
+  capabilitySourceUrl?: string;
 }
 export interface RuntimeModelThinking {
   levels: RuntimeThinkingOption[];

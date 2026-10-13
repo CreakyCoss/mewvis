@@ -1,5 +1,27 @@
 import { MODEL_CATALOG } from "@/agent-client/model-catalog";
-import type { RuntimeApiFormat } from "@/agent-client/wire";
+import type { RuntimeApiFormat, RuntimeModelModality, RuntimeModelOperation } from "@/agent-client/wire";
+
+export const MODEL_MODALITY_OPTIONS: { value: RuntimeModelModality; label: string }[] = [
+  { value: "text", label: "文字" },
+  { value: "image", label: "图片" },
+  { value: "audio", label: "音频" },
+  { value: "video", label: "视频" },
+];
+export const MODEL_OPERATION_OPTIONS: { value: RuntimeModelOperation; label: string }[] = [
+  { value: "chat", label: "对话" },
+  { value: "image-generation", label: "图像生成" },
+  { value: "image-editing", label: "图像编辑" },
+  { value: "video-generation", label: "视频生成" },
+  { value: "speech", label: "语音合成" },
+  { value: "transcription", label: "语音转写" },
+  { value: "realtime", label: "实时对话" },
+];
+export const formatContextWindow = (value: number) =>
+  value >= 1000000
+    ? `${Number((value / 1000000).toFixed(2))}M`
+    : value >= 1000
+      ? `${Number((value / 1000).toFixed(1))}K`
+      : String(value);
 
 // Suggestions only: providers may accept values outside this list.
 export const THINKING_LEVEL_PRESETS = [
@@ -40,6 +62,7 @@ const apiFormatLabelEntries: Array<[RuntimeApiFormat, string]> = [
 const apiFormatLabels = new Map<RuntimeApiFormat, string>(apiFormatLabelEntries);
 
 const providerLabels = new Map<string, string>([
+  ["openai", "OpenAI"],
   ["deepseek", "DeepSeek"],
   ["minimax-cn", "MiniMax"],
   ["zhipuai", "GLM"],
@@ -132,7 +155,7 @@ export const getProviderApiFormatOptions = (provider: string): ApiFormatOption[]
 };
 
 export const getDefaultApiFormat = (provider: string): RuntimeApiFormat => {
-  return getProviderApiFormats(provider)[0] ?? "openai-completions";
+  return getProviderApis(provider)[0]?.apiFormat ?? getProviderApiFormats(provider)[0] ?? "openai-completions";
 };
 
 export const getProviderModelOptions = (provider: string): ModelOption[] => {

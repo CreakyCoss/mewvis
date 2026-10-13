@@ -187,7 +187,10 @@ export const ThinkingLevelsEditor = ({
   const error = getThinkingLevelsError(value);
 
   return (
-    <section className="min-w-0 space-y-2 border-t border-border/70 pt-3" aria-labelledby={`${id}-thinking-heading`}>
+    <section
+      className="min-w-0 space-y-3 rounded-xl border border-border/70 p-4"
+      aria-labelledby={`${id}-thinking-heading`}
+    >
       <div className="flex items-center justify-between gap-3">
         <h3 id={`${id}-thinking-heading`} className="text-sm font-medium">
           思考等级
@@ -206,6 +209,9 @@ export const ThinkingLevelsEditor = ({
           恢复预设
         </Button>
       </div>
+      <p className="text-xs leading-5 text-muted-foreground">
+        编辑等级名称和接口值，或恢复模型预设。日常使用可直接在常用设置中选择默认等级。
+      </p>
       <RadioGroup
         value={selectedIndex < 0 ? "unspecified" : `level-${selectedIndex}`}
         onValueChange={(selected) => {

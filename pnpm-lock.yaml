@@ -1023,6 +1023,9 @@ importers:
 
   apps/server:
     dependencies:
+      '@mewvis/chat-contracts':
+        specifier: workspace:*
+        version: link:../../packages/chat-contracts
       '@mewvis/extension-host':
         specifier: workspace:*
         version: link:../../packages/extension/host

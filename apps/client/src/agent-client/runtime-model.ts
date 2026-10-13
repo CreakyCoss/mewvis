@@ -1,5 +1,13 @@
 import { MODEL_CATALOG } from "./model-catalog";
-import type { RuntimeModelSummary, RuntimeApiFormat, RuntimeModelInput, RuntimeModelThinking } from "./wire";
+import { resolveModelCapabilities } from "@agent-runtime/engines/models/capabilities";
+import type {
+  RuntimeModelSummary,
+  RuntimeApiFormat,
+  RuntimeModelInput,
+  RuntimeModelThinking,
+  RuntimeModelCapabilities,
+  RuntimeModelLimits,
+} from "./wire";
 
 export type ProviderModel = {
   id: string;
@@ -8,6 +16,8 @@ export type ProviderModel = {
   modelName: string;
   isOneMillionContext: boolean;
   thinking?: RuntimeModelThinking | null;
+  capabilities?: RuntimeModelCapabilities | null;
+  limits?: RuntimeModelLimits | null;
   createdAt: number;
   updatedAt: number;
 };
@@ -50,6 +60,7 @@ export type RuntimeModelOption = {
   modelId: string;
   modelName: string;
   thinking?: RuntimeModelThinking;
+  capabilities: RuntimeModelCapabilities;
 };
 
 export type RuntimeModelInputMap = Record<string, RuntimeModelInput>;
@@ -86,11 +97,42 @@ const getCatalogModel = (
     : null;
 };
 
+export const getModelCapabilities = (
+  provider: Pick<LlmProvider, "provider" | "apiFormat">,
+  model: Pick<ProviderModel, "modelId" | "capabilities">,
+) => resolveModelCapabilities({ ...provider, modelId: model.modelId, capabilities: model.capabilities });
+
+export const getModelLimits = (
+  provider: Pick<LlmProvider, "provider">,
+  model: Pick<ProviderModel, "modelId" | "limits">,
+) => {
+  const catalog = getCatalogModel(provider, model);
+  return {
+    contextWindow: model.limits?.contextWindow ?? catalog?.contextWindow ?? 128000,
+    maxTokens: model.limits?.maxTokens ?? catalog?.maxTokens ?? 16384,
+  };
+};
+
+export const getModelLimitsError = (
+  provider: Pick<LlmProvider, "provider">,
+  model: Pick<ProviderModel, "modelId" | "limits">,
+) => {
+  const limits = getModelLimits(provider, model);
+  if (
+    [limits.contextWindow, limits.maxTokens].some(
+      (value) => !Number.isInteger(value) || value < 1 || value > 2147483647,
+    )
+  )
+    return "上下文和最大输出必须是有效的正整数";
+  return limits.maxTokens > limits.contextWindow ? "最大输出不能超过上下文窗口（含默认值）" : "";
+};
+
 // Saved settings take precedence; the built-in catalog is only a frontend preset.
 export const getModelThinking = (
   provider: Pick<LlmProvider, "provider" | "apiFormat">,
-  model: Pick<ProviderModel, "modelId" | "thinking">,
+  model: Pick<ProviderModel, "modelId" | "thinking" | "capabilities">,
 ): RuntimeModelThinking | undefined => {
+  if (!getModelCapabilities(provider, model).available.reasoning) return undefined;
   const thinking = model.thinking ?? getCatalogModel(provider, model)?.thinking?.[provider.apiFormat];
   return thinking ? structuredClone(thinking) : undefined;
 };
@@ -106,9 +148,14 @@ const createCatalogRuntimeModelInput = (catalogModel: RuntimeModelSummary): Cata
   };
 };
 
-const createRuntimeModelInput = (provider: LlmProvider, model: ProviderModel, modelId: string): RuntimeModelInput => {
+export const createRuntimeModelInput = (
+  provider: Pick<LlmProvider, "provider" | "apiFormat" | "apiKey" | "apiEndpoint">,
+  model: Pick<ProviderModel, "modelId" | "thinking" | "capabilities" | "limits" | "isOneMillionContext">,
+  modelId = formatProviderModelId(model),
+): RuntimeModelInput => {
   const catalogModel = getCatalogModel(provider, model);
   const thinking = getModelThinking(provider, model);
+  const capabilities = getModelCapabilities(provider, model);
 
   return {
     provider: provider.provider,
@@ -118,6 +165,10 @@ const createRuntimeModelInput = (provider: LlmProvider, model: ProviderModel, mo
     modelId,
     apiEndpoint: provider.apiEndpoint ?? undefined,
     ...(catalogModel ? createCatalogRuntimeModelInput(catalogModel) : {}),
+    capabilities: capabilities.declared,
+    input: capabilities.input,
+    reasoning: model.capabilities != null || catalogModel ? capabilities.available.reasoning : undefined,
+    ...(catalogModel ? getModelLimits(provider, model) : (model.limits ?? {})),
     thinkingLevel: thinking?.defaultLevel ?? undefined,
   };
 };
@@ -135,6 +186,7 @@ const buildRuntimeModelOption = (provider: LlmProvider, model: ProviderModel): R
     modelId,
     modelName,
     thinking: getModelThinking(provider, model),
+    capabilities: getModelCapabilities(provider, model).available,
   };
 };
 
@@ -145,7 +197,11 @@ const buildRuntimeModelInput = (provider: LlmProvider, model: ProviderModel): Ru
 export const buildRuntimeModelOptions = (settings: LlmSettings): RuntimeModelOption[] =>
   [...settings.providers]
     .sort((left, right) => Number(right.isDefault) - Number(left.isDefault))
-    .flatMap((provider) => provider.models.map((model) => buildRuntimeModelOption(provider, model)));
+    .flatMap((provider) =>
+      provider.models
+        .filter((model) => getModelCapabilities(provider, model).available.operations.includes("chat"))
+        .map((model) => buildRuntimeModelOption(provider, model)),
+    );
 
 export const buildRuntimeModelInputs = (settings: LlmSettings): RuntimeModelInputMap => {
   const inputs: RuntimeModelInputMap = {};

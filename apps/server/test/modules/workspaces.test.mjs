@@ -16,7 +16,10 @@ import { fileURLToPath } from "node:url";
 import { DatabaseSync } from "node:sqlite";
 import { startServer } from "../../dist/server.js";
 import { ConfigDatabase } from "../../dist/storage/config/database.js";
-import { configSchema } from "../../dist/storage/config/schema.js";
+import {
+  configSchema,
+  CONFIG_SCHEMA_VERSION,
+} from "../../dist/storage/config/schema.js";
 import { token } from "../support/helpers.mjs";
 
 const fixture = fileURLToPath(
@@ -318,7 +321,10 @@ test("Rust v24 configuration upgrades without losing settings and preserves the 
   });
   let config = new ConfigDatabase(root);
   const db = config.connection;
-  assert.equal(db.prepare("PRAGMA user_version").get().user_version, 27);
+  assert.equal(
+    db.prepare("PRAGMA user_version").get().user_version,
+    CONFIG_SCHEMA_VERSION,
+  );
   assert.equal(
     db
       .prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE name='ai_agents'")

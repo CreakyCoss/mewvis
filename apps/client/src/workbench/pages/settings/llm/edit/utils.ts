@@ -8,6 +8,7 @@ import type {
   ProviderModelConfig,
 } from "@/agent-client/runtime-model";
 import { createUuid } from "@/utils/ids";
+import { getModelLimitsError } from "@/agent-client/runtime-model";
 import {
   getDefaultApiFormat,
   getProviderApiFormats,
@@ -71,6 +72,8 @@ export const toLlmSettingsConfig = (settings: LlmSettings): LlmSettingsConfig =>
         modelName: model.modelName,
         isOneMillionContext: model.isOneMillionContext,
         thinking: model.thinking,
+        capabilities: model.capabilities,
+        limits: model.limits,
       })),
     };
   });
@@ -101,6 +104,8 @@ export const normalizeLlmSettingsConfig = (draft: LlmSettingsConfig): LlmSetting
             defaultLevel: model.thinking.defaultLevel || null,
           }
         : null,
+      capabilities: model.capabilities ?? null,
+      limits: model.limits && Object.keys(model.limits).length ? model.limits : null,
     })),
   }));
 
@@ -145,6 +150,8 @@ export const validateLlmSettingsConfig = (draft: LlmSettingsConfig) => {
       if (!model.modelName.trim()) {
         return "模型名称不能为空";
       }
+      const limitsError = getModelLimitsError(provider, model);
+      if (limitsError) return limitsError;
     }
   }
 
@@ -234,11 +241,14 @@ export const applyModelDefaults = (
   const options = getProviderModelOptions(provider);
   const currentOption = options.find((item) => item.id === model.modelId);
   const option = options.find((item) => item.id === modelId);
-  const shouldFollowName = !model.modelName.trim() || model.modelName === currentOption?.name;
+  const shouldFollowName =
+    !model.modelName.trim() || model.modelName === model.modelId || model.modelName === currentOption?.name;
 
   return {
     ...model,
     modelId,
-    modelName: option?.name ?? (shouldFollowName ? modelId : model.modelName),
+    modelName: shouldFollowName ? (option?.name ?? modelId) : model.modelName,
+    // A new model must inherit its own defaults rather than the previous model's overrides.
+    ...(option && modelId !== model.modelId ? { capabilities: null, limits: null, thinking: null } : {}),
   };
 };

@@ -7,6 +7,10 @@ import {
   type JsonObject,
 } from "../../shared/validation.js";
 import { array, boolean, nullableText } from "./normalization.js";
+import {
+  normalizeModelCapabilities,
+  normalizeModelLimits,
+} from "./model-config.js";
 
 export class LlmSettingsService {
   constructor(private readonly repository: LlmRepository) {}
@@ -49,6 +53,8 @@ export class LlmSettingsService {
             "modelName",
             "isOneMillionContext",
             "thinking",
+            "capabilities",
+            "limits",
           ]);
           return {
             id: recordId(m.id),
@@ -60,6 +66,8 @@ export class LlmSettingsService {
               "isOneMillionContext",
             ),
             thinking: m.thinking ?? null,
+            capabilities: normalizeModelCapabilities(m.capabilities),
+            limits: normalizeModelLimits(m.limits),
             createdAt: now,
             updatedAt: now,
           };

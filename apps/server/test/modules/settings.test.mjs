@@ -193,6 +193,66 @@ test("duplicate model failure rolls back the entire replacement without exposing
   }
 });
 
+test("model capabilities and limits persist, preserve explicit empty overrides and reject malformed replacements", async (t) => {
+  const s = await setup(t);
+  const capabilities = {
+    operations: ["chat"],
+    input: ["text", "image", "video"],
+    output: ["text"],
+    reasoning: false,
+    toolCalling: false,
+  };
+  const limits = { contextWindow: 32000, maxTokens: 4000 };
+  const empty = { ...capabilities, operations: [], input: [], output: [] };
+  const saved = await s.invoke("save_llm_settings", {
+    input: {
+      providers: [
+        provider({
+          models: [
+            model({ modelId: "vision", capabilities, limits }),
+            model({ modelId: "disabled", capabilities: empty }),
+            model({ modelId: "inherited" }),
+          ],
+        }),
+      ],
+    },
+  });
+  assert.deepEqual(saved.providers[0].models[0].capabilities, capabilities);
+  assert.deepEqual(saved.providers[0].models[0].limits, limits);
+  assert.deepEqual(saved.providers[0].models[1].capabilities, empty);
+  assert.equal(saved.providers[0].models[2].capabilities, null);
+  assert.equal(saved.providers[0].models[2].limits, null);
+  await s.restart();
+  assert.deepEqual(await s.invoke("get_llm_settings"), saved);
+  for (const change of [
+    { capabilities: { ...capabilities, input: ["pdf"] } },
+    { capabilities: { ...capabilities, input: ["image", "image"] } },
+    { capabilities: { ...capabilities, operations: ["unknown"] } },
+    { capabilities: { ...capabilities, toolCalling: "false" } },
+    { capabilities: { ...capabilities, supportsVision: true } },
+    { limits: { contextWindow: 0 } },
+    { limits: { contextWindow: 1.5 } },
+    { limits: { contextWindow: 4000, maxTokens: 8000 } },
+    { limits: { maxTokens: 2147483648 } },
+  ]) {
+    await s.invoke(
+      "save_llm_settings",
+      { input: { providers: [provider({ models: [model(change)] })] } },
+      400,
+    );
+    assert.deepEqual(await s.invoke("get_llm_settings"), saved);
+  }
+  const inherited = await s.invoke("save_llm_settings", {
+    input: {
+      providers: [
+        provider({ models: [model({ capabilities: null, limits: null })] }),
+      ],
+    },
+  });
+  assert.equal(inherited.providers[0].models[0].capabilities, null);
+  assert.equal(inherited.providers[0].models[0].limits, null);
+});
+
 test("agents start empty and persist manually created definitions across restarts", async (t) => {
   const s = await setup(t);
   const empty = await s.invoke("get_agent_settings");
@@ -478,13 +538,15 @@ test("migrated configuration tables keep Tauri column names", async (t) => {
           (column) => table !== "provider_models" || column !== "is_enabled",
         )
         .sort();
+      if (table === "provider_models")
+        expected.push("capabilities_json", "limits_json");
       assert.deepEqual(
         db
           .prepare(`PRAGMA table_info(${table})`)
           .all()
           .map((row) => row.name)
           .sort(),
-        expected,
+        expected.sort(),
       );
     }
   } finally {

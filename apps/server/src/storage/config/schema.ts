@@ -1,5 +1,5 @@
-// Retains the legacy configuration schema except for retired host roles and model enablement.
-export const CONFIG_SCHEMA_VERSION = 27;
+// Retains legacy settings with additive model configuration fields.
+export const CONFIG_SCHEMA_VERSION = 28;
 export const configTables = [
   {
     name: "workspace_groups",
@@ -50,10 +50,12 @@ export const configTables = [
       "model_name",
       "is_one_million_context",
       "thinking_json",
+      "capabilities_json",
+      "limits_json",
       "created_at",
       "updated_at",
     ],
-    sql: "CREATE TABLE IF NOT EXISTS provider_models (\n    id TEXT PRIMARY KEY,\n    provider_id TEXT NOT NULL,\n    model_id TEXT NOT NULL,\n    model_name TEXT NOT NULL,\n    is_one_million_context INTEGER DEFAULT 0,\n    thinking_json TEXT,\n    created_at INTEGER NOT NULL,\n    updated_at INTEGER NOT NULL,\n    FOREIGN KEY (provider_id) REFERENCES llm_providers(id) ON DELETE CASCADE,\n    UNIQUE(provider_id, model_id)\n);",
+    sql: "CREATE TABLE IF NOT EXISTS provider_models (\n    id TEXT PRIMARY KEY,\n    provider_id TEXT NOT NULL,\n    model_id TEXT NOT NULL,\n    model_name TEXT NOT NULL,\n    is_one_million_context INTEGER DEFAULT 0,\n    thinking_json TEXT,\n    capabilities_json TEXT,\n    limits_json TEXT,\n    created_at INTEGER NOT NULL,\n    updated_at INTEGER NOT NULL,\n    FOREIGN KEY (provider_id) REFERENCES llm_providers(id) ON DELETE CASCADE,\n    UNIQUE(provider_id, model_id)\n);",
   },
   {
     name: "skill_groups",

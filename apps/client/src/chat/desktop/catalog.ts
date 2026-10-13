@@ -115,7 +115,7 @@ export function createDesktopCatalog(
             label: `${model.provider.name}/${model.modelName}`,
             selectedLabel: model.modelName,
             thinking: model.thinking,
-            description: `${model.provider.name} / ${model.modelName}`,
+            description: `${model.provider.name} / ${model.modelName}${model.capabilities.input.includes("image") ? " · 图片输入" : ""}${model.capabilities.toolCalling ? "" : " · 不支持工具调用"}`,
             isDefault: index === 0,
           })),
           agents: agents.map((agent) => ({

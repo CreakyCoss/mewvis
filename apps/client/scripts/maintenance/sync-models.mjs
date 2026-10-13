@@ -17,7 +17,8 @@ const targetPath = join(
 const MODELS_DEV_URL = "https://models.dev/api.json";
 const RAW_CATALOG_EXPORT_NAME = "RAW_MODEL_CATALOG";
 
-const SYNCED_PROVIDERS = new Set(["deepseek", "minimax-cn", "zhipuai", "moonshotai-cn", "xiaomi"]);
+const SYNCED_PROVIDERS = new Set(["openai", "deepseek", "minimax-cn", "zhipuai", "moonshotai-cn", "xiaomi"]);
+const OPENAI_PRESETS = new Set(["gpt-6-astra", "gpt-6.1-sol", "gpt-6-luna", "gpt-5.6-sol"]);
 
 const sortRecord = (record) => {
   return Object.fromEntries(
@@ -37,11 +38,13 @@ async function main() {
   const providers = {};
 
   for (const [providerKey, providerData] of Object.entries(data)) {
-    if (!SYNCED_PROVIDERS.has(providerKey) || !providerData?.api || !providerData?.models) continue;
+    const api = providerData?.api ?? (providerKey === "openai" ? "https://api.openai.com/v1" : undefined);
+    if (!SYNCED_PROVIDERS.has(providerKey) || !api || !providerData?.models) continue;
 
     /** @type {Record<string, any>} */
     const models = {};
     for (const [modelId, model] of Object.entries(providerData.models)) {
+      if (providerKey === "openai" && !OPENAI_PRESETS.has(modelId)) continue;
       if (model.tool_call !== true) continue;
       if (model.status === "deprecated") continue;
 
@@ -63,7 +66,7 @@ async function main() {
 
     if (Object.keys(models).length > 0) {
       providers[providerKey] = {
-        api: providerData.api,
+        api,
         models,
       };
     }

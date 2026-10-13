@@ -431,10 +431,30 @@ try {
       ),
     }),
   );
+  const capabilitiesSchema = join(tempRoot, "model-capabilities.schema.json");
+  writeFileSync(
+    capabilitiesSchema,
+    JSON.stringify({
+      title: "ModelCapabilitiesProtocol",
+      anyOf: [
+        { $ref: "#/definitions/RuntimeModelCapabilities" },
+        { $ref: "#/definitions/RuntimeModelLimits" },
+      ],
+      definitions: Object.fromEntries(
+        [
+          "RuntimeModelCapabilities",
+          "RuntimeModelLimits",
+          "RuntimeModelModality",
+          "RuntimeModelOperation",
+        ].map((name) => [name, modelSchemaDocument.definitions[name]]),
+      ),
+    }),
+  );
   for (const [schema, name] of [
     ["access.schema.json", "agent-access"],
     ["permissions.schema.json", "agent-permissions"],
     [thinkingSchema, "model-thinking"],
+    [capabilitiesSchema, "model-capabilities"],
   ]) {
     const sharedTypes = join(tempRoot, `${name}.d.ts`);
     const sharedResult = spawnSync(
@@ -467,6 +487,13 @@ try {
       "../../../packages/chat-contracts/agent-access.schema.json",
     ),
     readFileSync(join(schemaRoot, "access.schema.json"), "utf8"),
+  );
+  saveGenerated(
+    join(
+      protocolRoot,
+      "../../../packages/chat-contracts/model-capabilities.schema.json",
+    ),
+    await format(readFileSync(capabilitiesSchema, "utf8"), { parser: "json" }),
   );
   for (const target of targets) {
     const tempOutput = join(tempRoot, `agent-runtime-v1.${target.extension}`);

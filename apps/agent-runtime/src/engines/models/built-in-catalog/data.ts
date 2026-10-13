@@ -5,53 +5,22 @@ export const RAW_MODEL_CATALOG = {
 	"deepseek": {
 		"api": "https://api.deepseek.com",
 		"models": {
-			"deepseek-chat": {
-				"id": "deepseek-chat",
-				"name": "DeepSeek Chat",
-				"reasoning": false,
-				"input": [
-					"text"
-				],
-				"cost": {
-					"input": 0.14,
-					"output": 0.28,
-					"cacheRead": 0.0028,
-					"cacheWrite": 0
-				},
-				"contextWindow": 1000000,
-				"maxTokens": 384000
-			},
-			"deepseek-reasoner": {
-				"id": "deepseek-reasoner",
-				"name": "DeepSeek Reasoner",
+			"deepseek-flash": {
+				"id": "deepseek-flash",
+				"name": "DeepSeek V4.1 Flash",
 				"reasoning": true,
 				"input": [
-					"text"
+					"text",
+					"image"
 				],
 				"cost": {
-					"input": 0.14,
-					"output": 0.28,
-					"cacheRead": 0.0028,
+					"input": 0.15,
+					"output": 0.6,
+					"cacheRead": 0.003,
 					"cacheWrite": 0
 				},
 				"contextWindow": 1000000,
-				"maxTokens": 384000
-			},
-			"deepseek-v4-flash": {
-				"id": "deepseek-v4-flash",
-				"name": "DeepSeek V4 Flash",
-				"reasoning": true,
-				"input": [
-					"text"
-				],
-				"cost": {
-					"input": 0.14,
-					"output": 0.28,
-					"cacheRead": 0.0028,
-					"cacheWrite": 0
-				},
-				"contextWindow": 1000000,
-				"maxTokens": 384000
+				"maxTokens": 393216
 			},
 			"deepseek-v4-pro": {
 				"id": "deepseek-v4-pro",
@@ -61,18 +30,18 @@ export const RAW_MODEL_CATALOG = {
 					"text"
 				],
 				"cost": {
-					"input": 0.435,
-					"output": 0.87,
-					"cacheRead": 0.003625,
+					"input": 0.66,
+					"output": 1.98,
+					"cacheRead": 0.022,
 					"cacheWrite": 0
 				},
 				"contextWindow": 1000000,
-				"maxTokens": 384000
+				"maxTokens": 393216
 			}
 		}
 	},
 	"minimax-cn": {
-		"api": "https://api.minimaxi.com/anthropic/v1",
+		"api": "https://api.minimax.cn/anthropic/v1",
 		"models": {
 			"MiniMax-M2": {
 				"id": "MiniMax-M2",
@@ -87,8 +56,8 @@ export const RAW_MODEL_CATALOG = {
 					"cacheRead": 0,
 					"cacheWrite": 0
 				},
-				"contextWindow": 196608,
-				"maxTokens": 128000
+				"contextWindow": 204800,
+				"maxTokens": 131072
 			},
 			"MiniMax-M2.1": {
 				"id": "MiniMax-M2.1",
@@ -100,8 +69,8 @@ export const RAW_MODEL_CATALOG = {
 				"cost": {
 					"input": 0.3,
 					"output": 1.2,
-					"cacheRead": 0,
-					"cacheWrite": 0
+					"cacheRead": 0.03,
+					"cacheWrite": 0.375
 				},
 				"contextWindow": 204800,
 				"maxTokens": 131072
@@ -185,7 +154,7 @@ export const RAW_MODEL_CATALOG = {
 					"cacheWrite": 0
 				},
 				"contextWindow": 1000000,
-				"maxTokens": 128000
+				"maxTokens": 512000
 			}
 		}
 	},
@@ -255,10 +224,83 @@ export const RAW_MODEL_CATALOG = {
 					"input": 3,
 					"output": 15,
 					"cacheRead": 0.3,
-					"cacheWrite": 0
+					"cacheWrite": 3
 				},
 				"contextWindow": 1048576,
 				"maxTokens": 1048576
+			}
+		}
+	},
+	"openai": {
+		"api": "https://api.openai.com/v1",
+		"models": {
+			"gpt-5.6-sol": {
+				"id": "gpt-5.6-sol",
+				"name": "GPT-5.6 Sol",
+				"reasoning": true,
+				"input": [
+					"text",
+					"image"
+				],
+				"cost": {
+					"input": 4,
+					"output": 20,
+					"cacheRead": 0.4,
+					"cacheWrite": 5
+				},
+				"contextWindow": 1050000,
+				"maxTokens": 128000
+			},
+			"gpt-6-astra": {
+				"id": "gpt-6-astra",
+				"name": "GPT-6 Astra",
+				"reasoning": true,
+				"input": [
+					"text",
+					"image"
+				],
+				"cost": {
+					"input": 10,
+					"output": 50,
+					"cacheRead": 1,
+					"cacheWrite": 12.5
+				},
+				"contextWindow": 1050000,
+				"maxTokens": 128000
+			},
+			"gpt-6-luna": {
+				"id": "gpt-6-luna",
+				"name": "GPT-6 Luna",
+				"reasoning": true,
+				"input": [
+					"text",
+					"image"
+				],
+				"cost": {
+					"input": 0.1,
+					"output": 0.5,
+					"cacheRead": 0.01,
+					"cacheWrite": 0.125
+				},
+				"contextWindow": 1050000,
+				"maxTokens": 128000
+			},
+			"gpt-6.1-sol": {
+				"id": "gpt-6.1-sol",
+				"name": "GPT-6.1 Sol",
+				"reasoning": true,
+				"input": [
+					"text",
+					"image"
+				],
+				"cost": {
+					"input": 2,
+					"output": 10,
+					"cacheRead": 0.1,
+					"cacheWrite": 2.5
+				},
+				"contextWindow": 1050000,
+				"maxTokens": 128000
 			}
 		}
 	},

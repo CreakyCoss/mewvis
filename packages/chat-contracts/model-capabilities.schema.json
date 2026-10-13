@@ -1,0 +1,57 @@
+{
+  "title": "ModelCapabilitiesProtocol",
+  "anyOf": [
+    { "$ref": "#/definitions/RuntimeModelCapabilities" },
+    { "$ref": "#/definitions/RuntimeModelLimits" }
+  ],
+  "definitions": {
+    "RuntimeModelCapabilities": {
+      "type": "object",
+      "required": ["operations", "input", "output", "reasoning", "toolCalling"],
+      "properties": {
+        "operations": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/definitions/RuntimeModelOperation" }
+        },
+        "input": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/definitions/RuntimeModelModality" }
+        },
+        "output": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/definitions/RuntimeModelModality" }
+        },
+        "reasoning": { "type": "boolean" },
+        "toolCalling": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "RuntimeModelLimits": {
+      "type": "object",
+      "properties": {
+        "contextWindow": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        },
+        "maxTokens": { "type": "integer", "minimum": 1, "maximum": 2147483647 }
+      },
+      "additionalProperties": false
+    },
+    "RuntimeModelModality": { "enum": ["text", "image", "audio", "video"] },
+    "RuntimeModelOperation": {
+      "enum": [
+        "chat",
+        "image-generation",
+        "image-editing",
+        "video-generation",
+        "speech",
+        "transcription",
+        "realtime"
+      ]
+    }
+  }
+}

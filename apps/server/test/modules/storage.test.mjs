@@ -65,7 +65,9 @@ test("retained config, RAG and vector SQL definitions match the legacy Rust snap
     if (name === "ai_agents") continue;
     const table = configTables.find((t) => t.name === name);
     assert.deepEqual(
-      table.columns,
+      table.columns.filter(
+        (column) => !["capabilities_json", "limits_json"].includes(column),
+      ),
       [...cols.matchAll(/"(\w+)"/g)]
         .map((m) => m[1])
         .filter(
@@ -76,7 +78,12 @@ test("retained config, RAG and vector SQL definitions match the legacy Rust snap
       name === "provider_models"
         ? sql.replace(/\s*is_enabled INTEGER DEFAULT 1,/, "")
         : sql;
-    assert.equal(norm(table.sql), norm(retainedSql));
+    assert.equal(
+      norm(
+        table.sql.replace(/\s*(?:capabilities_json|limits_json) TEXT,/g, ""),
+      ),
+      norm(retainedSql),
+    );
   }
   assert.match(
     await rust("db/migrations/version.rs"),
@@ -110,6 +117,10 @@ export function legacyFixture(db, version) {
   );
   const drop = (table, col) =>
     db.exec(`ALTER TABLE ${table} DROP COLUMN ${col}`);
+  if (version < 28) {
+    drop("provider_models", "capabilities_json");
+    drop("provider_models", "limits_json");
+  }
   if (version < 25) drop("provider_models", "thinking_json");
   if (version < 24) drop("knowledge_collections", "source_directory");
   if (version < 23) drop("knowledge_collections", "embedding_profile_id");
@@ -258,6 +269,38 @@ test("retiring model enablement preserves every configured model and its setting
     } finally {
       migrated.close();
     }
+  }
+});
+
+test("v27 model settings upgrade additively and retain API credentials, model IDs and thinking", async (t) => {
+  const root = await mkdtemp(
+    join(tmpdir(), "mewvis-model-capability-upgrade-"),
+  );
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const raw = new DatabaseSync(join(root, "config.db"));
+  raw.exec(configSchema);
+  raw.exec(`ALTER TABLE provider_models DROP COLUMN capabilities_json;
+    ALTER TABLE provider_models DROP COLUMN limits_json;
+    INSERT INTO llm_providers VALUES ('p', 'Provider', 'deepseek', 'openai-completions', 'fixture-secret', 'https://api.deepseek.com', 1, 10, 20);
+    INSERT INTO provider_models VALUES ('m', 'p', 'deepseek-v4-flash', 'Existing', 1, '{"levels":[{"value":"high","label":"High"}],"defaultLevel":"high"}', 30, 40);
+    PRAGMA user_version=27;`);
+  raw.close();
+  const migrated = new ConfigDatabase(root);
+  try {
+    const provider = new LlmRepository(migrated).read().providers[0];
+    assert.equal(provider.apiKey, "fixture-secret");
+    assert.equal(provider.models[0].modelId, "deepseek-v4-flash");
+    assert.equal(provider.models[0].isOneMillionContext, true);
+    assert.equal(provider.models[0].thinking.defaultLevel, "high");
+    assert.equal(provider.models[0].createdAt, 30);
+    assert.equal(provider.models[0].capabilities, null);
+    assert.equal(provider.models[0].limits, null);
+    assert.deepEqual(
+      migrated.connection.prepare("PRAGMA foreign_key_check").all(),
+      [],
+    );
+  } finally {
+    migrated.close();
   }
 });
 

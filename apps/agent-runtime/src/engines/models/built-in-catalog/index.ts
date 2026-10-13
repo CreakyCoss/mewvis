@@ -37,7 +37,10 @@ const buildCatalogModelMap = (
     const rawModel = rawModels[modelId];
     if (!rawModel) continue;
 
-    models[modelId] = { ...toCatalogModel(rawModel), ...cloneDeep(definition) };
+    models[modelId] = {
+      ...toCatalogModel(rawModel),
+      ...cloneDeep(definition),
+    };
   }
 
   return models;
@@ -50,7 +53,10 @@ const buildCatalogProvider = (
   const catalogConfig = MODEL_PROVIDER_CONFIG[provider];
   if (!catalogConfig) return null;
 
-  const models = buildCatalogModelMap(rawProviderCatalog.models, catalogConfig.models);
+  const models = buildCatalogModelMap(
+    rawProviderCatalog.models,
+    catalogConfig.models,
+  );
 
   if (Object.keys(models).length === 0) {
     return null;
@@ -66,7 +72,9 @@ const buildCatalogProvider = (
 const buildModelCatalog = (): RuntimeModelCatalog => {
   const catalog: RuntimeModelCatalog = {};
 
-  for (const [provider, rawProviderCatalog] of Object.entries(rawModelCatalog)) {
+  for (const [provider, rawProviderCatalog] of Object.entries(
+    rawModelCatalog,
+  )) {
     const providerCatalog = buildCatalogProvider(provider, rawProviderCatalog);
     if (!providerCatalog) continue;
 
