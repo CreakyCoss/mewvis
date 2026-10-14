@@ -27,6 +27,8 @@
 
 `discover_provider_models` 使用提交的连接草稿获取模型列表，不读取或保存模型设置。当前支持 OpenAI Completions、Responses、OpenRouter、Anthropic Messages 和 Google Generative AI 格式；不支持的格式或请求失败时，可手动添加模型。
 
+模型列表除 `modelId`、`modelName` 外，还可返回 `limits`、部分 `capabilities` 及思考等级值 `thinking.levels`。这些字段仅包含接口明确返回的信息，编辑器在添加时按字段补齐基础预设，并保留已有模型的用户配置。不同协议的映射规则见[模型配置与预设](models.md#获取模型时的能力信息)。
+
 模型保存示例：
 
 ```json

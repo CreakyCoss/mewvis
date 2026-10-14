@@ -1,4 +1,5 @@
 import { cloneDeep } from "lodash-es";
+import type { DiscoveredProviderModel } from "@mewvis/chat-contracts";
 import type { RuntimeApiFormat } from "@/agent-client/wire";
 import type {
   LlmProvider,
@@ -15,14 +16,29 @@ import { editorPresets } from "./presets";
 
 export const createModelConfig = (
   provider?: Pick<LlmProviderConfig, "provider" | "apiFormat">,
+  discovered?: DiscoveredProviderModel,
 ): ProviderModelConfig => ({
   id: createUuid(),
-  modelId: "",
-  modelName: "",
+  modelId: discovered?.modelId ?? "",
+  modelName: discovered?.modelName || discovered?.modelId || "",
   isOneMillionContext: false,
   configuration: null,
-  ...editorPresets.createModelDefaults(provider),
+  ...editorPresets.createModelDefaults(provider, discovered),
 });
+
+export const appendDiscoveredModels = (
+  provider: LlmProviderConfig,
+  discovered: DiscoveredProviderModel[],
+): LlmProviderConfig => {
+  const existing = new Set(provider.models.map((model) => model.modelId.trim()));
+  const additions: ProviderModelConfig[] = [];
+  for (const model of discovered) {
+    if (existing.has(model.modelId)) continue;
+    existing.add(model.modelId);
+    additions.push(createModelConfig(provider, model));
+  }
+  return { ...provider, models: [...provider.models, ...additions] };
+};
 
 export const createProviderConfig = (isDefault: boolean): LlmProviderConfig => {
   const preset = editorPresets.getDefaultProvider();

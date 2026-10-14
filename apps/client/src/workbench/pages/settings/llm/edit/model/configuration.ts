@@ -9,12 +9,21 @@ export function initialModelConfiguration(provider: LlmProviderConfig, model: Pr
   return {
     version: 1,
     connection: {},
-    purposes: capabilities.operations.map((type) => ({
-      ...suggestPurpose(provider, model, type),
-      input: [...capabilities.input],
-      output: [...capabilities.output],
-      ...(type === "chat" ? { reasoning: capabilities.reasoning, toolCalling: capabilities.toolCalling } : {}),
-    })),
+    purposes: capabilities.operations.map((type) => {
+      const purpose = suggestPurpose(provider, model, type);
+      return {
+        ...purpose,
+        input:
+          type === "chat" || type === "realtime"
+            ? [...capabilities.input]
+            : purpose.input.filter((value) => capabilities.input.includes(value)),
+        output:
+          type === "realtime"
+            ? [...capabilities.output]
+            : purpose.output.filter((value) => capabilities.output.includes(value)),
+        ...(type === "chat" ? { reasoning: capabilities.reasoning, toolCalling: capabilities.toolCalling } : {}),
+      };
+    }),
   };
 }
 

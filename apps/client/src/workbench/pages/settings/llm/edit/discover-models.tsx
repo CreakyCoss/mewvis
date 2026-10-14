@@ -1,7 +1,8 @@
 import { useEffect, useId, useState } from "react";
 import { Download, Loader2, RefreshCw } from "lucide-react";
 import type { LlmProviderConfig } from "@/agent-client/runtime-model";
-import { discoverProviderModels, type DiscoveredProviderModel } from "@/api/llm";
+import { discoverProviderModels } from "@/api/llm";
+import type { DiscoveredProviderModel } from "@mewvis/chat-contracts";
 import { Button } from "design-system/components/ui/button";
 import { Checkbox } from "design-system/components/ui/checkbox";
 import {
@@ -14,6 +15,26 @@ import {
 } from "design-system/components/ui/dialog";
 import { Input } from "design-system/components/ui/input";
 import { Label } from "design-system/components/ui/label";
+import { formatContextWindow, MODEL_MODALITY_OPTIONS } from "../options";
+
+const metadataSummary = (model: DiscoveredProviderModel) => {
+  const details: string[] = [];
+  if (model.limits?.contextWindow) details.push(`上下文 ${formatContextWindow(model.limits.contextWindow)}`);
+  if (model.limits?.maxTokens) details.push(`最大输出 ${formatContextWindow(model.limits.maxTokens)}`);
+  for (const key of ["input", "output"] as const) {
+    const values = model.capabilities?.[key];
+    if (values?.length)
+      details.push(
+        `${key === "input" ? "输入" : "输出"}：${values.map((value) => MODEL_MODALITY_OPTIONS.find((option) => option.value === value)?.label ?? value).join("、")}`,
+      );
+  }
+  if (model.capabilities?.reasoning !== undefined)
+    details.push(model.capabilities.reasoning ? "支持思考" : "不支持思考");
+  if (model.thinking?.levels.length) details.push(`思考等级 ${model.thinking.levels.join(" / ")}`);
+  if (model.capabilities?.toolCalling !== undefined)
+    details.push(model.capabilities.toolCalling ? "支持工具" : "不支持工具");
+  return details.join(" · ");
+};
 
 type DiscoverModelsDialogProps = {
   provider: LlmProviderConfig;
@@ -101,6 +122,9 @@ export const DiscoverModelsDialog = ({ provider, onConfirm, onClose }: DiscoverM
                 <p role="status" className="text-xs text-muted-foreground">
                   获取到 {models.length} 个模型，其中 {existingCount} 个已添加
                 </p>
+                <p className="text-xs leading-5 text-muted-foreground">
+                  下方展示接口返回的能力信息；缺失参数在添加时使用基础预设，已添加模型保留原配置。
+                </p>
                 <Label htmlFor={`${id}-search`} className="sr-only">
                   搜索模型名称或 ID
                 </Label>
@@ -118,6 +142,7 @@ export const DiscoverModelsDialog = ({ provider, onConfirm, onClose }: DiscoverM
                 {visibleModels.map((model, index) => {
                   const isAdded = existing.has(model.modelId);
                   const checkboxId = `${id}-model-${index}`;
+                  const details = metadataSummary(model);
                   return (
                     <div
                       key={model.modelId}
@@ -146,6 +171,9 @@ export const DiscoverModelsDialog = ({ provider, onConfirm, onClose }: DiscoverM
                         >
                           {model.modelId}
                         </span>
+                        {details && (
+                          <span className="mt-1 block text-[11px] leading-5 text-muted-foreground">{details}</span>
+                        )}
                       </Label>
                       {isAdded && <span className="shrink-0 text-xs text-muted-foreground">已添加</span>}
                     </div>

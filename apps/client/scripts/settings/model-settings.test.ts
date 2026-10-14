@@ -18,6 +18,7 @@ import {
   createModelConfig,
   createProviderConfig,
   applyProviderDefaults,
+  appendDiscoveredModels,
 } from "../../src/workbench/pages/settings/llm/edit/utils";
 import { getDefaultApiFormat, getProviderOptions } from "../../src/workbench/pages/settings/llm/options";
 import {
@@ -33,6 +34,7 @@ import { editorPresets } from "../../src/workbench/pages/settings/llm/edit/prese
 import { createEditorPresets } from "../../src/workbench/pages/settings/llm/edit/presets/resolve";
 import { commonPreset } from "../../src/workbench/pages/settings/llm/edit/presets/common";
 import type { ProviderPreset } from "../../src/workbench/pages/settings/llm/edit/presets/types";
+import { initialModelConfiguration } from "../../src/workbench/pages/settings/llm/edit/model/configuration";
 
 const model = (extra: Partial<ProviderModel> = {}): ProviderModel => ({
   id: "m",
@@ -417,4 +419,112 @@ test("supplier definitions share one processing path and saved configurations ar
   assert.equal(editorPresets.suggestTemplate("image-generation", "minimax", "image-01")?.id, "minimax-image-01");
   assert.equal(editorPresets.suggestTemplate("image-generation", "other", "image-01"), undefined);
   assert.equal(editorPresets.suggestTemplate("chat", "custom", "any-model")?.id, "native-chat");
+});
+
+test("discovered metadata overrides defaults field by field, including false and empty values", () => {
+  const p = createProviderConfig(true);
+  const discovered = {
+    modelId: "reported-model",
+    modelName: "Reported Model",
+    limits: { contextWindow: 64000, maxTokens: 8000 },
+    capabilities: {
+      operations: [] as ModelPurpose["type"][],
+      input: [] as ModelPurpose["input"],
+      output: [] as ModelPurpose["output"],
+      reasoning: false,
+      toolCalling: false,
+    },
+    thinking: { levels: ["high"] },
+  };
+  const imported = createModelConfig(p, discovered);
+  assert.equal(imported.modelId, discovered.modelId);
+  assert.equal(imported.modelName, discovered.modelName);
+  assert.deepEqual(imported.capabilities, discovered.capabilities);
+  assert.deepEqual(imported.limits, discovered.limits);
+  assert.equal(imported.thinking, null);
+  assert.deepEqual(buildRuntimeModelOptions({ providers: [provider({ models: [model(imported)] })] }), []);
+  discovered.capabilities.input.push("image");
+  discovered.limits.contextWindow = 1000;
+  assert.deepEqual(imported.capabilities?.input, []);
+  assert.equal(imported.limits?.contextWindow, 64000);
+});
+
+test("missing discovery fields use shared defaults and reported limits keep fallback values consistent", () => {
+  const p = createProviderConfig(true);
+  const imported = createModelConfig(p, {
+    modelId: "new-model",
+    modelName: "New Model",
+    limits: { contextWindow: 4096 },
+    capabilities: { input: ["text", "image"], reasoning: true },
+    thinking: { levels: ["high", "custom-effort", "low"] },
+  });
+  assert.deepEqual(imported.capabilities?.operations, ["chat"]);
+  assert.deepEqual(imported.capabilities?.output, ["text"]);
+  assert.deepEqual(imported.capabilities?.input, ["text", "image"]);
+  assert.deepEqual(imported.limits, { contextWindow: 4096, maxTokens: 4096 });
+  assert.deepEqual(imported.thinking, {
+    levels: [
+      { value: "low", label: "低" },
+      { value: "high", label: "高" },
+      { value: "custom-effort", label: "custom-effort" },
+    ],
+    defaultLevel: null,
+  });
+  const outputOnly = createModelConfig(p, {
+    modelId: "large-output",
+    modelName: "Large Output",
+    limits: { maxTokens: 262144 },
+  });
+  assert.deepEqual(outputOnly.limits, { contextWindow: 262144, maxTokens: 262144 });
+  const emptyThinking = createModelConfig(p, {
+    modelId: "no-efforts",
+    modelName: "No Efforts",
+    thinking: { levels: [] },
+  });
+  assert.deepEqual(emptyThinking.thinking, { levels: [], defaultLevel: null });
+  assert.deepEqual(
+    createModelConfig(p, { modelId: "name-only", modelName: "Name Only" }).thinking,
+    createModelConfig(p).thinking,
+  );
+});
+
+test("adding discovered models preserves existing user configurations and isolates multimodal purpose outputs", () => {
+  const p = createProviderConfig(true);
+  const existing = createModelConfig(p);
+  Object.assign(existing, {
+    modelId: "existing",
+    modelName: "My Model",
+    limits: { contextWindow: 32000, maxTokens: 4000 },
+    thinking: { levels: [{ value: "mine", label: "Mine" }], defaultLevel: "mine" },
+    configuration: configuration([createModelPurpose("chat")]),
+  });
+  p.models = [existing];
+  const capabilities = {
+    operations: ["chat", "image-generation"] as ModelPurpose["type"][],
+    input: ["text", "image"] as ModelPurpose["input"],
+    output: ["text", "image"] as ModelPurpose["output"],
+    reasoning: true,
+    toolCalling: true,
+  };
+  const discovered = { modelId: "new-multimodal", modelName: "Multimodal", capabilities };
+  const added = appendDiscoveredModels(p, [
+    { modelId: "existing", modelName: "Replace", limits: { contextWindow: 1000 } },
+    discovered,
+    discovered,
+  ]);
+  assert.equal(added.models.length, 2);
+  assert.equal(added.models[0], existing);
+  assert.equal(existing.modelName, "My Model");
+  assert.deepEqual(existing.limits, { contextWindow: 32000, maxTokens: 4000 });
+  assert.equal(existing.thinking?.defaultLevel, "mine");
+  assert.equal(p.models.length, 1);
+  const imported = added.models[1];
+  const c = initialModelConfiguration(added, imported);
+  assert.deepEqual(c.purposes.find((purpose) => purpose.type === "chat")?.output, ["text"]);
+  assert.deepEqual(c.purposes.find((purpose) => purpose.type === "image-generation")?.output, ["image"]);
+  assert.deepEqual(c.purposes.find((purpose) => purpose.type === "image-generation")?.input, ["text"]);
+  assert.equal(getModelConfigurationError(c), "");
+  const saved = normalizeLlmSettingsConfig({ providers: [added] });
+  assert.equal(validateLlmSettingsConfig(saved), "");
+  assert.deepEqual(saved.providers[0].models[1].capabilities, capabilities);
 });

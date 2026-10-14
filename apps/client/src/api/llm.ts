@@ -1,5 +1,6 @@
 import { invoke } from "@/transport";
 import { invokeNode } from "@/transport/http";
+import type { DiscoveredProviderModel } from "@mewvis/chat-contracts";
 import {
   buildRuntimeModelInputs,
   buildRuntimeModelOptions,
@@ -8,8 +9,6 @@ import {
 } from "@/agent-client/runtime-model";
 
 type LoadOptions = { refresh?: boolean };
-
-export type DiscoveredProviderModel = { modelId: string; modelName: string };
 
 export const discoverProviderModels = (
   input: { apiFormat: string; apiEndpoint: string; apiKey: string },

@@ -1,4 +1,9 @@
-import type { ModelProtocol, ModelPurpose, RuntimeModelThinking } from "@mewvis/chat-contracts";
+import type {
+  DiscoveredProviderModel,
+  ModelProtocol,
+  ModelPurpose,
+  RuntimeModelThinking,
+} from "@mewvis/chat-contracts";
 import type { RuntimeApiFormat } from "@/agent-client/wire";
 import { getModelConfigurationError } from "@mewvis/chat-contracts/model-configuration";
 import type { CommonPreset, ModelPreset, ProviderPreset } from "./types";
@@ -7,6 +12,15 @@ import type { CommonPreset, ModelPreset, ProviderPreset } from "./types";
 export function createEditorPresets(commonDefinition: CommonPreset, providerDefinitions: readonly ProviderPreset[]) {
   const common = structuredClone(commonDefinition);
   const thinkingLabels = new Map(common.thinkingLevels.map((level) => [level.value, level.label]));
+  const createThinking = (values: readonly string[]): RuntimeModelThinking => {
+    const unique = new Set(values);
+    const ordered = [...thinkingLabels.keys()].filter((value) => unique.has(value));
+    ordered.push(...[...unique].filter((value) => !thinkingLabels.has(value)));
+    return {
+      levels: ordered.map((value) => ({ value, label: thinkingLabels.get(value) ?? value })),
+      defaultLevel: null,
+    };
+  };
   const protocols = new Map(common.protocols.map((protocol) => [protocol.value, protocol]));
   const nativeProtocols = common.protocols.filter(
     (protocol): protocol is { value: RuntimeApiFormat; label: string; apiEndpoint?: string } =>
@@ -42,10 +56,7 @@ export function createEditorPresets(commonDefinition: CommonPreset, providerDefi
     if (!provider.id || providers.has(provider.id)) throw new Error(`供应商预设 ID 无效或重复：${provider.id}`);
     const thinking: Partial<Record<RuntimeApiFormat, RuntimeModelThinking>> = {};
     for (const [apiFormat, levels] of Object.entries(values)) {
-      thinking[apiFormat as RuntimeApiFormat] = {
-        levels: levels.map((value) => ({ value, label: thinkingLabels.get(value) ?? value })),
-        defaultLevel: null,
-      };
+      thinking[apiFormat as RuntimeApiFormat] = createThinking(levels);
     }
     providers.set(provider.id, { ...provider, thinking });
     register(entries, provider.id);
@@ -92,12 +103,27 @@ export function createEditorPresets(commonDefinition: CommonPreset, providerDefi
       findProvider(providerId)?.apis.find((api) => api.apiFormat === format)?.apiEndpoint ??
       protocols.get(format)?.apiEndpoint ??
       "",
-    createModelDefaults: (provider?: { provider: string; apiFormat: RuntimeApiFormat }) => ({
-      ...structuredClone(common.modelDefaults),
-      thinking: provider
-        ? structuredClone(findProvider(provider.provider)?.thinking[provider.apiFormat] ?? null)
-        : null,
-    }),
+    createModelDefaults: (
+      provider?: { provider: string; apiFormat: RuntimeApiFormat },
+      discovered?: DiscoveredProviderModel,
+    ) => {
+      const capabilities = {
+        ...structuredClone(common.modelDefaults.capabilities),
+        ...structuredClone(discovered?.capabilities),
+      };
+      const limits = { ...common.modelDefaults.limits, ...discovered?.limits };
+      // Adjust only fallback values when a reported limit exceeds a generic default.
+      if (limits.maxTokens > limits.contextWindow) {
+        if (discovered?.limits?.contextWindow !== undefined) limits.maxTokens = limits.contextWindow;
+        else limits.contextWindow = limits.maxTokens;
+      }
+      const thinking = discovered?.thinking
+        ? createThinking(discovered.thinking.levels)
+        : provider
+          ? structuredClone(findProvider(provider.provider)?.thinking[provider.apiFormat] ?? null)
+          : null;
+      return { capabilities, limits, thinking: capabilities.reasoning ? thinking : null };
+    },
     listTemplates: (type?: ModelPurpose["type"]) => findTemplates(type).map(({ preset }) => structuredClone(preset)),
     getTemplate,
     suggestTemplate: (type: ModelPurpose["type"], providerId: string, modelId: string) => {

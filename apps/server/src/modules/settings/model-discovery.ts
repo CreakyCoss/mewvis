@@ -1,4 +1,6 @@
 import { fetchJson } from "../../infrastructure/network/http.js";
+import type { DiscoveredProviderModel } from "@mewvis/chat-contracts";
+import { normalizeDiscoveredModel } from "./model-metadata.js";
 import {
   nonempty,
   onlyKeys,
@@ -6,8 +8,6 @@ import {
   ServiceError,
   type JsonObject,
 } from "../../shared/validation.js";
-
-type DiscoveredModel = { modelId: string; modelName: string };
 
 const record = (value: unknown): JsonObject | undefined =>
   value && typeof value === "object" && !Array.isArray(value)
@@ -20,7 +20,7 @@ const string = (value: unknown) =>
 export async function discoverProviderModels(
   input: JsonObject,
   caller?: AbortSignal,
-): Promise<{ models: DiscoveredModel[] }> {
+): Promise<{ models: DiscoveredProviderModel[] }> {
   onlyKeys(input, ["apiFormat", "apiEndpoint", "apiKey"]);
   const format = nonempty(input.apiFormat, "API Format");
   const endpoint = nonempty(input.apiEndpoint, "API Endpoint");
@@ -72,7 +72,7 @@ export async function discoverProviderModels(
 
   const timeout = AbortSignal.timeout(30000);
   const signal = caller ? AbortSignal.any([caller, timeout]) : timeout;
-  const models = new Map<string, DiscoveredModel>();
+  const models = new Map<string, DiscoveredProviderModel>();
   const cursors = new Set<string>();
   try {
     for (let page = 0; page < 50; page++) {
@@ -92,16 +92,9 @@ export async function discoverProviderModels(
       for (const item of items) {
         const entry = record(item);
         if (!entry) continue;
-        const modelId = google
-          ? string(entry.name).replace(/^models\//, "")
-          : string(entry.id);
-        if (!modelId || models.has(modelId)) continue;
-        const modelName =
-          string(entry.display_name) ||
-          string(entry.displayName) ||
-          string(entry.name) ||
-          modelId;
-        models.set(modelId, { modelId, modelName });
+        const model = normalizeDiscoveredModel(entry, format);
+        if (model && !models.has(model.modelId))
+          models.set(model.modelId, model);
       }
 
       const cursor = google

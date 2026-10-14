@@ -138,6 +138,231 @@ test("Gemini discovery follows pagination and converts resource names to usable 
   );
 });
 
+test("Anthropic discovery preserves explicit limits, vision, thinking support and effort levels", async (t) => {
+  const s = await upstream(t, (_request, response) =>
+    json(response, {
+      data: [
+        {
+          id: "future-claude",
+          display_name: "Future Claude",
+          max_input_tokens: 1000000,
+          max_tokens: 128000,
+          capabilities: {
+            image_input: { supported: true },
+            thinking: { supported: true },
+            effort: {
+              supported: true,
+              low: { supported: true },
+              medium: { supported: false },
+              high: { supported: true },
+              custom: { supported: true },
+            },
+            server_tools: { supported: true },
+          },
+        },
+        {
+          id: "no-thinking",
+          capabilities: {
+            image_input: { supported: false },
+            thinking: { supported: false },
+            effort: { supported: false },
+          },
+        },
+      ],
+    }),
+  );
+  const { models } = await discoverProviderModels(
+    input(s.url, { apiFormat: "anthropic-messages" }),
+  );
+  assert.deepEqual(models[0], {
+    modelId: "future-claude",
+    modelName: "Future Claude",
+    limits: { contextWindow: 1000000, maxTokens: 128000 },
+    capabilities: { input: ["text", "image"], reasoning: true },
+    thinking: { levels: ["low", "high", "custom"] },
+  });
+  assert.deepEqual(models[1].capabilities, {
+    input: ["text"],
+    reasoning: false,
+  });
+  assert.equal(models[1].thinking, undefined);
+  assert.equal(models[0].capabilities.toolCalling, undefined);
+});
+
+test("Gemini discovery reads reported token limits and thinking without inventing effort levels or modalities", async (t) => {
+  const s = await upstream(t, (_request, response) =>
+    json(response, {
+      models: [
+        {
+          name: "models/future-gemini",
+          displayName: "Future Gemini",
+          inputTokenLimit: 1048576,
+          outputTokenLimit: 65536,
+          thinking: true,
+          supportedGenerationMethods: ["generateContent", "countTokens"],
+        },
+        {
+          name: "models/no-thinking",
+          thinking: false,
+          supportedGenerationMethods: ["generateContent"],
+        },
+        {
+          name: "models/embed-only",
+          supportedGenerationMethods: ["embedContent"],
+        },
+      ],
+    }),
+  );
+  const { models } = await discoverProviderModels(
+    input(s.url, { apiFormat: "google-generative-ai" }),
+  );
+  assert.deepEqual(models[0].limits, {
+    contextWindow: 1048576,
+    maxTokens: 65536,
+  });
+  assert.deepEqual(models[0].capabilities, {
+    reasoning: true,
+    operations: ["chat"],
+  });
+  assert.equal(models[0].thinking, undefined);
+  assert.deepEqual(models[1].capabilities, {
+    reasoning: false,
+    operations: ["chat"],
+  });
+  assert.deepEqual(models[2].capabilities, { operations: [] });
+});
+
+test("OpenRouter metadata maps modalities and supported parameters while unsupported outputs stay outside chat", async (t) => {
+  const s = await upstream(t, (_request, response) =>
+    json(response, {
+      data: [
+        {
+          id: "vendor/multimodal",
+          context_length: 200000,
+          architecture: {
+            input_modalities: ["text", "image", "file", "image"],
+            output_modalities: ["text", "image"],
+          },
+          top_provider: { max_completion_tokens: 32000 },
+          supported_parameters: ["tools", "reasoning"],
+        },
+        {
+          id: "vendor/plain",
+          architecture: {
+            input_modalities: ["text"],
+            output_modalities: ["text"],
+          },
+          supported_parameters: ["temperature"],
+        },
+        {
+          id: "vendor/embedding",
+          architecture: {
+            input_modalities: ["text"],
+            output_modalities: ["embeddings"],
+          },
+        },
+      ],
+    }),
+  );
+  const { models } = await discoverProviderModels(
+    input(s.url, { apiFormat: "openrouter" }),
+  );
+  assert.deepEqual(models[0].limits, {
+    contextWindow: 200000,
+    maxTokens: 32000,
+  });
+  assert.deepEqual(models[0].capabilities, {
+    input: ["text", "image"],
+    output: ["text", "image"],
+    operations: ["chat", "image-generation", "image-editing"],
+    reasoning: true,
+    toolCalling: true,
+  });
+  assert.equal(models[0].thinking, undefined);
+  assert.equal(models[1].capabilities.reasoning, false);
+  assert.equal(models[1].capabilities.toolCalling, false);
+  assert.deepEqual(models[2].capabilities, {
+    input: ["text"],
+    output: [],
+    operations: [],
+  });
+  assert.equal(s.requests.length, 1);
+});
+
+test("compatible metadata preserves false and empty values, ignores malformed fields, and never leaks raw metadata", async (t) => {
+  const s = await upstream(t, (_request, response) =>
+    json(response, {
+      data: [
+        {
+          id: "custom",
+          limits: { contextWindow: 8192, maxTokens: 2048 },
+          capabilities: {
+            operations: [],
+            input: [],
+            output: [],
+            reasoning: false,
+            toolCalling: false,
+          },
+          thinking: { levels: ["low", "high"] },
+          secret: "private-response",
+        },
+        {
+          id: "bad-values",
+          context_length: -1,
+          max_output_tokens: 1.5,
+          limits: { contextWindow: "1000", maxTokens: 0 },
+          capabilities: {
+            input: [1, "text"],
+            output: null,
+            reasoning: "false",
+            toolCalling: {},
+          },
+          supported_parameters: null,
+          thinking: { levels: [1] },
+        },
+        {
+          id: "contradictory",
+          context_length: 4096,
+          max_output_tokens: 8192,
+        },
+        {
+          id: "efforts-only",
+          reasoning_efforts: ["low", "high", "low"],
+        },
+        {
+          id: "no-effort-options",
+          thinking: { levels: [] },
+        },
+      ],
+    }),
+  );
+  const { models } = await discoverProviderModels(input(s.url));
+  assert.deepEqual(models[0], {
+    modelId: "custom",
+    modelName: "custom",
+    limits: { contextWindow: 8192, maxTokens: 2048 },
+    capabilities: {
+      operations: [],
+      input: [],
+      output: [],
+      reasoning: false,
+      toolCalling: false,
+    },
+  });
+  assert.deepEqual(models[1], {
+    modelId: "bad-values",
+    modelName: "bad-values",
+  });
+  assert.deepEqual(models[2].limits, { contextWindow: 4096 });
+  assert.deepEqual(models[3].thinking, { levels: ["low", "high"] });
+  assert.equal(models[3].capabilities.reasoning, true);
+  assert.deepEqual(models[4].thinking, { levels: [] });
+  assert.doesNotMatch(
+    JSON.stringify(models),
+    /private-response|discovery-test-key/,
+  );
+});
+
 test("upstream failures and invalid responses are actionable and never expose credentials or response bodies", async (t) => {
   let status = 401;
   let payload = { error: "discovery-test-key private upstream response" };
@@ -196,7 +421,17 @@ test("invalid connection drafts are rejected and discovery requests can be cance
 
 test("authenticated discovery accepts unsaved drafts and leaves persisted LLM settings unchanged", async (t) => {
   const s = await upstream(t, (_request, response) =>
-    json(response, { data: [{ id: "unsaved-model" }] }),
+    json(response, {
+      data: [
+        {
+          id: "unsaved-model",
+          context_length: 64000,
+          max_output_tokens: 8000,
+          capabilities: { input: ["text", "image"], toolCalling: false },
+          reasoning_efforts: ["low", "high"],
+        },
+      ],
+    }),
   );
   const root = await mkdtemp(join(tmpdir(), "mewvis-model-discovery-"));
   const server = await startServer({
@@ -234,7 +469,19 @@ test("authenticated discovery accepts unsaved drafts and leaves persisted LLM se
   assert.deepEqual(discovered, {
     status: 200,
     body: {
-      models: [{ modelId: "unsaved-model", modelName: "unsaved-model" }],
+      models: [
+        {
+          modelId: "unsaved-model",
+          modelName: "unsaved-model",
+          limits: { contextWindow: 64000, maxTokens: 8000 },
+          capabilities: {
+            input: ["text", "image"],
+            toolCalling: false,
+            reasoning: true,
+          },
+          thinking: { levels: ["low", "high"] },
+        },
+      ],
     },
   });
   assert.deepEqual(await invoke("get_llm_settings"), before);

@@ -3,6 +3,20 @@ import type {
   AgentPermissionOption,
 } from "./agent-permissions.js";
 import type { RuntimeModelThinking } from "./model-thinking.js";
+import type {
+  RuntimeModelCapabilities,
+  RuntimeModelLimits,
+} from "./model-capabilities.js";
+
+/** Only metadata explicitly reported by the discovery endpoint; omitted fields are unknown. */
+export interface DiscoveredProviderModel {
+  modelId: string;
+  modelName: string;
+  capabilities?: Partial<RuntimeModelCapabilities>;
+  limits?: RuntimeModelLimits;
+  /** API values only; the editor supplies labels and does not select a default effort. */
+  thinking?: { levels: string[] };
+}
 
 /** Risk levels ordered from least to most severe. */
 export declare const RISK_LEVELS: readonly ["low", "medium", "high"];

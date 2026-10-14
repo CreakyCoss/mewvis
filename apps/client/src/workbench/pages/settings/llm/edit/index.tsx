@@ -36,7 +36,7 @@ import {
   applyApiFormatDefaults,
   applyProviderDefaults,
   cloneProviderConfig,
-  createModelConfig,
+  appendDiscoveredModels,
   createProviderConfig,
   normalizeLlmSettingsConfig,
   normalizeProvidersForSave,
@@ -626,17 +626,7 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
           provider={providerDraft}
           onClose={() => setIsDiscoveryOpen(false)}
           onConfirm={(models) => {
-            updateProviderDraft((current) => {
-              const existing = new Set(current.models.map((model) => model.modelId.trim()));
-              const additions = models
-                .filter((model) => !existing.has(model.modelId))
-                .map((model) => ({
-                  ...createModelConfig(providerDraft),
-                  modelId: model.modelId,
-                  modelName: model.modelName || model.modelId,
-                }));
-              return { ...current, models: [...current.models, ...additions] };
-            });
+            updateProviderDraft((current) => appendDiscoveredModels(current, models));
             setIsDiscoveryOpen(false);
           }}
         />
