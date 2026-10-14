@@ -15,7 +15,6 @@
     { "$ref": "#/definitions/RuntimePingRequest" },
     { "$ref": "#/definitions/RuntimeShutdownRequest" },
     { "$ref": "#/definitions/AgentToolsListRequest" },
-    { "$ref": "#/definitions/RuntimeModelsListRequest" },
     { "$ref": "#/definitions/AgentChatRequest" },
     { "$ref": "#/definitions/AgentRunRequest" },
     { "$ref": "#/definitions/AnswerQuestionRequest" },
@@ -420,9 +419,6 @@
     },
     "AgentToolsListRequest": {
       "properties": { "method": { "const": "agent/tools/list" }, "params": { "$ref": "#/definitions/EmptyParams" } }
-    },
-    "RuntimeModelsListRequest": {
-      "properties": { "method": { "const": "runtime/models/list" }, "params": { "$ref": "#/definitions/EmptyParams" } }
     },
     "AgentChatRequest": {
       "required": ["params"],

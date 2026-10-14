@@ -1,7 +1,5 @@
-import { MODEL_CATALOG } from "./model-catalog";
-import { resolveModelCapabilities } from "@agent-runtime/engines/models/capabilities";
+import type { ModelConfiguration } from "@mewvis/chat-contracts";
 import type {
-  RuntimeModelSummary,
   RuntimeApiFormat,
   RuntimeModelInput,
   RuntimeModelThinking,
@@ -18,6 +16,7 @@ export type ProviderModel = {
   thinking?: RuntimeModelThinking | null;
   capabilities?: RuntimeModelCapabilities | null;
   limits?: RuntimeModelLimits | null;
+  configuration?: ModelConfiguration | null;
   createdAt: number;
   updatedAt: number;
 };
@@ -65,11 +64,6 @@ export type RuntimeModelOption = {
 
 export type RuntimeModelInputMap = Record<string, RuntimeModelInput>;
 
-type CatalogRuntimeModelInput = Pick<
-  RuntimeModelInput,
-  "reasoning" | "input" | "cost" | "contextWindow" | "maxTokens" | "headers"
->;
-
 const ONE_MILLION_CONTEXT_SUFFIX = "[1m]";
 
 const withOneMillionContextSuffix = (value: string, enabled: boolean) => {
@@ -88,28 +82,77 @@ const formatProviderModelId = (model: Pick<ProviderModel, "modelId" | "isOneMill
 const formatProviderModelName = (model: Pick<ProviderModel, "modelId" | "modelName" | "isOneMillionContext">) =>
   withOneMillionContextSuffix(model.modelName.trim() || model.modelId, model.isOneMillionContext);
 
-const getCatalogModel = (
-  provider: Pick<LlmProvider, "provider">,
-  model: Pick<ProviderModel, "modelId">,
-): RuntimeModelSummary | null => {
-  return Object.prototype.hasOwnProperty.call(MODEL_CATALOG, provider.provider)
-    ? (MODEL_CATALOG[provider.provider]?.models[model.modelId] ?? null)
-    : null;
+const availableChatCapabilities = (declared: RuntimeModelCapabilities, enabled = true): RuntimeModelCapabilities => {
+  const chat =
+    enabled &&
+    declared.operations.includes("chat") &&
+    declared.input.includes("text") &&
+    declared.output.includes("text");
+  return {
+    operations: chat ? ["chat"] : [],
+    input: chat ? declared.input.filter((value) => value === "text" || value === "image") : [],
+    output: chat ? ["text"] : [],
+    reasoning: chat && declared.reasoning,
+    toolCalling: chat && declared.toolCalling,
+  };
 };
 
 export const getModelCapabilities = (
   provider: Pick<LlmProvider, "provider" | "apiFormat">,
-  model: Pick<ProviderModel, "modelId" | "capabilities">,
-) => resolveModelCapabilities({ ...provider, modelId: model.modelId, capabilities: model.capabilities });
+  model: Pick<ProviderModel, "modelId" | "capabilities" | "configuration">,
+) => {
+  const configuration = model.configuration;
+  const chat = configuration?.purposes.find((purpose) => purpose.type === "chat");
+  const apiFormat = configuration?.connection.apiFormat ?? provider.apiFormat;
+  const capabilities = configuration
+    ? {
+        operations: configuration.purposes.map((purpose) => purpose.type),
+        input: [...new Set(configuration.purposes.flatMap((purpose) => purpose.input))],
+        output: [...new Set(configuration.purposes.flatMap((purpose) => purpose.output))],
+        reasoning: chat?.reasoning ?? false,
+        toolCalling: chat?.toolCalling ?? false,
+      }
+    : model.capabilities;
+  const declared: RuntimeModelCapabilities = structuredClone(
+    capabilities ?? { operations: ["chat"], input: ["text"], output: ["text"], reasoning: true, toolCalling: true },
+  );
+  // The bridge reads submitted configuration only; editor presets never participate in execution.
+  const available = configuration
+    ? availableChatCapabilities(
+        {
+          operations: ["chat"],
+          input: chat?.input ?? [],
+          output: chat?.output ?? [],
+          reasoning: chat?.reasoning ?? false,
+          toolCalling: chat?.toolCalling ?? false,
+        },
+        chat?.adapter === "native" && apiFormat !== "http-json",
+      )
+    : availableChatCapabilities(declared);
+  return {
+    declared,
+    available,
+    input: available.input.filter((value): value is "text" | "image" => value === "text" || value === "image"),
+    source: configuration || model.capabilities != null ? ("custom" as const) : ("fallback" as const),
+  };
+};
+
+export const getModelConnection = (
+  provider: Pick<LlmProvider, "apiFormat" | "apiKey" | "apiEndpoint">,
+  model: Pick<ProviderModel, "configuration">,
+) => ({
+  apiFormat: model.configuration?.connection.apiFormat ?? provider.apiFormat,
+  apiKey: model.configuration?.connection.apiKey ?? provider.apiKey,
+  apiEndpoint: model.configuration?.connection.apiEndpoint ?? provider.apiEndpoint,
+});
 
 export const getModelLimits = (
-  provider: Pick<LlmProvider, "provider">,
+  _provider: Pick<LlmProvider, "provider">,
   model: Pick<ProviderModel, "modelId" | "limits">,
 ) => {
-  const catalog = getCatalogModel(provider, model);
   return {
-    contextWindow: model.limits?.contextWindow ?? catalog?.contextWindow ?? 128000,
-    maxTokens: model.limits?.maxTokens ?? catalog?.maxTokens ?? 16384,
+    contextWindow: model.limits?.contextWindow ?? 128000,
+    maxTokens: model.limits?.maxTokens ?? 16384,
   };
 };
 
@@ -127,48 +170,39 @@ export const getModelLimitsError = (
   return limits.maxTokens > limits.contextWindow ? "最大输出不能超过上下文窗口（含默认值）" : "";
 };
 
-// Saved settings take precedence; the built-in catalog is only a frontend preset.
+// Runtime helpers consume saved settings; editor-owned defaults are materialized before submission.
 export const getModelThinking = (
   provider: Pick<LlmProvider, "provider" | "apiFormat">,
-  model: Pick<ProviderModel, "modelId" | "thinking" | "capabilities">,
+  model: Pick<ProviderModel, "modelId" | "thinking" | "capabilities" | "configuration">,
 ): RuntimeModelThinking | undefined => {
   if (!getModelCapabilities(provider, model).available.reasoning) return undefined;
-  const thinking = model.thinking ?? getCatalogModel(provider, model)?.thinking?.[provider.apiFormat];
-  return thinking ? structuredClone(thinking) : undefined;
-};
-
-const createCatalogRuntimeModelInput = (catalogModel: RuntimeModelSummary): CatalogRuntimeModelInput => {
-  return {
-    reasoning: catalogModel.reasoning,
-    input: [...catalogModel.input],
-    cost: { ...catalogModel.cost },
-    contextWindow: catalogModel.contextWindow,
-    maxTokens: catalogModel.maxTokens,
-    headers: catalogModel.headers ? { ...catalogModel.headers } : undefined,
-  };
+  return model.thinking ? structuredClone(model.thinking) : undefined;
 };
 
 export const createRuntimeModelInput = (
   provider: Pick<LlmProvider, "provider" | "apiFormat" | "apiKey" | "apiEndpoint">,
-  model: Pick<ProviderModel, "modelId" | "thinking" | "capabilities" | "limits" | "isOneMillionContext">,
+  model: Pick<
+    ProviderModel,
+    "modelId" | "thinking" | "capabilities" | "limits" | "isOneMillionContext" | "configuration"
+  >,
   modelId = formatProviderModelId(model),
 ): RuntimeModelInput => {
-  const catalogModel = getCatalogModel(provider, model);
   const thinking = getModelThinking(provider, model);
   const capabilities = getModelCapabilities(provider, model);
+  const connection = getModelConnection(provider, model);
+  if (connection.apiFormat === "http-json") throw new Error("HTTP / JSON 用途需要专用执行服务");
 
   return {
     provider: provider.provider,
-    apiFormat: provider.apiFormat,
-    apiKey: provider.apiKey,
+    apiFormat: connection.apiFormat,
+    apiKey: connection.apiKey,
     catalogModelId: model.modelId,
     modelId,
-    apiEndpoint: provider.apiEndpoint ?? undefined,
-    ...(catalogModel ? createCatalogRuntimeModelInput(catalogModel) : {}),
-    capabilities: capabilities.declared,
+    apiEndpoint: connection.apiEndpoint ?? undefined,
+    capabilities: model.configuration ? capabilities.available : capabilities.declared,
     input: capabilities.input,
-    reasoning: model.capabilities != null || catalogModel ? capabilities.available.reasoning : undefined,
-    ...(catalogModel ? getModelLimits(provider, model) : (model.limits ?? {})),
+    reasoning: model.configuration != null || model.capabilities != null ? capabilities.available.reasoning : undefined,
+    ...(model.limits ?? {}),
     thinkingLevel: thinking?.defaultLevel ?? undefined,
   };
 };
@@ -208,6 +242,7 @@ export const buildRuntimeModelInputs = (settings: LlmSettings): RuntimeModelInpu
 
   for (const provider of settings.providers) {
     for (const model of provider.models) {
+      if (!getModelCapabilities(provider, model).available.operations.includes("chat")) continue;
       inputs[model.id] = buildRuntimeModelInput(provider, model);
     }
   }

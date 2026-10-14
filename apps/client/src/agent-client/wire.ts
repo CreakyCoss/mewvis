@@ -32,8 +32,6 @@ export {
   type RuntimeLink,
   type RuntimeModelInput,
   type RuntimeModelCapabilities,
-  type RuntimeModelThinking,
-  type RuntimeModelSummary,
   type RuntimeSessionAuxiliaryEntry,
   type RuntimeSessionDebugParams,
   type RuntimeSessionDebugResult,
@@ -55,4 +53,4 @@ export {
   type ToolExecutionStartEvent,
   type ToolExecutionUpdateEvent,
 } from "../../../agent-runtime/protocol/v1/sdk/typescript/index";
-export type { RuntimeModelLimits, RuntimeModelModality, RuntimeModelOperation } from "@mewvis/chat-contracts";
+export type { RuntimeModelThinking, RuntimeModelLimits, RuntimeModelModality, RuntimeModelOperation } from "@mewvis/chat-contracts";

@@ -1,5 +1,6 @@
 import type { DatabaseSync } from "node:sqlite";
 import { configSchema, configTables, CONFIG_SCHEMA_VERSION } from "./schema.js";
+import { materializePreviousModelDefaults } from "./model-defaults-v29.js";
 
 const quote = (name: string) => '"' + name.replaceAll('"', '""') + '"';
 const columns = (db: DatabaseSync, table: string) =>
@@ -59,6 +60,8 @@ export function migrateConfig(db: DatabaseSync) {
         db.exec("ALTER TABLE provider_models DROP COLUMN is_enabled");
       add("provider_models", "capabilities_json", "TEXT");
       add("provider_models", "limits_json", "TEXT");
+      add("provider_models", "configuration_json", "TEXT");
+      materializePreviousModelDefaults(db);
       validateConfigSchema(db);
       db.exec(
         "DELETE FROM stories; DELETE FROM skill_settings WHERE key='readonly_skill_group_members'",
@@ -171,6 +174,12 @@ export function migrateConfig(db: DatabaseSync) {
           case 28:
             add("provider_models", "capabilities_json", "TEXT");
             add("provider_models", "limits_json", "TEXT");
+            break;
+          case 29:
+            add("provider_models", "configuration_json", "TEXT");
+            break;
+          case 30:
+            materializePreviousModelDefaults(db);
             break;
         }
       }

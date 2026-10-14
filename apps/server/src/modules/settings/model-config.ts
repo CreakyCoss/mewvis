@@ -5,6 +5,23 @@ import type {
   RuntimeModelLimits,
 } from "@mewvis/chat-contracts";
 import { invalid } from "../../shared/validation.js";
+import { getModelConfigurationError } from "@mewvis/chat-contracts/model-configuration";
+import type { ModelConfiguration } from "@mewvis/chat-contracts";
+
+export const normalizeModelConfiguration = (
+  value: unknown,
+): ModelConfiguration | null => {
+  if (value == null) return null;
+  const error = getModelConfigurationError(value);
+  if (error) invalid(error);
+  const configuration = structuredClone(value) as ModelConfiguration;
+  if (configuration.connection.apiKey)
+    configuration.connection.apiKey = configuration.connection.apiKey.trim();
+  if (configuration.connection.apiEndpoint)
+    configuration.connection.apiEndpoint =
+      configuration.connection.apiEndpoint.trim();
+  return configuration;
+};
 
 const validator = new Ajv.default({ strict: false }).addSchema(
   schema,

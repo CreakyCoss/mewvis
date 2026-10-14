@@ -24,7 +24,6 @@ import {
 import {
   getDefaultApiFormat,
   getProviderApiFormats,
-  getProviderModelOptions,
   getProviderOptions,
   inferApiEndpoint,
 } from "../../src/workbench/pages/settings/llm/options";
@@ -97,15 +96,16 @@ test("typing supplier identifiers and changing custom API formats preserve manua
   assert.equal(updateProviderIdentifier(createProviderConfig(false), "my-proxy").name, "my-proxy");
 });
 
-test("selecting a supplier preset still applies its API, endpoint and initial model", () => {
+test("selecting a supplier preset applies its connection and preserves manually added models", () => {
   const original = createProviderConfig(false);
   original.apiKey = "fixture-key";
+  original.models = [{ ...createModelConfig(), modelId: "my-model", modelName: "My model" }];
   const next = getProviderOptions().find((option) => option.value !== original.provider)!;
   const updated = applyProviderDefaults(original, next.value);
   assert.equal(updated.provider, next.value);
   assert.equal(updated.apiFormat, getDefaultApiFormat(next.value));
   assert.equal(updated.apiEndpoint, inferApiEndpoint(next.value, updated.apiFormat));
-  assert.equal(updated.models[0].modelId, getProviderModelOptions(next.value)[0].id);
+  assert.deepEqual(updated.models, original.models);
   assert.equal(updated.apiKey, original.apiKey);
 });
 
@@ -232,7 +232,7 @@ test("catalog and model resolution share one cold read; callers cannot mutate th
   assert.equal(fake.llmReads - before, 1);
 });
 
-test("model catalog drives host and application thinking selection, request payloads and persisted sessions", async () => {
+test("saved model settings drive host and application thinking selection, request payloads and persisted sessions", async () => {
   const previous = structuredClone(fake.llmSettings);
   const fixture = applicationFixture();
   fake.record = null;
@@ -242,7 +242,17 @@ test("model catalog drives host and application thinking selection, request payl
         {
           ...previous.providers[0],
           provider: "deepseek",
-          models: [{ id: "model", modelId: "deepseek-v4-pro", modelName: "DeepSeek" }],
+          models: [
+            {
+              id: "model",
+              modelId: "deepseek-v4-pro",
+              modelName: "DeepSeek",
+              thinking: {
+                levels: ["off", "low", "high", "max"].map((value) => ({ value, label: value })),
+                defaultLevel: "high",
+              },
+            },
+          ],
         },
       ],
     };

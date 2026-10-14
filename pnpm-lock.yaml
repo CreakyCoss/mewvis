@@ -1190,7 +1190,11 @@ importers:
         specifier: ^19.1.6
         version: 19.1.6(@types/react@19.1.8)
 
-  packages/chat-contracts: {}
+  packages/chat-contracts:
+    dependencies:
+      ajv:
+        specifier: ^8.20.0
+        version: 8.20.0
 
   packages/client-platform: {}
 

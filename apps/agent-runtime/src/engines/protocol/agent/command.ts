@@ -18,7 +18,6 @@ export enum AgentTaskCommandType {
   AnswerApproval = "answer_approval",
   Chat = "chat",
   ListAgentTools = "list_agent_tools",
-  ListRuntimeModels = "list_runtime_models",
   Ping = "ping",
   Shutdown = "shutdown",
 }
@@ -61,7 +60,6 @@ export type RunAgentCommand = InternalCommand<AgentTaskCommandType.RunAgent, Age
 export type AnswerApprovalCommand = InternalCommand<AgentTaskCommandType.AnswerApproval, AnswerApprovalParams>;
 export type AnswerQuestionCommand = InternalCommand<AgentTaskCommandType.AnswerQuestion, AnswerQuestionParams>;
 type ListAgentToolsCommand = InternalCommand<AgentTaskCommandType.ListAgentTools, EmptyParams>;
-type ListRuntimeModelsCommand = InternalCommand<AgentTaskCommandType.ListRuntimeModels, EmptyParams>;
 export type ChatCommand = InternalCommand<AgentTaskCommandType.Chat, ChatParams>;
 
 type SessionCommandBase = {
@@ -136,7 +134,6 @@ type AgentTaskCommand =
   | AnswerApprovalCommand
   | ChatCommand
   | ListAgentToolsCommand
-  | ListRuntimeModelsCommand
   | PingCommand
   | ShutdownCommand;
 

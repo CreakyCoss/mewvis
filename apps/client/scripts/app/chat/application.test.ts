@@ -324,7 +324,15 @@ test("an old watch cannot replace a newer watch after asynchronous authorization
   await oldWatch;
   const updates: ApplicationChatEvent[] = [];
   c.listeners.add((event) => updates.push(event));
-  await c.connection.request({ method: "updateConfig", handle: initial.handle, input: { permissionMode: "auto" } });
+  const changedPermission = agentPermissionOptions.find(
+    (option) => option.mode !== initial.snapshot.config.permissionMode,
+  )!;
+  const changed: any = await c.connection.request({
+    method: "updateConfig",
+    handle: initial.handle,
+    input: { permissionMode: changedPermission.mode },
+  });
+  assert.equal(changed.result.ok, true);
   assert.ok(updates.length);
   assert.ok(updates.every((event) => event.watchId === "new"));
   c.client.dispose();

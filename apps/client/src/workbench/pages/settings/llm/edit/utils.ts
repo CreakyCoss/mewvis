@@ -9,47 +9,35 @@ import type {
 } from "@/agent-client/runtime-model";
 import { createUuid } from "@/utils/ids";
 import { getModelLimitsError } from "@/agent-client/runtime-model";
-import {
-  getDefaultApiFormat,
-  getProviderApiFormats,
-  getProviderModelOptions,
-  getProviderOption,
-  getProviderOptions,
-  inferApiEndpoint,
-} from "../options";
+import { getModelConfigurationError } from "@mewvis/chat-contracts/model-configuration";
+import { getDefaultApiFormat, getProviderApiFormats, getProviderOption, inferApiEndpoint } from "../options";
+import { editorPresets } from "./presets";
 
-export const createModelConfig = (): ProviderModelConfig => ({
+export const createModelConfig = (
+  provider?: Pick<LlmProviderConfig, "provider" | "apiFormat">,
+): ProviderModelConfig => ({
   id: createUuid(),
   modelId: "",
   modelName: "",
   isOneMillionContext: false,
+  configuration: null,
+  ...editorPresets.createModelDefaults(provider),
 });
 
 export const createProviderConfig = (isDefault: boolean): LlmProviderConfig => {
-  const providerOption = getProviderOption("openai") ??
-    getProviderOptions()[0] ?? {
-      value: "openai",
-      label: "OpenAI",
-    };
-  const provider = providerOption.value;
+  const preset = editorPresets.getDefaultProvider();
+  const provider = preset.id;
   const apiFormat = getDefaultApiFormat(provider);
-  const defaultModel = getProviderModelOptions(provider)[0];
 
   return {
     id: createUuid(),
-    name: providerOption.label,
+    name: preset.label,
     provider,
     apiFormat,
     apiKey: "",
     apiEndpoint: inferApiEndpoint(provider, apiFormat),
     isDefault,
-    models: [
-      {
-        ...createModelConfig(),
-        modelId: defaultModel?.id ?? "",
-        modelName: defaultModel?.name ?? "",
-      },
-    ],
+    models: [],
   };
 };
 
@@ -74,6 +62,7 @@ export const toLlmSettingsConfig = (settings: LlmSettings): LlmSettingsConfig =>
         thinking: model.thinking,
         capabilities: model.capabilities,
         limits: model.limits,
+        configuration: model.configuration,
       })),
     };
   });
@@ -106,6 +95,7 @@ export const normalizeLlmSettingsConfig = (draft: LlmSettingsConfig): LlmSetting
         : null,
       capabilities: model.capabilities ?? null,
       limits: model.limits && Object.keys(model.limits).length ? model.limits : null,
+      configuration: model.configuration ?? null,
     })),
   }));
 
@@ -134,8 +124,8 @@ export const validateLlmSettingsConfig = (draft: LlmSettingsConfig) => {
       return "请选择支持的 API Format";
     }
 
-    if (!getProviderOption(provider.provider) && !provider.apiEndpoint.trim()) {
-      return "自定义供应商需要填写 API Endpoint";
+    if (!provider.apiEndpoint.trim()) {
+      return "请填写 API Endpoint";
     }
 
     if (provider.models.length === 0) {
@@ -149,6 +139,10 @@ export const validateLlmSettingsConfig = (draft: LlmSettingsConfig) => {
 
       if (!model.modelName.trim()) {
         return "模型名称不能为空";
+      }
+      if (model.configuration) {
+        const error = getModelConfigurationError(model.configuration);
+        if (error) return error;
       }
       const limitsError = getModelLimitsError(provider, model);
       if (limitsError) return limitsError;
@@ -201,7 +195,6 @@ export const applyProviderDefaults = (provider: LlmProviderConfig, providerId: s
   const nextOption = getProviderOption(providerId);
   if (!nextOption) return updateProviderIdentifier(provider, providerId);
   const apiFormat = getDefaultApiFormat(providerId);
-  const defaultModel = getProviderModelOptions(providerId)[0];
   const shouldFollowName =
     !provider.name.trim() || provider.name === currentOption?.label || provider.name === provider.provider;
 
@@ -211,15 +204,7 @@ export const applyProviderDefaults = (provider: LlmProviderConfig, providerId: s
     apiFormat,
     name: shouldFollowName ? (nextOption?.label ?? providerId) : provider.name,
     apiEndpoint: inferApiEndpoint(providerId, apiFormat),
-    models: defaultModel
-      ? [
-          {
-            ...createModelConfig(),
-            modelId: defaultModel.id,
-            modelName: defaultModel.name,
-          },
-        ]
-      : provider.models,
+    models: provider.models,
   };
 };
 
@@ -227,28 +212,20 @@ export const applyApiFormatDefaults = (provider: LlmProviderConfig, apiFormat: R
   return {
     ...provider,
     apiFormat,
-    apiEndpoint: getProviderOption(provider.provider)
-      ? inferApiEndpoint(provider.provider, apiFormat)
-      : provider.apiEndpoint,
+    apiEndpoint: inferApiEndpoint(provider.provider, apiFormat) || provider.apiEndpoint,
   };
 };
 
 export const applyModelDefaults = (
   model: ProviderModelConfig,
-  provider: string,
+  _provider: string,
   modelId: string,
 ): ProviderModelConfig => {
-  const options = getProviderModelOptions(provider);
-  const currentOption = options.find((item) => item.id === model.modelId);
-  const option = options.find((item) => item.id === modelId);
-  const shouldFollowName =
-    !model.modelName.trim() || model.modelName === model.modelId || model.modelName === currentOption?.name;
+  const shouldFollowName = !model.modelName.trim() || model.modelName === model.modelId;
 
   return {
     ...model,
     modelId,
-    modelName: shouldFollowName ? (option?.name ?? modelId) : model.modelName,
-    // A new model must inherit its own defaults rather than the previous model's overrides.
-    ...(option && modelId !== model.modelId ? { capabilities: null, limits: null, thinking: null } : {}),
+    modelName: shouldFollowName ? modelId : model.modelName,
   };
 };

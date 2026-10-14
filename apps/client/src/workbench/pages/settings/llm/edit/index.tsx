@@ -510,14 +510,20 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
                                       {capabilities.available.operations.includes(option.value) ? "" : "（待接入）"}
                                     </span>
                                   ))}
-                                  {capabilities.declared.input.includes("image") && <span>图片输入</span>}
+                                  {capabilities.declared.input.includes("image") && (
+                                    <span>
+                                      图片输入{capabilities.available.input.includes("image") ? "" : "（待接入）"}
+                                    </span>
+                                  )}
                                   {capabilities.declared.input.includes("audio") && <span>音频输入（待接入）</span>}
                                   {capabilities.declared.input.includes("video") && <span>视频输入（待接入）</span>}
                                   {capabilities.source === "custom" && <span className="text-primary">自定义能力</span>}
                                 </div>
                               </td>
                               <td className="hidden px-3 py-3 text-center text-xs text-muted-foreground sm:table-cell">
-                                {formatContextWindow(getModelLimits(providerDraft, model).contextWindow)}
+                                {capabilities.available.operations.includes("chat")
+                                  ? formatContextWindow(getModelLimits(providerDraft, model).contextWindow)
+                                  : "—"}
                               </td>
                               <td className="px-2 py-3 text-xs sm:px-3">
                                 {thinking?.levels.length ? (
@@ -538,7 +544,11 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
                                   </>
                                 ) : (
                                   <span className="text-muted-foreground">
-                                    {capabilities.declared.reasoning ? "服务默认" : "不支持"}
+                                    {capabilities.available.operations.includes("chat")
+                                      ? capabilities.declared.reasoning
+                                        ? "服务默认"
+                                        : "不支持"
+                                      : "—"}
                                   </span>
                                 )}
                               </td>
@@ -621,7 +631,7 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
               const additions = models
                 .filter((model) => !existing.has(model.modelId))
                 .map((model) => ({
-                  ...createModelConfig(),
+                  ...createModelConfig(providerDraft),
                   modelId: model.modelId,
                   modelName: model.modelName || model.modelId,
                 }));

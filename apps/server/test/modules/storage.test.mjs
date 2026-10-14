@@ -66,7 +66,10 @@ test("retained config, RAG and vector SQL definitions match the legacy Rust snap
     const table = configTables.find((t) => t.name === name);
     assert.deepEqual(
       table.columns.filter(
-        (column) => !["capabilities_json", "limits_json"].includes(column),
+        (column) =>
+          !["capabilities_json", "limits_json", "configuration_json"].includes(
+            column,
+          ),
       ),
       [...cols.matchAll(/"(\w+)"/g)]
         .map((m) => m[1])
@@ -80,7 +83,10 @@ test("retained config, RAG and vector SQL definitions match the legacy Rust snap
         : sql;
     assert.equal(
       norm(
-        table.sql.replace(/\s*(?:capabilities_json|limits_json) TEXT,/g, ""),
+        table.sql.replace(
+          /\s*(?:capabilities_json|limits_json|configuration_json) TEXT,/g,
+          "",
+        ),
       ),
       norm(retainedSql),
     );
@@ -117,6 +123,7 @@ export function legacyFixture(db, version) {
   );
   const drop = (table, col) =>
     db.exec(`ALTER TABLE ${table} DROP COLUMN ${col}`);
+  if (version < 29) drop("provider_models", "configuration_json");
   if (version < 28) {
     drop("provider_models", "capabilities_json");
     drop("provider_models", "limits_json");
@@ -281,6 +288,7 @@ test("v27 model settings upgrade additively and retain API credentials, model ID
   raw.exec(configSchema);
   raw.exec(`ALTER TABLE provider_models DROP COLUMN capabilities_json;
     ALTER TABLE provider_models DROP COLUMN limits_json;
+    ALTER TABLE provider_models DROP COLUMN configuration_json;
     INSERT INTO llm_providers VALUES ('p', 'Provider', 'deepseek', 'openai-completions', 'fixture-secret', 'https://api.deepseek.com', 1, 10, 20);
     INSERT INTO provider_models VALUES ('m', 'p', 'deepseek-v4-flash', 'Existing', 1, '{"levels":[{"value":"high","label":"High"}],"defaultLevel":"high"}', 30, 40);
     PRAGMA user_version=27;`);
@@ -301,6 +309,72 @@ test("v27 model settings upgrade additively and retain API credentials, model ID
     );
   } finally {
     migrated.close();
+  }
+});
+
+test("v28 model configuration migration preserves existing capabilities and limits", async (t) => {
+  const root = await mkdtemp(join(tmpdir(), "mewvis-model-purpose-upgrade-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const raw = new DatabaseSync(join(root, "config.db"));
+  raw.exec(configSchema);
+  raw.exec(`ALTER TABLE provider_models DROP COLUMN configuration_json;
+    INSERT INTO llm_providers VALUES ('p', 'Provider', 'custom', 'openai-completions', 'fixture-key', 'https://example.com/v1', 1, 10, 20);
+    INSERT INTO provider_models VALUES ('m', 'p', 'custom-id', 'Saved name', 0, NULL, '{"operations":["chat"],"input":["text"],"output":["text"],"reasoning":false,"toolCalling":true}', '{"contextWindow":32000,"maxTokens":4000}', 30, 40);
+    PRAGMA user_version=28;`);
+  raw.close();
+  const migrated = new ConfigDatabase(root);
+  try {
+    const model = new LlmRepository(migrated).read().providers[0].models[0];
+    assert.equal(model.configuration, null);
+    assert.equal(model.modelName, "Saved name");
+    assert.equal(model.createdAt, 30);
+    assert.deepEqual(model.capabilities.input, ["text"]);
+    assert.equal(model.capabilities.reasoning, false);
+    assert.deepEqual(model.limits, { contextWindow: 32000, maxTokens: 4000 });
+  } finally {
+    migrated.close();
+  }
+});
+
+test("v29 upgrade materializes previously implicit defaults without changing user values or timestamps", async (t) => {
+  const root = await mkdtemp(join(tmpdir(), "mewvis-model-defaults-upgrade-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const raw = new DatabaseSync(join(root, "config.db"));
+  raw.exec(configSchema);
+  raw.exec(`INSERT INTO llm_providers VALUES ('p', 'Provider', 'deepseek', 'openai-completions', 'fixture-key', 'https://example.com/v1', 1, 10, 20);
+    INSERT INTO provider_models (id, provider_id, model_id, model_name, is_one_million_context, created_at, updated_at)
+      VALUES ('inherited', 'p', 'deepseek-flash', 'My Flash', 0, 30, 40);
+    INSERT INTO provider_models VALUES ('custom', 'p', 'deepseek-v4-pro', 'My Pro', 0, '{"levels":[{"value":"mine","label":"Mine"}],"defaultLevel":"mine"}', '{"operations":["chat"],"input":["text"],"output":["text"],"reasoning":false,"toolCalling":false}', '{"contextWindow":32000,"maxTokens":4000}', NULL, 50, 60);
+    PRAGMA user_version=29;`);
+  raw.close();
+  const migrated = new ConfigDatabase(root);
+  let saved;
+  try {
+    const models = new LlmRepository(migrated).read().providers[0].models;
+    const inherited = models.find((model) => model.id === "inherited");
+    assert.equal(inherited.modelName, "My Flash");
+    assert.equal(inherited.createdAt, 30);
+    assert.equal(inherited.updatedAt, 40);
+    assert.deepEqual(inherited.capabilities.input, ["text", "image"]);
+    assert.equal(inherited.limits.contextWindow, 1000000);
+    assert.equal(inherited.thinking.defaultLevel, "high");
+    const custom = models.find((model) => model.id === "custom");
+    assert.equal(custom.thinking.defaultLevel, "mine");
+    assert.equal(custom.capabilities.reasoning, false);
+    assert.deepEqual(custom.limits, { contextWindow: 32000, maxTokens: 4000 });
+    assert.equal(custom.updatedAt, 60);
+    saved = models;
+  } finally {
+    migrated.close();
+  }
+  const reopened = new ConfigDatabase(root);
+  try {
+    assert.deepEqual(
+      new LlmRepository(reopened).read().providers[0].models,
+      saved,
+    );
+  } finally {
+    reopened.close();
   }
 });
 

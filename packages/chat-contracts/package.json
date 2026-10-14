@@ -4,6 +4,10 @@
   "type": "module",
   "description": "UI-independent session and semantic message contracts shared by Mewvis and its application SDK.",
   "exports": {
+    "./model-configuration": {
+      "types": "./model-configuration.d.ts",
+      "default": "./model-configuration.js"
+    },
     "./model-capabilities.schema.json": "./model-capabilities.schema.json",
     "./agent-access.schema.json": "./agent-access.schema.json",
     ".": {
@@ -19,7 +23,12 @@
     "model-thinking.d.ts",
     "model-capabilities.d.ts",
     "model-capabilities.schema.json",
-    "index.js"
+    "index.js",
+    "model-configuration.js",
+    "model-configuration.d.ts"
   ],
+  "dependencies": {
+    "ajv": "^8.20.0"
+  },
   "sideEffects": false
 }

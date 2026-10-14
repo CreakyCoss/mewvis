@@ -42,14 +42,8 @@ export {
   type PongResult,
   type RuntimeDisplaySummary,
   type RuntimeLink,
-  type RuntimeModelCatalog,
   type RuntimeModelCapabilities,
-  type RuntimeModelCatalogApi,
   type RuntimeModelInput,
-  type RuntimeModelThinking,
-  type RuntimeModelProviderSummary,
-  type RuntimeModelSummary,
-  type RuntimeModelsResult,
   type RuntimeSessionDebugParams,
   type RuntimeSessionDebugResult,
   type RuntimeSessionParams,
@@ -65,4 +59,4 @@ export {
   type ShutdownAckResult,
   type TaskResult,
 } from "../../../protocol/v1/sdk/typescript/index.js";
-export type { RuntimeModelLimits, RuntimeModelModality, RuntimeModelOperation } from "@mewvis/chat-contracts";
+export type { RuntimeModelThinking, RuntimeModelLimits, RuntimeModelModality, RuntimeModelOperation } from "@mewvis/chat-contracts";

@@ -43,7 +43,6 @@ import {
   type RebuildAgentSessionInput,
   type CollaborationRunInput,
   type CollaborationModeRunInput,
-  type RuntimeModelsResult,
   type RuntimeSessionDebugResult,
   type RuntimeSessionResult,
   type RuntimeSessionsResult,
@@ -60,7 +59,6 @@ import {
 import { createUserInputManager } from "./agent/commands/user-input.js";
 import {
   createAgentToolsResult,
-  createRuntimeModelsResult,
   createTaskResult,
 } from "./agent/commands/responses.js";
 import type { AgentEngine } from "./agent/index.js";
@@ -152,10 +150,6 @@ const runtimeContextWithSession = (
 export class NativeAgentRuntimeCapabilitiesSurface implements AgentRuntimeCapabilities {
   async listAgentTools(input: EmptyParams = {}): Promise<AgentToolsResult> {
     return createAgentToolsResult(input);
-  }
-
-  async listRuntimeModels(): Promise<RuntimeModelsResult> {
-    return createRuntimeModelsResult({});
   }
 }
 

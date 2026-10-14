@@ -298,6 +298,14 @@ try {
     result: { type: "pong" },
   });
   assert.equal(validators.validateJsonRpcResponse(ping).valid, true);
+  rpc.send({ jsonrpc: "2.0", id: "models-1", method: "runtime/models/list", params: {} });
+  const models = await rpc.waitFor(
+    (item) => item.id === "models-1" && (item.result || item.error),
+    "retired runtime model-list rejection",
+  );
+  assert.equal(models.result, undefined);
+  assert.equal(models.error.code, -32601);
+  assert.equal(validators.validateJsonRpcResponse(models).valid, true);
   assert.equal(
     rpc.seen.some((item) => item.id === null && item.error?.message === "Method not found: unknown/notification"),
     false,

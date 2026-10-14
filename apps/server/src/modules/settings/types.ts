@@ -1,6 +1,7 @@
 import type {
   RuntimeModelCapabilities,
   RuntimeModelLimits,
+  ModelConfiguration,
 } from "@mewvis/chat-contracts";
 
 export interface ProviderModel {
@@ -12,6 +13,7 @@ export interface ProviderModel {
   thinking: unknown;
   capabilities: RuntimeModelCapabilities | null;
   limits: RuntimeModelLimits | null;
+  configuration: ModelConfiguration | null;
   createdAt: number;
   updatedAt: number;
 }

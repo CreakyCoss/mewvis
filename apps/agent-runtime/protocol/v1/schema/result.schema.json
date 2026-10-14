@@ -10,7 +10,6 @@
     { "$ref": "#/definitions/CollaborationResult" },
     { "$ref": "#/definitions/CollaborationTimelineResult" },
     { "$ref": "#/definitions/PongResult" },
-    { "$ref": "#/definitions/RuntimeModelsResult" },
     { "$ref": "#/definitions/RuntimeSessionDebugResult" },
     { "$ref": "#/definitions/RuntimeSessionResult" },
     { "$ref": "#/definitions/RuntimeSessionsResult" },
@@ -98,16 +97,6 @@
         "taskId": { "type": "string" },
         "success": { "type": "boolean" },
         "message": { "type": "string" }
-      },
-      "additionalProperties": false
-    },
-    "RuntimeModelsResult": {
-      "type": "object",
-      "required": ["type", "catalog"],
-      "properties": {
-        "type": { "const": "runtime_models" },
-        "rpcRequestId": { "$ref": "#/definitions/JsonRpcId" },
-        "catalog": { "$ref": "./model.schema.json#/definitions/RuntimeModelCatalog" }
       },
       "additionalProperties": false
     },

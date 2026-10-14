@@ -8,6 +8,7 @@ import { DatabaseSync } from "node:sqlite";
 import { startServer } from "../../dist/server.js";
 import { ConfigDatabase } from "../../dist/storage/config/database.js";
 import { token } from "../support/helpers.mjs";
+import modelConfigurationFixture from "../support/fixtures/model-configuration.json" with { type: "json" };
 
 const fixture = fileURLToPath(
   new URL("../support/fixtures/runtime.mjs", import.meta.url),
@@ -34,6 +35,41 @@ const provider = (extra = {}) => ({
   isDefault: false,
   models: [model()],
   ...extra,
+});
+
+test("model purpose configuration persists across restart and invalid templates leave saved settings intact", async (t) => {
+  const s = await setup(t);
+  const configuration = structuredClone(modelConfigurationFixture);
+  const saved = await s.invoke("save_llm_settings", {
+    input: { providers: [provider({ models: [model({ configuration })] })] },
+  });
+  assert.deepEqual(saved.providers[0].models[0].configuration, configuration);
+  await s.restart();
+  assert.deepEqual(await s.invoke("get_llm_settings"), saved);
+  for (const mutate of [
+    (c) => (c.purposes[0].parameters[2].default = 10),
+    (c) => (c.purposes[0].request.body.prompt = "{{params.unknown}}"),
+    (c) => (c.purposes[0].inputSchema = { $ref: "https://example.com/schema" }),
+    (c) => c.purposes.push(structuredClone(c.purposes[0])),
+    (c) => (c.connection.apiEndpoint = "file:///etc/passwd"),
+    (c) => (c.purposes[0].response.outputs[0].path = "/constructor"),
+  ]) {
+    const invalid = structuredClone(configuration);
+    mutate(invalid);
+    const failure = await s.invoke(
+      "save_llm_settings",
+      {
+        input: {
+          providers: [
+            provider({ models: [model({ configuration: invalid })] }),
+          ],
+        },
+      },
+      400,
+    );
+    assert.doesNotMatch(JSON.stringify(failure), /model-fixture-key/);
+    assert.deepEqual(await s.invoke("get_llm_settings"), saved);
+  }
 });
 
 async function setup(t) {
@@ -539,7 +575,7 @@ test("migrated configuration tables keep Tauri column names", async (t) => {
         )
         .sort();
       if (table === "provider_models")
-        expected.push("capabilities_json", "limits_json");
+        expected.push("capabilities_json", "limits_json", "configuration_json");
       assert.deepEqual(
         db
           .prepare(`PRAGMA table_info(${table})`)

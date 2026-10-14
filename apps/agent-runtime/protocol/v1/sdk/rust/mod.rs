@@ -98,9 +98,6 @@ pub enum RuntimePingRequest {
     #[serde(rename = "runtime/event")]
     RuntimeEvent,
 
-    #[serde(rename = "runtime/models/list")]
-    RuntimeModelsList,
-
     #[serde(rename = "runtime/ping")]
     RuntimePing,
 
@@ -189,9 +186,6 @@ pub struct AgentRuntimeEvent {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub bootstrap_instruction: Option<String>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub catalog: Option<HashMap<String, RuntimeModelProviderSummary>>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub command_id: Option<String>,
@@ -590,9 +584,6 @@ pub enum PurpleType {
     #[serde(rename = "replace_text")]
     ReplaceText,
 
-    #[serde(rename = "runtime_models")]
-    RuntimeModels,
-
     #[serde(rename = "runtime_session_debug_result")]
     RuntimeSessionDebugResult,
 
@@ -899,71 +890,6 @@ pub enum RuntimeModelInputModality {
     Image,
 
     Text,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct RuntimeModelProviderSummary {
-    pub apis: Vec<RuntimeModelCatalogApi>,
-
-    pub models: HashMap<String, RuntimeModelSummary>,
-
-    pub website_url: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct RuntimeModelCatalogApi {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub api_endpoint: Option<String>,
-
-    pub api_format: RuntimeApiFormat,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct RuntimeModelSummary {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub capabilities: Option<HashMap<String, RuntimeModelCapabilities>>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub capability_source_url: Option<String>,
-
-    pub context_window: f64,
-
-    pub cost: RuntimeModelCost,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub headers: Option<HashMap<String, String>>,
-
-    pub id: String,
-
-    pub input: Vec<RuntimeModelInputModality>,
-
-    pub max_tokens: f64,
-
-    pub name: String,
-
-    pub reasoning: bool,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub thinking: Option<HashMap<String, RuntimeModelThinking>>,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct RuntimeModelThinking {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub default_level: Option<String>,
-
-    pub levels: Vec<RuntimeThinkingOption>,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct RuntimeThinkingOption {
-    pub label: String,
-
-    pub value: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -1747,9 +1673,6 @@ pub struct AgentRuntimeResult {
     pub agent_runtime_result_type: AgentRuntimeResultType,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub catalog: Option<HashMap<String, RuntimeModelProviderSummary>>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub commands: Option<Vec<Command>>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -1880,9 +1803,6 @@ pub enum AgentRuntimeResultType {
 
     Pong,
 
-    #[serde(rename = "runtime_models")]
-    RuntimeModels,
-
     #[serde(rename = "runtime_session_debug_result")]
     RuntimeSessionDebugResult,
 
@@ -1925,7 +1845,6 @@ pub const AGENT_RUNTIME_JSON_RPC_METHODS: &[&str] = &[
     "runtime/ping",
     "runtime/shutdown",
     "agent/tools/list",
-    "runtime/models/list",
     "agent/chat",
     "agent/run",
     "agent/question/answer",
@@ -1953,7 +1872,6 @@ pub const AGENT_RUNTIME_NOTIFICATION_METHODS: &[&str] = &["runtime/event", "runt
 pub const METHOD_RUNTIME_PING: &str = "runtime/ping";
 pub const METHOD_RUNTIME_SHUTDOWN: &str = "runtime/shutdown";
 pub const METHOD_AGENT_TOOLS_LIST: &str = "agent/tools/list";
-pub const METHOD_RUNTIME_MODELS_LIST: &str = "runtime/models/list";
 pub const METHOD_AGENT_CHAT: &str = "agent/chat";
 pub const METHOD_AGENT_RUN: &str = "agent/run";
 pub const METHOD_AGENT_QUESTION_ANSWER: &str = "agent/question/answer";
@@ -2009,7 +1927,6 @@ pub const RESULT_CHAT_RESULT: &str = "chat_result";
 pub const RESULT_PONG: &str = "pong";
 pub const RESULT_SHUTDOWN_ACK: &str = "shutdown_ack";
 pub const RESULT_TASK_RESULT: &str = "task_result";
-pub const RESULT_RUNTIME_MODELS: &str = "runtime_models";
 pub const RESULT_SESSION_RESULT: &str = "session_result";
 pub const RESULT_SESSION_MUTATION_RESULT: &str = "session_mutation_result";
 pub const RESULT_COLLABORATION_RESULT: &str = "collaboration_result";

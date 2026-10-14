@@ -16,7 +16,24 @@ export type {
   AgentAccessPaths,
 } from "./agent-access.js";
 export type { RuntimeModelThinking } from "./model-thinking.js";
-export type { RuntimeModelCapabilities, RuntimeModelLimits, RuntimeModelModality, RuntimeModelOperation } from "./model-capabilities.js";
+export type {
+  ModelConfiguration,
+  ModelConnection,
+  ModelPurpose,
+  ModelParameter,
+  ModelRequest,
+  ModelResponse,
+  ModelOutputRule,
+  ModelProtocol,
+  JsonValue,
+  JsonSchema,
+} from "./model-configuration.js";
+export type {
+  RuntimeModelCapabilities,
+  RuntimeModelLimits,
+  RuntimeModelModality,
+  RuntimeModelOperation,
+} from "./model-capabilities.js";
 export type {
   AgentPermissions,
   AgentPermissionOption,

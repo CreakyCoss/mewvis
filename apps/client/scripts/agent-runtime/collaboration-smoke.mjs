@@ -68,12 +68,6 @@ writeFileSync(
       "SDK 应能直接查询 agent 工具定义",
       toolsResult,
     );
-    const modelsResult = await runtime.listRuntimeModels();
-    assert(
-      Object.keys(modelsResult.catalog).length > 0,
-      "SDK 应能直接查询 runtime 模型目录",
-      modelsResult,
-    );
     await runtime.handle({
       type: AgentTaskCommandType.ListAgentTools,
       requestId: "agent-tools-handle-smoke",
@@ -85,19 +79,6 @@ writeFileSync(
           candidate.type === AgentResultType.AgentTools
       ),
       "SDK handle 应通过 onResult 返回 agent_tools",
-      results,
-    );
-    await runtime.handle({
-      type: AgentTaskCommandType.ListRuntimeModels,
-      requestId: "runtime-models-handle-smoke",
-    });
-    assert(
-      results.some((candidate) =>
-        candidate && typeof candidate === "object" &&
-          "type" in candidate &&
-          candidate.type === AgentResultType.RuntimeModels
-      ),
-      "SDK handle 应通过 onResult 返回 runtime_models",
       results,
     );
     await runtime.handle({

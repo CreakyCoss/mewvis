@@ -24,7 +24,6 @@ export type MewvisAgentRuntimeJSONRPCRequest = {
   | RuntimePingRequest
   | RuntimeShutdownRequest
   | AgentToolsListRequest
-  | RuntimeModelsListRequest
   | AgentChatRequest
   | AgentRunRequest
   | AnswerQuestionRequest
@@ -84,7 +83,6 @@ export type AgentRuntimeResult =
   | CollaborationResult
   | CollaborationTimelineResult
   | PongResult
-  | RuntimeModelsResult
   | RuntimeSessionDebugResult
   | RuntimeSessionResult
   | RuntimeSessionsResult
@@ -146,11 +144,6 @@ export interface RuntimeShutdownRequest {
 }
 export interface AgentToolsListRequest {
   method?: "agent/tools/list";
-  params?: EmptyParams;
-  [k: string]: unknown;
-}
-export interface RuntimeModelsListRequest {
-  method?: "runtime/models/list";
   params?: EmptyParams;
   [k: string]: unknown;
 }
@@ -664,59 +657,6 @@ export interface PongResult {
   type: "pong";
   rpcRequestId?: string | number;
 }
-export interface RuntimeModelsResult {
-  type: "runtime_models";
-  rpcRequestId?: string | number;
-  catalog: RuntimeModelCatalog;
-}
-export interface RuntimeModelCatalog {
-  [k: string]: RuntimeModelProviderSummary;
-}
-export interface RuntimeModelProviderSummary {
-  models: {
-    [k: string]: RuntimeModelSummary;
-  };
-  websiteUrl: string;
-  apis: RuntimeModelCatalogApi[];
-}
-export interface RuntimeModelSummary {
-  id: string;
-  name: string;
-  reasoning: boolean;
-  thinking?: {
-    [k: string]: RuntimeModelThinking;
-  };
-  input: ("text" | "image")[];
-  cost: RuntimeModelCost;
-  contextWindow: number;
-  maxTokens: number;
-  headers?: {
-    [k: string]: string;
-  };
-  capabilities?: {
-    [k: string]: RuntimeModelCapabilities;
-  };
-  capabilitySourceUrl?: string;
-}
-export interface RuntimeModelThinking {
-  levels: RuntimeThinkingOption[];
-  defaultLevel?: string | null;
-}
-export interface RuntimeThinkingOption {
-  value: string;
-  label: string;
-}
-export interface RuntimeModelCatalogApi {
-  apiFormat:
-    | "anthropic-messages"
-    | "openai-completions"
-    | "openai-codex-responses"
-    | "openai-responses"
-    | "azure-openai-responses"
-    | "google-generative-ai"
-    | "openrouter";
-  apiEndpoint?: string;
-}
 export interface RuntimeSessionDebugResult {
   type: "runtime_session_debug_result";
   rpcRequestId?: string | number;
@@ -1088,7 +1028,6 @@ export const agentRuntimeJsonRpcMethods = [
   "runtime/ping",
   "runtime/shutdown",
   "agent/tools/list",
-  "runtime/models/list",
   "agent/chat",
   "agent/run",
   "agent/question/answer",
@@ -1172,8 +1111,6 @@ export const agentRuntimeRequests = {
     createAgentRuntimeRequest(id, "runtime/shutdown", params),
   agentToolsList: (id: string | number, params: AgentRuntimeRequestParams<"agent/tools/list">) =>
     createAgentRuntimeRequest(id, "agent/tools/list", params),
-  runtimeModelsList: (id: string | number, params: AgentRuntimeRequestParams<"runtime/models/list">) =>
-    createAgentRuntimeRequest(id, "runtime/models/list", params),
   agentChat: (id: string | number, params: AgentRuntimeRequestParams<"agent/chat">) =>
     createAgentRuntimeRequest(id, "agent/chat", params),
   agentRun: (id: string | number, params: AgentRuntimeRequestParams<"agent/run">) =>
@@ -1382,7 +1319,6 @@ export const AgentRuntimeResultType = {
   Pong: "pong",
   ShutdownAck: "shutdown_ack",
   TaskResult: "task_result",
-  RuntimeModels: "runtime_models",
   SessionResult: "session_result",
   SessionMutationResult: "session_mutation_result",
   CollaborationResult: "collaboration_result",
@@ -1423,8 +1359,6 @@ export const agentRuntimeResults = {
     createAgentRuntimeResult(AgentRuntimeResultType.ShutdownAck, payload),
   taskResult: (payload: AgentRuntimeResultPayload<typeof AgentRuntimeResultType.TaskResult>) =>
     createAgentRuntimeResult(AgentRuntimeResultType.TaskResult, payload),
-  runtimeModels: (payload: AgentRuntimeResultPayload<typeof AgentRuntimeResultType.RuntimeModels>) =>
-    createAgentRuntimeResult(AgentRuntimeResultType.RuntimeModels, payload),
   sessionResult: (payload: AgentRuntimeResultPayload<typeof AgentRuntimeResultType.SessionResult>) =>
     createAgentRuntimeResult(AgentRuntimeResultType.SessionResult, payload),
   sessionMutationResult: (payload: AgentRuntimeResultPayload<typeof AgentRuntimeResultType.SessionMutationResult>) =>
@@ -1463,8 +1397,6 @@ export const agentRuntimeResultGuards = {
     isAgentRuntimeResultType(result, AgentRuntimeResultType.ShutdownAck),
   taskResult: (result: { type: string }): result is { type: typeof AgentRuntimeResultType.TaskResult } =>
     isAgentRuntimeResultType(result, AgentRuntimeResultType.TaskResult),
-  runtimeModels: (result: { type: string }): result is { type: typeof AgentRuntimeResultType.RuntimeModels } =>
-    isAgentRuntimeResultType(result, AgentRuntimeResultType.RuntimeModels),
   sessionResult: (result: { type: string }): result is { type: typeof AgentRuntimeResultType.SessionResult } =>
     isAgentRuntimeResultType(result, AgentRuntimeResultType.SessionResult),
   sessionMutationResult: (result: {

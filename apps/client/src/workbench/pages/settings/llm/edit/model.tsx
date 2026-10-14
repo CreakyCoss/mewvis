@@ -1,25 +1,17 @@
-import { useState } from "react";
-import { ChevronDown, SlidersHorizontal, Trash2 } from "lucide-react";
+import { useRef, useState, type Dispatch, type SetStateAction } from "react";
+import { ChevronLeft, ChevronRight, Plus, SlidersHorizontal, Trash2 } from "lucide-react";
+import type { ModelPurpose, ModelConfiguration, JsonSchema } from "@mewvis/chat-contracts";
+import { getModelConfigurationError } from "@mewvis/chat-contracts/model-configuration";
 import {
   getModelThinking,
   getModelCapabilities,
-  getModelLimits,
   getModelLimitsError,
   type LlmProviderConfig,
   type ProviderModelConfig,
 } from "@/agent-client/runtime-model";
 import { Button } from "design-system/components/ui/button";
-import { Switch } from "design-system/components/ui/switch";
+import { Checkbox } from "design-system/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "design-system/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "design-system/components/ui/select";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "design-system/components/ui/command";
 import {
   Dialog,
   DialogContent,
@@ -29,96 +21,19 @@ import {
   DialogTitle,
 } from "design-system/components/ui/dialog";
 import { Input } from "design-system/components/ui/input";
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupButton,
-  InputGroupInput,
-} from "design-system/components/ui/input-group";
 import { Label } from "design-system/components/ui/label";
-import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from "design-system/components/ui/popover";
-import { getProviderModelOptions } from "../options";
-import { getThinkingLevelsError, ThinkingLevelsEditor } from "./thinking-levels";
+import { Popover, PopoverContent, PopoverTrigger } from "design-system/components/ui/popover";
+import { MODEL_MODALITY_OPTIONS, MODEL_OPERATION_OPTIONS } from "../options";
+import { getThinkingLevelsError } from "./thinking-levels";
 import { applyModelDefaults, createModelConfig } from "./utils";
-import { ModelCapabilitiesEditor } from "./capabilities";
-
-type ModelIdSelectorProps = {
-  id: string;
-  options: Array<{ id: string }>;
-  value: string;
-  onValueChange: (value: string) => void;
-};
-
-const ModelIdSelector = ({ id, options, value, onValueChange }: ModelIdSelectorProps) => {
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
-
-  const handleOpenChange = (nextOpen: boolean) => {
-    setOpen(nextOpen);
-    if (nextOpen) setQuery("");
-  };
-
-  return (
-    <Popover open={open} onOpenChange={handleOpenChange}>
-      <PopoverAnchor asChild>
-        <InputGroup className="rounded-lg bg-card/75 transition-[color,background-color,border-color,box-shadow] duration-150 ease-out hover:border-primary/30 has-[[data-slot=input-group-control]:focus-visible]:ring-ring/20">
-          <InputGroupInput
-            id={id}
-            required
-            placeholder="选择预设或输入模型 ID"
-            className="focus-visible:bg-transparent"
-            role="combobox"
-            aria-autocomplete="list"
-            aria-haspopup="listbox"
-            aria-expanded={open}
-            value={value}
-            onChange={(event) => onValueChange(event.currentTarget.value)}
-            onClick={() => handleOpenChange(true)}
-          />
-          <InputGroupAddon align="inline-end">
-            <PopoverTrigger asChild>
-              <InputGroupButton
-                size="icon-xs"
-                className="aria-expanded:bg-transparent aria-expanded:text-muted-foreground"
-                aria-label="选择模型 ID"
-                title="选择模型 ID"
-                aria-expanded={open}
-              >
-                <ChevronDown className="size-4" />
-              </InputGroupButton>
-            </PopoverTrigger>
-          </InputGroupAddon>
-        </InputGroup>
-      </PopoverAnchor>
-      <PopoverContent
-        align="start"
-        className="z-80 w-[var(--radix-popover-anchor-width)] min-w-64 gap-0 overflow-hidden p-0"
-      >
-        <Command>
-          <CommandInput value={query} onValueChange={setQuery} placeholder="搜索模型 ID" />
-          <CommandList>
-            <CommandEmpty>没有匹配的模型，可直接输入自定义 ID</CommandEmpty>
-            <CommandGroup>
-              {options.map((option) => (
-                <CommandItem
-                  key={option.id}
-                  value={option.id}
-                  data-checked={option.id === value}
-                  onSelect={() => {
-                    onValueChange(option.id);
-                    setOpen(false);
-                  }}
-                >
-                  {option.id}
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
-  );
-};
+import { initialModelConfiguration, suggestPurpose } from "./model/configuration";
+import { Choice, EditorBuffers, Field, JsonField, useEditorBuffers } from "./model/fields";
+import { RequestEditor } from "./model/request";
+import { ParametersEditor } from "./model/parameters";
+import { ResponseEditor } from "./model/response";
+import { CallPreview } from "./model/preview";
+import { ChatParameters } from "./model/chat";
+import { editorPresets } from "./presets";
 
 type ModelEditDialogProps = {
   provider: LlmProviderConfig;
@@ -129,6 +44,325 @@ type ModelEditDialogProps = {
   onDelete?: () => void;
 };
 
+function ModelEditor({
+  provider,
+  draft,
+  setDraft,
+}: {
+  provider: LlmProviderConfig;
+  draft: ProviderModelConfig;
+  setDraft: Dispatch<SetStateAction<ProviderModelConfig>>;
+}) {
+  const configuration = draft.configuration!;
+  const [selectedType, setSelectedType] = useState(configuration.purposes[0]?.type ?? "chat");
+  const [addOpen, setAddOpen] = useState(false);
+  const [tab, setTab] = useState("request");
+  const navigation = useRef<HTMLDivElement>(null);
+  const buffers = useEditorBuffers();
+  const selected = configuration.purposes.find((purpose) => purpose.type === selectedType) ?? configuration.purposes[0];
+  const updateConfiguration = (patch: Partial<ModelConfiguration>) =>
+    setDraft((current) => ({ ...current, configuration: { ...current.configuration!, ...patch } }));
+  const updatePurpose = (next: ModelPurpose) =>
+    updateConfiguration({
+      purposes: configuration.purposes.map((purpose) => (purpose.type === selected.type ? next : purpose)),
+    });
+  const connection = configuration.connection;
+  const updateConnection = (key: "apiKey" | "apiEndpoint" | "apiFormat", value: string) => {
+    const next = { ...connection };
+    if (!value || value === "inherit") delete next[key];
+    else Object.assign(next, { [key]: value });
+    updateConfiguration({ connection: next });
+  };
+  const labels = (values: string[]) =>
+    values.map((value) => MODEL_MODALITY_OPTIONS.find((option) => option.value === value)?.label ?? value).join("、") ||
+    "未设置";
+  return (
+    <>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="space-y-1.5">
+          <Label htmlFor={`${draft.id}-model-id`} className="text-xs">
+            模型 ID
+          </Label>
+          <Input
+            id={`${draft.id}-model-id`}
+            required
+            className="h-8 font-mono"
+            placeholder="输入模型 ID，也可在供应商页面获取模型"
+            value={draft.modelId}
+            onChange={(event) => {
+              const value = event.currentTarget.value;
+              setDraft((current) => applyModelDefaults(current, provider.provider, value));
+            }}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor={`${draft.id}-model-name`} className="text-xs">
+            显示名称 <span className="font-normal text-muted-foreground">（可选）</span>
+          </Label>
+          <Input
+            id={`${draft.id}-model-name`}
+            className="h-8"
+            value={draft.modelName}
+            placeholder="留空则使用模型 ID"
+            onChange={(event) => {
+              const modelName = event.currentTarget.value;
+              setDraft((current) => ({ ...current, modelName }));
+            }}
+          />
+        </div>
+      </div>
+      <details className="mt-3 rounded-lg border border-border/70 px-3 py-2.5">
+        <summary className="cursor-pointer text-xs font-medium">
+          连接设置{" "}
+          <span className="ml-2 font-normal text-muted-foreground">
+            {Object.keys(connection).length ? "模型单独设置" : "继承 Provider"}
+          </span>
+        </summary>
+        <div className="grid gap-3 pt-3 sm:grid-cols-2">
+          <Field label="请求地址（可选）" hint="留空继承 Provider，可填写完整的服务基础地址。">
+            <Input
+              className="h-8 font-mono text-xs"
+              aria-label="模型请求地址"
+              placeholder={provider.apiEndpoint || "https://api.example.com"}
+              value={connection.apiEndpoint ?? ""}
+              onChange={(event) => updateConnection("apiEndpoint", event.currentTarget.value.trim())}
+            />
+          </Field>
+          <Field label="API Key（可选）" hint="留空继承 Provider。">
+            <Input
+              className="h-8 font-mono text-xs"
+              aria-label="模型 API Key"
+              type="password"
+              autoComplete="new-password"
+              placeholder={provider.apiKey ? "使用 Provider Key" : "未设置"}
+              value={connection.apiKey ?? ""}
+              onChange={(event) => updateConnection("apiKey", event.currentTarget.value.trim())}
+            />
+          </Field>
+          <div className="sm:col-span-2">
+            <Field label="默认协议">
+              <Choice
+                label="模型协议"
+                value={connection.apiFormat ?? "inherit"}
+                options={[
+                  { value: "inherit", label: `继承 Provider · ${editorPresets.getApiFormatLabel(provider.apiFormat)}` },
+                  ...editorPresets.protocols,
+                ]}
+                onChange={(value) => updateConnection("apiFormat", value)}
+              />
+            </Field>
+          </div>
+        </div>
+      </details>
+      <div className="mt-4 flex min-w-0 items-center gap-1 border-b border-border/70 pb-2">
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="size-7 shrink-0 text-muted-foreground"
+          aria-label="向左查看用途"
+          onClick={() => navigation.current?.scrollBy({ left: -220, behavior: "smooth" })}
+        >
+          <ChevronLeft className="size-3.5" />
+        </Button>
+        <div
+          ref={navigation}
+          className="flex min-w-0 flex-1 gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          aria-label="模型用途"
+        >
+          {configuration.purposes.map((purpose) => (
+            <Button
+              type="button"
+              key={purpose.type}
+              variant={selected?.type === purpose.type ? "secondary" : "ghost"}
+              className={`h-8 shrink-0 rounded-lg px-3 text-xs ${selected?.type === purpose.type ? "bg-primary/8 text-primary" : "text-muted-foreground"}`}
+              aria-pressed={selected?.type === purpose.type}
+              onClick={() => setSelectedType(purpose.type)}
+            >
+              {MODEL_OPERATION_OPTIONS.find((option) => option.value === purpose.type)?.label}
+            </Button>
+          ))}
+        </div>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="size-7 shrink-0 text-muted-foreground"
+          aria-label="向右查看用途"
+          onClick={() => navigation.current?.scrollBy({ left: 220, behavior: "smooth" })}
+        >
+          <ChevronRight className="size-3.5" />
+        </Button>
+        <Popover open={addOpen} onOpenChange={setAddOpen}>
+          <PopoverTrigger asChild>
+            <Button type="button" variant="outline" size="sm" className="ml-1 h-8 shrink-0 px-2 text-xs shadow-none">
+              <Plus className="size-3.5" />
+              添加用途
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="z-80 w-44 gap-0 p-1" align="end">
+            <p className="px-2 py-2 text-[11px] text-muted-foreground">选择用途类型</p>
+            {MODEL_OPERATION_OPTIONS.map((option) => (
+              <Button
+                type="button"
+                key={option.value}
+                variant="ghost"
+                className="h-8 w-full justify-start px-2 text-xs"
+                disabled={configuration.purposes.some((purpose) => purpose.type === option.value)}
+                onClick={() => {
+                  updateConfiguration({
+                    purposes: [...configuration.purposes, suggestPurpose(provider, draft, option.value)],
+                  });
+                  setSelectedType(option.value);
+                  setAddOpen(false);
+                }}
+              >
+                {option.label}
+              </Button>
+            ))}
+          </PopoverContent>
+        </Popover>
+      </div>
+      {selected ? (
+        <div className="pt-3">
+          <div className="flex items-center justify-between gap-2">
+            <p className="min-w-0 text-[11px] leading-5 text-muted-foreground">
+              输入：{labels(selected.input)}
+              <span className="mx-2 text-border">/</span>输出：{labels(selected.output)}
+            </p>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="size-7 shrink-0 text-muted-foreground hover:text-destructive"
+              aria-label="删除当前用途"
+              disabled={configuration.purposes.length <= 1}
+              onClick={() => {
+                buffers.clear(`${selected.type}-`);
+                const purposes = configuration.purposes.filter((purpose) => purpose.type !== selected.type);
+                updateConfiguration({ purposes });
+                setSelectedType(purposes[0].type);
+              }}
+            >
+              <Trash2 className="size-3.5" />
+            </Button>
+          </div>
+          <details className="mt-1 mb-3">
+            <summary className="cursor-pointer text-[11px] font-medium text-primary">编辑能力</summary>
+            <div className="mt-2 space-y-3 rounded-lg border border-border/70 p-3">
+              {(["input", "output"] as const).map((key) => (
+                <div key={key} className="flex flex-wrap items-center gap-x-5 gap-y-2">
+                  <span className="w-8 text-xs text-muted-foreground">{key === "input" ? "输入" : "输出"}</span>
+                  {MODEL_MODALITY_OPTIONS.map((option) => (
+                    <label key={option.value} className="flex items-center gap-2 text-xs">
+                      <Checkbox
+                        checked={selected[key].includes(option.value)}
+                        onCheckedChange={(checked) =>
+                          updatePurpose({
+                            ...selected,
+                            [key]: checked
+                              ? [...selected[key], option.value]
+                              : selected[key].filter((value) => value !== option.value),
+                          })
+                        }
+                      />
+                      {option.label}
+                    </label>
+                  ))}
+                </div>
+              ))}
+              {selected.type === "chat" && (
+                <div className="flex gap-5">
+                  {(
+                    [
+                      { key: "reasoning", label: "思考" },
+                      { key: "toolCalling", label: "工具调用" },
+                    ] as const
+                  ).map((option) => (
+                    <label key={option.key} className="flex items-center gap-2 text-xs">
+                      <Checkbox
+                        checked={selected[option.key] ?? false}
+                        onCheckedChange={(checked) => updatePurpose({ ...selected, [option.key]: checked === true })}
+                      />
+                      {option.label}
+                    </label>
+                  ))}
+                </div>
+              )}
+              {selected.adapter === "http-json" && (
+                <JsonField
+                  id={`${selected.type}-input-schema`}
+                  label="应用输入要求 · JSON Schema（可选）"
+                  optional
+                  value={selected.inputSchema}
+                  rows={5}
+                  onChange={(inputSchema) => {
+                    const next = { ...selected };
+                    if (inputSchema === undefined) delete next.inputSchema;
+                    else next.inputSchema = inputSchema as JsonSchema;
+                    updatePurpose(next);
+                  }}
+                />
+              )}
+            </div>
+          </details>
+          {selected.adapter === "http-json" && (
+            <p className="mb-3 rounded-lg bg-muted/25 px-3 py-2 text-[11px] leading-5 text-muted-foreground">
+              此用途的配置可保存和预览；执行服务尚未接入。
+            </p>
+          )}
+          {selected.adapter === "native" && connection.apiFormat === "http-json" && (
+            <p className="mb-3 text-xs text-destructive">
+              原生对话需要选择对话协议；HTTP / JSON 模板请在请求配置中切换。
+            </p>
+          )}
+          <Tabs value={tab} onValueChange={setTab} className="gap-0">
+            <TabsList
+              variant="line"
+              className="h-9 w-full justify-start gap-4 overflow-x-auto border-b border-border/70 p-0 [scrollbar-width:none]"
+              aria-label="用途配置分类"
+            >
+              {[
+                { value: "request", label: "请求配置" },
+                { value: "parameters", label: "可调参数" },
+                { value: "response", label: "返回处理" },
+                { value: "preview", label: "调用预览" },
+              ].map((item) => (
+                <TabsTrigger key={item.value} value={item.value} className="h-8 flex-none rounded-none px-0 text-xs">
+                  {item.label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+            <TabsContent value="request" className="pt-4">
+              <RequestEditor key={selected.type} purpose={selected} onChange={updatePurpose} />
+            </TabsContent>
+            <TabsContent value="parameters" className="pt-4">
+              {selected.adapter === "native" ? (
+                <ChatParameters provider={provider} model={draft} onChange={setDraft} />
+              ) : (
+                <ParametersEditor purpose={selected} onChange={updatePurpose} />
+              )}
+            </TabsContent>
+            <TabsContent value="response" className="pt-4">
+              <ResponseEditor purpose={selected} onChange={updatePurpose} />
+            </TabsContent>
+            <TabsContent value="preview" className="pt-4">
+              <CallPreview
+                key={`${selected.type}-${selected.preset?.id}`}
+                purpose={selected}
+                provider={provider}
+                model={draft}
+              />
+            </TabsContent>
+          </Tabs>
+        </div>
+      ) : (
+        <p className="py-8 text-center text-xs text-muted-foreground">添加用途后配置输入输出和请求。</p>
+      )}
+    </>
+  );
+}
+
 export const ModelEditDialog = ({
   provider,
   model,
@@ -137,17 +371,17 @@ export const ModelEditDialog = ({
   onCloseAutoFocus,
   onDelete,
 }: ModelEditDialogProps) => {
-  const [draft, setDraft] = useState(() => (model ? structuredClone(model) : createModelConfig()));
-  const [settingsTab, setSettingsTab] = useState("general");
-  const thinking = getModelThinking(provider, draft);
-  const capabilities = getModelCapabilities(provider, draft);
-  const limitsError = getModelLimitsError(provider, draft);
-  const thinkingError = getThinkingLevelsError(thinking);
-  const defaults = getModelLimits(provider, { ...draft, limits: null });
-  const canConfirm = !!draft.modelId.trim() && !thinkingError && !limitsError;
-  const levels = thinking?.levels ?? [];
-  const selectedLevel = levels.findIndex((level) => level.value === thinking?.defaultLevel);
-
+  const [draft, setDraft] = useState<ProviderModelConfig>(() => {
+    const current = model ? structuredClone(model) : createModelConfig(provider);
+    return { ...current, configuration: initialModelConfiguration(provider, current) };
+  });
+  const [jsonError, setJsonError] = useState("");
+  const hasChat = getModelCapabilities(provider, draft).available.operations.includes("chat");
+  const error =
+    jsonError ||
+    getModelConfigurationError(draft.configuration) ||
+    (hasChat ? getModelLimitsError(provider, draft) || getThinkingLevelsError(getModelThinking(provider, draft)) : "");
+  const canConfirm = !!draft.modelId.trim() && !error;
   return (
     <Dialog
       open
@@ -157,20 +391,17 @@ export const ModelEditDialog = ({
     >
       <DialogContent
         overlayClassName="z-60 bg-overlay/30 supports-backdrop-filter:backdrop-blur-sm"
-        className="!flex z-70 max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] max-w-[700px] flex-col gap-0 overflow-hidden p-0 sm:max-w-[700px]"
+        className="!flex z-70 max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] max-w-[820px] flex-col gap-0 overflow-hidden p-0 sm:max-w-[820px] [&_input]:text-xs [&_[data-slot=input-group]]:h-8"
         onCloseAutoFocus={onCloseAutoFocus}
-        onEscapeKeyDown={(event) => {
-          if (event.target instanceof HTMLElement && event.target.closest("[data-inline-edit]")) event.preventDefault();
-        }}
       >
         <DialogHeader className="shrink-0 border-b border-border/70 px-5 py-3.5 pr-14 sm:px-6">
           <div className="flex items-center gap-3">
-            <span className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-primary/10 bg-primary/6 text-primary">
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-primary/10 bg-primary/6 text-primary">
               <SlidersHorizontal className="size-4" aria-hidden="true" />
             </span>
             <div className="min-w-0 space-y-1">
               <DialogTitle className="text-base font-semibold">{model ? "编辑模型" : "新增模型"}</DialogTitle>
-              <DialogDescription className="truncate text-xs">{provider.name} · 模型能力与默认参数</DialogDescription>
+              <DialogDescription className="truncate text-xs">{provider.name} · 连接与调用配置</DialogDescription>
             </div>
           </div>
         </DialogHeader>
@@ -178,12 +409,15 @@ export const ModelEditDialog = ({
           className="flex min-h-0 flex-1 flex-col"
           onSubmit={(event) => {
             event.preventDefault();
-            const modelId = draft.modelId.trim();
             if (!canConfirm) return;
+            const modelId = draft.modelId.trim();
             onConfirm({
               ...draft,
               modelId,
               modelName: draft.modelName.trim() || modelId,
+              limits: hasChat
+                ? { ...editorPresets.createModelDefaults(provider).limits, ...draft.limits }
+                : draft.limits,
               thinking: draft.thinking
                 ? {
                     levels: draft.thinking.levels.map((level) => ({
@@ -197,196 +431,12 @@ export const ModelEditDialog = ({
           }}
         >
           <div className="min-h-0 overflow-y-auto px-5 pt-4 pb-4 sm:px-6">
-            <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div className="min-w-0 space-y-2">
-                <Label htmlFor={`${draft.id}-model-id`} className="text-xs">
-                  模型 ID
-                </Label>
-                <ModelIdSelector
-                  id={`${draft.id}-model-id`}
-                  options={getProviderModelOptions(provider.provider)}
-                  value={draft.modelId}
-                  onValueChange={(value) =>
-                    setDraft((current) => applyModelDefaults(current, provider.provider, value))
-                  }
-                />
-              </div>
-              <div className="min-w-0 space-y-2">
-                <Label htmlFor={`${draft.id}-model-name`} className="text-xs">
-                  显示名称 <span className="font-normal text-muted-foreground">（可选）</span>
-                </Label>
-                <Input
-                  id={`${draft.id}-model-name`}
-                  value={draft.modelName}
-                  placeholder="留空则使用模型 ID"
-                  onChange={(event) => {
-                    const modelName = event.currentTarget.value;
-                    setDraft((current) => ({ ...current, modelName }));
-                  }}
-                />
-              </div>
-            </div>
-            <Tabs value={settingsTab} onValueChange={setSettingsTab} className="gap-0">
-              <TabsList
-                variant="line"
-                aria-label="模型设置分类"
-                className="h-10 w-full justify-start gap-6 border-b border-border/70 p-0"
-              >
-                <TabsTrigger value="general" className="h-9 flex-none rounded-none px-0 text-xs">
-                  常用设置
-                </TabsTrigger>
-                <TabsTrigger value="advanced" className="h-9 flex-none rounded-none px-0 text-xs">
-                  高级配置
-                  {thinkingError && <span className="size-1.5 rounded-full bg-destructive" aria-label="存在无效配置" />}
-                </TabsTrigger>
-              </TabsList>
-              <TabsContent value="general" className="space-y-4 pt-4">
-                <ModelCapabilitiesEditor
-                  provider={provider}
-                  model={draft}
-                  onChange={(capabilities) => setDraft((current) => ({ ...current, capabilities }))}
-                />
-                {(capabilities.available.operations.includes("chat") || limitsError) && (
-                  <section
-                    className="space-y-3 border-t border-border/70 pt-4"
-                    aria-labelledby={`${draft.id}-parameters-heading`}
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <h3 id={`${draft.id}-parameters-heading`} className="text-sm font-medium">
-                        默认参数
-                      </h3>
-                      {draft.limits && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="h-auto p-0 text-xs font-normal text-muted-foreground"
-                          onClick={() => setDraft((current) => ({ ...current, limits: null }))}
-                        >
-                          重置限制
-                        </Button>
-                      )}
-                    </div>
-                    <div
-                      className={`grid grid-cols-2 gap-4 ${capabilities.available.reasoning ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}
-                    >
-                      {capabilities.available.reasoning && (
-                        <div className="col-span-2 space-y-2 sm:col-span-1">
-                          <Label htmlFor={`${draft.id}-default-thinking`} className="text-xs">
-                            默认思考等级
-                          </Label>
-                          {levels.length ? (
-                            <Select
-                              value={selectedLevel < 0 ? "provider-default" : `level-${selectedLevel}`}
-                              onValueChange={(value) => {
-                                const level = value === "provider-default" ? undefined : levels[Number(value.slice(6))];
-                                setDraft((current) => ({
-                                  ...current,
-                                  thinking: { levels, defaultLevel: level?.value || null },
-                                }));
-                              }}
-                            >
-                              <SelectTrigger id={`${draft.id}-default-thinking`} className="w-full">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent position="popper" className="z-80">
-                                <SelectItem value="provider-default">服务默认</SelectItem>
-                                {levels.map((level, index) => (
-                                  <SelectItem key={index} value={`level-${index}`}>
-                                    {level.label || level.value}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          ) : (
-                            <p className="flex h-9 items-center rounded-lg border border-border/70 bg-muted/20 px-3 text-sm text-muted-foreground">
-                              服务默认
-                            </p>
-                          )}
-                        </div>
-                      )}
-                      {(
-                        [
-                          { key: "contextWindow", label: "上下文窗口" },
-                          { key: "maxTokens", label: "最大输出" },
-                        ] as const
-                      ).map((option) => (
-                        <div key={option.key} className="space-y-2">
-                          <Label htmlFor={`${draft.id}-${option.key}`} className="text-xs">
-                            {option.label} <span className="font-normal text-muted-foreground">· tokens</span>
-                          </Label>
-                          <Input
-                            id={`${draft.id}-${option.key}`}
-                            type="number"
-                            className="[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                            min={1}
-                            max={2147483647}
-                            step={1}
-                            aria-invalid={!!limitsError}
-                            aria-describedby={limitsError ? `${draft.id}-configuration-error` : undefined}
-                            value={draft.limits?.[option.key] ?? ""}
-                            placeholder={`默认 ${defaults[option.key].toLocaleString()}`}
-                            onChange={(event) => {
-                              const value = event.currentTarget.value;
-                              setDraft((current) => {
-                                const limits = { ...current.limits };
-                                if (value) limits[option.key] = Number(value);
-                                else delete limits[option.key];
-                                return { ...current, limits: Object.keys(limits).length ? limits : null };
-                              });
-                            }}
-                          />
-                        </div>
-                      ))}
-                    </div>
-                    <p className="text-xs leading-5 text-muted-foreground">
-                      留空使用模型预设。
-                      {capabilities.available.reasoning && "思考等级可在高级配置中编辑。"}
-                    </p>
-                  </section>
-                )}
-              </TabsContent>
-              <TabsContent value="advanced" className="space-y-4 pt-4">
-                {capabilities.available.reasoning ? (
-                  <ThinkingLevelsEditor
-                    key={draft.modelId}
-                    id={draft.id}
-                    value={thinking}
-                    onChange={(thinking) => setDraft((current) => ({ ...current, thinking }))}
-                  />
-                ) : (
-                  <p className="rounded-xl border border-border/70 bg-muted/15 px-4 py-3 text-xs leading-5 text-muted-foreground">
-                    当前未启用思考能力，可在常用设置中调整模型能力。
-                  </p>
-                )}
-                <section
-                  className="rounded-xl border border-border/70 p-4"
-                  aria-labelledby={`${draft.id}-compatibility-heading`}
-                >
-                  <h3 id={`${draft.id}-compatibility-heading`} className="mb-4 text-sm font-medium">
-                    兼容设置
-                  </h3>
-                  <div className="flex items-center justify-between gap-4">
-                    <Label htmlFor={`${draft.id}-context`} className="min-w-0 cursor-pointer space-y-1 font-normal">
-                      <span className="block text-sm">1M 请求标记</span>
-                      <span className="block text-xs leading-5 text-muted-foreground">
-                        为模型 ID 添加 [1m] 后缀，仅适用于支持此标记的服务。
-                      </span>
-                    </Label>
-                    <Switch
-                      id={`${draft.id}-context`}
-                      checked={draft.isOneMillionContext}
-                      onCheckedChange={(checked) =>
-                        setDraft((current) => ({ ...current, isOneMillionContext: checked }))
-                      }
-                    />
-                  </div>
-                </section>
-              </TabsContent>
-            </Tabs>
-            {(limitsError || thinkingError) && (
-              <p id={`${draft.id}-configuration-error`} role="alert" className="mt-4 text-xs text-destructive">
-                {limitsError || thinkingError}
+            <EditorBuffers onError={setJsonError}>
+              <ModelEditor provider={provider} draft={draft} setDraft={setDraft} />
+            </EditorBuffers>
+            {error && (
+              <p className="mt-4 text-xs text-destructive" role="alert">
+                {error}
               </p>
             )}
           </div>
@@ -398,21 +448,21 @@ export const ModelEditDialog = ({
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="h-9 px-0 text-muted-foreground hover:bg-transparent hover:text-destructive"
+                    className="h-8 px-0 text-xs text-muted-foreground hover:bg-transparent hover:text-destructive"
                     onClick={onDelete}
                   >
                     <Trash2 className="size-3.5" />
                     删除模型
                   </Button>
                 ) : (
-                  <span className="hidden text-xs text-muted-foreground sm:block">更改随供应商配置保存</span>
+                  <span className="hidden text-[11px] text-muted-foreground sm:block">更改随供应商配置保存</span>
                 )}
               </div>
               <div className="flex shrink-0 items-center gap-2">
-                <Button type="button" variant="outline" className="h-9 min-w-18 shadow-none" onClick={onClose}>
+                <Button type="button" variant="outline" className="h-8 min-w-18 text-xs shadow-none" onClick={onClose}>
                   取消
                 </Button>
-                <Button type="submit" className="h-9 min-w-24 shadow-none" disabled={!canConfirm}>
+                <Button type="submit" className="h-8 min-w-24 text-xs shadow-none" disabled={!canConfirm}>
                   {model ? "确认更改" : "添加模型"}
                 </Button>
               </div>

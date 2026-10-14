@@ -24,7 +24,6 @@ import type {
   ShutdownAckResult,
   AgentToolsResult,
   ChatResult,
-  RuntimeModelsResult,
   TaskResult,
   CompactAgentSessionInput,
   RebuildAgentSessionInput,
@@ -76,8 +75,7 @@ export type RuntimeEngineOptions = {
 };
 
 export interface AgentRuntimeCapabilities {
-  // 查询 runtime 对前端可见的模型与工具能力；只返回展示/选择所需的稳定协议结果。
-  listRuntimeModels(): Promise<RuntimeModelsResult>;
+  // 查询 runtime 提供的工具定义与权限选项。
   listAgentTools(input?: EmptyParams): Promise<AgentToolsResult>;
 }
 

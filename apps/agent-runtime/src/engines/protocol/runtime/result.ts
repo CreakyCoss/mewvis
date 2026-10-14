@@ -7,7 +7,6 @@ import type {
   CollaborationResult as WireCollaborationResult,
   CollaborationTimelineResult as WireCollaborationTimelineResult,
   PongResult as WirePongResult,
-  RuntimeModelsResult as WireRuntimeModelsResult,
   RuntimeSessionDebugResult as WireRuntimeSessionDebugResult,
   RuntimeSessionResult as WireRuntimeSessionResult,
   RuntimeSessionsResult as WireRuntimeSessionsResult,
@@ -23,7 +22,6 @@ type InternalResultMetadata = {
 
 export type ChatResult = WireChatResult & InternalResultMetadata;
 export type AgentToolsResult = WireAgentToolsResult & InternalResultMetadata;
-export type RuntimeModelsResult = WireRuntimeModelsResult & InternalResultMetadata;
 export type PongResult = WirePongResult & InternalResultMetadata;
 export type ShutdownAckResult = WireShutdownAckResult & InternalResultMetadata;
 export type TaskResult = WireTaskResult & InternalResultMetadata;
@@ -45,7 +43,6 @@ export type AgentRuntimeResult =
   | CollaborationRuntimeResult
   | CollaborationTimelineResult
   | PongResult
-  | RuntimeModelsResult
   | RuntimeSessionDebugResult
   | RuntimeSessionResult
   | RuntimeSessionsResult

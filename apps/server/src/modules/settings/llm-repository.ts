@@ -17,7 +17,7 @@ export class LlmRepository {
     const models =
       db.prepare(`SELECT id, provider_id AS providerId, model_id AS modelId,
       model_name AS modelName, is_one_million_context AS isOneMillionContext,
-      thinking_json AS thinking, capabilities_json AS capabilities, limits_json AS limits,
+      thinking_json AS thinking, capabilities_json AS capabilities, limits_json AS limits, configuration_json AS configuration,
       created_at AS createdAt, updated_at AS updatedAt
       FROM provider_models WHERE provider_id = ? ORDER BY created_at ASC, rowid ASC`);
     return {
@@ -43,6 +43,10 @@ export class LlmRepository {
                     model.limits === null
                       ? null
                       : JSON.parse(String(model.limits)),
+                  configuration:
+                    model.configuration === null
+                      ? null
+                      : JSON.parse(String(model.configuration)),
                 }) as unknown as ProviderModel,
             ),
           }) as unknown as LlmProvider,
@@ -58,8 +62,8 @@ export class LlmRepository {
         (id, name, provider, api_format, api_key, api_endpoint, is_default, created_at, updated_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`);
       const modelInsert = db.prepare(`INSERT INTO provider_models
-        (id, provider_id, model_id, model_name, is_one_million_context, thinking_json, capabilities_json, limits_json, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+        (id, provider_id, model_id, model_name, is_one_million_context, thinking_json, capabilities_json, limits_json, configuration_json, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
       for (const p of providers) {
         providerInsert.run(
           p.id,
@@ -82,6 +86,7 @@ export class LlmRepository {
             m.thinking == null ? null : JSON.stringify(m.thinking),
             m.capabilities == null ? null : JSON.stringify(m.capabilities),
             m.limits == null ? null : JSON.stringify(m.limits),
+            m.configuration == null ? null : JSON.stringify(m.configuration),
             m.createdAt,
             m.updatedAt,
           );

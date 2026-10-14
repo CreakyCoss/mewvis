@@ -1,0 +1,103 @@
+{
+  "version": 1,
+  "connection": {
+    "apiKey": "model-fixture-key",
+    "apiEndpoint": "https://api.example.com",
+    "apiFormat": "http-json"
+  },
+  "purposes": [
+    {
+      "type": "image-generation",
+      "adapter": "http-json",
+      "input": ["text"],
+      "output": ["image"],
+      "inputSchema": {
+        "type": "object",
+        "required": ["prompt"],
+        "properties": {
+          "prompt": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1500
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "aspect_ratio",
+          "type": "string",
+          "default": "16:9",
+          "overridable": true,
+          "schema": {
+            "enum": ["1:1", "16:9", "4:3", "3:2", "2:3", "3:4", "9:16", "21:9"]
+          }
+        },
+        {
+          "name": "response_format",
+          "type": "string",
+          "default": "url",
+          "overridable": false,
+          "schema": {
+            "enum": ["url", "base64"]
+          }
+        },
+        {
+          "name": "n",
+          "type": "integer",
+          "default": 3,
+          "overridable": true,
+          "schema": {
+            "minimum": 1,
+            "maximum": 9
+          }
+        },
+        {
+          "name": "prompt_optimizer",
+          "type": "boolean",
+          "default": true,
+          "overridable": true
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "path": "/v1/image_generation",
+        "headers": {
+          "Authorization": "Bearer {{auth.apiKey}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "model": "{{model.id}}",
+          "prompt": "{{input.prompt}}",
+          "aspect_ratio": "{{params.aspect_ratio}}",
+          "response_format": "{{params.response_format}}",
+          "n": "{{params.n}}",
+          "prompt_optimizer": "{{params.prompt_optimizer}}"
+        }
+      },
+      "response": {
+        "mode": "direct",
+        "outputs": [
+          {
+            "type": "image",
+            "source": "url",
+            "path": "/data/image_urls"
+          },
+          {
+            "type": "image",
+            "source": "base64",
+            "path": "/data/image_base64"
+          }
+        ],
+        "success": {
+          "path": "/base_resp/status_code",
+          "equals": 0
+        },
+        "errorPath": "/base_resp/status_msg"
+      },
+      "preset": {
+        "id": "fixture-http-json",
+        "version": 1
+      }
+    }
+  ]
+}

@@ -40,7 +40,7 @@
   - [Server 工作区管理](runtime/server-workspaces.md)
   - [Server 业务接口](runtime/server-interfaces.md)
 - [通信协议](runtime/protocol.md)
-- [模型思考等级](runtime/models.md)
+- [模型配置与预设](runtime/models.md)
 - [Pi 接入与子 Agent](runtime/pi.md)
 - [协作模式](runtime/collaboration.md)
 - [安全架构](runtime/security/overview.md)

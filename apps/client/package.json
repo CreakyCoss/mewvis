@@ -51,7 +51,6 @@
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,mjs,cjs,json,md,css}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,mjs,cjs,json,md,css}\"",
     "sync-product-config": "node ../../scripts/maintenance/sync-product-config.mjs",
-    "sync-models": "node scripts/maintenance/sync-models.mjs",
     "preview": "vite preview",
     "init:config-db": "pnpm --filter @mewvis/server build && node ../server/dist/maintenance.js",
     "rebuild:config-db": "pnpm init:config-db -- --rebuild",

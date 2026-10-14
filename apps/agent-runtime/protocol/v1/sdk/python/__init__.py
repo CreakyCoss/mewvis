@@ -30,7 +30,6 @@ class RuntimePingRequest(Enum):
     EXTENSIONS_COMMANDS_EXECUTE = "extensions/commands/execute"
     EXTENSIONS_COMMANDS_LIST = "extensions/commands/list"
     RUNTIME_EVENT = "runtime/event"
-    RUNTIME_MODELS_LIST = "runtime/models/list"
     RUNTIME_PING = "runtime/ping"
     RUNTIME_RESULT = "runtime/result"
     RUNTIME_SESSIONS_LIST = "runtime/sessions/list"
@@ -216,46 +215,6 @@ class CollaborationAgent:
     resources: AgentRuntimeResources | None
     runtime_model: RuntimeModelInput | None
     system_prompt: str | None
-
-
-@dataclass
-class RuntimeModelCatalogAPI:
-    api_format: RuntimeAPIFormat
-    api_endpoint: str | None
-
-
-@dataclass
-class RuntimeThinkingOption:
-    label: str
-    value: str
-
-
-@dataclass
-class RuntimeModelThinking:
-    levels: list[RuntimeThinkingOption]
-    default_level: str | None
-
-
-@dataclass
-class RuntimeModelSummary:
-    context_window: float
-    cost: RuntimeModelCost
-    id: str
-    input: list[RuntimeModelInputModality]
-    max_tokens: float
-    name: str
-    reasoning: bool
-    capabilities: dict[str, RuntimeModelCapabilities] | None
-    capability_source_url: str | None
-    headers: dict[str, str] | None
-    thinking: dict[str, RuntimeModelThinking] | None
-
-
-@dataclass
-class RuntimeModelProviderSummary:
-    apis: list[RuntimeModelCatalogAPI]
-    models: dict[str, RuntimeModelSummary]
-    website_url: str
 
 
 class InputMode(Enum):
@@ -634,7 +593,6 @@ class PurpleType(Enum):
     QUESTION = "question"
     QUESTION_ANSWERED = "question_answered"
     REPLACE_TEXT = "replace_text"
-    RUNTIME_MODELS = "runtime_models"
     RUNTIME_SESSIONS_RESULT = "runtime_sessions_result"
     RUNTIME_SESSION_DEBUG_RESULT = "runtime_session_debug_result"
     RUNTIME_SESSION_RESULT = "runtime_session_result"
@@ -698,7 +656,6 @@ class AgentRuntimeEvent:
     arguments: dict[str, Any] | None
     avatar: str | None
     bootstrap_instruction: str | None
-    catalog: dict[str, RuntimeModelProviderSummary] | None
     command_id: str | None
     commands: list[Command] | None
     compacted: bool | None
@@ -811,7 +768,6 @@ class AgentRuntimeResultType(Enum):
     EXTENSION_COMMANDS_RESULT = "extension_commands_result"
     EXTENSION_COMMAND_RESULT = "extension_command_result"
     PONG = "pong"
-    RUNTIME_MODELS = "runtime_models"
     RUNTIME_SESSIONS_RESULT = "runtime_sessions_result"
     RUNTIME_SESSION_DEBUG_RESULT = "runtime_session_debug_result"
     RUNTIME_SESSION_RESULT = "runtime_session_result"
@@ -824,7 +780,6 @@ class AgentRuntimeResultType(Enum):
 @dataclass
 class AgentRuntimeResult:
     type: AgentRuntimeResultType
-    catalog: dict[str, RuntimeModelProviderSummary] | None
     commands: list[Command] | None
     compacted: bool | None
     default_tool_names: list[str] | None
@@ -876,10 +831,10 @@ class AgentRuntimeMessage:
 from typing import Final
 
 AGENT_RUNTIME_PROTOCOL_VERSION: Final[str] = "1.0.0"
-AGENT_RUNTIME_JSON_RPC_METHODS: Final[tuple[str, ...]] = ("runtime/ping", "runtime/shutdown", "agent/tools/list", "runtime/models/list", "agent/chat", "agent/run", "agent/question/answer", "session/read", "session/agent/compact", "session/agent/rebuild", "session/summarize", "session/agent/summarize", "session/message/edit", "session/message/delete", "session/message/append", "session/rebuild", "runtime/sessions/list", "runtime/session/read", "runtime/session/debug/read", "collaboration/timeline/read", "collaboration/modes/list", "collaboration/run", "collaboration/runMode", "agent/approval/answer", "extensions/commands/list", "extensions/commands/execute",)
+AGENT_RUNTIME_JSON_RPC_METHODS: Final[tuple[str, ...]] = ("runtime/ping", "runtime/shutdown", "agent/tools/list", "agent/chat", "agent/run", "agent/question/answer", "session/read", "session/agent/compact", "session/agent/rebuild", "session/summarize", "session/agent/summarize", "session/message/edit", "session/message/delete", "session/message/append", "session/rebuild", "runtime/sessions/list", "runtime/session/read", "runtime/session/debug/read", "collaboration/timeline/read", "collaboration/modes/list", "collaboration/run", "collaboration/runMode", "agent/approval/answer", "extensions/commands/list", "extensions/commands/execute",)
 AGENT_RUNTIME_NOTIFICATION_METHODS: Final[tuple[str, ...]] = ("runtime/event", "runtime/result",)
 AGENT_RUNTIME_EVENT_TYPES: Final[tuple[str, ...]] = ("subtask_event", "extension_activity", "started", "question", "question_answered", "replace_text", "text_delta", "thinking_delta", "thinking_end", "tool_call_start", "tool_call_delta", "tool_call_end", "tool_execution_start", "tool_execution_update", "tool_execution_end", "done", "error", "workflow_started", "step_started", "agent_event", "step_done", "step_skipped", "workflow_done", "approval_requested", "approval_resolved",)
-AGENT_RUNTIME_RESULT_TYPES: Final[tuple[str, ...]] = ("ack", "agent_tools", "chat_result", "pong", "shutdown_ack", "task_result", "runtime_models", "session_result", "session_mutation_result", "collaboration_result", "collaboration_modes_result", "runtime_sessions_result", "runtime_session_result", "runtime_session_debug_result", "collaboration_timeline_result", "extension_commands_result", "extension_command_result",)
+AGENT_RUNTIME_RESULT_TYPES: Final[tuple[str, ...]] = ("ack", "agent_tools", "chat_result", "pong", "shutdown_ack", "task_result", "session_result", "session_mutation_result", "collaboration_result", "collaboration_modes_result", "runtime_sessions_result", "runtime_session_result", "runtime_session_debug_result", "collaboration_timeline_result", "extension_commands_result", "extension_command_result",)
 EVENT_SUBTASK_EVENT: Final[str] = "subtask_event"
 EVENT_EXTENSION_ACTIVITY: Final[str] = "extension_activity"
 EVENT_STARTED: Final[str] = "started"
@@ -911,7 +866,6 @@ RESULT_CHAT_RESULT: Final[str] = "chat_result"
 RESULT_PONG: Final[str] = "pong"
 RESULT_SHUTDOWN_ACK: Final[str] = "shutdown_ack"
 RESULT_TASK_RESULT: Final[str] = "task_result"
-RESULT_RUNTIME_MODELS: Final[str] = "runtime_models"
 RESULT_SESSION_RESULT: Final[str] = "session_result"
 RESULT_SESSION_MUTATION_RESULT: Final[str] = "session_mutation_result"
 RESULT_COLLABORATION_RESULT: Final[str] = "collaboration_result"

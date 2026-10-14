@@ -250,13 +250,6 @@ export const createNativeRuntimeCommandRouter = (
         );
         return true;
 
-      case AgentTaskCommandType.ListRuntimeModels:
-        emitCommandResult(
-          command,
-          await deps.engine.capabilities.listRuntimeModels(),
-        );
-        return true;
-
       case AgentTaskCommandType.AnswerApproval:
         await deps.answerApproval(commandInputFrom(command));
         return true;

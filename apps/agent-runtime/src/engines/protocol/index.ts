@@ -46,7 +46,6 @@ export type {
   CollaborationRuntimeResult,
   CollaborationTimelineResult,
   PongResult,
-  RuntimeModelsResult,
   RuntimeSessionDebugResult,
   RuntimeSessionResult,
   RuntimeSessionsResult,

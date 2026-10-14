@@ -206,11 +206,11 @@ export const ThinkingLevelsEditor = ({
           }}
         >
           <RotateCcw className="size-3.5" />
-          恢复预设
+          恢复基础建议
         </Button>
       </div>
       <p className="text-xs leading-5 text-muted-foreground">
-        编辑等级名称和接口值，或恢复模型预设。日常使用可直接在常用设置中选择默认等级。
+        编辑等级名称和接口值，或恢复编辑器的基础建议。默认等级在对话参数中选择。
       </p>
       <RadioGroup
         value={selectedIndex < 0 ? "unspecified" : `level-${selectedIndex}`}

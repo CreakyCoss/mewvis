@@ -37,14 +37,6 @@
       "x-mewvis-params-schema": "./schema/request.schema.json#/definitions/EmptyParams"
     },
     {
-      "name": "runtime/models/list",
-      "summary": "List runtime models",
-      "params": [],
-      "result": { "$ref": "#/components/contentDescriptors/genericResult" },
-      "x-mewvis-command": { "type": "list_runtime_models", "paramsMode": "flat" },
-      "x-mewvis-params-schema": "./schema/request.schema.json#/definitions/EmptyParams"
-    },
-    {
       "name": "agent/chat",
       "summary": "Run a lightweight chat request",
       "params": [],
