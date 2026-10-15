@@ -30,7 +30,7 @@ export function CallPreview({
   const [taskId, setTaskId] = useState("example-task-id");
   const [result, setResult] = useState("");
   const [responseError, setResponseError] = useState("");
-  const connection = getModelConnection(provider, model);
+  const connection = getModelConnection(provider, model, purpose.type);
   let preview = "";
   let error = "";
   try {
@@ -43,9 +43,9 @@ export function CallPreview({
     }
     preview = pretty(
       native
-        ? { ...native, apiKey: "••••••••", headers: undefined }
+        ? { ...native, apiKey: "••••••••", headers: undefined, configuration: undefined }
         : previewModelRequest(purpose, {
-            modelId: model.modelId,
+            modelId: purpose.modelId ?? model.modelId,
             apiEndpoint: connection.apiEndpoint ?? "",
             input: JSON.parse(input) as JsonValue,
             overrides: JSON.parse(overrides),

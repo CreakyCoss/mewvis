@@ -2,6 +2,8 @@ import { fileURLToPath } from "node:url";
 import { z } from "zod";
 import {
   getModelConfigurationError,
+  MODEL_PROTOCOLS,
+  resolveModelConnection,
   type ModelConfiguration,
 } from "@mewvis/chat-contracts/model-configuration";
 import type { ToolParameterDefinition } from "../../../../../builtins/definition.js";
@@ -125,6 +127,7 @@ export function createMediaTool(context: MediaToolContext) {
     modelId: z.string().min(1),
     apiKey: z.string().nullish(),
     apiEndpoint: z.string().nullish(),
+    apiFormat: z.enum(MODEL_PROTOCOLS).nullish(),
     capabilities: z.object({ toolCalling: z.boolean() }).nullish(),
     configuration: z.custom<ModelConfiguration>(
       (value) => !getModelConfigurationError(value),
@@ -133,7 +136,8 @@ export function createMediaTool(context: MediaToolContext) {
   const parsed = modelSchema.safeParse(context.runtimeModel);
   if (!parsed.success || parsed.data.capabilities?.toolCalling === false)
     return undefined;
-  const { configuration, modelId, apiKey, apiEndpoint } = parsed.data;
+  const { configuration, modelId, apiKey, apiEndpoint, apiFormat } =
+    parsed.data;
   if (
     configuration.purposes.find((purpose) => purpose.type === "chat")
       ?.toolCalling === false
@@ -144,11 +148,15 @@ export function createMediaTool(context: MediaToolContext) {
       modelId,
       configuration: {
         ...configuration,
-        connection: {
-          ...(apiKey != null ? { apiKey } : {}),
-          ...(apiEndpoint != null ? { apiEndpoint } : {}),
-          ...configuration.connection,
-        },
+        purposes: configuration.purposes.map((purpose) => ({
+          ...purpose,
+          modelId: purpose.modelId ?? modelId,
+          connection: resolveModelConnection(purpose, {
+            apiKey: apiKey ?? undefined,
+            apiEndpoint: apiEndpoint ?? "",
+            apiFormat: apiFormat ?? "http-json",
+          }),
+        })),
       },
     },
     execution: context.execution,
@@ -157,7 +165,12 @@ export function createMediaTool(context: MediaToolContext) {
   if (snapshot.execution.workspacePath !== context.workspacePath)
     throw new Error("媒体工具的执行范围与工作区不一致");
   const model = snapshot.model;
-  const secrets = [apiKey ?? "", model.configuration.connection.apiKey ?? ""];
+  const secrets = [
+    apiKey ?? "",
+    ...model.configuration.purposes.map(
+      (purpose) => purpose.connection?.apiKey ?? "",
+    ),
+  ];
   const catalog = model.configuration.purposes.filter(
     (purpose) =>
       ["image-generation", "image-editing", "video-generation"].includes(
@@ -167,7 +180,7 @@ export function createMediaTool(context: MediaToolContext) {
       purpose.request &&
       purpose.response &&
       purpose.output.some((type) => type === "image" || type === "video") &&
-      (!!model.configuration.connection.apiEndpoint ||
+      (!!purpose.connection?.apiEndpoint ||
         /^https?:\/\//i.test(purpose.request.path)),
   );
   if (!catalog.length) return undefined;
@@ -250,7 +263,7 @@ export function createMediaTool(context: MediaToolContext) {
           return redactMedia(
             {
               status: execution.signal?.aborted ? "stopped" : "failed",
-              modelId: model.modelId,
+              modelId: purpose.modelId ?? model.modelId,
               purpose: purpose.type,
               stage: latest.stage,
               ...(latest.taskId ? { taskId: latest.taskId } : {}),

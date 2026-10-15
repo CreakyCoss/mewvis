@@ -496,7 +496,17 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
                                   ).map((option) => (
                                     <span key={option.value}>
                                       {option.label}
-                                      {capabilities.available.operations.includes(option.value) ? "" : "（待接入）"}
+                                      {capabilities.available.operations.includes(option.value)
+                                        ? ""
+                                        : ["image-generation", "image-editing", "video-generation"].includes(
+                                              option.value,
+                                            ) &&
+                                            model.configuration?.purposes.some(
+                                              (purpose) =>
+                                                purpose.type === option.value && purpose.adapter === "http-json",
+                                            )
+                                          ? "（工具调用）"
+                                          : "（待接入）"}
                                     </span>
                                   ))}
                                   {capabilities.declared.input.includes("image") && (
@@ -649,7 +659,7 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
             setModelEditor(null);
           }}
           onDelete={
-            modelEditor.model && providerDraft.models.length > 1
+            modelEditor.model
               ? () => {
                   modelFocusTarget.current = "llm-add-model";
                   updateProviderDraft((current) => ({

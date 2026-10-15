@@ -1,4 +1,9 @@
-import { getModelThinking, type LlmProviderConfig, type ProviderModelConfig } from "@/agent-client/runtime-model";
+import {
+  getModelThinking,
+  getModelConnection,
+  type LlmProviderConfig,
+  type ProviderModelConfig,
+} from "@/agent-client/runtime-model";
 import { Input } from "design-system/components/ui/input";
 import { Switch } from "design-system/components/ui/switch";
 import { Button } from "design-system/components/ui/button";
@@ -16,7 +21,7 @@ export function ChatParameters({
   onChange: (value: ProviderModelConfig) => void;
 }) {
   const thinking = getModelThinking(provider, model);
-  const format = model.configuration?.connection.apiFormat;
+  const format = getModelConnection(provider, model).apiFormat;
   const editorDefaults = editorPresets.createModelDefaults({
     ...provider,
     apiFormat: format && format !== "http-json" ? format : provider.apiFormat,

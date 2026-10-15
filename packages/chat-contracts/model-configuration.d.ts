@@ -17,8 +17,8 @@ export type ModelProtocol =
   | "http-json";
 export interface ModelConnection {
   apiKey?: string;
-  apiEndpoint?: string;
-  apiFormat?: ModelProtocol;
+  apiEndpoint: string;
+  apiFormat: ModelProtocol;
 }
 export interface ModelParameter {
   name: string;
@@ -57,6 +57,10 @@ export interface ModelResponse {
 export interface ModelPurpose {
   type: RuntimeModelOperation;
   adapter: "native" | "http-json";
+  /** Omitted connections inherit the Provider; explicit connections are independent. */
+  connection?: ModelConnection;
+  /** Omitted IDs use the model's top-level request ID. */
+  modelId?: string;
   input: RuntimeModelModality[];
   output: RuntimeModelModality[];
   reasoning?: boolean;
@@ -70,7 +74,6 @@ export interface ModelPurpose {
 }
 export interface ModelConfiguration {
   version: 1;
-  connection: ModelConnection;
   purposes: ModelPurpose[];
 }
 export interface ModelTemplateContext {
@@ -88,6 +91,10 @@ export declare function createModelPurpose(
   adapter?: ModelPurpose["adapter"],
 ): ModelPurpose;
 export declare function getModelConfigurationError(value: unknown): string;
+export declare function resolveModelConnection(
+  purpose: ModelPurpose | undefined,
+  provider: ModelConnection,
+): ModelConnection;
 export declare function resolveModelParameters(
   purpose: ModelPurpose,
   overrides?: Record<string, JsonValue>,

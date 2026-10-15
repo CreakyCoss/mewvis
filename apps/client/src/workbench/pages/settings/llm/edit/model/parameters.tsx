@@ -5,6 +5,7 @@ import { Button } from "design-system/components/ui/button";
 import { Checkbox } from "design-system/components/ui/checkbox";
 import { Input } from "design-system/components/ui/input";
 import { Choice, JsonField, ParameterValue, useEditorBuffers } from "./fields";
+import { ConfirmDelete } from "../confirm-delete";
 
 export function ParametersEditor({
   purpose,
@@ -122,19 +123,24 @@ export function ParametersEditor({
                 onCheckedChange={(checked) => update(index, { ...param, overridable: checked === true })}
               />
             </label>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="col-start-3 row-start-1 size-7 text-muted-foreground hover:text-destructive sm:col-start-auto sm:row-start-auto"
-              aria-label={`删除参数 ${param.name}`}
-              onClick={() => {
+            <ConfirmDelete
+              title={`删除参数“${param.name}”？`}
+              description="此参数的默认值和结构要求将被移除，请同时检查请求模板中的参数引用。"
+              onConfirm={() => {
                 buffers.removeRow(prefix, index);
                 onChange({ ...purpose, parameters: purpose.parameters.filter((_, i) => i !== index) });
               }}
             >
-              <Trash2 className="size-3.5" />
-            </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="col-start-3 row-start-1 size-7 text-muted-foreground hover:text-destructive sm:col-start-auto sm:row-start-auto"
+                aria-label={`删除参数 ${param.name}`}
+              >
+                <Trash2 className="size-3.5" />
+              </Button>
+            </ConfirmDelete>
           </div>
         ))}
       </div>

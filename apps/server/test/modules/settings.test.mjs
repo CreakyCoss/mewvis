@@ -51,7 +51,9 @@ test("model purpose configuration persists across restart and invalid templates 
     (c) => (c.purposes[0].request.body.prompt = "{{params.unknown}}"),
     (c) => (c.purposes[0].inputSchema = { $ref: "https://example.com/schema" }),
     (c) => c.purposes.push(structuredClone(c.purposes[0])),
-    (c) => (c.connection.apiEndpoint = "file:///etc/passwd"),
+    (c) => (c.purposes[0].connection.apiEndpoint = "file:///etc/passwd"),
+    (c) => (c.purposes[0].modelId = " "),
+    (c) => (c.connection = {}),
     (c) => (c.purposes[0].response.outputs[0].path = "/constructor"),
   ]) {
     const invalid = structuredClone(configuration);

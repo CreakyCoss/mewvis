@@ -1,4 +1,5 @@
 import { Plus, Trash2 } from "lucide-react";
+import { ConfirmDelete } from "../confirm-delete";
 import type { ModelPurpose, ModelResponse, ModelOutputRule, JsonValue, ModelRequest } from "@mewvis/chat-contracts";
 import { Button } from "design-system/components/ui/button";
 import { Input } from "design-system/components/ui/input";
@@ -123,17 +124,22 @@ export function ResponseEditor({
                   onChange={(source) => updateRule(index, { source })}
                 />
               </Field>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="size-8 text-muted-foreground hover:text-destructive"
-                disabled={response.outputs.length === 1}
-                aria-label={`删除输出规则 ${index + 1}`}
-                onClick={() => update({ outputs: response.outputs.filter((_, i) => i !== index) })}
+              <ConfirmDelete
+                title={`删除输出规则 ${index + 1}？`}
+                description="此规则将从当前用途的返回处理中移除。"
+                onConfirm={() => update({ outputs: response.outputs.filter((_, i) => i !== index) })}
               >
-                <Trash2 className="size-3.5" />
-              </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="size-8 text-muted-foreground hover:text-destructive"
+                  disabled={response.outputs.length === 1}
+                  aria-label={`删除输出规则 ${index + 1}`}
+                >
+                  <Trash2 className="size-3.5" />
+                </Button>
+              </ConfirmDelete>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               {textInput(`结果路径 ${index + 1}`, rule.path, (path) => updateRule(index, { path }), "/data")}

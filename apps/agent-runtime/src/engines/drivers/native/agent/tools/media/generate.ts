@@ -1,4 +1,5 @@
 import { join, resolve } from "node:path";
+import { resolveModelConnection } from "@mewvis/chat-contracts/model-configuration";
 import { executeMedia } from "./request.js";
 import { collectMedia, prepareMediaInput, readMediaFile } from "./files.js";
 import { authorizeMediaPath, authorizeMediaUrl } from "./permissions.js";
@@ -22,7 +23,11 @@ export async function runMediaGeneration(
     execution,
     protectedPaths,
   } = request;
-  const connection = model.configuration.connection;
+  const connection = resolveModelConnection(purpose, {
+    apiEndpoint: "",
+    apiFormat: "http-json",
+  });
+  const requestModelId = purpose.modelId ?? model.modelId;
   const signal = AbortSignal.any([
     ...(context.signal ? [context.signal] : []),
     AbortSignal.timeout((args.timeoutSeconds ?? 1800) * 1000),
@@ -71,7 +76,7 @@ export async function runMediaGeneration(
       context: {
         apiEndpoint: connection.apiEndpoint ?? "",
         auth: { apiKey: connection.apiKey ?? "" },
-        model: { id: model.modelId },
+        model: { id: requestModelId },
         input,
       },
       parameters: args.parameters ?? {},
@@ -95,7 +100,7 @@ export async function runMediaGeneration(
     return redactMedia(
       {
         status: "completed",
-        modelId: model.modelId,
+        modelId: requestModelId,
         purpose: purpose.type,
         ...(taskId ? { taskId } : {}),
         outputs,
@@ -106,7 +111,7 @@ export async function runMediaGeneration(
     return redactMedia(
       {
         status: signal.aborted ? "stopped" : "failed",
-        modelId: model.modelId,
+        modelId: requestModelId,
         purpose: purpose.type,
         stage,
         ...(taskId ? { taskId } : {}),

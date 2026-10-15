@@ -17,7 +17,10 @@ test(
     const model = createServer(async (request, response) => {
       let body = "";
       for await (const chunk of request) body += chunk;
-      requests.push(JSON.parse(body));
+      requests.push({
+        ...JSON.parse(body),
+        authorization: request.headers.authorization,
+      });
       response.writeHead(200, { "Content-Type": "text/event-stream" });
       response.write(
         `data: ${JSON.stringify({ id: "fixture", object: "chat.completion.chunk", created: 1, model: "local", choices: [{ index: 0, delta: { content: "只读摘要测试完成" }, finish_reason: "stop" }] })}\n\n`,
@@ -60,13 +63,31 @@ test(
           provider: "openai",
           apiFormat: "openai-completions",
           apiKey: "test",
-          apiEndpoint: endpoint,
+          apiEndpoint: "http://127.0.0.1:1/v1",
           isDefault: true,
           models: [
             {
-              modelId: "local",
+              modelId: "catalog-local",
               modelName: "Local",
               isOneMillionContext: false,
+              configuration: {
+                version: 1,
+                purposes: [
+                  {
+                    type: "chat",
+                    adapter: "native",
+                    modelId: "local",
+                    connection: {
+                      apiEndpoint: endpoint,
+                      apiKey: "purpose-key",
+                      apiFormat: "openai-completions",
+                    },
+                    input: ["text"],
+                    output: ["text"],
+                    parameters: [],
+                  },
+                ],
+              },
             },
           ],
         },
@@ -163,6 +184,8 @@ test(
       assert.ok(summary.generatedAt > 0);
     }
     assert.equal(requests.length, 3);
+    assert.equal(requests[1].model, "local");
+    assert.equal(requests[1].authorization, "Bearer purpose-key");
     assert.match(JSON.stringify(requests[1].messages), /验证只读摘要/);
     assert.deepEqual(await query("session.ledger.read"), before);
     assert.deepEqual(await files(), original);

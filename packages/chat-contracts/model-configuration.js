@@ -191,35 +191,8 @@ const checkRequest = (request, purpose, taskAllowed = false) => {
 
 export function getModelConfigurationError(value) {
   try {
-    keys(value, ["version", "connection", "purposes"], "模型配置");
+    keys(value, ["version", "purposes"], "模型配置");
     if (value.version !== 1) fail("模型配置版本无效");
-    keys(value.connection, ["apiKey", "apiEndpoint", "apiFormat"], "模型连接");
-    for (const field of ["apiKey", "apiEndpoint"])
-      if (
-        value.connection[field] !== undefined &&
-        (typeof value.connection[field] !== "string" ||
-          !value.connection[field].trim())
-      )
-        fail("连接覆盖项不能为空，留空时请使用继承设置");
-    if (
-      value.connection.apiFormat !== undefined &&
-      !MODEL_PROTOCOLS.includes(value.connection.apiFormat)
-    )
-      fail("模型协议无效");
-    if (value.connection.apiEndpoint) {
-      let url;
-      try {
-        url = new URL(value.connection.apiEndpoint);
-      } catch {
-        fail("请求地址必须是完整的 HTTP 或 HTTPS URL");
-      }
-      if (
-        !["https:", "http:"].includes(url.protocol) ||
-        url.username ||
-        url.password
-      )
-        fail("请求地址无效，请把 Key 填入独立字段");
-    }
     if (
       !Array.isArray(value.purposes) ||
       !value.purposes.length ||
@@ -233,6 +206,8 @@ export function getModelConfigurationError(value) {
         [
           "type",
           "adapter",
+          "connection",
+          "modelId",
           "input",
           "output",
           "reasoning",
@@ -250,6 +225,44 @@ export function getModelConfigurationError(value) {
         !["native", "http-json"].includes(purpose.adapter)
       )
         fail("用途或调用方式无效");
+      if (
+        purpose.modelId !== undefined &&
+        (typeof purpose.modelId !== "string" || !purpose.modelId.trim())
+      )
+        fail("请填写用途的请求模型 ID，或选择使用顶部模型 ID");
+      if (purpose.connection !== undefined) {
+        const connection = purpose.connection;
+        keys(connection, ["apiKey", "apiEndpoint", "apiFormat"], "用途连接");
+        if (
+          connection.apiKey !== undefined &&
+          typeof connection.apiKey !== "string"
+        )
+          fail("API Key 必须是字符串");
+        if (!MODEL_PROTOCOLS.includes(connection.apiFormat))
+          fail("用途协议无效");
+        if (
+          typeof connection.apiEndpoint !== "string" ||
+          !connection.apiEndpoint.trim()
+        )
+          fail("请填写用途的请求地址，或选择继承 Provider");
+        let url;
+        try {
+          url = new URL(connection.apiEndpoint);
+        } catch {
+          fail("请求地址必须是完整的 HTTP 或 HTTPS URL");
+        }
+        if (
+          !["http:", "https:"].includes(url.protocol) ||
+          url.username ||
+          url.password
+        )
+          fail("请求地址无效，请把 Key 填入独立字段");
+        if (
+          purpose.adapter === "http-json" &&
+          connection.apiFormat !== "http-json"
+        )
+          fail("HTTP / JSON 用途需要使用 HTTP / JSON 调用方式");
+      }
       list(purpose.input, modalities, "输入类型", true);
       list(purpose.output, modalities, "输出类型", true);
       for (const field of ["reasoning", "toolCalling"])
@@ -301,7 +314,7 @@ export function getModelConfigurationError(value) {
         }
       }
       if (purpose.adapter === "native") {
-        if (value.connection.apiFormat === "http-json")
+        if (purpose.connection?.apiFormat === "http-json")
           fail("原生对话需要对话协议；使用 HTTP / JSON 时请切换用途的请求模板");
         if (
           purpose.type !== "chat" ||
@@ -405,6 +418,16 @@ export function getModelConfigurationError(value) {
   }
 }
 
+export function resolveModelConnection(purpose, provider) {
+  const connection = purpose?.connection ?? provider;
+  return {
+    apiEndpoint: connection.apiEndpoint,
+    apiFormat:
+      purpose?.adapter === "http-json" ? "http-json" : connection.apiFormat,
+    ...(connection.apiKey !== undefined ? { apiKey: connection.apiKey } : {}),
+  };
+}
+
 export function resolveModelParameters(purpose, overrides = {}) {
   if (!isObject(overrides)) fail("调用参数必须是 JSON 对象");
   const result = {};
@@ -470,7 +493,6 @@ export function buildModelRequest(
   if (purpose.adapter !== "http-json") fail("原生对话由协议适配器组合请求");
   const configError = getModelConfigurationError({
     version: 1,
-    connection: {},
     purposes: [purpose],
   });
   if (configError) fail(configError);
@@ -563,7 +585,6 @@ export function readJsonPointer(value, pointer) {
 export function parseModelResponse(purpose, value, phase = "initial") {
   const configError = getModelConfigurationError({
     version: 1,
-    connection: {},
     purposes: [purpose],
   });
   if (configError) fail(configError);

@@ -38,7 +38,7 @@ flowchart LR
 }
 ```
 
-`prompt`、`aspect_ratio` 只是示例，字段由选定用途的 Schema 和参数定义决定。未传参数沿用配置默认值，不可覆盖的参数在提交前拒绝。通用工具校验 `runtimeModel.configuration`，连接信息缺省时继承同一 `runtimeModel` 的 Key 和地址。本轮内快照稳定，设置变更在下一轮生效。需要组合不同服务时，在当前模型的用途请求模板中明确配置地址、请求头和上游模型值，运行时不再查找其他模型。
+`prompt`、`aspect_ratio` 只是示例，字段由选定用途的 Schema 和参数定义决定。未传参数沿用配置默认值，不可覆盖的参数在提交前拒绝。通用工具校验 `runtimeModel.configuration`，使用选定用途的 `connection` 和 `modelId`。设置桥接层提交前解析每个用途对 Provider 和顶部模型 ID 的继承；独立连接的空 Key 不回退到对话 Key。直接提交运行时参数时，缺省的用途连接和模型 ID 沿用同一 `runtimeModel`。本轮内快照稳定，设置变更在下一轮生效。需要组合不同服务时，在当前模型的用途中配置独立连接和请求模型 ID，运行时不再查找其他模型。
 
 可选 `files` 将本地文件填入任意 JSON 输入字段，随后执行输入校验：
 

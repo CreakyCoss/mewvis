@@ -8,7 +8,6 @@ export function initialModelConfiguration(provider: LlmProviderConfig, model: Pr
   const capabilities = getModelCapabilities(provider, model).declared;
   return {
     version: 1,
-    connection: {},
     purposes: capabilities.operations.map((type) => {
       const purpose = suggestPurpose(provider, model, type);
       return {

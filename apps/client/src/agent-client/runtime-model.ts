@@ -1,4 +1,5 @@
 import type { ModelConfiguration } from "@mewvis/chat-contracts";
+import { resolveModelConnection } from "@mewvis/chat-contracts/model-configuration";
 import type {
   RuntimeApiFormat,
   RuntimeModelInput,
@@ -103,7 +104,7 @@ export const getModelCapabilities = (
 ) => {
   const configuration = model.configuration;
   const chat = configuration?.purposes.find((purpose) => purpose.type === "chat");
-  const apiFormat = configuration?.connection.apiFormat ?? provider.apiFormat;
+  const apiFormat = chat?.connection?.apiFormat ?? provider.apiFormat;
   const capabilities = configuration
     ? {
         operations: configuration.purposes.map((purpose) => purpose.type),
@@ -140,11 +141,16 @@ export const getModelCapabilities = (
 export const getModelConnection = (
   provider: Pick<LlmProvider, "apiFormat" | "apiKey" | "apiEndpoint">,
   model: Pick<ProviderModel, "configuration">,
-) => ({
-  apiFormat: model.configuration?.connection.apiFormat ?? provider.apiFormat,
-  apiKey: model.configuration?.connection.apiKey ?? provider.apiKey,
-  apiEndpoint: model.configuration?.connection.apiEndpoint ?? provider.apiEndpoint,
-});
+  purposeType: ModelConfiguration["purposes"][number]["type"] = "chat",
+) =>
+  resolveModelConnection(
+    model.configuration?.purposes.find((purpose) => purpose.type === purposeType),
+    {
+      apiFormat: provider.apiFormat,
+      apiKey: provider.apiKey ?? undefined,
+      apiEndpoint: provider.apiEndpoint ?? "",
+    },
+  );
 
 export const getModelLimits = (
   _provider: Pick<LlmProvider, "provider">,
@@ -190,16 +196,26 @@ export const createRuntimeModelInput = (
   const thinking = getModelThinking(provider, model);
   const capabilities = getModelCapabilities(provider, model);
   const connection = getModelConnection(provider, model);
+  const chat = model.configuration?.purposes.find((purpose) => purpose.type === "chat");
   if (connection.apiFormat === "http-json") throw new Error("HTTP / JSON 用途需要专用执行服务");
 
   return {
     provider: provider.provider,
     apiFormat: connection.apiFormat,
     apiKey: connection.apiKey,
-    catalogModelId: model.modelId,
-    modelId,
+    catalogModelId: chat?.modelId ?? model.modelId,
+    modelId: chat?.modelId ? withOneMillionContextSuffix(chat.modelId, model.isOneMillionContext) : modelId,
     apiEndpoint: connection.apiEndpoint ?? undefined,
-    configuration: model.configuration ? structuredClone({ ...model.configuration }) : undefined,
+    configuration: model.configuration
+      ? structuredClone({
+          ...model.configuration,
+          purposes: model.configuration.purposes.map((purpose) => ({
+            ...purpose,
+            modelId: purpose.modelId ?? model.modelId,
+            connection: getModelConnection(provider, model, purpose.type),
+          })),
+        })
+      : undefined,
     capabilities: model.configuration ? capabilities.available : capabilities.declared,
     input: capabilities.input,
     reasoning: model.configuration != null || model.capabilities != null ? capabilities.available.reasoning : undefined,

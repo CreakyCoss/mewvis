@@ -13,6 +13,7 @@ import type { AgentRuntimeSupervisor } from "../modules/agent/runtime/supervisor
 import type { Chats } from "../modules/chats/service.js";
 import type { LlmSettingsService } from "../modules/settings/llm-service.js";
 import { createSessionHostAdapter } from "@mewvis/extension-host/services/session";
+import { resolveModelConnection, type ModelProtocol } from "@mewvis/chat-contracts/model-configuration";
 
 /** The only place where plugin host capabilities know this application's service shapes. */
 export function createDesktopExtensionAdapter({
@@ -168,20 +169,38 @@ export function createDesktopExtensionAdapter({
             "请先为会话选择可用的模型",
           );
         const { provider, model } = selected;
+        const purpose = model.configuration?.purposes.find(
+          (purpose) => purpose.type === "chat",
+        );
+        const connection = resolveModelConnection(purpose, {
+          apiFormat: provider.apiFormat as ModelProtocol,
+          apiEndpoint: provider.apiEndpoint ?? "",
+          ...(provider.apiKey != null ? { apiKey: provider.apiKey } : {}),
+        });
+        if (
+          (model.configuration && purpose?.adapter !== "native") ||
+          connection.apiFormat === "http-json"
+        )
+          throw new ServiceError(
+            409,
+            "HOST_UNAVAILABLE",
+            "所选模型未配置可用的对话用途",
+          );
+        const requestModelId = purpose?.modelId ?? model.modelId;
         const result = await supervisor.call(
           "agent/chat",
           {
             stream: false,
             runtimeModel: {
               provider: provider.provider,
-              apiFormat: provider.apiFormat,
-              apiKey: provider.apiKey,
-              apiEndpoint: provider.apiEndpoint,
-              catalogModelId: model.modelId,
+              apiFormat: connection.apiFormat,
+              apiKey: connection.apiKey,
+              apiEndpoint: connection.apiEndpoint,
+              catalogModelId: requestModelId,
               modelId:
-                model.isOneMillionContext && !model.modelId.endsWith("[1m]")
-                  ? `${model.modelId}[1m]`
-                  : model.modelId,
+                model.isOneMillionContext && !requestModelId.endsWith("[1m]")
+                  ? `${requestModelId}[1m]`
+                  : requestModelId,
               thinkingLevel: "off",
             },
             systemPrompt:

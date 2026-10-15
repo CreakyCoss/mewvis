@@ -205,11 +205,10 @@ test("only selected configuration supplies media execution and inherited connect
     };
     return image();
   });
-  delete f.model.configuration.connection.apiKey;
-  delete f.model.configuration.connection.apiEndpoint;
+  delete f.model.configuration.purposes[0].connection;
   f.model.apiKey = "inherited-key";
   f.model.apiEndpoint = "https://inherited.example";
-  f.model.configuration.purposes[0].request.body.model = "image-01";
+  f.model.configuration.purposes[0].modelId = "image-01";
   await assert.rejects(
     f.generate({ modelConfigId: "another-model" }),
     /modelConfigId/,
@@ -218,7 +217,7 @@ test("only selected configuration supplies media execution and inherited connect
   assert.equal(submitted, undefined);
   const result = await f.generate();
   assert.equal(result.status, "completed", JSON.stringify(result));
-  assert.equal(result.modelId, f.model.modelId);
+  assert.equal(result.modelId, "image-01");
   assert.equal(submitted.url, "https://inherited.example/v1/image_generation");
   assert.equal(submitted.headers.get("authorization"), "Bearer inherited-key");
   assert.equal(submitted.body.model, "image-01");
@@ -230,11 +229,38 @@ test("model snapshots remain stable and keyless providers preserve usable file p
   f.model.configuration.purposes.length = 0;
   assert.equal((await f.generate()).status, "completed");
   f.model.configuration = structuredClone(configuration);
-  delete f.model.configuration.connection.apiKey;
+  delete f.model.configuration.purposes[0].connection.apiKey;
   f.reset();
   const result = await f.generate();
   assert.equal(result.status, "completed");
   assert.deepEqual(await readFile(result.outputs[0].filePath), png);
+});
+
+test("independent image purposes use their own credentials and model ID instead of the chat connection", async (t) => {
+  let submitted;
+  const f = await fixture(t, async (url, init) => {
+    submitted = {
+      url: String(url),
+      key: new Headers(init.headers).get("authorization"),
+      body: JSON.parse(init.body),
+    };
+    return image();
+  });
+  f.model.modelId = "chat-model";
+  f.model.apiKey = "chat-secret";
+  f.model.apiEndpoint = "https://chat.example";
+  f.model.configuration.purposes[0].modelId = "image-01";
+  const result = await f.generate();
+  assert.equal(result.status, "completed");
+  assert.equal(result.modelId, "image-01");
+  assert.equal(submitted.body.model, "image-01");
+  assert.equal(submitted.url, "https://api.example.com/v1/image_generation");
+  assert.equal(submitted.key, "Bearer model-fixture-key");
+  delete f.model.configuration.purposes[0].connection.apiKey;
+  f.reset();
+  assert.equal((await f.generate()).status, "completed");
+  assert.notEqual(submitted.key, "Bearer chat-secret");
+  assert.equal(submitted.key, "Bearer");
 });
 
 test("video polling and collection remain inside the generic tool without model or Server polling", async (t) => {
@@ -501,7 +527,7 @@ test(
         }),
     );
     const f = await fixture(t);
-    f.model.configuration.connection.apiEndpoint = `http://127.0.0.1:${server.address().port}`;
+    f.model.configuration.purposes[0].connection.apiEndpoint = `http://127.0.0.1:${server.address().port}`;
     const { run: _run, ...context } = f.context;
     const tool = api.createMediaTool(context);
     const result = await tool.execute("real-worker", {

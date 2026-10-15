@@ -15,11 +15,13 @@ export const normalizeModelConfiguration = (
   const error = getModelConfigurationError(value);
   if (error) invalid(error);
   const configuration = structuredClone(value) as ModelConfiguration;
-  if (configuration.connection.apiKey)
-    configuration.connection.apiKey = configuration.connection.apiKey.trim();
-  if (configuration.connection.apiEndpoint)
-    configuration.connection.apiEndpoint =
-      configuration.connection.apiEndpoint.trim();
+  for (const purpose of configuration.purposes) {
+    if (purpose.modelId) purpose.modelId = purpose.modelId.trim();
+    if (purpose.connection) {
+      purpose.connection.apiKey = purpose.connection.apiKey?.trim();
+      purpose.connection.apiEndpoint = purpose.connection.apiEndpoint.trim();
+    }
+  }
   return configuration;
 };
 

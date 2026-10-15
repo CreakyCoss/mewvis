@@ -15,6 +15,7 @@ import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from "design-s
 import { RadioGroup, RadioGroupItem } from "design-system/components/ui/radio-group";
 import { cn } from "design-system/lib/utils";
 import { THINKING_LEVEL_PRESETS } from "../options";
+import { ConfirmDelete } from "./confirm-delete";
 
 export const getThinkingLevelsError = (thinking?: RuntimeModelThinking) => {
   const values = thinking?.levels.map((level) => level.value.trim()) ?? [];
@@ -157,17 +158,22 @@ const ThinkingLevelRow = ({
           </Command>
         </PopoverContent>
       </Popover>
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        className="size-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-        aria-label={`移除等级 ${index + 1}`}
-        title="移除等级"
-        onClick={onDelete}
+      <ConfirmDelete
+        title={`删除思考等级“${item.label || item.value || index + 1}”？`}
+        description="此等级将从可选思考等级中移除。"
+        onConfirm={onDelete}
       >
-        <Trash2 className="size-3.5" />
-      </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="size-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+          aria-label={`移除等级 ${index + 1}`}
+          title="移除等级"
+        >
+          <Trash2 className="size-3.5" />
+        </Button>
+      </ConfirmDelete>
     </div>
   );
 };

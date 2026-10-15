@@ -1,14 +1,14 @@
 {
   "version": 1,
-  "connection": {
-    "apiKey": "model-fixture-key",
-    "apiEndpoint": "https://api.example.com",
-    "apiFormat": "http-json"
-  },
   "purposes": [
     {
       "type": "image-generation",
       "adapter": "http-json",
+      "connection": {
+        "apiKey": "model-fixture-key",
+        "apiEndpoint": "https://api.example.com",
+        "apiFormat": "http-json"
+      },
       "input": ["text"],
       "output": ["image"],
       "inputSchema": {

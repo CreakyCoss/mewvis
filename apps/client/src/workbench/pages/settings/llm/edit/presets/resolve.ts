@@ -41,7 +41,7 @@ export function createEditorPresets(commonDefinition: CommonPreset, providerDefi
       if (!preset.id || templates.has(preset.id)) throw new Error(`模型模板 ID 无效或重复：${preset.id}`);
       if (!preset.label || !Number.isInteger(preset.version) || preset.version < 1)
         throw new Error(`模型模板元数据无效：${preset.id}`);
-      const error = getModelConfigurationError({ version: 1, connection: {}, purposes: [preset.purpose] });
+      const error = getModelConfigurationError({ version: 1, purposes: [preset.purpose] });
       if (error) throw new Error(`模型模板 ${preset.id} 无效：${error}`);
       templates.set(preset.id, {
         preset,

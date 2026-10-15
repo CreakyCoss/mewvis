@@ -27,12 +27,14 @@ import { MODEL_MODALITY_OPTIONS, MODEL_OPERATION_OPTIONS } from "../options";
 import { getThinkingLevelsError } from "./thinking-levels";
 import { applyModelDefaults, createModelConfig } from "./utils";
 import { initialModelConfiguration, suggestPurpose } from "./model/configuration";
-import { Choice, EditorBuffers, Field, JsonField, useEditorBuffers } from "./model/fields";
+import { EditorBuffers, JsonField, useEditorBuffers } from "./model/fields";
 import { RequestEditor } from "./model/request";
 import { ParametersEditor } from "./model/parameters";
 import { ResponseEditor } from "./model/response";
 import { CallPreview } from "./model/preview";
 import { ChatParameters } from "./model/chat";
+import { PurposeConnection } from "./model/connection";
+import { ConfirmDelete } from "./confirm-delete";
 import { editorPresets } from "./presets";
 
 type ModelEditDialogProps = {
@@ -56,6 +58,7 @@ function ModelEditor({
   const configuration = draft.configuration!;
   const [selectedType, setSelectedType] = useState(configuration.purposes[0]?.type ?? "chat");
   const [addOpen, setAddOpen] = useState(false);
+  const [capabilitiesOpen, setCapabilitiesOpen] = useState(false);
   const [tab, setTab] = useState("request");
   const navigation = useRef<HTMLDivElement>(null);
   const buffers = useEditorBuffers();
@@ -66,13 +69,6 @@ function ModelEditor({
     updateConfiguration({
       purposes: configuration.purposes.map((purpose) => (purpose.type === selected.type ? next : purpose)),
     });
-  const connection = configuration.connection;
-  const updateConnection = (key: "apiKey" | "apiEndpoint" | "apiFormat", value: string) => {
-    const next = { ...connection };
-    if (!value || value === "inherit") delete next[key];
-    else Object.assign(next, { [key]: value });
-    updateConfiguration({ connection: next });
-  };
   const labels = (values: string[]) =>
     values.map((value) => MODEL_MODALITY_OPTIONS.find((option) => option.value === value)?.label ?? value).join("、") ||
     "未设置";
@@ -111,49 +107,6 @@ function ModelEditor({
           />
         </div>
       </div>
-      <details className="mt-3 rounded-lg border border-border/70 px-3 py-2.5">
-        <summary className="cursor-pointer text-xs font-medium">
-          连接设置{" "}
-          <span className="ml-2 font-normal text-muted-foreground">
-            {Object.keys(connection).length ? "模型单独设置" : "继承 Provider"}
-          </span>
-        </summary>
-        <div className="grid gap-3 pt-3 sm:grid-cols-2">
-          <Field label="请求地址（可选）" hint="留空继承 Provider，可填写完整的服务基础地址。">
-            <Input
-              className="h-8 font-mono text-xs"
-              aria-label="模型请求地址"
-              placeholder={provider.apiEndpoint || "https://api.example.com"}
-              value={connection.apiEndpoint ?? ""}
-              onChange={(event) => updateConnection("apiEndpoint", event.currentTarget.value.trim())}
-            />
-          </Field>
-          <Field label="API Key（可选）" hint="留空继承 Provider。">
-            <Input
-              className="h-8 font-mono text-xs"
-              aria-label="模型 API Key"
-              type="password"
-              autoComplete="new-password"
-              placeholder={provider.apiKey ? "使用 Provider Key" : "未设置"}
-              value={connection.apiKey ?? ""}
-              onChange={(event) => updateConnection("apiKey", event.currentTarget.value.trim())}
-            />
-          </Field>
-          <div className="sm:col-span-2">
-            <Field label="默认协议">
-              <Choice
-                label="模型协议"
-                value={connection.apiFormat ?? "inherit"}
-                options={[
-                  { value: "inherit", label: `继承 Provider · ${editorPresets.getApiFormatLabel(provider.apiFormat)}` },
-                  ...editorPresets.protocols,
-                ]}
-                onChange={(value) => updateConnection("apiFormat", value)}
-              />
-            </Field>
-          </div>
-        </div>
-      </details>
       <div className="mt-4 flex min-w-0 items-center gap-1 border-b border-border/70 pb-2">
         <Button
           type="button"
@@ -230,25 +183,40 @@ function ModelEditor({
               输入：{labels(selected.input)}
               <span className="mx-2 text-border">/</span>输出：{labels(selected.output)}
             </p>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="size-7 shrink-0 text-muted-foreground hover:text-destructive"
-              aria-label="删除当前用途"
-              disabled={configuration.purposes.length <= 1}
-              onClick={() => {
-                buffers.clear(`${selected.type}-`);
-                const purposes = configuration.purposes.filter((purpose) => purpose.type !== selected.type);
-                updateConfiguration({ purposes });
-                setSelectedType(purposes[0].type);
-              }}
-            >
-              <Trash2 className="size-3.5" />
-            </Button>
+            <div className="flex shrink-0 items-center gap-3">
+              <Button
+                type="button"
+                variant="ghost"
+                className="h-7 px-0 text-[11px] text-primary hover:bg-transparent"
+                aria-expanded={capabilitiesOpen}
+                onClick={() => setCapabilitiesOpen((open) => !open)}
+              >
+                编辑能力
+              </Button>
+              <ConfirmDelete
+                title={`删除“${MODEL_OPERATION_OPTIONS.find((option) => option.value === selected.type)?.label}”用途？`}
+                description="此用途的连接、请求模板、参数和返回处理配置将一并移除。"
+                onConfirm={() => {
+                  buffers.clear(`${selected.type}-`);
+                  const purposes = configuration.purposes.filter((purpose) => purpose.type !== selected.type);
+                  updateConfiguration({ purposes });
+                  setSelectedType(purposes[0].type);
+                }}
+              >
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="size-7 shrink-0 text-muted-foreground hover:text-destructive"
+                  aria-label="删除当前用途"
+                  disabled={configuration.purposes.length <= 1}
+                >
+                  <Trash2 className="size-3.5" />
+                </Button>
+              </ConfirmDelete>
+            </div>
           </div>
-          <details className="mt-1 mb-3">
-            <summary className="cursor-pointer text-[11px] font-medium text-primary">编辑能力</summary>
+          {capabilitiesOpen && (
             <div className="mt-2 space-y-3 rounded-lg border border-border/70 p-3">
               {(["input", "output"] as const).map((key) => (
                 <div key={key} className="flex flex-wrap items-center gap-x-5 gap-y-2">
@@ -305,16 +273,6 @@ function ModelEditor({
                 />
               )}
             </div>
-          </details>
-          {selected.adapter === "http-json" && (
-            <p className="mb-3 rounded-lg bg-muted/25 px-3 py-2 text-[11px] leading-5 text-muted-foreground">
-              此用途的配置可保存和预览；执行服务尚未接入。
-            </p>
-          )}
-          {selected.adapter === "native" && connection.apiFormat === "http-json" && (
-            <p className="mb-3 text-xs text-destructive">
-              原生对话需要选择对话协议；HTTP / JSON 模板请在请求配置中切换。
-            </p>
           )}
           <Tabs value={tab} onValueChange={setTab} className="gap-0">
             <TabsList
@@ -333,8 +291,16 @@ function ModelEditor({
                 </TabsTrigger>
               ))}
             </TabsList>
-            <TabsContent value="request" className="pt-4">
-              <RequestEditor key={selected.type} purpose={selected} onChange={updatePurpose} />
+            <TabsContent value="request" className="space-y-5 pt-4">
+              <PurposeConnection provider={provider} model={draft} purpose={selected} onChange={updatePurpose} />
+              <div className="border-t border-border/70 pt-4">
+                <RequestEditor
+                  key={selected.type}
+                  purpose={selected}
+                  defaultApiFormat={provider.apiFormat}
+                  onChange={updatePurpose}
+                />
+              </div>
             </TabsContent>
             <TabsContent value="parameters" className="pt-4">
               {selected.adapter === "native" ? (
@@ -434,26 +400,31 @@ export const ModelEditDialog = ({
             <EditorBuffers onError={setJsonError}>
               <ModelEditor provider={provider} draft={draft} setDraft={setDraft} />
             </EditorBuffers>
+          </div>
+          <div className="shrink-0 border-t border-border/70 bg-muted/10 px-5 py-3.5 sm:px-6">
             {error && (
-              <p className="mt-4 text-xs text-destructive" role="alert">
+              <p className="mb-3 text-xs text-destructive" role="alert">
                 {error}
               </p>
             )}
-          </div>
-          <div className="shrink-0 border-t border-border/70 bg-muted/10 px-5 py-3.5 sm:px-6">
             <DialogFooter className="flex-row items-center justify-between sm:justify-between">
               <div className="min-w-0">
                 {model && onDelete ? (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 px-0 text-xs text-muted-foreground hover:bg-transparent hover:text-destructive"
-                    onClick={onDelete}
+                  <ConfirmDelete
+                    title={`删除“${model.modelName || model.modelId}”？`}
+                    description="此模型及其全部用途配置将从供应商中移除，更改随供应商配置保存。"
+                    onConfirm={onDelete}
                   >
-                    <Trash2 className="size-3.5" />
-                    删除模型
-                  </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 px-0 text-xs text-muted-foreground hover:bg-transparent hover:text-destructive"
+                    >
+                      <Trash2 className="size-3.5" />
+                      删除模型
+                    </Button>
+                  </ConfirmDelete>
                 ) : (
                   <span className="hidden text-[11px] text-muted-foreground sm:block">更改随供应商配置保存</span>
                 )}

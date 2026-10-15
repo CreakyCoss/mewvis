@@ -28,6 +28,7 @@ import {
   buildModelRequest,
   parseModelResponse,
   readJsonPointer,
+  resolveModelConnection,
 } from "@mewvis/chat-contracts/model-configuration";
 import type { ModelConfiguration, ModelPurpose } from "@mewvis/chat-contracts";
 import { editorPresets } from "../../src/workbench/pages/settings/llm/edit/presets";
@@ -203,10 +204,7 @@ test("runtime IDs and capabilities are independent of any editor model catalog",
 });
 
 const imagePurpose = () => editorPresets.instantiateTemplate("minimax-image-01", "image-generation");
-const configuration = (
-  purposes: ModelPurpose[],
-  connection: ModelConfiguration["connection"] = {},
-): ModelConfiguration => ({ version: 1, connection, purposes });
+const configuration = (purposes: ModelPurpose[]): ModelConfiguration => ({ version: 1, purposes });
 
 test("all request presets validate and preserve typed template values", () => {
   for (const preset of editorPresets.listTemplates())
@@ -333,23 +331,35 @@ test("response extraction supports arrays, mixed outputs, business failures and 
   );
 });
 
-test("purpose-specific modalities stay isolated and model connection overrides reach native chat", () => {
+test("purpose connections and model IDs resolve independently before reaching runtime", () => {
   const chat = createModelPurpose("chat");
+  chat.modelId = "chat-request-id";
+  chat.connection = {
+    apiKey: "chat-key",
+    apiEndpoint: "https://chat.example/v1",
+    apiFormat: "openai-responses",
+  };
+  const image = imagePurpose();
+  image.modelId = "image-01";
   const configured = model({
-    configuration: configuration([chat, imagePurpose()], {
-      apiKey: "model-key",
-      apiEndpoint: "https://model.example/v1",
-      apiFormat: "openai-responses",
-    }),
+    configuration: configuration([chat, image]),
   });
-  const p = provider({ apiKey: "provider-key", models: [configured] });
+  const p = provider({ apiKey: "provider-key", apiEndpoint: "https://provider.example", models: [configured] });
   const input = createRuntimeModelInput(p, configured);
-  assert.equal(input.apiKey, "model-key");
-  assert.equal(input.apiEndpoint, "https://model.example/v1");
+  assert.equal(input.modelId, "chat-request-id");
+  assert.equal(input.catalogModelId, "chat-request-id");
+  assert.equal(input.apiKey, "chat-key");
+  assert.equal(input.apiEndpoint, "https://chat.example/v1");
   assert.equal(input.apiFormat, "openai-responses");
-  assert.deepEqual(input.configuration, configured.configuration);
+  assert.equal(input.configuration?.purposes[1].modelId, "image-01");
+  assert.deepEqual(input.configuration?.purposes[1].connection, {
+    apiKey: "provider-key",
+    apiEndpoint: "https://provider.example",
+    apiFormat: "http-json",
+  });
+  assert.equal(configured.configuration?.purposes[1].connection, undefined);
   assert.notEqual(input.configuration, configured.configuration);
-  const submitted = structuredClone(configured.configuration);
+  const submitted = structuredClone(input.configuration);
   configured.configuration!.purposes[1].parameters.length = 0;
   assert.deepEqual(input.configuration, submitted);
   assert.deepEqual(getModelCapabilities(p, configured).available.input, ["text"]);
@@ -361,6 +371,38 @@ test("purpose-specific modalities stay isolated and model connection overrides r
   assert.deepEqual(buildRuntimeModelInputs({ providers: [provider({ models: [media] })] }), {});
   chat.adapter = "http-json";
   assert.equal(getModelCapabilities(p, model({ configuration: configuration([chat]) })).available.operations.length, 0);
+});
+
+test("independent purpose connections never inherit omitted credentials and invalid connections cannot be saved", () => {
+  const p = provider({ apiKey: "provider-secret", apiEndpoint: "https://provider.example" });
+  const image = imagePurpose();
+  image.connection = { apiEndpoint: "https://images.example", apiFormat: "http-json" };
+  assert.deepEqual(
+    resolveModelConnection(image, {
+      apiEndpoint: p.apiEndpoint!,
+      apiKey: p.apiKey!,
+      apiFormat: p.apiFormat,
+    }),
+    image.connection,
+  );
+  const input = createRuntimeModelInput(
+    p,
+    model({ configuration: configuration([createModelPurpose("chat"), image]) }),
+  );
+  assert.equal(input.configuration?.purposes[1].connection?.apiKey, undefined);
+  assert.equal(getModelConfigurationError(input.configuration), "");
+  image.connection.apiEndpoint = "file:///private/config.db";
+  assert.match(getModelConfigurationError(configuration([image])), /请求地址/);
+  image.connection.apiEndpoint = "https://images.example";
+  image.connection.apiFormat = "openai-responses";
+  assert.match(getModelConfigurationError(configuration([image])), /HTTP \/ JSON/);
+  image.connection.apiFormat = "http-json";
+  image.modelId = " ";
+  assert.match(getModelConfigurationError(configuration([image])), /请求模型 ID/);
+  assert.match(
+    getModelConfigurationError({ version: 1, connection: {}, purposes: [createModelPurpose("chat")] }),
+    /结构无效/,
+  );
 });
 
 test("supplier definitions share one processing path and saved configurations are independent snapshots", () => {
