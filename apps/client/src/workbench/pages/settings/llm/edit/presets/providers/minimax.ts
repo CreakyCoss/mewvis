@@ -1,4 +1,13 @@
-import type { ProviderPreset } from "../types";
+import type { ModelMetadataPreset, ProviderPreset } from "../types";
+
+const textModelsSource = "https://platform.minimax.cn/docs/api-reference/text-anthropic-api";
+// Output ceilings: https://platform.minimax.cn/docs/api-reference/text-chat-openai#body-max-completion-tokens
+const multimodalDefaults = {
+  sourceUrl: textModelsSource,
+  limits: { contextWindow: 1000000, maxTokens: 524288 },
+  capabilities: { input: ["text", "image", "video"] },
+} satisfies Omit<ModelMetadataPreset, "modelIds">;
+const thinkingLevels = ["low", "medium", "high", "xhigh", "max"];
 
 export const minimaxPreset: ProviderPreset = {
   id: "minimax-cn",
@@ -8,6 +17,27 @@ export const minimaxPreset: ProviderPreset = {
   apis: [
     { apiFormat: "anthropic-messages", apiEndpoint: "https://api.minimaxi.com/anthropic" },
     { apiFormat: "openai-completions", apiEndpoint: "https://api.minimaxi.com/v1" },
+  ],
+  models: [
+    {
+      modelIds: [
+        "MiniMax-M2",
+        "MiniMax-M2.1",
+        "MiniMax-M2.1-highspeed",
+        "MiniMax-M2.5",
+        "MiniMax-M2.5-highspeed",
+        "MiniMax-M2.7",
+        "MiniMax-M2.7-highspeed",
+      ],
+      sourceUrl: textModelsSource,
+      limits: { contextWindow: 204800, maxTokens: 204800 },
+    },
+    { modelIds: ["MiniMax-M3"], ...multimodalDefaults },
+    {
+      modelIds: ["MiniMax-M3.1-Flash-Preview"],
+      ...multimodalDefaults,
+      thinking: { "anthropic-messages": thinkingLevels, "openai-completions": thinkingLevels },
+    },
   ],
   templates: [
     {

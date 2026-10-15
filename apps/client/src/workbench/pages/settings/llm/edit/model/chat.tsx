@@ -22,10 +22,10 @@ export function ChatParameters({
 }) {
   const thinking = getModelThinking(provider, model);
   const format = getModelConnection(provider, model).apiFormat;
-  const editorDefaults = editorPresets.createModelDefaults({
-    ...provider,
-    apiFormat: format && format !== "http-json" ? format : provider.apiFormat,
-  });
+  const editorDefaults = editorPresets.createModelDefaults(
+    { ...provider, apiFormat: format && format !== "http-json" ? format : provider.apiFormat },
+    { modelId: model.modelId },
+  );
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">

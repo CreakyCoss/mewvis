@@ -105,23 +105,31 @@ export function createEditorPresets(commonDefinition: CommonPreset, providerDefi
       "",
     createModelDefaults: (
       provider?: { provider: string; apiFormat: RuntimeApiFormat },
-      discovered?: DiscoveredProviderModel,
+      discovered?: Pick<DiscoveredProviderModel, "modelId"> & Partial<DiscoveredProviderModel>,
     ) => {
-      const capabilities = {
-        ...structuredClone(common.modelDefaults.capabilities),
-        ...structuredClone(discovered?.capabilities),
-      };
-      const limits = { ...common.modelDefaults.limits, ...discovered?.limits };
+      const supplier = provider ? findProvider(provider.provider) : undefined;
+      const modelDefaults = supplier?.models?.find((model) =>
+        model.modelIds.includes(discovered?.modelId.trim() ?? ""),
+      );
+      const capabilities = structuredClone({
+        ...common.modelDefaults.capabilities,
+        ...modelDefaults?.capabilities,
+        ...discovered?.capabilities,
+      });
+      const limits = { ...common.modelDefaults.limits, ...modelDefaults?.limits, ...discovered?.limits };
       // Adjust only fallback values when a reported limit exceeds a generic default.
       if (limits.maxTokens > limits.contextWindow) {
         if (discovered?.limits?.contextWindow !== undefined) limits.maxTokens = limits.contextWindow;
         else limits.contextWindow = limits.maxTokens;
       }
+      const modelThinking = provider ? modelDefaults?.thinking?.[provider.apiFormat] : undefined;
       const thinking = discovered?.thinking
         ? createThinking(discovered.thinking.levels)
-        : provider
-          ? structuredClone(findProvider(provider.provider)?.thinking[provider.apiFormat] ?? null)
-          : null;
+        : modelThinking
+          ? createThinking(modelThinking)
+          : provider
+            ? structuredClone(supplier?.thinking[provider.apiFormat] ?? null)
+            : null;
       return { capabilities, limits, thinking: capabilities.reasoning ? thinking : null };
     },
     listTemplates: (type?: ModelPurpose["type"]) => findTemplates(type).map(({ preset }) => structuredClone(preset)),

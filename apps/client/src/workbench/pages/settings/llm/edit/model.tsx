@@ -249,10 +249,17 @@ export const ModelEditDialog = ({
   });
   const [jsonError, setJsonError] = useState("");
   const hasChat = getModelCapabilities(provider, draft).available.operations.includes("chat");
+  const effectiveLimits = {
+    ...editorPresets.createModelDefaults(provider, { modelId: draft.modelId }).limits,
+    ...draft.limits,
+  };
   const error =
     jsonError ||
     getModelConfigurationError(draft.configuration) ||
-    (hasChat ? getModelLimitsError(provider, draft) || getThinkingLevelsError(getModelThinking(provider, draft)) : "");
+    (hasChat
+      ? getModelLimitsError(provider, { ...draft, limits: effectiveLimits }) ||
+        getThinkingLevelsError(getModelThinking(provider, draft))
+      : "");
   const canConfirm = !!draft.modelId.trim() && !error;
   return (
     <Dialog
@@ -287,9 +294,7 @@ export const ModelEditDialog = ({
               ...draft,
               modelId,
               modelName: draft.modelName.trim() || modelId,
-              limits: hasChat
-                ? { ...editorPresets.createModelDefaults(provider).limits, ...draft.limits }
-                : draft.limits,
+              limits: hasChat ? effectiveLimits : draft.limits,
               thinking: draft.thinking
                 ? {
                     levels: draft.thinking.levels.map((level) => ({

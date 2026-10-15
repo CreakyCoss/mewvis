@@ -575,6 +575,96 @@ test("missing discovery fields use shared defaults and reported limits keep fall
   );
 });
 
+test("MiniMax imports fill documented model metadata before shared defaults", () => {
+  const p = applyProviderDefaults(createProviderConfig(true), "minimax-cn");
+  for (const modelId of [
+    "MiniMax-M2",
+    "MiniMax-M2.1",
+    "MiniMax-M2.1-highspeed",
+    "MiniMax-M2.5",
+    "MiniMax-M2.5-highspeed",
+    "MiniMax-M2.7",
+    "MiniMax-M2.7-highspeed",
+  ]) {
+    const imported = createModelConfig(p, { modelId, modelName: modelId });
+    assert.equal(imported.limits?.contextWindow, 204800, modelId);
+    assert.equal(imported.limits?.maxTokens, 204800, modelId);
+    assert.deepEqual(imported.capabilities?.input, ["text"]);
+    assert.equal(imported.thinking, null);
+    assert.equal(createRuntimeModelInput(p, imported).contextWindow, 204800);
+    assert.equal(createRuntimeModelInput(p, imported).maxTokens, 204800);
+  }
+  for (const modelId of ["MiniMax-M3", "MiniMax-M3.1-Flash-Preview"]) {
+    const added = appendDiscoveredModels(p, [{ modelId, modelName: modelId }]);
+    assert.equal(added.models[0].limits?.contextWindow, 1000000);
+    assert.equal(added.models[0].limits?.maxTokens, 524288);
+    assert.equal(createRuntimeModelInput(p, added.models[0]).maxTokens, 524288);
+    assert.deepEqual(added.models[0].capabilities?.input, ["text", "image", "video"]);
+    assert.equal(validateLlmSettingsConfig(normalizeLlmSettingsConfig({ providers: [added] })), "");
+  }
+  for (const apiFormat of ["anthropic-messages", "openai-completions"] as const) {
+    const imported = createModelConfig(
+      { ...p, apiFormat },
+      {
+        modelId: "MiniMax-M3.1-Flash-Preview",
+        modelName: "MiniMax-M3.1-Flash-Preview",
+      },
+    );
+    assert.deepEqual(
+      imported.thinking?.levels.map((level) => level.value),
+      ["low", "medium", "high", "xhigh", "max"],
+    );
+    assert.equal(imported.thinking?.defaultLevel, null);
+  }
+  const defaults = editorPresets.createModelDefaults(p, { modelId: "MiniMax-M2.7" });
+  defaults.limits.contextWindow = 1000;
+  defaults.limits.maxTokens = 100;
+  assert.equal(editorPresets.createModelDefaults(p, { modelId: "MiniMax-M2.7" }).limits.contextWindow, 204800);
+  assert.equal(editorPresets.createModelDefaults(p, { modelId: "MiniMax-M2.7" }).limits.maxTokens, 204800);
+});
+
+test("reported MiniMax metadata wins per field and unknown IDs do not inherit another model's defaults", () => {
+  const p = applyProviderDefaults(createProviderConfig(true), "minimax-cn");
+  const reported = createModelConfig(p, {
+    modelId: "MiniMax-M3.1-Flash-Preview",
+    modelName: "Reported",
+    limits: { maxTokens: 50000 },
+    capabilities: { input: ["text"], toolCalling: false },
+    thinking: { levels: [] },
+  });
+  assert.deepEqual(reported.limits, { contextWindow: 1000000, maxTokens: 50000 });
+  assert.deepEqual(reported.capabilities?.input, ["text"]);
+  assert.equal(reported.capabilities?.toolCalling, false);
+  assert.deepEqual(reported.thinking, { levels: [], defaultLevel: null });
+  const smaller = createModelConfig(p, {
+    modelId: "MiniMax-M2.7",
+    modelName: "Smaller gateway limit",
+    limits: { contextWindow: 4096 },
+  });
+  assert.deepEqual(smaller.limits, { contextWindow: 4096, maxTokens: 4096 });
+  const noReasoning = createModelConfig(p, {
+    modelId: "MiniMax-M3.1-Flash-Preview",
+    modelName: "No reasoning",
+    capabilities: { reasoning: false, input: [] },
+  });
+  assert.equal(noReasoning.thinking, null);
+  assert.deepEqual(noReasoning.capabilities?.input, []);
+  for (const [provider, modelId] of [
+    ["minimax-cn", "MiniMax-M2.7-custom"],
+    ["custom", "MiniMax-M2.7"],
+  ]) {
+    assert.equal(
+      createModelConfig({ ...p, provider }, { modelId, modelName: modelId }).limits?.contextWindow,
+      commonPreset.modelDefaults.limits.contextWindow,
+    );
+  }
+  assert.equal(
+    createModelConfig({ ...p, provider: "minimax" }, { modelId: "MiniMax-M2.7", modelName: "M2.7" }).limits
+      ?.contextWindow,
+    204800,
+  );
+});
+
 test("adding discovered models preserves existing user configurations and isolates multimodal purpose outputs", () => {
   const p = createProviderConfig(true);
   const existing = createModelConfig(p);

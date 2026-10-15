@@ -28,7 +28,7 @@ export interface CommonPreset {
   templates: readonly ModelPreset[];
 }
 
-/** One supplier owns its connection suggestions and all purpose templates. */
+/** One supplier owns its connection suggestions, documented model defaults and purpose templates. */
 export interface ProviderPreset {
   id: string;
   label: string;
@@ -36,7 +36,17 @@ export interface ProviderPreset {
   apis: { apiFormat: RuntimeApiFormat; apiEndpoint: string }[];
   idPrefixes?: readonly string[];
   thinking?: Partial<Record<RuntimeApiFormat, readonly string[]>>;
+  models?: readonly ModelMetadataPreset[];
   templates?: readonly ModelPreset[];
+}
+
+/** Exact model IDs only: unknown models keep the common defaults. */
+export interface ModelMetadataPreset {
+  modelIds: readonly string[];
+  sourceUrl: string;
+  limits?: RuntimeModelLimits;
+  capabilities?: Partial<RuntimeModelCapabilities>;
+  thinking?: Partial<Record<RuntimeApiFormat, readonly string[]>>;
 }
 
 /** Editor templates only. Saved model configuration and execution do not depend on this catalog. */

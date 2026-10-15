@@ -12,8 +12,11 @@
 | [Anthropic 模型列表](https://platform.claude.com/docs/en/api/models/list)                                       | 输入和输出 token 限制、图片输入、思考支持、各 effort 等级的支持情况                                     |
 | [Gemini 模型列表](https://ai.google.dev/api/models)                                                             | 输入和输出 token 限制、思考支持、生成方法；生成方法不用于猜测思考等级或具体输入输出模态                 |
 | [OpenRouter 模型列表](https://openrouter.ai/docs/api/api-reference/models/list-all-models-and-their-properties) | 上下文、输出限制、输入输出模态、思考与工具参数的支持情况；仅支持 reasoning 参数不代表返回了具体等级列表 |
+| [MiniMax 模型列表](https://platform.minimax.io/docs/api-reference/models/anthropic/list-models) | 标准返回为 ID、名称等基础信息，不包含上下文等能力元数据 |
 
-获取弹窗只展示接口返回的信息。添加新模型时，统一预设入口按字段将接口信息覆盖到可编辑的基础建议上；缺失字段才用预设补齐，不根据模型名称猜测能力。思考等级名称由通用定义补全，默认不选中等级；明确不支持思考时清除等级建议。同 ID 的已有模型不更新，保留用户的名称、参数和用途配置。
+获取弹窗只展示接口返回的信息。添加新模型时，统一预设入口按字段使用「接口返回 → 对应供应商的型号预设 → 通用默认值」的优先级补齐信息。型号预设只匹配明确维护的模型 ID，不通过前缀猜测未知型号的能力。思考等级名称由通用定义补全，默认不选中等级；明确不支持思考时清除等级建议。同 ID 的已有模型不更新，保留用户的名称、参数和用途配置；已有模型可在「可调参数」中使用「恢复基础限制」应用当前型号预设。
+
+MiniMax 型号预设参考[官方 Anthropic SDK 文档](https://platform.minimax.cn/docs/api-reference/text-anthropic-api)和 [Chat Completions 参数文档](https://platform.minimax.cn/docs/api-reference/text-chat-openai)：M2、M2.1、M2.5、M2.7（含文档列出的 highspeed 型号）上下文和最大输出均为 204,800 tokens；M3 和 M3.1-Flash-Preview 上下文为 1,000,000 tokens、最大输出为 524,288 tokens，并支持文字、图片和视频输入。M3.1-Flash-Preview 另提供五档思考深度建议。最大输出采用接口文档的上限，区别于文档推荐的请求输出预算（M2 系列 65,536、M3 系列 131,072）；思考内容也计入输出预算，用户可按需下调。
 
 只返回部分 token 限制时，基础默认值会调整到有效范围。例如接口返回上下文 4096、未返回最大输出，基础最大输出会降到 4096。无效数字或相互矛盾的输出上限会忽略。输出模态可映射到对应生成用途；合同暂不支持的模态不伪装成文字对话。
 
@@ -38,7 +41,7 @@
 预设由设置页面自行维护，目录为 `apps/client/src/workbench/pages/settings/llm/edit/presets/`：
 
 - `common.ts` 集中定义默认供应商、通用协议、用途、输入输出类型、思考等级名称、基础能力与限制，以及通用对话模板。
-- `providers/` 按供应商拆分。每个文件声明一个完整的 `ProviderPreset`，同时维护连接信息、思考等级值和该供应商的用途模板。
+- `providers/` 按供应商拆分。每个文件声明一个完整的 `ProviderPreset`，同时维护连接信息、思考等级值、`models` 型号元数据（附官方来源）和用途模板。
 - `types.ts` 定义原始预设类型，`resolve.ts` 的 `createEditorPresets` 统一处理通用定义和供应商定义，补全等级名称、合并协议选项、校验模板并建立匹配关系。
 - 根 `index.ts` 注册各供应商，通过统一处理方法生成 `editorPresets`。编辑页面只使用这个入口获取连接建议、创建基础模型配置和应用用途模板。
 
