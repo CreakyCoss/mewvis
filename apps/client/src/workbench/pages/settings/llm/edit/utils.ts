@@ -144,10 +144,6 @@ export const validateLlmSettingsConfig = (draft: LlmSettingsConfig) => {
       return "请填写 API Endpoint";
     }
 
-    if (provider.models.length === 0) {
-      return "每个 Provider 至少需要一个模型";
-    }
-
     for (const model of provider.models) {
       if (!model.modelId.trim()) {
         return "模型 ID 不能为空";

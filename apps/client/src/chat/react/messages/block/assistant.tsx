@@ -23,7 +23,7 @@ export const AssistantBlocks = ({
     (block) =>
       block.type === "text" ||
       (block.type === "thinking" && showThinkingProcess) ||
-      (block.type === "tool" && showToolCallProcess),
+      (block.type === "tool" && (showToolCallProcess || block.media)),
   );
   const activeBlockId = isRunning ? blocks.at(-1)?.id : undefined;
 
@@ -44,7 +44,7 @@ export const AssistantBlocks = ({
         }
 
         if (block.type === "tool") {
-          return <ToolBlock key={block.id} block={block} />;
+          return <ToolBlock key={block.id} block={block} showProcess={showToolCallProcess} />;
         }
 
         return <MarkdownTextBlock key={block.id} block={block} />;

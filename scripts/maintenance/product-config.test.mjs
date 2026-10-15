@@ -181,3 +181,55 @@ test("checking stale outputs is read-only, and invalid directory names are rejec
   assert.throws(() => sync(), /Invalid appDataDirName/);
   assert.equal(await readFile(target, "utf8"), before);
 });
+
+test("OpenRPC metadata synchronization survives method insertion, removal and reordering", async (t) => {
+  const { directory, sync, readJson, writeConfig } = await fixture(t);
+  const file = "apps/agent-runtime/protocol/v1/openrpc.json";
+  const document = await readJson(file);
+  const commandKey = `x-${config.namespace}-command`;
+  const directionKey = `x-${config.namespace}-direction`;
+  const paramsKey = `x-${config.namespace}-params-schema`;
+  const extraCommand = structuredClone(
+    document.methods.find((method) => method[commandKey]),
+  );
+  extraCommand.name = "test/new-command";
+  const extraNotification = structuredClone(
+    document.methods.find((method) => method[directionKey]),
+  );
+  extraNotification.name = "test/new-notification";
+  document.methods = [
+    extraNotification,
+    ...document.methods.slice(1).reverse(),
+    extraCommand,
+  ];
+  const expected = structuredClone(document.methods);
+  await writeFile(join(directory, file), JSON.stringify(document));
+  await writeConfig({ ...config, namespace: "harbor" });
+  sync();
+  sync("--check");
+  const renamed = await readJson(file);
+  assert.deepEqual(
+    renamed.methods.map((method) => method.name),
+    expected.map((method) => method.name),
+  );
+  for (const [index, method] of renamed.methods.entries()) {
+    for (const suffix of ["command", "params-schema", "direction"]) {
+      const previous = `x-${config.namespace}-${suffix}`;
+      assert.deepEqual(method[`x-harbor-${suffix}`], expected[index][previous]);
+      assert.equal(method[previous], undefined);
+    }
+  }
+  assert.equal(renamed.methods[0]["x-harbor-command"], undefined);
+  assert.deepEqual(
+    renamed.methods.at(-1)["x-harbor-command"],
+    extraCommand[commandKey],
+  );
+  assert.equal(
+    renamed.methods[0]["x-harbor-params-schema"],
+    extraNotification[paramsKey],
+  );
+  await writeConfig(config);
+  sync();
+  sync("--check");
+  assert.deepEqual((await readJson(file)).methods, expected);
+});

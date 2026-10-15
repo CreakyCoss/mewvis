@@ -5,6 +5,8 @@ import { sessionKey, type ChatSession } from "../core";
 import type { ChatInputFile } from "../react";
 import type { DesktopChatService, DesktopSessionInput, DesktopRecordView, ReadOnlyChatHistory } from "./service";
 import { useDesktopApprovals } from "./approvals";
+import { createApplicationFileClient } from "@mewvis/app-sdk/files";
+import { createBackendApplicationFileTransport } from "@/api/applications/files";
 
 const Context = createContext<DesktopChatService | null>(null);
 export function DesktopChatEnvironment({
@@ -16,6 +18,23 @@ export function DesktopChatEnvironment({
   files?: (session: ChatSession) => ChatInputFile[];
 }>) {
   const approvals = useDesktopApprovals(service);
+  const fileTransport = useRef<ReturnType<typeof createBackendApplicationFileTransport> | undefined>(undefined);
+  const filePreview = useMemo(() => {
+    const client = () =>
+      createApplicationFileClient((fileTransport.current ??= createBackendApplicationFileTransport()));
+    return {
+      open: (...args: Parameters<ReturnType<typeof client>["preview"]["open"]>) => client().preview.open(...args),
+      openDialog: (...args: Parameters<ReturnType<typeof client>["preview"]["openDialog"]>) =>
+        client().preview.openDialog(...args),
+    };
+  }, []);
+  useEffect(
+    () => () => {
+      fileTransport.current?.dispose();
+      fileTransport.current = undefined;
+    },
+    [],
+  );
   const persistence = useMemo(
     () => (session: ChatSession, viewId: string) => (viewId === "main" ? service.viewPersistence(session) : undefined),
     [service],
@@ -25,6 +44,7 @@ export function DesktopChatEnvironment({
       <ChatEnvironment
         persistence={persistence}
         files={files}
+        filePreview={filePreview}
         renderBeforeComposer={(session) => {
           const target = service.getLocation(session);
           return (

@@ -203,22 +203,20 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
   };
 
   const saveProviders = async (nextProviders: LlmProviderConfig[]) => {
-    const config = normalizeLlmSettingsConfig({ providers: nextProviders });
-    const validationError = validateLlmSettingsConfig(config);
-
-    if (validationError) {
-      setError(validationError);
-      return false;
-    }
-
     setIsSaving(true);
     setError("");
 
     try {
+      const config = normalizeLlmSettingsConfig({ providers: nextProviders });
+      const validationError = validateLlmSettingsConfig(config);
+      if (validationError) {
+        setError(validationError);
+        return false;
+      }
       await saveLlmSettings(config);
       return true;
     } catch (caught) {
-      setError(String(caught));
+      setError(caught instanceof Error ? caught.message : String(caught));
       return false;
     } finally {
       setIsSaving(false);
@@ -302,15 +300,6 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
               }}
             >
               <div className="min-h-0 max-h-[calc(100vh-12rem)] overflow-y-auto">
-                {error && (
-                  <div
-                    role="alert"
-                    className="mx-6 mt-5 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2.5 text-sm text-destructive"
-                  >
-                    {error}
-                  </div>
-                )}
-
                 <section className="px-6 py-5" aria-labelledby="llm-connection-heading">
                   <h3 id="llm-connection-heading" className="mb-4 text-sm font-semibold">
                     连接信息
@@ -577,45 +566,52 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
                 </section>
               </div>
 
-              <DialogFooter className="shrink-0 border-t border-border/70 bg-card/35 px-6 py-4 sm:justify-between">
-                <div className="flex min-w-0 flex-wrap items-center gap-2 sm:max-w-[65%]">
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    className="h-7 gap-1 bg-primary/10 px-2 text-primary hover:bg-primary/15"
-                    disabled={isTestingConnection || isSaving}
-                    onClick={() => void testConnection()}
-                  >
-                    {isTestingConnection ? (
-                      <Loader2 className="size-3 animate-spin motion-reduce:animate-none" />
-                    ) : (
-                      <Zap className="size-3" />
-                    )}
-                    <span>{isTestingConnection ? "测速中…" : "测速"}</span>
-                  </Button>
-                  {connectionTest && (
-                    <p
-                      role={connectionTest.type === "error" ? "alert" : "status"}
-                      className={`min-w-0 break-words text-xs ${connectionTest.type === "success" ? "text-success" : "text-destructive"}`}
+              <div className="shrink-0 border-t border-border/70 bg-card/35 px-6 py-4">
+                {error && (
+                  <p role="alert" className="mb-3 break-words text-xs text-destructive">
+                    {error}
+                  </p>
+                )}
+                <DialogFooter className="sm:justify-between">
+                  <div className="flex min-w-0 flex-wrap items-center gap-2 sm:max-w-[65%]">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="h-7 gap-1 bg-primary/10 px-2 text-primary hover:bg-primary/15"
+                      disabled={isTestingConnection || isSaving}
+                      onClick={() => void testConnection()}
                     >
-                      {connectionTest.message}
-                    </p>
-                  )}
-                </div>
-                <div className="flex justify-end gap-2">
-                  <Button type="button" variant="outline" onClick={() => handleOpenChange(false)} disabled={isSaving}>
-                    取消
-                  </Button>
-                  <Button type="submit" disabled={isSaving}>
-                    {isSaving ? (
-                      <Loader2 className="size-4 animate-spin motion-reduce:animate-none" />
-                    ) : (
-                      <Save className="size-4" />
+                      {isTestingConnection ? (
+                        <Loader2 className="size-3 animate-spin motion-reduce:animate-none" />
+                      ) : (
+                        <Zap className="size-3" />
+                      )}
+                      <span>{isTestingConnection ? "测速中…" : "测速"}</span>
+                    </Button>
+                    {connectionTest && (
+                      <p
+                        role={connectionTest.type === "error" ? "alert" : "status"}
+                        className={`min-w-0 break-words text-xs ${connectionTest.type === "success" ? "text-success" : "text-destructive"}`}
+                      >
+                        {connectionTest.message}
+                      </p>
                     )}
-                    <span>{isSaving ? "正在保存" : "保存配置"}</span>
-                  </Button>
-                </div>
-              </DialogFooter>
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <Button type="button" variant="outline" onClick={() => handleOpenChange(false)} disabled={isSaving}>
+                      取消
+                    </Button>
+                    <Button type="submit" disabled={isSaving}>
+                      {isSaving ? (
+                        <Loader2 className="size-4 animate-spin motion-reduce:animate-none" />
+                      ) : (
+                        <Save className="size-4" />
+                      )}
+                      <span>{isSaving ? "正在保存" : "保存配置"}</span>
+                    </Button>
+                  </div>
+                </DialogFooter>
+              </div>
             </form>
           )}
         </DialogContent>

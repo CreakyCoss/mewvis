@@ -16,6 +16,7 @@ import {
   SendResult,
   ChatPendingQuestion,
 } from "@mewvis/chat-contracts";
+import { ApplicationFileClient } from "@mewvis/app-sdk/files";
 import {
   ApplicationChatOpenInput,
   ApplicationChatSession,
@@ -46,6 +47,7 @@ type Environment = {
     viewId: string,
   ) => ChatViewPersistence | undefined;
   renderBeforeComposer?: (session: ChatSession) => ReactNode;
+  filePreview?: Pick<ApplicationFileClient["preview"], "open" | "openDialog">;
 };
 declare function ChatEnvironment({
   children,

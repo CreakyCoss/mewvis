@@ -122,9 +122,13 @@ export async function createChatSession(options: ChatSessionOptions): Promise<Ch
     for (const subtask of turn.subtasks.values()) {
       if (subtask.finished) continue;
       subtask.finished = true;
-      changeMessage(turn, (message) => failChatMessage(message, error ?? "子任务未正常结束"), subtask.messageId);
+      changeMessage(
+        turn,
+        (message) => failChatMessage(message, error ?? "子任务未正常结束", turn.cancelled),
+        subtask.messageId,
+      );
     }
-    if (error) changeMessage(turn, (message) => failChatMessage(message, error));
+    if (error) changeMessage(turn, (message) => failChatMessage(message, error, turn.cancelled));
     else
       changeMessage(turn, (message) =>
         applyChatMessageEvent(message, agentRuntimeEvents.done({ taskId: turn.taskId, text: "" })),

@@ -12,6 +12,7 @@ import {
 } from "../../src/chat/core";
 import { AgentRuntimeEventType as E } from "../../src/agent-client/wire";
 import type { AgentClientAgentEvent } from "../../src/agent-client/contracts";
+import { readMediaResult } from "../../src/chat/core/media";
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
 function deferred<T = void>() {
   let resolve!: (value: T) => void;
@@ -142,6 +143,138 @@ test("stream, thinking, replacement, tool events, task identity and terminal flu
   assert.equal(message.blocks.at(-1)?.content, "answer");
   assert.equal(message.blocks[0].content, "reasoned");
   assert.equal(message.blocks[1].status, "done");
+  await session.close();
+});
+test("media results retain all file metadata beyond truncated logs and survive saved history", async () => {
+  const { session, calls, emit } = await setup();
+  await session.send({ text: "生成一些图片" });
+  emit({
+    type: E.ToolExecutionStart,
+    toolCallId: "media",
+    toolName: "generate_media",
+    args: { action: "generate", purpose: "image-generation" },
+  });
+  const outputs = Array.from({ length: 30 }, (_, i) => ({
+    type: "image",
+    filePath: `/workspace/generated-media/${i}.png`,
+    size: i + 100,
+    resourceUrl: "https://not-persisted.example",
+    value: "not-persisted-data",
+  }));
+  emit({
+    type: E.ToolExecutionEnd,
+    toolCallId: "media",
+    toolName: "generate_media",
+    isError: false,
+    result: {
+      content: [{ type: "text", text: "diagnostics ".repeat(400) }],
+      details: { status: "completed", purpose: "image-generation", outputs },
+    },
+  });
+  emit({ type: E.Done, text: "图片已保存" });
+  await session.flush();
+  const mediaBlock = session.getSnapshot().messages[1].blocks.find((block: any) => block.type === "tool");
+  assert.equal(mediaBlock.media.outputs.length, 30);
+  assert.match(mediaBlock.events.at(-1).content, /已省略/);
+  assert.doesNotMatch(JSON.stringify(mediaBlock.media), /resourceUrl|not-persisted/);
+  const saved = calls.saved.at(-1);
+  const restored = await setup({ storage: { load: async () => JSON.parse(JSON.stringify(saved)) } });
+  assert.deepEqual(
+    restored.session.getSnapshot().messages[1].blocks[0].media,
+    JSON.parse(JSON.stringify(mediaBlock.media)),
+  );
+  await restored.session.close();
+  await session.close();
+});
+test("media business failures show errors despite a successful tool envelope and preserve partial files", async () => {
+  const { session, emit } = await setup();
+  await session.send({ text: "生成视频" });
+  emit({
+    type: E.ToolExecutionStart,
+    toolCallId: "media",
+    toolName: "generate_media",
+    args: { action: "generate", purpose: "video-generation" },
+  });
+  const output = { type: "video", filePath: "/workspace/result.mp4", size: 1024 };
+  emit({
+    type: E.ToolExecutionUpdate,
+    toolCallId: "media",
+    toolName: "generate_media",
+    partialResult: { details: { stage: "collecting", message: "正在保存", outputs: [output, output] } },
+  });
+  emit({
+    type: E.ToolExecutionEnd,
+    toolCallId: "media",
+    toolName: "generate_media",
+    isError: false,
+    result: { details: { status: "failed", error: "下载失败", outputs: [] } },
+  });
+  emit({ type: E.Done, text: "已有文件保留" });
+  const block = session.getSnapshot().messages[1].blocks[0];
+  assert.equal(block.status, "error");
+  assert.equal(block.media.status, "failed");
+  assert.equal(block.media.purpose, "video-generation");
+  assert.equal(block.media.error, "下载失败");
+  assert.deepEqual(block.media.outputs, [output]);
+  await session.close();
+});
+test("stopping media generation finalizes progress and keeps completed artifacts", async () => {
+  const { session, emit } = await setup();
+  await session.send({ text: "生成图片" });
+  emit({
+    type: E.ToolExecutionStart,
+    toolCallId: "media",
+    toolName: "generate_media",
+    args: { action: "generate", purpose: "image-generation" },
+  });
+  emit({
+    type: E.ToolExecutionUpdate,
+    toolCallId: "media",
+    toolName: "generate_media",
+    partialResult: {
+      details: { stage: "collecting", outputs: [{ type: "image", filePath: "/workspace/result.png" }] },
+    },
+  });
+  await session.stop();
+  const block = session.getSnapshot().messages[1].blocks[0];
+  assert.equal(block.media.status, "stopped");
+  assert.equal(block.media.outputs.length, 1);
+  assert.match(block.media.error, /上游/);
+  await session.close();
+});
+test("media display accepts only absolute image/video paths and excludes model discovery", async () => {
+  const outputs = [
+    "https://example.com/image.png",
+    "data:image/png;base64,abc",
+    "relative.png",
+    "/workspace/../private/image.png",
+    "/bad\u0000.png",
+  ].map((filePath) => ({ type: "image", filePath }));
+  outputs.push({ type: "text", filePath: "/workspace/text.txt" });
+  assert.deepEqual(readMediaResult({ status: "completed", outputs })?.outputs, []);
+  assert.equal(readMediaResult({ purposes: [] }), undefined);
+  const { session, emit } = await setup();
+  await session.send({ text: "查看配置" });
+  emit({ type: E.ToolExecutionStart, toolCallId: "list", toolName: "generate_media", args: { action: "list" } });
+  emit({
+    type: E.ToolExecutionEnd,
+    toolCallId: "list",
+    toolName: "generate_media",
+    isError: false,
+    result: { details: { purposes: [] } },
+  });
+  emit({
+    type: E.ToolExecutionEnd,
+    toolCallId: "read",
+    toolName: "read",
+    isError: false,
+    result: { status: "completed", outputs: [{ type: "image", filePath: "/workspace/not-from-media.png" }] },
+  });
+  emit({ type: E.Done, text: "完成" });
+  assert.equal(
+    session.getSnapshot().messages[1].blocks.some((block: any) => block.media),
+    false,
+  );
   await session.close();
 });
 test("stop resolves pending preparation immediately; late work and errors cannot affect next turn", async () => {

@@ -67,6 +67,21 @@ export type ChatToolEvent = {
   isError?: boolean;
 };
 
+/** Saved file metadata only. Temporary preview URLs are created by each view. */
+export type ChatMediaArtifact = {
+  type: "image" | "video";
+  filePath: string;
+  mimeType?: string;
+  size?: number;
+};
+export type ChatMediaResult = {
+  status: "running" | "completed" | "failed" | "stopped";
+  purpose?: "image-generation" | "image-editing" | "video-generation";
+  message?: string;
+  error?: string;
+  outputs: ChatMediaArtifact[];
+};
+
 export type ChatAssistantMessageBlock =
   | {
       id: string;
@@ -85,6 +100,7 @@ export type ChatAssistantMessageBlock =
       name: string;
       events: ChatToolEvent[];
       status: "running" | "done" | "error";
+      media?: ChatMediaResult;
     };
 
 export type ChatUserMessageBlock =

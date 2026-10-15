@@ -154,6 +154,19 @@ test("effective limits reject an override smaller than inherited output allowanc
   assert.equal(validateLlmSettingsConfig({ providers: [p] }), "");
 });
 
+test("providers without models can be saved and do not block changes to another provider's model", () => {
+  const empty = provider({ id: "empty", name: "Connection only", apiEndpoint: "https://example.com", models: [] });
+  const connectionOnly = normalizeLlmSettingsConfig(toLlmSettingsConfig({ providers: [empty] }));
+  assert.equal(validateLlmSettingsConfig(connectionOnly), "");
+  assert.deepEqual(connectionOnly.providers[0].models, []);
+  const edited = provider({ apiEndpoint: "https://api.deepseek.com", models: [model({ modelName: "Updated model" })] });
+  const combined = normalizeLlmSettingsConfig(toLlmSettingsConfig({ providers: [edited, empty] }));
+  assert.equal(validateLlmSettingsConfig(combined), "");
+  assert.equal(combined.providers[0].models[0].modelName, "Updated model");
+  combined.providers[0].models[0].modelId = "";
+  assert.match(validateLlmSettingsConfig(combined), /模型 ID 不能为空/);
+});
+
 test("typing a custom model ID follows its name and preserves deliberate custom settings", () => {
   let draft = toLlmSettingsConfig({ providers: [provider()] }).providers[0].models[0];
   draft = { ...draft, modelId: "", modelName: "", limits: { contextWindow: 64000, maxTokens: 4000 } };

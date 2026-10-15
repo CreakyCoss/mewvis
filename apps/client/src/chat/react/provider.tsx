@@ -10,11 +10,13 @@ import {
 import { isChatBusy, type ChatRunConfig, type ChatSession } from "../core";
 import { getChatViewState } from "./view-state";
 import type { ChatDisplayOptions, ChatInputFile, ChatViewPersistence } from "./types";
+import type { ApplicationFileClient } from "@mewvis/app-sdk/files";
 
 type Environment = {
   files?: (session: ChatSession) => ChatInputFile[];
   persistence?: (session: ChatSession, viewId: string) => ChatViewPersistence | undefined;
   renderBeforeComposer?: (session: ChatSession) => ReactNode;
+  filePreview?: Pick<ApplicationFileClient["preview"], "open" | "openDialog">;
 };
 const EnvironmentContext = createContext<Environment>({});
 export function ChatEnvironment({ children, ...environment }: PropsWithChildren<Environment>) {
@@ -52,6 +54,9 @@ export function useChatActions() {
 export function useBeforeComposer() {
   const session = useChatSession();
   return useContext(EnvironmentContext).renderBeforeComposer?.(session);
+}
+export function useChatFilePreview() {
+  return useContext(EnvironmentContext).filePreview;
 }
 export function useChatViewState() {
   const { view } = useBinding();

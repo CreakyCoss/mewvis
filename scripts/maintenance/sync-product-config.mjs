@@ -128,7 +128,7 @@ const expand = (value) =>
         return result;
       })
     : value;
-const keyFor = (object, template) => {
+const keyFor = (object, template, required = true) => {
   const target = expand(template);
   if (Object.hasOwn(object, target)) return target;
   if (!template.includes("{"))
@@ -149,9 +149,19 @@ const keyFor = (object, template) => {
     (key) =>
       pattern.test(key) && (template !== "{namespace}" || object[key]?.app),
   );
+  if (!required && candidates.length === 0) return undefined;
   if (candidates.length !== 1)
     throw new Error(`Ambiguous metadata key: ${template}`);
   return candidates[0];
+};
+const syncKey = (parent, template, required = true) => {
+  const key = keyFor(parent, template, required);
+  if (key === undefined) return;
+  const target = expand(template);
+  if (key !== target) {
+    parent[target] = parent[key];
+    delete parent[key];
+  }
 };
 const parentAt = (object, path) =>
   path.reduce(
@@ -164,13 +174,15 @@ for (const [file, definition] of Object.entries(definitions)) {
   const source = await readFile(join(repositoryRoot, file), "utf8");
   const data = JSON.parse(source);
   for (const [path, template] of definition.keys) {
-    const parent = parentAt(data, path);
-    const key = keyFor(parent, template);
-    const target = expand(template);
-    if (key !== target) {
-      parent[target] = parent[key];
-      delete parent[key];
-    }
+    syncKey(parentAt(data, path), template);
+  }
+  for (const [path, templates] of definition.arrayKeys ?? []) {
+    const items = parentAt(data, path);
+    if (!Array.isArray(items))
+      throw new Error(`Expected metadata array: ${file} ${path.join(".")}`);
+    // Commands and notifications carry different optional metadata; retain each item's existing fields.
+    for (const item of items)
+      for (const template of templates) syncKey(item, template, false);
   }
   for (const [path, template] of definition.values) {
     const parent = parentAt(data, path.slice(0, -1));

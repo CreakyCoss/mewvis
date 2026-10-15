@@ -100,7 +100,13 @@ export type MessagesProps = ComponentProps<typeof Chat.Messages>;
 export type RenderMessage = NonNullable<MessagesProps["renderMessage"]>;
 `,
     );
-    const external = ["@mewvis/chat-contracts", "@mewvis/app-sdk/chat", "react", "react/jsx-runtime"];
+    const external = [
+      "@mewvis/chat-contracts",
+      "@mewvis/app-sdk/chat",
+      "@mewvis/app-sdk/files",
+      "react",
+      "react/jsx-runtime",
+    ];
     const bundle = await rollup({
       input: entry,
       external,

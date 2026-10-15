@@ -1,6 +1,7 @@
 import type { AgentClientChatMessageEvent, AgentClientToolEvent } from "@/agent-client/contracts";
 import { AgentRuntimeEventType } from "@/agent-client/wire";
 import type { ChatAssistantMessage, ChatAssistantMessageBlock, ChatToolEvent } from "@mewvis/chat-contracts";
+import { readMediaResult, startMediaResult } from "./media";
 
 type ChatEvent = AgentClientChatMessageEvent;
 
@@ -175,6 +176,7 @@ const appendToolEvent = (message: ChatAssistantMessage, event: AgentClientToolEv
           name: event.toolName,
           status: "running",
           events: updateToolInput(block.events, () => stringifyToolValue(event.args)),
+          ...(event.toolName === "generate_media" ? { media: block.media ?? startMediaResult(event.args) } : {}),
         };
       }
     } else {
@@ -185,16 +187,33 @@ const appendToolEvent = (message: ChatAssistantMessage, event: AgentClientToolEv
         name: event.toolName,
         status: "running",
         events: [createToolEvent("input", event.args)],
+        ...(event.toolName === "generate_media" ? { media: startMediaResult(event.args) } : {}),
       });
     }
     return blocks;
   }
 
-  const status = event.type === AgentRuntimeEventType.ToolExecutionEnd ? (event.isError ? "error" : "done") : "running";
+  const previous = blocks[toolIndex];
+  const result = event.type === AgentRuntimeEventType.ToolExecutionUpdate ? event.partialResult : event.result;
+  const previousMedia = previous?.type === "tool" ? previous.media : undefined;
+  const media =
+    event.toolName === "generate_media"
+      ? (readMediaResult(result, previousMedia) ??
+        (event.type === AgentRuntimeEventType.ToolExecutionEnd && previousMedia
+          ? {
+              ...previousMedia,
+              status: "failed" as const,
+              error: limitToolEventContent(stringifyToolValue(result)) || "未收到媒体生成结果",
+            }
+          : undefined))
+      : undefined;
+  const isError =
+    event.type === AgentRuntimeEventType.ToolExecutionEnd && (event.isError || media?.status === "failed");
+  const status = event.type === AgentRuntimeEventType.ToolExecutionEnd ? (isError ? "error" : "done") : "running";
   const toolEvent =
     event.type === AgentRuntimeEventType.ToolExecutionUpdate
       ? createToolEvent("update", event.partialResult)
-      : createToolEvent("output", event.result, event.isError);
+      : createToolEvent("output", event.result, isError);
 
   if (toolIndex >= 0) {
     const block = blocks[toolIndex];
@@ -203,6 +222,7 @@ const appendToolEvent = (message: ChatAssistantMessage, event: AgentClientToolEv
         ...block,
         status,
         events: [...block.events, toolEvent].slice(-TOOL_EVENT_HISTORY_LIMIT),
+        ...(media ? { media } : {}),
       };
     }
   } else {
@@ -213,6 +233,7 @@ const appendToolEvent = (message: ChatAssistantMessage, event: AgentClientToolEv
       name: event.toolName,
       status,
       events: [toolEvent],
+      ...(media ? { media } : {}),
     });
   }
 
@@ -269,9 +290,16 @@ export const applyChatMessageEvent = (message: ChatAssistantMessage, event: Chat
 
   const hasText = message.blocks.some((block) => block.type === "text" && block.content.trim());
   const text = event.text.trim() || "Agent 任务已完成。";
-  const blocks = (hasText ? message.blocks : appendText(message, text)).map((block) =>
-    block.type === "tool" && block.status === "running" ? { ...block, status: "done" as const } : block,
-  );
+  const blocks = (hasText ? message.blocks : appendText(message, text)).map((block) => {
+    if (block.type !== "tool" || block.status !== "running") return block;
+    return {
+      ...block,
+      status: block.media?.status === "running" ? ("error" as const) : ("done" as const),
+      ...(block.media?.status === "running"
+        ? { media: { ...block.media, status: "failed" as const, error: "未收到媒体工具的完成结果，请查看调用详情。" } }
+        : {}),
+    };
+  });
 
   return {
     ...message,
@@ -280,7 +308,11 @@ export const applyChatMessageEvent = (message: ChatAssistantMessage, event: Chat
   };
 };
 
-export const failChatMessage = (message: ChatAssistantMessage, error: string): ChatAssistantMessage => {
+export const failChatMessage = (
+  message: ChatAssistantMessage,
+  error: string,
+  stopped = false,
+): ChatAssistantMessage => {
   const hasText = message.blocks.some((block) => block.type === "text" && block.content.trim());
   const blocks = [...(hasText ? message.blocks : appendText(message, error))];
   const runningToolIndex = findLastBlockIndex(blocks, (block) => block.type === "tool" && block.status === "running");
@@ -296,9 +328,22 @@ export const failChatMessage = (message: ChatAssistantMessage, error: string): C
     }
   }
 
-  const normalizedBlocks = blocks.map((block) =>
-    block.type === "tool" && block.status === "running" ? { ...block, status: "error" as const } : block,
-  );
+  const normalizedBlocks = blocks.map((block) => {
+    if (block.type !== "tool") return block;
+    return {
+      ...block,
+      ...(block.status === "running" ? { status: "error" as const } : {}),
+      ...(block.media?.status === "running"
+        ? {
+            media: {
+              ...block.media,
+              status: stopped ? ("stopped" as const) : ("failed" as const),
+              error: stopped ? "已停止等待，上游生成任务可能仍在执行。" : error,
+            },
+          }
+        : {}),
+    };
+  });
 
   return {
     ...message,

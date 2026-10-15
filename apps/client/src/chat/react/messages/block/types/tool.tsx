@@ -3,6 +3,7 @@ import { CheckIcon, ChevronDownIcon, CircleAlertIcon, Loader2Icon, WrenchIcon } 
 import type { ChatAssistantMessageBlock, ChatToolEvent } from "@/chat/core";
 import { useFollowBottom } from "../../follow-bottom";
 import { BLOCK_AUTO_COLLAPSE_DELAY } from "../constants";
+import { MediaResult } from "./media";
 
 type ToolBlockProps = {
   block: Extract<ChatAssistantMessageBlock, { type: "tool" }>;
@@ -20,7 +21,7 @@ const toolEventLabel = (event: ChatToolEvent) => {
   return event.isError ? "错误" : "结果";
 };
 
-const ToolBlockComponent = ({ block }: ToolBlockProps) => {
+const ToolProcess = ({ block }: ToolBlockProps) => {
   const [manualExpanded, setManualExpanded] = useState<boolean>();
   const [autoExpanded, setAutoExpanded] = useState(block.status === "running" || block.status === "error");
   const isExpanded = manualExpanded ?? autoExpanded;
@@ -121,4 +122,14 @@ const ToolBlockComponent = ({ block }: ToolBlockProps) => {
   );
 };
 
-export const ToolBlock = memo(ToolBlockComponent);
+export const ToolBlock = memo(function ToolBlock({
+  block,
+  showProcess = true,
+}: ToolBlockProps & { showProcess?: boolean }) {
+  return (
+    <div className="min-w-0 space-y-2">
+      {showProcess ? <ToolProcess block={block} /> : null}
+      {block.media ? <MediaResult result={block.media} /> : null}
+    </div>
+  );
+});
