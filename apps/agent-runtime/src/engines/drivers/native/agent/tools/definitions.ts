@@ -51,6 +51,12 @@ export const AGENT_TOOL_DEFINITIONS = Object.freeze([
     enabledByDefault: true,
   },
   {
+    name: "generate_media",
+    label: "生成媒体",
+    description: "从模型配置中选择用途，生成图片或视频并保存到工作区",
+    enabledByDefault: true,
+  },
+  {
     name: "bash",
     label: "Bash",
     description: "执行工作区 Bash 命令",

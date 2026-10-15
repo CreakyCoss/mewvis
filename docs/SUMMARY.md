@@ -41,6 +41,7 @@
   - [Server 业务接口](runtime/server-interfaces.md)
 - [通信协议](runtime/protocol.md)
 - [模型配置与预设](runtime/models.md)
+- [媒体生成工具](runtime/media-generation.md)
 - [Pi 接入与子 Agent](runtime/pi.md)
 - [协作模式](runtime/collaboration.md)
 - [安全架构](runtime/security/overview.md)

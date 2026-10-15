@@ -199,6 +199,7 @@ export const createRuntimeModelInput = (
     catalogModelId: model.modelId,
     modelId,
     apiEndpoint: connection.apiEndpoint ?? undefined,
+    configuration: model.configuration ? structuredClone({ ...model.configuration }) : undefined,
     capabilities: model.configuration ? capabilities.available : capabilities.declared,
     input: capabilities.input,
     reasoning: model.configuration != null || model.capabilities != null ? capabilities.available.reasoning : undefined,

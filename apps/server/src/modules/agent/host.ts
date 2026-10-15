@@ -93,6 +93,7 @@ export class AgentRuntimeHost {
       id: unknown,
     ) => Promise<{ access: unknown; resources: JsonObject }>,
     private resumeTask?: (taskId: string) => Promise<void>,
+    private protectedPaths?: (workspacePath: string) => Promise<string[]>,
   ) {}
 
   private sessionPath(
@@ -412,6 +413,8 @@ export class AgentRuntimeHost {
           (wire.resources as JsonObject).applications = application.resources;
           wire.agentAccess = application.access;
         }
+        (wire.resources as JsonObject).protectedPaths =
+          (await this.protectedPaths?.(workspacePath)) ?? [];
         sessionKey = `${workspacePath}|${sessionRootDir ?? optionalString(chatId, "chatId") ?? taskId}`;
         method = "agent/run";
         const command = this.supervisor.protocol.command(method, wire, taskId);

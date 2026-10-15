@@ -11,6 +11,10 @@
     "source": "src/engines/drivers/native/agent/runtimes/pi/tools/worker.ts",
     "output": "pi-tool-worker.js"
   },
+  "mediaToolWorker": {
+    "source": "src/engines/drivers/native/agent/tools/media/worker.ts",
+    "output": "media-tool-worker.js"
+  },
   "sandboxControl": {
     "source": "src/security/execution/cli/control.ts",
     "output": "sandbox-control.js"

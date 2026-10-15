@@ -125,6 +125,11 @@
             "type": "string"
           }
         },
+        "configuration": {
+          "description": "Saved configuration for the selected model. Consumers validate it with the shared ModelConfiguration contract.",
+          "type": ["object", "null"],
+          "additionalProperties": true
+        },
         "capabilities": {
           "$ref": "#/definitions/RuntimeModelCapabilities"
         }

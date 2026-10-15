@@ -182,6 +182,12 @@ export interface RuntimeModelInput {
   headers?: {
     [k: string]: string;
   };
+  /**
+   * Saved configuration for the selected model. Consumers validate it with the shared ModelConfiguration contract.
+   */
+  configuration?: {
+    [k: string]: unknown;
+  } | null;
   capabilities?: RuntimeModelCapabilities;
 }
 export interface RuntimeModelCost {
@@ -225,6 +231,7 @@ export interface AgentRunParams {
   agentAccess?: AgentAccess;
 }
 export interface AgentRuntimeResources {
+  protectedPaths?: string[] | null;
   tools?: AgentRuntimeToolResources | null;
   skills?: AgentRuntimeSkillResources | null;
   mcp?: AgentRuntimeMcpResources | null;

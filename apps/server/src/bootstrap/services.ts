@@ -90,6 +90,14 @@ export class ServerServices {
       this.supervisor,
       (id) => this.applications.session(id),
       (taskId) => resumeExtensionTask(this.supervisor, taskId),
+      async (workspacePath) =>
+        hostProtectedPaths(
+          config.dataDir,
+          (await this.applications.packages.list()).map((app) =>
+            applicationDirectory(this.applications.packages.path, app.id),
+          ),
+          [workspacePath],
+        ),
     );
     const llm = new LlmSettingsService(new LlmRepository(database));
     const chats = new Chats(config.appDataDirName, this.files);

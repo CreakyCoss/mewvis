@@ -29,6 +29,7 @@ import type {
   PiAgentSession,
 } from "../agent/session.js";
 import { registerPiAskUserTool } from "./ask-user-tool.js";
+import { createPiMediaTool } from "./media-tool.js";
 import { registerPiSubagentTool } from "./subagent.js";
 import { installPiSafety } from "./safety.js";
 import {
@@ -96,6 +97,12 @@ export async function createPiToolSet(
         access,
       };
   const builtins = resolveBuiltins(resources.skills?.enabled ?? []);
+  const mediaTool = createPiMediaTool({
+    workspacePath: command.workspacePath,
+    runtimeModel: command.runtimeModel,
+    protectedPaths: resources.protectedPaths ?? [],
+    execution: policies.execution,
+  });
   // The host selected these enabled applications. Initialization uses the same constrained worker as tool execution.
   let worker: ProgramExecutor | undefined;
   let starting: Promise<Catalog> | undefined;
@@ -131,6 +138,7 @@ export async function createPiToolSet(
     if (
       new Set(names).size !== names.length ||
       names.includes("ask_user") ||
+      names.includes("generate_media") ||
       names.includes("subagent")
     )
       throw new Error(`应用工具不能覆盖 ${APP_DISPLAY_NAME} Runtime 工具。`);
@@ -149,7 +157,10 @@ export async function createPiToolSet(
     const enabled = [...new Set(allocated)]
       .filter(
         (name) =>
-          names.includes(name) || name === "subagent" || name === "ask_user",
+          names.includes(name) ||
+          name === "subagent" ||
+          name === "ask_user" ||
+          (name === "generate_media" && !!mediaTool),
       )
       .filter(
         (name) => !options.toolCeiling || options.toolCeiling.includes(name),
@@ -162,6 +173,8 @@ export async function createPiToolSet(
       builtins.requiredTools.internal.map((tool) => tool.name),
     );
     const toolRisks = new Map<string, SafetyRisk>();
+    if (enabled.includes("generate_media"))
+      toolRisks.set("generate_media", "medium");
     for (const tool of catalog.tools) {
       if (tool.risk === undefined || !enabled.includes(tool.name)) continue;
       if (!isRiskLevel(tool.risk))
@@ -216,6 +229,7 @@ export async function createPiToolSet(
       command.taskId,
       callbacks.requestUserInput,
     );
+    if (mediaTool) collector.registerTool(mediaTool);
     return {
       tools,
       access,

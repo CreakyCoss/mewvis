@@ -334,6 +334,11 @@ test("purpose-specific modalities stay isolated and model connection overrides r
   assert.equal(input.apiKey, "model-key");
   assert.equal(input.apiEndpoint, "https://model.example/v1");
   assert.equal(input.apiFormat, "openai-responses");
+  assert.deepEqual(input.configuration, configured.configuration);
+  assert.notEqual(input.configuration, configured.configuration);
+  const submitted = structuredClone(configured.configuration);
+  configured.configuration!.purposes[1].parameters.length = 0;
+  assert.deepEqual(input.configuration, submitted);
   assert.deepEqual(getModelCapabilities(p, configured).available.input, ["text"]);
   assert.deepEqual(getModelCapabilities(p, configured).declared.output, ["text", "image"]);
   assert.deepEqual(input.capabilities?.output, ["text"]);

@@ -23,7 +23,11 @@
 
 参数支持默认值、调用时覆盖开关和 JSON Schema 约束。请求模板通过 `model`、`input`、`params`、`auth` 变量组合内容；整值变量保留原始 JSON 类型。返回配置通过 JSON Pointer 提取文本、JSON、URL 或 Base64 结果，也可声明业务成功条件、错误字段和任务查询规则。
 
-通用合同、参数校验、请求组合、返回解析和本地预览位于 `@mewvis/chat-contracts/model-configuration`，不依赖供应商预设。本地预览隐藏凭据，不发送请求。图像、视频等生成用途目前支持配置与预览，在线执行服务尚未接入。
+通用合同、参数校验、请求组合、返回解析和本地预览位于 `@mewvis/chat-contracts/model-configuration`，不依赖供应商预设。本地预览隐藏凭据，不发送请求。已配置的 HTTP / JSON 图片生成、图片编辑和视频生成用途可由内置 `generate_media` 工具执行；原生用途继续使用各自的协议适配器。
+
+完整配置随 `runtimeModel.configuration` 传入。媒体工具只使用当前选中模型的用途；没有可执行媒体用途或禁用工具调用时，不注册媒体工具，也不自动调用其他模型。组合不同服务时，由当前模型的用途请求模板明确配置。
+
+调用方式、文件保存和执行边界见[媒体生成工具](media-generation.md)。
 
 ## 编辑器预设的维护
 

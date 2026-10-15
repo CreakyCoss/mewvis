@@ -135,6 +135,7 @@ class AgentRuntimeToolResources:
 class AgentRuntimeResources:
     applications: AgentRuntimeApplicationResources | None
     mcp: AgentRuntimeMCPResources | None
+    protected_paths: list[str] | None
     skills: AgentRuntimeSkillResources | None
     tools: AgentRuntimeToolResources | None
 
@@ -197,6 +198,10 @@ class RuntimeModelInput:
     api_endpoint: str | None
     api_key: str | None
     capabilities: RuntimeModelCapabilities | None
+    configuration: dict[str, Any] | None
+    """Saved configuration for the selected model. Consumers validate it with the shared
+    ModelConfiguration contract.
+    """
     context_window: float | None
     cost: RuntimeModelCost | None
     headers: dict[str, str] | None

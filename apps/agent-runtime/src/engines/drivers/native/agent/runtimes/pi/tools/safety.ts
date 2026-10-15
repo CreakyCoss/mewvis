@@ -40,6 +40,23 @@ export function analyzePiExecution(
   toolRisks?: ReadonlyMap<string, SafetyRisk>,
 ): OperationAnalysis {
   const name = request.entry;
+  if (name === "generate_media" && request.input.action === "list")
+    return { coverage: "complete", operations: [{ kind: "tool", risk: "low" }] };
+  if (name === "generate_media") {
+    const directory = request.input.outputDirectory;
+    const files = request.input.files;
+    return {
+      coverage: "complete",
+      operations: [
+        { kind: "tool", risk: "medium" },
+        { kind: "filesystem", action: "write", recursive: false,
+          target: canonicalPath(resolve(request.workspacePath, typeof directory === "string" ? directory : "generated-media")) },
+        ...(Array.isArray(files) ? files.flatMap((file): Operation[] =>
+          file && typeof file.filePath === "string" ? [{ kind: "filesystem", action: "read", recursive: false,
+            target: canonicalPath(resolve(request.workspacePath, file.filePath)) }] : []) : []),
+      ],
+    };
+  }
   if (Object.hasOwn(fileActions, name))
     return {
       coverage: "complete",

@@ -110,6 +110,7 @@
     "AgentRuntimeResources": {
       "type": "object",
       "properties": {
+        "protectedPaths": { "type": ["array", "null"], "items": { "type": "string" } },
         "tools": {
           "oneOf": [{ "$ref": "#/definitions/AgentRuntimeToolResources" }, { "type": "null" }]
         },

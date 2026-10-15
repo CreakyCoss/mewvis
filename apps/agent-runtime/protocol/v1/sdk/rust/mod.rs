@@ -677,12 +677,16 @@ pub struct CollaborationAgent {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct AgentRuntimeResources {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub applications: Option<AgentRuntimeApplicationResources>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mcp: Option<AgentRuntimeMcpResources>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub protected_paths: Option<Vec<String>>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub skills: Option<AgentRuntimeSkillResources>,
@@ -774,6 +778,11 @@ pub struct RuntimeModelInput {
     pub capabilities: Option<RuntimeModelCapabilities>,
 
     pub catalog_model_id: String,
+
+    /// Saved configuration for the selected model. Consumers validate it with the shared
+    /// ModelConfiguration contract.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub configuration: Option<HashMap<String, Option<serde_json::Value>>>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub context_window: Option<f64>,
