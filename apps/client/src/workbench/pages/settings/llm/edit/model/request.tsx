@@ -1,18 +1,15 @@
 import type { ModelPurpose, ModelRequest, JsonValue } from "@mewvis/chat-contracts";
 import { createModelPurpose } from "@mewvis/chat-contracts/model-configuration";
 import { editorPresets } from "../presets";
-import type { RuntimeApiFormat } from "@/agent-client/wire";
 import { Button } from "design-system/components/ui/button";
 import { Input } from "design-system/components/ui/input";
 import { Choice, Field, JsonField, pretty, useEditorBuffers } from "./fields";
 
 export function RequestEditor({
   purpose,
-  defaultApiFormat,
   onChange,
 }: {
   purpose: ModelPurpose;
-  defaultApiFormat: RuntimeApiFormat;
   onChange: (value: ModelPurpose) => void;
 }) {
   const buffers = useEditorBuffers();
@@ -30,22 +27,12 @@ export function RequestEditor({
       id === "custom-json"
         ? createModelPurpose(purpose.type, "http-json")
         : editorPresets.instantiateTemplate(id, purpose.type);
+    const connection = { ...purpose.connection };
+    if (next.adapter === "http-json" || connection.apiFormat === "http-json") delete connection.apiFormat;
     onChange({
       ...next,
       ...(purpose.modelId !== undefined ? { modelId: purpose.modelId } : {}),
-      ...(purpose.connection
-        ? {
-            connection: {
-              ...purpose.connection,
-              apiFormat:
-                next.adapter === "http-json"
-                  ? "http-json"
-                  : purpose.connection.apiFormat === "http-json"
-                    ? defaultApiFormat
-                    : purpose.connection.apiFormat,
-            },
-          }
-        : {}),
+      ...(Object.keys(connection).length ? { connection } : {}),
     });
   };
   const update = (patch: Partial<ModelRequest>) => onChange({ ...purpose, request: { ...request!, ...patch } });

@@ -225,11 +225,8 @@ export function getModelConfigurationError(value) {
         !["native", "http-json"].includes(purpose.adapter)
       )
         fail("用途或调用方式无效");
-      if (
-        purpose.modelId !== undefined &&
-        (typeof purpose.modelId !== "string" || !purpose.modelId.trim())
-      )
-        fail("请填写用途的请求模型 ID，或选择使用顶部模型 ID");
+      if (purpose.modelId !== undefined && typeof purpose.modelId !== "string")
+        fail("请求模型 ID 必须是字符串");
       if (purpose.connection !== undefined) {
         const connection = purpose.connection;
         keys(connection, ["apiKey", "apiEndpoint", "apiFormat"], "用途连接");
@@ -238,27 +235,33 @@ export function getModelConfigurationError(value) {
           typeof connection.apiKey !== "string"
         )
           fail("API Key 必须是字符串");
-        if (!MODEL_PROTOCOLS.includes(connection.apiFormat))
+        if (
+          connection.apiFormat !== undefined &&
+          !MODEL_PROTOCOLS.includes(connection.apiFormat)
+        )
           fail("用途协议无效");
         if (
-          typeof connection.apiEndpoint !== "string" ||
-          !connection.apiEndpoint.trim()
+          connection.apiEndpoint !== undefined &&
+          typeof connection.apiEndpoint !== "string"
         )
-          fail("请填写用途的请求地址，或选择继承 Provider");
-        let url;
-        try {
-          url = new URL(connection.apiEndpoint);
-        } catch {
-          fail("请求地址必须是完整的 HTTP 或 HTTPS URL");
+          fail("请求地址必须是字符串");
+        if (connection.apiEndpoint?.trim()) {
+          let url;
+          try {
+            url = new URL(connection.apiEndpoint);
+          } catch {
+            fail("请求地址必须是完整的 HTTP 或 HTTPS URL");
+          }
+          if (
+            !["http:", "https:"].includes(url.protocol) ||
+            url.username ||
+            url.password
+          )
+            fail("请求地址无效，请把 Key 填入独立字段");
         }
         if (
-          !["http:", "https:"].includes(url.protocol) ||
-          url.username ||
-          url.password
-        )
-          fail("请求地址无效，请把 Key 填入独立字段");
-        if (
           purpose.adapter === "http-json" &&
+          connection.apiFormat !== undefined &&
           connection.apiFormat !== "http-json"
         )
           fail("HTTP / JSON 用途需要使用 HTTP / JSON 调用方式");
@@ -419,12 +422,15 @@ export function getModelConfigurationError(value) {
 }
 
 export function resolveModelConnection(purpose, provider) {
-  const connection = purpose?.connection ?? provider;
+  const connection = purpose?.connection;
   return {
-    apiEndpoint: connection.apiEndpoint,
+    apiEndpoint: connection?.apiEndpoint?.trim() || provider.apiEndpoint,
     apiFormat:
-      purpose?.adapter === "http-json" ? "http-json" : connection.apiFormat,
-    ...(connection.apiKey !== undefined ? { apiKey: connection.apiKey } : {}),
+      purpose?.adapter === "http-json"
+        ? "http-json"
+        : (connection?.apiFormat ?? provider.apiFormat),
+    // Runtime snapshots retain an explicit empty key so a second resolution cannot inherit another purpose's credentials.
+    apiKey: connection?.apiKey ?? provider.apiKey ?? "",
   };
 }
 

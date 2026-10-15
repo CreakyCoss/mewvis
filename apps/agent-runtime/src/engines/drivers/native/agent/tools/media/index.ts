@@ -150,7 +150,7 @@ export function createMediaTool(context: MediaToolContext) {
         ...configuration,
         purposes: configuration.purposes.map((purpose) => ({
           ...purpose,
-          modelId: purpose.modelId ?? modelId,
+          modelId: purpose.modelId?.trim() || modelId,
           connection: resolveModelConnection(purpose, {
             apiKey: apiKey ?? undefined,
             apiEndpoint: apiEndpoint ?? "",
@@ -263,7 +263,7 @@ export function createMediaTool(context: MediaToolContext) {
           return redactMedia(
             {
               status: execution.signal?.aborted ? "stopped" : "failed",
-              modelId: purpose.modelId ?? model.modelId,
+              modelId: purpose.modelId?.trim() || model.modelId,
               purpose: purpose.type,
               stage: latest.stage,
               ...(latest.taskId ? { taskId: latest.taskId } : {}),

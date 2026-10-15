@@ -52,7 +52,7 @@ test("model purpose configuration persists across restart and invalid templates 
     (c) => (c.purposes[0].inputSchema = { $ref: "https://example.com/schema" }),
     (c) => c.purposes.push(structuredClone(c.purposes[0])),
     (c) => (c.purposes[0].connection.apiEndpoint = "file:///etc/passwd"),
-    (c) => (c.purposes[0].modelId = " "),
+    (c) => (c.purposes[0].modelId = 42),
     (c) => (c.connection = {}),
     (c) => (c.purposes[0].response.outputs[0].path = "/constructor"),
   ]) {
@@ -72,6 +72,22 @@ test("model purpose configuration persists across restart and invalid templates 
     assert.doesNotMatch(JSON.stringify(failure), /model-fixture-key/);
     assert.deepEqual(await s.invoke("get_llm_settings"), saved);
   }
+});
+
+test("blank purpose connection fields and model IDs are saved as inherited defaults", async (t) => {
+  const s = await setup(t);
+  const configuration = structuredClone(modelConfigurationFixture);
+  const purpose = configuration.purposes[0];
+  purpose.modelId = " ";
+  purpose.connection = { apiKey: " ", apiEndpoint: " " };
+  const saved = await s.invoke("save_llm_settings", {
+    input: { providers: [provider({ models: [model({ configuration })] })] },
+  });
+  const persisted = saved.providers[0].models[0].configuration.purposes[0];
+  assert.equal(Object.hasOwn(persisted, "connection"), false);
+  assert.equal(Object.hasOwn(persisted, "modelId"), false);
+  await s.restart();
+  assert.deepEqual(await s.invoke("get_llm_settings"), saved);
 });
 
 async function setup(t) {

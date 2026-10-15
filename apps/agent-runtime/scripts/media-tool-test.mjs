@@ -236,7 +236,7 @@ test("model snapshots remain stable and keyless providers preserve usable file p
   assert.deepEqual(await readFile(result.outputs[0].filePath), png);
 });
 
-test("independent image purposes use their own credentials and model ID instead of the chat connection", async (t) => {
+test("image purpose overrides inherit omitted fields and resolved empty keys stay empty", async (t) => {
   let submitted;
   const f = await fixture(t, async (url, init) => {
     submitted = {
@@ -259,7 +259,10 @@ test("independent image purposes use their own credentials and model ID instead 
   delete f.model.configuration.purposes[0].connection.apiKey;
   f.reset();
   assert.equal((await f.generate()).status, "completed");
-  assert.notEqual(submitted.key, "Bearer chat-secret");
+  assert.equal(submitted.key, "Bearer chat-secret");
+  f.model.configuration.purposes[0].connection.apiKey = "";
+  f.reset();
+  assert.equal((await f.generate()).status, "completed");
   assert.equal(submitted.key, "Bearer");
 });
 

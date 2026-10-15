@@ -1,8 +1,9 @@
-import { Plus, Trash2 } from "lucide-react";
-import { ConfirmDelete } from "../confirm-delete";
+import { Plus, SlidersHorizontal, Trash2 } from "lucide-react";
 import type { ModelPurpose, ModelResponse, ModelOutputRule, JsonValue, ModelRequest } from "@mewvis/chat-contracts";
 import { Button } from "design-system/components/ui/button";
 import { Input } from "design-system/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "design-system/components/ui/popover";
+import { ConfirmDelete } from "../confirm-delete";
 import { Choice, Field, JsonField, ParameterValue, useEditorBuffers } from "./fields";
 import { MODEL_MODALITY_OPTIONS } from "../../options";
 
@@ -25,8 +26,8 @@ export function ResponseEditor({
   const buffers = useEditorBuffers();
   if (purpose.adapter === "native")
     return (
-      <p className="rounded-xl border border-border/70 bg-muted/15 p-4 text-xs leading-6 text-muted-foreground">
-        对话返回由选定协议的原生适配器处理，支持流式消息、思考和工具调用。
+      <p className="py-2 text-xs leading-6 text-muted-foreground">
+        对话协议自动处理流式消息、思考和工具调用，无需配置提取规则。
       </p>
     );
   const response = purpose.response!;
@@ -36,6 +37,12 @@ export function ResponseEditor({
     update({ task: { ...response.task!, ...patch } });
   const updateRule = (index: number, patch: Partial<ModelOutputRule>) =>
     update({ outputs: response.outputs.map((rule, i) => (i === index ? { ...rule, ...patch } : rule)) });
+  const optionalRuleField = (index: number, key: "itemPath" | "mimeType", value: string) => {
+    const next = { ...response.outputs[index] };
+    if (value) next[key] = value;
+    else delete next[key];
+    update({ outputs: response.outputs.map((rule, i) => (i === index ? next : rule)) });
+  };
   const textInput = (label: string, value: string, onChange: (value: string) => void, placeholder?: string) => (
     <Field label={label}>
       <Input
@@ -48,7 +55,7 @@ export function ResponseEditor({
     </Field>
   );
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="返回方式">
           <Choice
@@ -67,146 +74,28 @@ export function ResponseEditor({
             }}
           />
         </Field>
-        {textInput(
-          "错误信息路径",
-          response.errorPath ?? "",
-          (value) => {
-            const next = { ...response };
-            if (value) next.errorPath = value;
-            else delete next.errorPath;
-            onChange({ ...purpose, response: next });
-          },
-          "/error/message",
+        {response.mode === "task" && response.task && (
+          <Field label="查询间隔（秒）">
+            <Input
+              aria-label="任务查询间隔"
+              className="h-8 text-xs"
+              type="number"
+              min={1}
+              max={3600}
+              value={response.task.intervalSeconds}
+              onChange={(event) => updateTask({ intervalSeconds: Number(event.currentTarget.value) })}
+            />
+          </Field>
         )}
       </div>
-      <div className="flex items-center justify-between">
-        <span className="text-[13px] font-medium">输出提取规则</span>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="h-7 text-xs shadow-none"
-          onClick={() =>
-            update({
-              outputs: [
-                ...response.outputs,
-                { type: purpose.output[0], source: purpose.output[0] === "text" ? "text" : "url", path: "/data" },
-              ],
-            })
-          }
-        >
-          <Plus className="size-3.5" />
-          添加输出
-        </Button>
-      </div>
-      <div className="space-y-3">
-        {response.outputs.map((rule, index) => (
-          <div key={index} className="space-y-3 rounded-lg border border-border/70 p-3">
-            <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_2rem] items-end gap-3">
-              <Field label="输出类型">
-                <Choice
-                  label={`输出 ${index + 1} 类型`}
-                  value={rule.type}
-                  options={MODEL_MODALITY_OPTIONS.filter((option) => purpose.output.includes(option.value))}
-                  onChange={(type) => updateRule(index, { type })}
-                />
-              </Field>
-              <Field label="结果来源">
-                <Choice
-                  label={`输出 ${index + 1} 来源`}
-                  value={rule.source}
-                  options={[
-                    { value: "url", label: "URL" },
-                    { value: "base64", label: "Base64" },
-                    { value: "text", label: "文字" },
-                    { value: "json", label: "JSON" },
-                  ]}
-                  onChange={(source) => updateRule(index, { source })}
-                />
-              </Field>
-              <ConfirmDelete
-                title={`删除输出规则 ${index + 1}？`}
-                description="此规则将从当前用途的返回处理中移除。"
-                onConfirm={() => update({ outputs: response.outputs.filter((_, i) => i !== index) })}
-              >
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="size-8 text-muted-foreground hover:text-destructive"
-                  disabled={response.outputs.length === 1}
-                  aria-label={`删除输出规则 ${index + 1}`}
-                >
-                  <Trash2 className="size-3.5" />
-                </Button>
-              </ConfirmDelete>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              {textInput(`结果路径 ${index + 1}`, rule.path, (path) => updateRule(index, { path }), "/data")}
-              {textInput(
-                `数组元素路径 ${index + 1}`,
-                rule.itemPath ?? "",
-                (value) => {
-                  const next = { ...rule };
-                  if (value) next.itemPath = value;
-                  else delete next.itemPath;
-                  update({ outputs: response.outputs.map((item, i) => (i === index ? next : item)) });
-                },
-                "留空表示直接使用结果",
-              )}
-            </div>
-            {textInput(
-              `文件 MIME 类型 ${index + 1}（可选）`,
-              rule.mimeType ?? "",
-              (value) => {
-                const next = { ...rule };
-                if (value) next.mimeType = value;
-                else delete next.mimeType;
-                update({ outputs: response.outputs.map((item, i) => (i === index ? next : item)) });
-              },
-              "例如 image/png",
-            )}
-          </div>
-        ))}
-      </div>
-      <details className="rounded-lg border border-border/70 p-3">
-        <summary className="cursor-pointer text-xs font-medium">业务状态校验（可选）</summary>
-        <div className="grid gap-3 pt-3 sm:grid-cols-2">
-          {textInput(
-            "业务状态路径",
-            response.success?.path ?? "",
-            (path) => {
-              const next = { ...response };
-              if (path) next.success = { path, equals: response.success?.equals ?? 0 };
-              else {
-                delete next.success;
-                buffers.clear(`${prefix}success`);
-              }
-              onChange({ ...purpose, response: next });
-            },
-            "/base_resp/status_code",
-          )}
-          {response.success && (
-            <Field label="成功值 · JSON">
-              <ParameterValue
-                id={`${prefix}success`}
-                label="业务状态成功值"
-                type="json"
-                value={response.success.equals}
-                onChange={(equals) => update({ success: { ...response.success!, equals: equals ?? null } })}
-              />
-            </Field>
-          )}
-        </div>
-      </details>
       {response.mode === "task" && response.task && (
-        <section className="space-y-3 rounded-lg border border-border/70 p-3">
+        <section className="space-y-3 border-t border-border/60 pt-4" aria-label="任务查询">
           <h3 className="text-xs font-medium">任务查询</h3>
           <div className="grid gap-3 sm:grid-cols-2">
-            {textInput("创建结果中的任务 ID 路径", response.task.idPath, (idPath) => updateTask({ idPath }))}
-            {textInput("查询结果中的状态路径", response.task.statusPath, (statusPath) => updateTask({ statusPath }))}
+            {textInput("任务 ID 路径", response.task.idPath, (idPath) => updateTask({ idPath }), "/task_id")}
+            {textInput("任务状态路径", response.task.statusPath, (statusPath) => updateTask({ statusPath }), "/status")}
           </div>
-          <div className="grid grid-cols-[6rem_minmax(0,1fr)] gap-3">
+          <div className="grid grid-cols-[5rem_minmax(0,1fr)] gap-3">
             <Field label="查询方式">
               <Choice
                 label="任务查询方式"
@@ -229,8 +118,21 @@ export function ResponseEditor({
               updateTask({ request: { ...response.task!.request, path } }),
             )}
           </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {(["successValues", "failureValues"] as const).map((key) => (
+              <Field key={key} label={key === "successValues" ? "成功状态" : "失败状态"}>
+                <ParameterValue
+                  id={`${prefix}${key === "successValues" ? "done" : "failed"}`}
+                  label={key === "successValues" ? "成功状态 · JSON 数组" : "失败状态 · JSON 数组"}
+                  type="json"
+                  value={response.task![key]}
+                  onChange={(value) => updateTask({ [key]: (value ?? []) as JsonValue[] })}
+                />
+              </Field>
+            ))}
+          </div>
           <details>
-            <summary className="cursor-pointer text-xs text-muted-foreground">查询请求头和请求体</summary>
+            <summary className="cursor-pointer text-[11px] text-muted-foreground">查询请求头和请求体</summary>
             <div className="space-y-3 pt-3">
               <JsonField
                 id={`${prefix}query-headers`}
@@ -259,38 +161,187 @@ export function ResponseEditor({
               )}
             </div>
           </details>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <JsonField
-              id={`${prefix}done`}
-              label="成功状态 · JSON 数组"
-              rows={2}
-              value={response.task.successValues}
-              onChange={(value) => updateTask({ successValues: value as JsonValue[] })}
-            />
-            <JsonField
-              id={`${prefix}failed`}
-              label="失败状态 · JSON 数组"
-              rows={2}
-              value={response.task.failureValues}
-              onChange={(value) => updateTask({ failureValues: value as JsonValue[] })}
-            />
-          </div>
-          <Field label="查询间隔（秒）">
-            <Input
-              aria-label="任务查询间隔"
-              className="h-8 w-28 text-xs"
-              type="number"
-              min={1}
-              max={3600}
-              value={response.task.intervalSeconds}
-              onChange={(event) => updateTask({ intervalSeconds: Number(event.currentTarget.value) })}
-            />
-          </Field>
         </section>
       )}
-      <p className="text-[11px] leading-5 text-muted-foreground">
-        路径使用 JSON Pointer；空路径表示整个值。结果为数组时会逐项提取，多条规则可同时返回不同类型。
-      </p>
+      <section className="space-y-2" aria-label="输出提取规则">
+        <div className="flex items-center justify-between gap-3">
+          <h3 className="text-xs font-medium">输出提取规则</h3>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2 text-xs text-muted-foreground"
+            onClick={() =>
+              update({
+                outputs: [
+                  ...response.outputs,
+                  {
+                    type: purpose.output[0],
+                    source: purpose.output[0] === "text" ? "text" : "url",
+                    path: "/data",
+                  },
+                ],
+              })
+            }
+          >
+            <Plus className="size-3.5" />
+            添加输出
+          </Button>
+        </div>
+        <div className="border-y border-border/60">
+          <div className="hidden grid-cols-[5rem_6rem_minmax(0,1fr)_1.75rem_1.75rem] gap-2 border-b border-border/50 py-2 text-[11px] text-muted-foreground sm:grid">
+            <span>类型</span>
+            <span>来源</span>
+            <span>结果路径</span>
+            <span />
+            <span />
+          </div>
+          {response.outputs.map((rule, index) => (
+            <div
+              key={index}
+              className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_1.75rem_1.75rem] items-end gap-2 border-b border-border/50 py-3 last:border-b-0 sm:grid-cols-[5rem_6rem_minmax(0,1fr)_1.75rem_1.75rem] sm:items-center sm:py-2.5"
+            >
+              <div className="min-w-0 space-y-1">
+                <span className="text-[11px] text-muted-foreground sm:hidden">类型</span>
+                {purpose.output.length === 1 && purpose.output.includes(rule.type) ? (
+                  <span className="flex h-8 items-center text-xs">
+                    {MODEL_MODALITY_OPTIONS.find((option) => option.value === rule.type)?.label}
+                  </span>
+                ) : (
+                  <Choice
+                    label={`输出 ${index + 1} 类型`}
+                    value={rule.type}
+                    options={MODEL_MODALITY_OPTIONS.filter(
+                      (option) => purpose.output.includes(option.value) || option.value === rule.type,
+                    ).map((option) => ({
+                      ...option,
+                      label: purpose.output.includes(option.value) ? option.label : `${option.label}（未启用）`,
+                    }))}
+                    onChange={(type) => updateRule(index, { type })}
+                  />
+                )}
+              </div>
+              <div className="min-w-0 space-y-1">
+                <span className="text-[11px] text-muted-foreground sm:hidden">来源</span>
+                <Choice
+                  label={`输出 ${index + 1} 来源`}
+                  value={rule.source}
+                  options={[
+                    { value: "url", label: "URL" },
+                    { value: "base64", label: "Base64" },
+                    { value: "text", label: "文字" },
+                    { value: "json", label: "JSON" },
+                  ]}
+                  onChange={(source) => updateRule(index, { source })}
+                />
+              </div>
+              <div className="col-span-4 row-start-2 min-w-0 space-y-1 sm:col-span-1 sm:row-start-auto">
+                <span className="text-[11px] text-muted-foreground sm:hidden">结果路径</span>
+                <Input
+                  aria-label={`结果路径 ${index + 1}`}
+                  className="h-8 font-mono text-xs"
+                  placeholder="/data/0/url"
+                  value={rule.path}
+                  onChange={(event) => updateRule(index, { path: event.currentTarget.value })}
+                />
+              </div>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="col-start-3 row-start-1 size-7 text-muted-foreground sm:col-start-auto sm:row-start-auto"
+                    aria-label={`输出规则 ${index + 1}高级设置`}
+                  >
+                    <SlidersHorizontal className="size-3.5" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent
+                  side="bottom"
+                  align="end"
+                  sideOffset={6}
+                  collisionPadding={16}
+                  className="z-80 w-72 max-w-[calc(100vw-2rem)] gap-3 rounded-lg p-3"
+                  aria-label={`输出规则 ${index + 1}高级设置`}
+                >
+                  <h4 className="text-xs font-medium">提取设置</h4>
+                  {textInput(
+                    `数组元素路径 ${index + 1}`,
+                    rule.itemPath ?? "",
+                    (value) => optionalRuleField(index, "itemPath", value),
+                    "/url",
+                  )}
+                  {textInput(
+                    `文件 MIME 类型 ${index + 1}`,
+                    rule.mimeType ?? "",
+                    (value) => optionalRuleField(index, "mimeType", value),
+                    "image/png",
+                  )}
+                </PopoverContent>
+              </Popover>
+              <ConfirmDelete
+                title={`删除输出规则 ${index + 1}？`}
+                description="此规则将从当前用途的返回处理中移除。"
+                onConfirm={() => update({ outputs: response.outputs.filter((_, i) => i !== index) })}
+              >
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="col-start-4 row-start-1 size-7 text-muted-foreground hover:text-destructive sm:col-start-auto sm:row-start-auto"
+                  disabled={response.outputs.length === 1}
+                  aria-label={`删除输出规则 ${index + 1}`}
+                >
+                  <Trash2 className="size-3.5" />
+                </Button>
+              </ConfirmDelete>
+            </div>
+          ))}
+        </div>
+        <p className="text-[11px] text-muted-foreground">路径使用 JSON Pointer，例如 /data/0/url。</p>
+      </section>
+      <details className="border-t border-border/60 pt-3">
+        <summary className="cursor-pointer text-xs font-medium">业务状态与错误</summary>
+        <div className="grid gap-3 pt-3 sm:grid-cols-2">
+          {textInput(
+            "业务状态路径",
+            response.success?.path ?? "",
+            (path) => {
+              const next = { ...response };
+              if (path) next.success = { path, equals: response.success?.equals ?? 0 };
+              else {
+                delete next.success;
+                buffers.clear(`${prefix}success`);
+              }
+              onChange({ ...purpose, response: next });
+            },
+            "/base_resp/status_code",
+          )}
+          {response.success && (
+            <Field label="成功值 · JSON">
+              <ParameterValue
+                id={`${prefix}success`}
+                label="业务状态成功值"
+                type="json"
+                value={response.success.equals}
+                onChange={(equals) => update({ success: { ...response.success!, equals: equals ?? null } })}
+              />
+            </Field>
+          )}
+          {textInput(
+            "错误信息路径",
+            response.errorPath ?? "",
+            (value) => {
+              const next = { ...response };
+              if (value) next.errorPath = value;
+              else delete next.errorPath;
+              onChange({ ...purpose, response: next });
+            },
+            "/error/message",
+          )}
+        </div>
+      </details>
     </div>
   );
 }

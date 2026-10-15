@@ -27,7 +27,7 @@ export async function runMediaGeneration(
     apiEndpoint: "",
     apiFormat: "http-json",
   });
-  const requestModelId = purpose.modelId ?? model.modelId;
+  const requestModelId = purpose.modelId?.trim() || model.modelId;
   const signal = AbortSignal.any([
     ...(context.signal ? [context.signal] : []),
     AbortSignal.timeout((args.timeoutSeconds ?? 1800) * 1000),

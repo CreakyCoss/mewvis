@@ -203,15 +203,15 @@ export const createRuntimeModelInput = (
     provider: provider.provider,
     apiFormat: connection.apiFormat,
     apiKey: connection.apiKey,
-    catalogModelId: chat?.modelId ?? model.modelId,
-    modelId: chat?.modelId ? withOneMillionContextSuffix(chat.modelId, model.isOneMillionContext) : modelId,
+    catalogModelId: chat?.modelId?.trim() || model.modelId,
+    modelId: chat?.modelId?.trim() ? withOneMillionContextSuffix(chat.modelId, model.isOneMillionContext) : modelId,
     apiEndpoint: connection.apiEndpoint ?? undefined,
     configuration: model.configuration
       ? structuredClone({
           ...model.configuration,
           purposes: model.configuration.purposes.map((purpose) => ({
             ...purpose,
-            modelId: purpose.modelId ?? model.modelId,
+            modelId: purpose.modelId?.trim() || model.modelId,
             connection: getModelConnection(provider, model, purpose.type),
           })),
         })

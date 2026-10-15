@@ -57,8 +57,8 @@ export interface ModelResponse {
 export interface ModelPurpose {
   type: RuntimeModelOperation;
   adapter: "native" | "http-json";
-  /** Omitted connections inherit the Provider; explicit connections are independent. */
-  connection?: ModelConnection;
+  /** Omitted connection fields inherit the Provider. */
+  connection?: Partial<ModelConnection>;
   /** Omitted IDs use the model's top-level request ID. */
   modelId?: string;
   input: RuntimeModelModality[];

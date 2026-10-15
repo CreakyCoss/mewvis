@@ -373,23 +373,23 @@ test("purpose connections and model IDs resolve independently before reaching ru
   assert.equal(getModelCapabilities(p, model({ configuration: configuration([chat]) })).available.operations.length, 0);
 });
 
-test("independent purpose connections never inherit omitted credentials and invalid connections cannot be saved", () => {
+test("purpose connection fields inherit defaults individually and clearing overrides restores inheritance", () => {
   const p = provider({ apiKey: "provider-secret", apiEndpoint: "https://provider.example" });
   const image = imagePurpose();
-  image.connection = { apiEndpoint: "https://images.example", apiFormat: "http-json" };
+  image.connection = { apiEndpoint: "https://images.example" };
   assert.deepEqual(
     resolveModelConnection(image, {
       apiEndpoint: p.apiEndpoint!,
       apiKey: p.apiKey!,
       apiFormat: p.apiFormat,
     }),
-    image.connection,
+    { apiEndpoint: "https://images.example", apiFormat: "http-json", apiKey: "provider-secret" },
   );
   const input = createRuntimeModelInput(
     p,
     model({ configuration: configuration([createModelPurpose("chat"), image]) }),
   );
-  assert.equal(input.configuration?.purposes[1].connection?.apiKey, undefined);
+  assert.equal(input.configuration?.purposes[1].connection?.apiKey, "provider-secret");
   assert.equal(getModelConfigurationError(input.configuration), "");
   image.connection.apiEndpoint = "file:///private/config.db";
   assert.match(getModelConfigurationError(configuration([image])), /请求地址/);
@@ -398,10 +398,37 @@ test("independent purpose connections never inherit omitted credentials and inva
   assert.match(getModelConfigurationError(configuration([image])), /HTTP \/ JSON/);
   image.connection.apiFormat = "http-json";
   image.modelId = " ";
-  assert.match(getModelConfigurationError(configuration([image])), /请求模型 ID/);
+  assert.equal(getModelConfigurationError(configuration([image])), "");
+  delete image.connection;
+  const inherited = createRuntimeModelInput(
+    p,
+    model({ configuration: configuration([createModelPurpose("chat"), image]) }),
+  );
+  assert.equal(inherited.configuration?.purposes[1].modelId, "deepseek-flash");
+  assert.equal(inherited.configuration?.purposes[1].connection?.apiEndpoint, "https://provider.example");
   assert.match(
     getModelConfigurationError({ version: 1, connection: {}, purposes: [createModelPurpose("chat")] }),
     /结构无效/,
+  );
+});
+
+test("resolved keyless media connections do not inherit an independently configured chat key", () => {
+  const chat = createModelPurpose("chat");
+  chat.connection = { apiKey: "chat-only-key" };
+  const input = createRuntimeModelInput(
+    provider({ apiKey: null, apiEndpoint: "https://provider.example" }),
+    model({ configuration: configuration([chat, imagePurpose()]) }),
+  );
+  assert.equal(input.apiKey, "chat-only-key");
+  const image = input.configuration!.purposes[1];
+  assert.equal(image.connection?.apiKey, "");
+  assert.equal(
+    resolveModelConnection(image, {
+      apiKey: input.apiKey!,
+      apiEndpoint: input.apiEndpoint!,
+      apiFormat: input.apiFormat,
+    }).apiKey,
+    "",
   );
 });
 

@@ -1,6 +1,6 @@
-import { useRef, useState, type Dispatch, type SetStateAction } from "react";
-import { ChevronLeft, ChevronRight, Plus, SlidersHorizontal, Trash2 } from "lucide-react";
-import type { ModelPurpose, ModelConfiguration, JsonSchema } from "@mewvis/chat-contracts";
+import { useState, type Dispatch, type SetStateAction } from "react";
+import { Plus, SlidersHorizontal, Trash2 } from "lucide-react";
+import type { ModelPurpose, ModelConfiguration } from "@mewvis/chat-contracts";
 import { getModelConfigurationError } from "@mewvis/chat-contracts/model-configuration";
 import {
   getModelThinking,
@@ -10,7 +10,6 @@ import {
   type ProviderModelConfig,
 } from "@/agent-client/runtime-model";
 import { Button } from "design-system/components/ui/button";
-import { Checkbox } from "design-system/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "design-system/components/ui/tabs";
 import {
   Dialog,
@@ -27,13 +26,14 @@ import { MODEL_MODALITY_OPTIONS, MODEL_OPERATION_OPTIONS } from "../options";
 import { getThinkingLevelsError } from "./thinking-levels";
 import { applyModelDefaults, createModelConfig } from "./utils";
 import { initialModelConfiguration, suggestPurpose } from "./model/configuration";
-import { EditorBuffers, JsonField, useEditorBuffers } from "./model/fields";
+import { EditorBuffers, useEditorBuffers } from "./model/fields";
 import { RequestEditor } from "./model/request";
 import { ParametersEditor } from "./model/parameters";
 import { ResponseEditor } from "./model/response";
 import { CallPreview } from "./model/preview";
 import { ChatParameters } from "./model/chat";
 import { PurposeConnection } from "./model/connection";
+import { PurposeCapabilities } from "./model/capabilities";
 import { ConfirmDelete } from "./confirm-delete";
 import { editorPresets } from "./presets";
 
@@ -58,9 +58,7 @@ function ModelEditor({
   const configuration = draft.configuration!;
   const [selectedType, setSelectedType] = useState(configuration.purposes[0]?.type ?? "chat");
   const [addOpen, setAddOpen] = useState(false);
-  const [capabilitiesOpen, setCapabilitiesOpen] = useState(false);
   const [tab, setTab] = useState("request");
-  const navigation = useRef<HTMLDivElement>(null);
   const buffers = useEditorBuffers();
   const selected = configuration.purposes.find((purpose) => purpose.type === selectedType) ?? configuration.purposes[0];
   const updateConfiguration = (patch: Partial<ModelConfiguration>) =>
@@ -108,18 +106,7 @@ function ModelEditor({
         </div>
       </div>
       <div className="mt-4 flex min-w-0 items-center gap-1 border-b border-border/70 pb-2">
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="size-7 shrink-0 text-muted-foreground"
-          aria-label="向左查看用途"
-          onClick={() => navigation.current?.scrollBy({ left: -220, behavior: "smooth" })}
-        >
-          <ChevronLeft className="size-3.5" />
-        </Button>
         <div
-          ref={navigation}
           className="flex min-w-0 flex-1 gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           aria-label="模型用途"
         >
@@ -136,16 +123,6 @@ function ModelEditor({
             </Button>
           ))}
         </div>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="size-7 shrink-0 text-muted-foreground"
-          aria-label="向右查看用途"
-          onClick={() => navigation.current?.scrollBy({ left: 220, behavior: "smooth" })}
-        >
-          <ChevronRight className="size-3.5" />
-        </Button>
         <Popover open={addOpen} onOpenChange={setAddOpen}>
           <PopoverTrigger asChild>
             <Button type="button" variant="outline" size="sm" className="ml-1 h-8 shrink-0 px-2 text-xs shadow-none">
@@ -184,15 +161,7 @@ function ModelEditor({
               <span className="mx-2 text-border">/</span>输出：{labels(selected.output)}
             </p>
             <div className="flex shrink-0 items-center gap-3">
-              <Button
-                type="button"
-                variant="ghost"
-                className="h-7 px-0 text-[11px] text-primary hover:bg-transparent"
-                aria-expanded={capabilitiesOpen}
-                onClick={() => setCapabilitiesOpen((open) => !open)}
-              >
-                编辑能力
-              </Button>
+              <PurposeCapabilities key={selected.type} purpose={selected} onChange={updatePurpose} />
               <ConfirmDelete
                 title={`删除“${MODEL_OPERATION_OPTIONS.find((option) => option.value === selected.type)?.label}”用途？`}
                 description="此用途的连接、请求模板、参数和返回处理配置将一并移除。"
@@ -216,64 +185,6 @@ function ModelEditor({
               </ConfirmDelete>
             </div>
           </div>
-          {capabilitiesOpen && (
-            <div className="mt-2 space-y-3 rounded-lg border border-border/70 p-3">
-              {(["input", "output"] as const).map((key) => (
-                <div key={key} className="flex flex-wrap items-center gap-x-5 gap-y-2">
-                  <span className="w-8 text-xs text-muted-foreground">{key === "input" ? "输入" : "输出"}</span>
-                  {MODEL_MODALITY_OPTIONS.map((option) => (
-                    <label key={option.value} className="flex items-center gap-2 text-xs">
-                      <Checkbox
-                        checked={selected[key].includes(option.value)}
-                        onCheckedChange={(checked) =>
-                          updatePurpose({
-                            ...selected,
-                            [key]: checked
-                              ? [...selected[key], option.value]
-                              : selected[key].filter((value) => value !== option.value),
-                          })
-                        }
-                      />
-                      {option.label}
-                    </label>
-                  ))}
-                </div>
-              ))}
-              {selected.type === "chat" && (
-                <div className="flex gap-5">
-                  {(
-                    [
-                      { key: "reasoning", label: "思考" },
-                      { key: "toolCalling", label: "工具调用" },
-                    ] as const
-                  ).map((option) => (
-                    <label key={option.key} className="flex items-center gap-2 text-xs">
-                      <Checkbox
-                        checked={selected[option.key] ?? false}
-                        onCheckedChange={(checked) => updatePurpose({ ...selected, [option.key]: checked === true })}
-                      />
-                      {option.label}
-                    </label>
-                  ))}
-                </div>
-              )}
-              {selected.adapter === "http-json" && (
-                <JsonField
-                  id={`${selected.type}-input-schema`}
-                  label="应用输入要求 · JSON Schema（可选）"
-                  optional
-                  value={selected.inputSchema}
-                  rows={5}
-                  onChange={(inputSchema) => {
-                    const next = { ...selected };
-                    if (inputSchema === undefined) delete next.inputSchema;
-                    else next.inputSchema = inputSchema as JsonSchema;
-                    updatePurpose(next);
-                  }}
-                />
-              )}
-            </div>
-          )}
           <Tabs value={tab} onValueChange={setTab} className="gap-0">
             <TabsList
               variant="line"
@@ -294,12 +205,7 @@ function ModelEditor({
             <TabsContent value="request" className="space-y-5 pt-4">
               <PurposeConnection provider={provider} model={draft} purpose={selected} onChange={updatePurpose} />
               <div className="border-t border-border/70 pt-4">
-                <RequestEditor
-                  key={selected.type}
-                  purpose={selected}
-                  defaultApiFormat={provider.apiFormat}
-                  onChange={updatePurpose}
-                />
+                <RequestEditor key={selected.type} purpose={selected} onChange={updatePurpose} />
               </div>
             </TabsContent>
             <TabsContent value="parameters" className="pt-4">

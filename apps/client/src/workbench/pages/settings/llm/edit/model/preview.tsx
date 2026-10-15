@@ -45,7 +45,7 @@ export function CallPreview({
       native
         ? { ...native, apiKey: "••••••••", headers: undefined, configuration: undefined }
         : previewModelRequest(purpose, {
-            modelId: purpose.modelId ?? model.modelId,
+            modelId: purpose.modelId?.trim() || model.modelId,
             apiEndpoint: connection.apiEndpoint ?? "",
             input: JSON.parse(input) as JsonValue,
             overrides: JSON.parse(overrides),

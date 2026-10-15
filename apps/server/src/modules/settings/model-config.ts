@@ -16,10 +16,15 @@ export const normalizeModelConfiguration = (
   if (error) invalid(error);
   const configuration = structuredClone(value) as ModelConfiguration;
   for (const purpose of configuration.purposes) {
-    if (purpose.modelId) purpose.modelId = purpose.modelId.trim();
+    if (purpose.modelId?.trim()) purpose.modelId = purpose.modelId.trim();
+    else delete purpose.modelId;
     if (purpose.connection) {
-      purpose.connection.apiKey = purpose.connection.apiKey?.trim();
-      purpose.connection.apiEndpoint = purpose.connection.apiEndpoint.trim();
+      for (const key of ["apiKey", "apiEndpoint"] as const) {
+        const value = purpose.connection[key]?.trim();
+        if (value) purpose.connection[key] = value;
+        else delete purpose.connection[key];
+      }
+      if (!Object.keys(purpose.connection).length) delete purpose.connection;
     }
   }
   return configuration;

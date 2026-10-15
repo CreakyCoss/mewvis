@@ -13,7 +13,10 @@ import type { AgentRuntimeSupervisor } from "../modules/agent/runtime/supervisor
 import type { Chats } from "../modules/chats/service.js";
 import type { LlmSettingsService } from "../modules/settings/llm-service.js";
 import { createSessionHostAdapter } from "@mewvis/extension-host/services/session";
-import { resolveModelConnection, type ModelProtocol } from "@mewvis/chat-contracts/model-configuration";
+import {
+  resolveModelConnection,
+  type ModelProtocol,
+} from "@mewvis/chat-contracts/model-configuration";
 
 /** The only place where plugin host capabilities know this application's service shapes. */
 export function createDesktopExtensionAdapter({
@@ -186,7 +189,7 @@ export function createDesktopExtensionAdapter({
             "HOST_UNAVAILABLE",
             "所选模型未配置可用的对话用途",
           );
-        const requestModelId = purpose?.modelId ?? model.modelId;
+        const requestModelId = purpose?.modelId?.trim() || model.modelId;
         const result = await supervisor.call(
           "agent/chat",
           {
