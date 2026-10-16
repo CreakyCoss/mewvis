@@ -25,7 +25,7 @@ export interface CommonPreset {
     limits: Required<RuntimeModelLimits>;
   };
   sampleInput: JsonValue;
-  templates: readonly ModelPreset[];
+  templates: readonly PurposePreset[];
 }
 
 /** One supplier owns its connection suggestions, documented model defaults and purpose templates. */
@@ -35,32 +35,26 @@ export interface ProviderPreset {
   websiteUrl: string;
   apis: { apiFormat: RuntimeApiFormat; apiEndpoint: string }[];
   idPrefixes?: readonly string[];
-  thinking?: Partial<Record<RuntimeApiFormat, readonly string[]>>;
-  models?: readonly ModelMetadataPreset[];
-  templates?: readonly ModelPreset[];
+  models: readonly ModelPreset[];
 }
 
 /** Exact model IDs only: unknown models keep the common defaults. */
-export interface ModelMetadataPreset {
-  modelIds: readonly string[];
-  sourceUrl: string;
+export interface ModelPreset {
+  modelId: string;
+  label: string;
+  sourceUrls: readonly string[];
   limits?: RuntimeModelLimits;
-  capabilities?: Partial<RuntimeModelCapabilities>;
   thinking?: Partial<Record<RuntimeApiFormat, readonly string[]>>;
+  templates: readonly PurposePreset[];
 }
 
 /** Editor templates only. Saved model configuration and execution do not depend on this catalog. */
-export interface ModelPreset {
+export interface PurposePreset {
   id: string;
   version: number;
   label: string;
-  purpose: ModelPurpose;
+  purpose: Omit<ModelPurpose, "preset">;
   sampleInput?: JsonValue;
   sourceUrl?: string;
   isDefault?: boolean;
-  match?: {
-    modelIds?: readonly string[];
-    modelPrefixes?: readonly string[];
-    modelPattern?: string;
-  };
 }

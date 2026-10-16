@@ -2,11 +2,12 @@ import type {
   DiscoveredProviderModel,
   ModelProtocol,
   ModelPurpose,
+  RuntimeModelCapabilities,
   RuntimeModelThinking,
 } from "@mewvis/chat-contracts";
 import type { RuntimeApiFormat } from "@/agent-client/wire";
 import { getModelConfigurationError } from "@mewvis/chat-contracts/model-configuration";
-import type { CommonPreset, ModelPreset, ProviderPreset } from "./types";
+import type { CommonPreset, ModelPreset, ProviderPreset, PurposePreset } from "./types";
 
 /** The single transformation from shared/supplier definitions to the editor's preset API. */
 export function createEditorPresets(commonDefinition: CommonPreset, providerDefinitions: readonly ProviderPreset[]) {
@@ -28,14 +29,11 @@ export function createEditorPresets(commonDefinition: CommonPreset, providerDefi
   );
   if (!nativeProtocols.length) throw new Error("通用预设至少需要一个原生协议");
 
-  const providers = new Map<
-    string,
-    Omit<ProviderPreset, "thinking" | "templates"> & {
-      thinking: Partial<Record<RuntimeApiFormat, RuntimeModelThinking>>;
-    }
-  >();
-  const templates = new Map<string, { preset: ModelPreset; providerId?: string; pattern?: RegExp }>();
-  const register = (entries: readonly ModelPreset[], providerId?: string) => {
+  const providers = new Map<string, ProviderPreset>();
+  type Template = PurposePreset & { providerId?: string; modelId?: string };
+  const templates = new Map<string, Template>();
+  const register = (entries: readonly PurposePreset[], provider?: ProviderPreset, model?: ModelPreset) => {
+    const defaults = new Set<ModelPurpose["type"]>();
     for (const definition of entries) {
       const preset = structuredClone(definition);
       if (!preset.id || templates.has(preset.id)) throw new Error(`模型模板 ID 无效或重复：${preset.id}`);
@@ -43,33 +41,55 @@ export function createEditorPresets(commonDefinition: CommonPreset, providerDefi
         throw new Error(`模型模板元数据无效：${preset.id}`);
       const error = getModelConfigurationError({ version: 1, purposes: [preset.purpose] });
       if (error) throw new Error(`模型模板 ${preset.id} 无效：${error}`);
+      if (preset.isDefault) {
+        if (defaults.has(preset.purpose.type)) throw new Error(`用途默认模板重复：${model?.modelId ?? "common"}`);
+        defaults.add(preset.purpose.type);
+      }
       templates.set(preset.id, {
-        preset,
-        providerId,
-        pattern: preset.match?.modelPattern ? new RegExp(preset.match.modelPattern, "i") : undefined,
+        ...preset,
+        sourceUrl: preset.sourceUrl ?? model?.sourceUrls[0],
+        ...(provider && model
+          ? {
+              providerId: provider.id,
+              modelId: model.modelId,
+              label: `${provider.label} · ${model.label} · ${preset.label}`,
+            }
+          : {}),
       });
     }
   };
   register(common.templates);
   for (const definition of providerDefinitions) {
-    const { templates: entries = [], thinking: values = {}, ...provider } = structuredClone(definition);
+    const provider = structuredClone(definition);
     if (!provider.id || providers.has(provider.id)) throw new Error(`供应商预设 ID 无效或重复：${provider.id}`);
-    const thinking: Partial<Record<RuntimeApiFormat, RuntimeModelThinking>> = {};
-    for (const [apiFormat, levels] of Object.entries(values)) {
-      thinking[apiFormat as RuntimeApiFormat] = createThinking(levels);
+    const modelIds = new Set<string>();
+    for (const model of provider.models) {
+      if (!model.modelId.trim() || modelIds.has(model.modelId))
+        throw new Error(`型号预设 ID 无效或重复：${model.modelId}`);
+      if (!model.templates.length) throw new Error(`型号预设至少需要一个用途模板：${model.modelId}`);
+      modelIds.add(model.modelId);
+      register(model.templates, provider, model);
     }
-    providers.set(provider.id, { ...provider, thinking });
-    register(entries, provider.id);
+    providers.set(provider.id, provider);
   }
 
   const findProvider = (id: string) =>
     providers.get(id) ??
     [...providers.values()].find((provider) => provider.idPrefixes?.some((prefix) => id.startsWith(prefix)));
+  const findModel = (providerId: string, modelId: string) =>
+    findProvider(providerId)?.models.find((model) => model.modelId === modelId.trim());
   const findTemplates = (type?: ModelPurpose["type"]) =>
-    [...templates.values()].filter(({ preset }) => !type || preset.purpose.type === type);
+    [...templates.values()].filter((preset) => !type || preset.purpose.type === type);
+  const defaultTemplates = (entries: readonly PurposePreset[]) => {
+    const selected = new Map<ModelPurpose["type"], PurposePreset>();
+    for (const entry of entries) {
+      if (!selected.has(entry.purpose.type) || entry.isDefault) selected.set(entry.purpose.type, entry);
+    }
+    return [...selected.values()];
+  };
   const getTemplate = (id: string | undefined) => {
     const entry = id ? templates.get(id) : undefined;
-    return entry ? structuredClone(entry.preset) : undefined;
+    return entry ? structuredClone(entry) : undefined;
   };
   const getApiFormats = (providerId: string) =>
     [
@@ -95,6 +115,12 @@ export function createEditorPresets(commonDefinition: CommonPreset, providerDefi
       const provider = findProvider(id);
       return provider ? structuredClone(provider) : undefined;
     },
+    getModel: (providerId: string, modelId: string) => {
+      const model = findModel(providerId, modelId);
+      return model ? structuredClone(model) : undefined;
+    },
+    getModelTemplates: (providerId: string, modelId: string) =>
+      defaultTemplates(findModel(providerId, modelId)?.templates ?? []).map((preset) => getTemplate(preset.id)!),
     getApiFormatLabel: (format: string) => protocols.get(format as ModelProtocol)?.label ?? format,
     getApiFormats,
     getDefaultApiFormat: (providerId: string): RuntimeApiFormat =>
@@ -107,54 +133,42 @@ export function createEditorPresets(commonDefinition: CommonPreset, providerDefi
       provider?: { provider: string; apiFormat: RuntimeApiFormat },
       discovered?: Pick<DiscoveredProviderModel, "modelId"> & Partial<DiscoveredProviderModel>,
     ) => {
-      const supplier = provider ? findProvider(provider.provider) : undefined;
-      const modelDefaults = supplier?.models?.find((model) =>
-        model.modelIds.includes(discovered?.modelId.trim() ?? ""),
-      );
+      const model = provider ? findModel(provider.provider, discovered?.modelId ?? "") : undefined;
+      const purposes = defaultTemplates(model?.templates ?? []).map((preset) => preset.purpose);
+      const chat = purposes.find((purpose) => purpose.type === "chat");
+      const modelCapabilities: RuntimeModelCapabilities | undefined = purposes.length
+        ? {
+            operations: purposes.map((purpose) => purpose.type),
+            input: [...new Set(purposes.flatMap((purpose) => purpose.input))],
+            output: [...new Set(purposes.flatMap((purpose) => purpose.output))],
+            reasoning: chat?.reasoning ?? false,
+            toolCalling: chat?.toolCalling ?? false,
+          }
+        : undefined;
       const capabilities = structuredClone({
         ...common.modelDefaults.capabilities,
-        ...modelDefaults?.capabilities,
+        ...modelCapabilities,
         ...discovered?.capabilities,
       });
-      const limits = { ...common.modelDefaults.limits, ...modelDefaults?.limits, ...discovered?.limits };
-      // Adjust only fallback values when a reported limit exceeds a generic default.
+      const limits = { ...common.modelDefaults.limits, ...model?.limits, ...discovered?.limits };
       if (limits.maxTokens > limits.contextWindow) {
         if (discovered?.limits?.contextWindow !== undefined) limits.maxTokens = limits.contextWindow;
         else limits.contextWindow = limits.maxTokens;
       }
-      const modelThinking = provider ? modelDefaults?.thinking?.[provider.apiFormat] : undefined;
-      const thinking = discovered?.thinking
-        ? createThinking(discovered.thinking.levels)
-        : modelThinking
-          ? createThinking(modelThinking)
-          : provider
-            ? structuredClone(supplier?.thinking[provider.apiFormat] ?? null)
-            : null;
-      return { capabilities, limits, thinking: capabilities.reasoning ? thinking : null };
+      const levels = discovered?.thinking?.levels ?? (provider ? model?.thinking?.[provider.apiFormat] : undefined);
+      return { capabilities, limits, thinking: capabilities.reasoning && levels ? createThinking(levels) : null };
     },
-    listTemplates: (type?: ModelPurpose["type"]) => findTemplates(type).map(({ preset }) => structuredClone(preset)),
+    listTemplates: (type?: ModelPurpose["type"]) => findTemplates(type).map((preset) => structuredClone(preset)),
     getTemplate,
     suggestTemplate: (type: ModelPurpose["type"], providerId: string, modelId: string) => {
-      const candidates = findTemplates(type);
-      const supplier = findProvider(providerId);
       const selected =
-        candidates.find(({ preset, providerId: owner, pattern }) => {
-          if (owner && owner !== supplier?.id) return false;
-          const match = preset.match;
-          if (!owner && !match) return false;
-          return (
-            !match ||
-            !(match.modelIds?.length || match.modelPrefixes?.length || match.modelPattern) ||
-            match.modelIds?.includes(modelId) ||
-            match.modelPrefixes?.some((prefix) => modelId.startsWith(prefix)) ||
-            pattern?.test(modelId)
-          );
-        }) ??
-        candidates.find(({ preset, providerId: owner }) => preset.isDefault && (!owner || owner === supplier?.id));
-      return selected ? getTemplate(selected.preset.id) : undefined;
+        defaultTemplates(findModel(providerId, modelId)?.templates ?? []).find(
+          (preset) => preset.purpose.type === type,
+        ) ?? common.templates.find((preset) => preset.purpose.type === type && preset.isDefault);
+      return selected ? getTemplate(selected.id) : undefined;
     },
     instantiateTemplate: (id: string, type: ModelPurpose["type"]): ModelPurpose => {
-      const entry = templates.get(id)?.preset;
+      const entry = templates.get(id);
       if (!entry || entry.purpose.type !== type) throw new Error("模板不存在或与当前用途不匹配");
       return { ...structuredClone(entry.purpose), preset: { id: entry.id, version: entry.version } };
     },

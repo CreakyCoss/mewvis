@@ -23,8 +23,12 @@ export function PurposeConnection({
   const [visibleKey, setVisibleKey] = useState<string | null>(null);
   const [editing, setEditing] = useState<Record<string, boolean>>({});
   const connection = purpose.connection;
+  const owner = editorPresets.getTemplate(purpose.preset?.id)?.providerId;
+  const foreignSupplier =
+    owner && owner !== editorPresets.getProvider(provider.provider)?.id ? editorPresets.getProvider(owner) : undefined;
   const connectionEditable =
-    editing[purpose.type] ?? (Boolean(Object.keys(connection ?? {}).length) || purpose.modelId !== undefined);
+    Boolean(foreignSupplier) ||
+    (editing[purpose.type] ?? (Boolean(Object.keys(connection ?? {}).length) || purpose.modelId !== undefined));
   const updateConnection = (key: keyof ModelConnection, value: string) => {
     const next = { ...purpose };
     const overrides = { ...connection };
@@ -41,6 +45,7 @@ export function PurposeConnection({
         <label className="flex cursor-pointer items-center gap-2 text-[11px] text-muted-foreground">
           <Checkbox
             checked={!connectionEditable}
+            disabled={Boolean(foreignSupplier)}
             onCheckedChange={(checked) => {
               setEditing((current) => ({ ...current, [purpose.type]: checked !== true }));
               setVisibleKey(null);
@@ -55,6 +60,9 @@ export function PurposeConnection({
           继承 Provider
         </label>
       </div>
+      {foreignSupplier && (
+        <p className="text-[11px] text-muted-foreground">此用途使用 {foreignSupplier.label}，请填写对应的 API Key。</p>
+      )}
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="请求地址">
           <Input

@@ -1,4 +1,4 @@
-import { useState, type Dispatch, type SetStateAction } from "react";
+import { useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { Plus, SlidersHorizontal, Trash2 } from "lucide-react";
 import type { ModelPurpose, ModelConfiguration } from "@mewvis/chat-contracts";
 import { getModelConfigurationError } from "@mewvis/chat-contracts/model-configuration";
@@ -24,8 +24,13 @@ import { Label } from "design-system/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "design-system/components/ui/popover";
 import { MODEL_MODALITY_OPTIONS, MODEL_OPERATION_OPTIONS } from "../options";
 import { getThinkingLevelsError } from "./thinking-levels";
-import { applyModelDefaults, createModelConfig } from "./utils";
-import { initialModelConfiguration, suggestPurpose } from "./model/configuration";
+import { applyModelDefaults, createModelConfig, initializeModelPreset } from "./utils";
+import {
+  getPurposeConnectionError,
+  initialModelConfiguration,
+  suggestPurpose,
+  updateModelPurpose,
+} from "./model/configuration";
 import { EditorBuffers, useEditorBuffers } from "./model/fields";
 import { RequestEditor } from "./model/request";
 import { ParametersEditor } from "./model/parameters";
@@ -50,23 +55,33 @@ function ModelEditor({
   provider,
   draft,
   setDraft,
+  isNew,
 }: {
   provider: LlmProviderConfig;
   draft: ProviderModelConfig;
   setDraft: Dispatch<SetStateAction<ProviderModelConfig>>;
+  isNew: boolean;
 }) {
   const configuration = draft.configuration!;
   const [selectedType, setSelectedType] = useState(configuration.purposes[0]?.type ?? "chat");
   const [addOpen, setAddOpen] = useState(false);
   const [tab, setTab] = useState("request");
   const buffers = useEditorBuffers();
+  const initializedModelId = useRef(draft.modelId.trim());
+  const commitModelId = () => {
+    const modelId = draft.modelId.trim();
+    if (!isNew || initializedModelId.current === modelId || !editorPresets.getModel(provider.provider, modelId))
+      return false;
+    initializedModelId.current = modelId;
+    buffers.clear("");
+    setTab("request");
+    setDraft((current) => initializeModelPreset(provider, current));
+    return true;
+  };
   const selected = configuration.purposes.find((purpose) => purpose.type === selectedType) ?? configuration.purposes[0];
   const updateConfiguration = (patch: Partial<ModelConfiguration>) =>
     setDraft((current) => ({ ...current, configuration: { ...current.configuration!, ...patch } }));
-  const updatePurpose = (next: ModelPurpose) =>
-    updateConfiguration({
-      purposes: configuration.purposes.map((purpose) => (purpose.type === selected.type ? next : purpose)),
-    });
+  const updatePurpose = (next: ModelPurpose) => setDraft((current) => updateModelPurpose(provider, current, next));
   const labels = (values: string[]) =>
     values.map((value) => MODEL_MODALITY_OPTIONS.find((option) => option.value === value)?.label ?? value).join("、") ||
     "未设置";
@@ -86,6 +101,10 @@ function ModelEditor({
             onChange={(event) => {
               const value = event.currentTarget.value;
               setDraft((current) => applyModelDefaults(current, provider.provider, value));
+            }}
+            onBlur={commitModelId}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && !event.nativeEvent.isComposing && commitModelId()) event.preventDefault();
             }}
           />
         </div>
@@ -144,6 +163,7 @@ function ModelEditor({
                     purposes: [...configuration.purposes, suggestPurpose(provider, draft, option.value)],
                   });
                   setSelectedType(option.value);
+                  setTab("request");
                   setAddOpen(false);
                 }}
               >
@@ -203,9 +223,21 @@ function ModelEditor({
               ))}
             </TabsList>
             <TabsContent value="request" className="space-y-5 pt-4">
-              <PurposeConnection provider={provider} model={draft} purpose={selected} onChange={updatePurpose} />
+              <PurposeConnection
+                key={`${selected.type}-${selected.preset?.id}`}
+                provider={provider}
+                model={draft}
+                purpose={selected}
+                onChange={updatePurpose}
+              />
               <div className="border-t border-border/70 pt-4">
-                <RequestEditor key={selected.type} purpose={selected} onChange={updatePurpose} />
+                <RequestEditor
+                  key={selected.type}
+                  provider={provider}
+                  model={draft}
+                  purpose={selected}
+                  onChange={updatePurpose}
+                />
               </div>
             </TabsContent>
             <TabsContent value="parameters" className="pt-4">
@@ -256,6 +288,7 @@ export const ModelEditDialog = ({
   const error =
     jsonError ||
     getModelConfigurationError(draft.configuration) ||
+    getPurposeConnectionError(provider.provider, draft.configuration) ||
     (hasChat
       ? getModelLimitsError(provider, { ...draft, limits: effectiveLimits }) ||
         getThinkingLevelsError(getModelThinking(provider, draft))
@@ -309,7 +342,7 @@ export const ModelEditDialog = ({
         >
           <div className="min-h-0 overflow-y-auto px-5 pt-4 pb-4 sm:px-6">
             <EditorBuffers onError={setJsonError}>
-              <ModelEditor provider={provider} draft={draft} setDraft={setDraft} />
+              <ModelEditor provider={provider} draft={draft} setDraft={setDraft} isNew={!model} />
             </EditorBuffers>
           </div>
           <div className="shrink-0 border-t border-border/70 bg-muted/10 px-5 py-3.5 sm:px-6">

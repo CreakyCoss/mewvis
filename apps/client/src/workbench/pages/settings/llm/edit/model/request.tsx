@@ -1,5 +1,6 @@
 import type { ModelPurpose, ModelRequest, JsonValue } from "@mewvis/chat-contracts";
-import { createModelPurpose } from "@mewvis/chat-contracts/model-configuration";
+import type { LlmProviderConfig, ProviderModelConfig } from "@/agent-client/runtime-model";
+import { applyPurposeTemplate } from "./configuration";
 import { editorPresets } from "../presets";
 import { Button } from "design-system/components/ui/button";
 import { Input } from "design-system/components/ui/input";
@@ -7,9 +8,13 @@ import { Choice, Field, JsonField, pretty, useEditorBuffers } from "./fields";
 
 export function RequestEditor({
   purpose,
+  provider,
+  model,
   onChange,
 }: {
   purpose: ModelPurpose;
+  provider: LlmProviderConfig;
+  model: ProviderModelConfig;
   onChange: (value: ModelPurpose) => void;
 }) {
   const buffers = useEditorBuffers();
@@ -23,17 +28,7 @@ export function RequestEditor({
   const request = purpose.request;
   const applyPreset = (id: string) => {
     buffers.clear(prefix);
-    const next =
-      id === "custom-json"
-        ? createModelPurpose(purpose.type, "http-json")
-        : editorPresets.instantiateTemplate(id, purpose.type);
-    const connection = { ...purpose.connection };
-    if (next.adapter === "http-json" || connection.apiFormat === "http-json") delete connection.apiFormat;
-    onChange({
-      ...next,
-      ...(purpose.modelId !== undefined ? { modelId: purpose.modelId } : {}),
-      ...(Object.keys(connection).length ? { connection } : {}),
-    });
+    onChange(applyPurposeTemplate(provider, model, purpose, id));
   };
   const update = (patch: Partial<ModelRequest>) => onChange({ ...purpose, request: { ...request!, ...patch } });
   const variables = [
@@ -58,7 +53,10 @@ export function RequestEditor({
           恢复当前模板
         </Button>
       </div>
-      <Field label="基础模板" hint="切换模板会替换请求、参数和返回配置，保留连接与请求模型 ID。">
+      <Field
+        label="基础模板"
+        hint="选择型号模板填充请求模型、参数与返回配置；跨供应商时需填写对应 Key。恢复当前模板保留连接与请求模型 ID。"
+      >
         <Choice
           label="基础模板"
           value={selectedPresetId}

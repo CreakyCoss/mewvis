@@ -13,18 +13,38 @@ import { getModelLimitsError } from "@/agent-client/runtime-model";
 import { getModelConfigurationError } from "@mewvis/chat-contracts/model-configuration";
 import { getDefaultApiFormat, getProviderApiFormats, getProviderOption, inferApiEndpoint } from "../options";
 import { editorPresets } from "./presets";
+import { getPurposeConnectionError, initialModelConfiguration } from "./model/configuration";
 
 export const createModelConfig = (
   provider?: Pick<LlmProviderConfig, "provider" | "apiFormat">,
   discovered?: DiscoveredProviderModel,
-): ProviderModelConfig => ({
-  id: createUuid(),
-  modelId: discovered?.modelId ?? "",
-  modelName: discovered?.modelName || discovered?.modelId || "",
-  isOneMillionContext: false,
-  configuration: null,
-  ...editorPresets.createModelDefaults(provider, discovered),
-});
+): ProviderModelConfig => {
+  const model: ProviderModelConfig = {
+    id: createUuid(),
+    modelId: discovered?.modelId ?? "",
+    modelName: discovered?.modelName || discovered?.modelId || "",
+    isOneMillionContext: false,
+    configuration: null,
+    ...editorPresets.createModelDefaults(provider, discovered),
+  };
+  if (provider && editorPresets.getModel(provider.provider, model.modelId)) {
+    model.configuration = initialModelConfiguration(provider, model);
+  }
+  return model;
+};
+
+export const initializeModelPreset = (
+  provider: Pick<LlmProviderConfig, "provider" | "apiFormat">,
+  model: ProviderModelConfig,
+): ProviderModelConfig => {
+  if (!editorPresets.getModel(provider.provider, model.modelId)) return model;
+  const initialized = {
+    ...model,
+    ...editorPresets.createModelDefaults(provider, { modelId: model.modelId }),
+    configuration: null,
+  };
+  return { ...initialized, configuration: initialModelConfiguration(provider, initialized) };
+};
 
 export const appendDiscoveredModels = (
   provider: LlmProviderConfig,
@@ -156,6 +176,8 @@ export const validateLlmSettingsConfig = (draft: LlmSettingsConfig) => {
         const error = getModelConfigurationError(model.configuration);
         if (error) return error;
       }
+      const connectionError = getPurposeConnectionError(provider.provider, model.configuration);
+      if (connectionError) return connectionError;
       const limitsError = getModelLimitsError(provider, model);
       if (limitsError) return limitsError;
     }
