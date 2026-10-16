@@ -196,7 +196,7 @@ try {
         },
         "tool_calls",
       );
-    } else if (["parent-task", "matrix-parent"].includes(messageText(last))) {
+    } else if (["parent-task", "matrix-parent", "auto-shell-parent"].includes(messageText(last))) {
       send(
         {
           tool_calls: [
@@ -207,9 +207,11 @@ try {
               function: {
                 name: "subagent",
                 arguments: JSON.stringify(
-                  messageText(last) === "matrix-parent"
-                    ? { agent: "worker", task: "sandbox-task" }
-                    : { agent: "scout", task: "child-task" },
+                  messageText(last) === "auto-shell-parent"
+                    ? { agent: "worker", task: "auto-shell-command" }
+                    : messageText(last) === "matrix-parent"
+                      ? { agent: "worker", task: "sandbox-task" }
+                      : { agent: "scout", task: "child-task" },
                 ),
               },
             },
@@ -217,7 +219,7 @@ try {
         },
         "tool_calls",
       );
-    } else if (["sandbox-task", "policy-task"].includes(messageText(last))) {
+    } else if (["sandbox-task", "policy-task", "auto-shell-command"].includes(messageText(last))) {
       send(
         {
           tool_calls: [
@@ -228,7 +230,12 @@ try {
               function: {
                 name: "bash",
                 arguments: JSON.stringify({
-                  command: messageText(last) === "policy-task" ? "printf policy-test > .env" : `cat ${quote(secret)}`,
+                  command:
+                    messageText(last) === "auto-shell-command"
+                      ? `mkdir -p auto-shell && cd auto-shell && touch verified.txt && cat ${quote(join(workspace, "fixture.txt"))}`
+                      : messageText(last) === "policy-task"
+                        ? "printf policy-test > .env"
+                        : `cat ${quote(secret)}`,
                 }),
               },
             },
@@ -590,6 +597,39 @@ try {
   }
   rmSync(join(workspace, ".env"), { force: true });
   console.log("PASS real Pi applies profile-specific filesystem boundaries");
+
+  if (process.platform !== "win32") {
+    for (const sandboxEnabled of [true, false]) {
+      const executionConfig = structuredClone(api.EXECUTION_CONFIG);
+      executionConfig.enabled = sandboxEnabled;
+      const policies = {
+        safety: api.resolveSafetyPolicy("auto", workspace),
+        execution: api.resolveExecutionPolicy("auto", workspace, executionConfig),
+      };
+      for (const prompt of ["auto-shell-command", "auto-shell-parent"]) {
+        rmSync(join(workspace, "auto-shell"), { recursive: true, force: true });
+        const shellEvents = [];
+        const shellSession = await api.createPiAgentSession(
+          { ...command, agentSessionDir: null, permissions: { mode: "auto" } },
+          { ...callbacks, requestApproval: () => assert.fail("workspace Bash must run without approval in auto mode") },
+          { policies },
+        );
+        shellSession.session.subscribe((event) => shellEvents.push(event));
+        try {
+          const before = requests.length;
+          await shellSession.session.prompt(prompt);
+          assert.ok(existsSync(join(workspace, "auto-shell/verified.txt")), `${prompt}, sandbox=${sandboxEnabled}`);
+          assert.ok(JSON.stringify(requests.slice(before)).includes("delegated file content"));
+          const result = shellEvents.find((event) => event.type === "tool_execution_end");
+          assert.ok(result && !result.isError, JSON.stringify(result));
+        } finally {
+          shellSession.session.dispose();
+          await shellSession.disposeResources();
+        }
+      }
+    }
+    console.log("PASS auto workspace Bash through real Pi workers and subagents, with sandbox on/off");
+  }
 
   for (const safetyEnabled of [true, false]) {
     for (const sandboxEnabled of [true, false]) {

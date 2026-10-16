@@ -1,7 +1,17 @@
 import assert from "node:assert/strict";
 import { mock } from "node:test";
 import { build } from "esbuild";
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync, symlinkSync, linkSync } from "node:fs";
+import {
+  mkdtempSync,
+  mkdirSync,
+  rmSync,
+  writeFileSync,
+  symlinkSync,
+  linkSync,
+  existsSync,
+  readFileSync,
+} from "node:fs";
+import { execFileSync } from "node:child_process";
 import { tmpdir, homedir } from "node:os";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -42,6 +52,14 @@ try {
     "pre-call safety must not depend on execution or a sandbox backend",
   );
   const api = await import(pathToFileURL(outfile).href);
+  const readTool = {
+    name: "read",
+    parameters: { type: "object", properties: { path: { type: "string" } }, required: ["path"] },
+  };
+  const bashTool = {
+    name: "bash",
+    parameters: { type: "object", properties: { command: { type: "string" } }, required: ["command"] },
+  };
   assert.equal(api.DEFAULT_AGENT_PERMISSION_MODE, "auto");
   assert.equal(api.getAgentPermissionOptions()[1].mode, "auto");
   assert.equal(api.getAgentPermissionOptions()[1].isDefault, true);
@@ -63,9 +81,13 @@ try {
     true,
   );
   const untouchedHook = async () => ({ block: false });
-  const disabledSession = { agent: { beforeToolCall: untouchedHook } };
+  const disabledSession = { agent: { beforeToolCall: untouchedHook, state: { tools: [readTool] } } };
   api.installPiSafety(disabledSession, {}, {}, disabled);
-  assert.equal(disabledSession.agent.beforeToolCall, untouchedHook);
+  assert.deepEqual(
+    await disabledSession.agent.beforeToolCall({ toolCall: { id: "disabled", name: "read" }, args: { path: "note" } }),
+    { block: false },
+    "disabled safety preserves the previous hook result while still validating tool arguments",
+  );
   assert.throws(() => api.validateSafetyConfig({ ...api.SAFETY_CONFIG, backend: {} }));
   assert.ok(!("backend" in api.resolveSafetyPolicy("ask", workspace)));
   const catalog = api.getAgentPermissionOptions();
@@ -311,6 +333,177 @@ try {
     workspacePath: workspace,
   };
   const analyze = (request) => api.analyzePiExecution(request);
+  if (process.platform !== "win32") {
+    const shell = (command, mode = "auto") => {
+      const invocation = { ...request, entry: "bash", input: { command } };
+      const analysis = analyze(invocation);
+      return { analysis, decision: api.evaluateSafety(analysis, context(mode, invocation)) };
+    };
+    const source = join(workspace, "source files");
+    mkdirSync(source);
+    writeFileSync(join(source, "hello.txt"), "hello\nworld\n");
+    writeFileSync(join(source, "it's.txt"), "quoted path\n");
+    symlinkSync(join(source, "hello.txt"), join(workspace, "inside-link"));
+    symlinkSync(join(temp, "not-created"), join(workspace, "dangling-link"));
+    const safe = [
+      "pwd",
+      "echo hi",
+      "echo '$(rm x); `rm x` | rm x'",
+      "printf '%s\\n' '中文 hello'",
+      "ls -la",
+      "cat 'source files/hello.txt'",
+      "cat inside-link",
+      "head -n 1 'source files/hello.txt'",
+      "tail -n1 'source files/hello.txt'",
+      "wc -l 'source files/hello.txt'",
+      "sed -n '1,2p' 'source files/hello.txt'",
+      "mkdir -p generated/nested",
+      "touch generated.txt",
+      "cd 'source files' && cat hello.txt | head -n 1",
+      "echo hello | cat | wc -c",
+      "echo a\\ b",
+      "echo 'single'\\''quote'",
+      'echo "literal \\$name"',
+    ];
+    for (const command of safe) {
+      assert.equal(shell(command).analysis.coverage, "complete", command);
+      assert.equal(shell(command).decision.action, "allow", command);
+      assert.equal(shell(command, "ask").decision.action, "requestApproval", command);
+      assert.equal(shell(command, "full").decision.action, "allow", command);
+    }
+    for (const command of [
+      "cat ../outside",
+      "cd .. && ls",
+      `cat '${join(temp, "outside")}'`,
+      "cat outside-link/outside",
+      "touch outside-link/new-file",
+      "touch dangling-link",
+      "ls -R outside-link",
+    ])
+      assert.equal(shell(command).decision.action, "requestApproval", command);
+    for (const command of [
+      "touch .env",
+      "mkdir -p .git/hooks/new",
+      "touch hardlink",
+      `cat '${join(homedir(), ".ssh/key")}'`,
+    ])
+      assert.equal(shell(command).decision.action, "deny", command);
+    for (const command of [
+      "ls *",
+      "cat $FILE",
+      'echo "$(rm x)"',
+      "echo `rm x`",
+      "echo x; rm x",
+      "echo x\nrm x",
+      "ls || rm x",
+      "echo hi > note.txt",
+      "cat < note.txt",
+      "cat <(rm x)",
+      "echo hi & rm x",
+      "PATH=. ls",
+      "printf -v PATH x",
+      "printf '%n' 'a[$(rm x)]'",
+      "printf '%*n' 1 PATH",
+      "sed -i 's/a/b/' note.txt",
+      "sed -n '1w outside' note.txt",
+      "sed 'e' note.txt",
+      "find . -delete",
+      "git reset --hard",
+      "git push",
+      "pnpm test",
+      "python script.py",
+      "./cat note.txt",
+      "cd 'source files' | cat hello.txt",
+      "echo x | cd 'source files' && cat hello.txt",
+      "echo hi &&",
+      "| cat",
+      "echo 'unclosed",
+      "echo hi \\",
+    ]) {
+      assert.equal(shell(command).analysis.coverage, "partial", command);
+      assert.equal(shell(command).decision.action, "requestApproval", command);
+    }
+    const autoSession = { agent: { state: { tools: [bashTool] } } };
+    api.installPiSafety(
+      autoSession,
+      { taskId: "auto-shell", workspacePath: workspace },
+      { requestApproval: () => assert.fail("recognized workspace commands must not prompt") },
+      api.resolveSafetyPolicy("auto", workspace),
+    );
+    const execute = async (command) => {
+      const args = { command };
+      const blocked = await autoSession.agent.beforeToolCall({ toolCall: { id: "shell", name: "bash" }, args });
+      assert.equal(blocked, undefined, command);
+      // The checked arguments are exactly the arguments dispatched to the shell worker.
+      assert.equal(shell(args.command).analysis.coverage, "complete", args.command);
+      return { args, output: execFileSync("/bin/bash", ["-c", args.command], { cwd: workspace, encoding: "utf8" }) };
+    };
+    assert.equal((await execute("cd 'source files' && cat hello.txt | head -n 1")).output, "hello\n");
+    assert.equal((await execute("printf '%s\\n' '中文 hello'")).output, "中文 hello\n");
+    assert.equal((await execute("cat 'source files/it'\\''s.txt'")).output, "quoted path\n");
+    assert.equal((await execute('echo "literal \\$name"')).output, "literal $name\n");
+    assert.equal(
+      (await execute("echo '$(touch injected); `touch injected`'")).output,
+      "$(touch injected); `touch injected`\n",
+    );
+    assert.equal(existsSync(join(workspace, "injected")), false);
+    await execute("mkdir -p generated/nested && touch generated/nested/created.txt");
+    await execute("mkdir -p generated/nested && touch generated/nested/created.txt");
+    assert.equal(existsSync(join(workspace, "generated/nested/created.txt")), true);
+    assert.equal((await execute("sed -n '1p' 'source files/hello.txt'")).output, "hello\n");
+
+    const originalPath = process.env.PATH;
+    try {
+      const pinned = (await execute("cat 'source files/hello.txt'")).args;
+      mkdirSync(join(workspace, "bin"));
+      writeFileSync(join(workspace, "bin/cat"), "#!/bin/sh\nprintf compromised", { mode: 0o755 });
+      process.env.PATH = `${join(workspace, "bin")}:${originalPath}`;
+      assert.equal(
+        shell("cat 'source files/hello.txt'").analysis.coverage,
+        "partial",
+        "PATH shims cannot inherit command trust",
+      );
+      assert.equal(
+        execFileSync("/bin/bash", ["-c", pinned.command], { cwd: workspace, encoding: "utf8" }),
+        "hello\nworld\n",
+        "approved execution pins the binary independently of later PATH changes",
+      );
+    } finally {
+      if (originalPath === undefined) delete process.env.PATH;
+      else process.env.PATH = originalPath;
+    }
+    // Exercise rg only when a supported installed binary is available.
+    if (shell("rg --files").analysis.coverage === "complete") {
+      for (const command of [
+        "rg -n hello 'source files'",
+        "rg --files 'source files'",
+        "rg -g '*.txt' hello 'source files'",
+      ])
+        assert.equal(shell(command).decision.action, "allow", command);
+      for (const command of ["rg --pre sh hello .", "rg -L hello .", "rg -z hello .", "rg -f=patterns hello ."])
+        assert.equal(shell(command).decision.action, "requestApproval", command);
+      assert.equal((await execute("rg -n hello 'source files'")).output.includes("hello.txt:1:hello"), true);
+      assert.equal(shell(`rg --file='${join(homedir(), ".ssh/key")}' .`).decision.action, "deny");
+      const previousConfig = process.env.RIPGREP_CONFIG_PATH;
+      try {
+        const config = join(workspace, "rg-config");
+        writeFileSync(config, "--pre=/bin/echo\n");
+        process.env.RIPGREP_CONFIG_PATH = config;
+        assert.equal(
+          (await execute("rg -n hello 'source files'")).output.includes("hello.txt:1:hello"),
+          true,
+          "implicit rg configuration must not add hidden preprocessors",
+        );
+      } finally {
+        if (previousConfig === undefined) delete process.env.RIPGREP_CONFIG_PATH;
+        else process.env.RIPGREP_CONFIG_PATH = previousConfig;
+      }
+    }
+    assert.equal(readFileSync(join(source, "hello.txt"), "utf8"), "hello\nworld\n");
+    console.log(
+      "PASS workspace Bash auto-approval, literal execution, pinned binaries, destructive/opaque commands and path protections",
+    );
+  }
   for (const command of [
     "rm -rf .",
     "python -c 'import os; os.remove(\"x\")'",
@@ -354,8 +547,10 @@ try {
     "unknown",
   );
   assert.equal(
-    api.analyzePiExecution({ ...request, entry: "bash", input: { command: "echo hi" } }, new Map([["bash", "low"]]))
-      .coverage,
+    api.analyzePiExecution(
+      { ...request, entry: "bash", input: { command: "python script.py" } },
+      new Map([["bash", "low"]]),
+    ).coverage,
     "partial",
   );
   assert.equal(api.analyzePiExecution(request, new Map([["write", "low"]])).operations[0].kind, "filesystem");
@@ -466,6 +661,7 @@ try {
   // Exercise the actual Pi adapter hook, including extension mutations and abort propagation.
   const session = {
     agent: {
+      state: { tools: [readTool] },
       beforeToolCall: async ({ args }) => {
         args.path = join(temp, "outside");
       },

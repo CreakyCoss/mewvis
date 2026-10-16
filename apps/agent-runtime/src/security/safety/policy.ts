@@ -74,7 +74,7 @@ const risks = {
     externalWrite: "high",
     delete: "high",
   },
-  process: "high",
+  process: { workspaceRead: "low", workspaceWrite: "medium", opaque: "high" },
   network: "medium",
   interaction: "low",
 } satisfies Record<string, SafetyRisk | Record<string, SafetyRisk>>;
@@ -108,7 +108,7 @@ export const SAFETY_CONFIG: SafetyConfig = {
       label: profile.label,
       isDefault: profile.isDefault,
       approval: profile.approval,
-      description: `${risk}风险直接执行，超过上限需审批；未知操作${unknown}。调用前检查可写范围：${roots}；可访问域名：${network}。沙箱由执行配置独立控制。`,
+      description: `${risk}风险直接执行，超过上限需审批；未知操作${unknown}。${profile.mode === "auto" ? "已识别的工作区 Bash 查看、搜索和普通写入免审批；删除、脚本及未支持命令仍需审批。" : ""}调用前检查可写范围：${roots}；可访问域名：${network}。沙箱由执行配置独立控制。`,
     };
   }),
   rules({ mode, workspacePath, resolvePath }) {
@@ -185,7 +185,7 @@ export const SAFETY_CONFIG: SafetyConfig = {
       },
       {
         id: "filesystem.hardlink-write",
-        description: "阻止文件工具写入多硬链接目标。",
+        description: "阻止写入多硬链接普通文件；目录的链接计数不表示文件别名。",
         scope: "operation",
         evaluate({ operation }) {
           if (
@@ -195,11 +195,12 @@ export const SAFETY_CONFIG: SafetyConfig = {
           )
             return;
           try {
-            if (statSync(operation.target).nlink > 1)
+            const target = statSync(operation.target);
+            if (target.isFile() && target.nlink > 1)
               return {
                 risk: "high",
                 effect: "deny",
-                reason: "文件工具禁止写入多硬链接目标。",
+                reason: "禁止写入多硬链接文件。",
               };
           } catch (error) {
             if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
@@ -208,14 +209,26 @@ export const SAFETY_CONFIG: SafetyConfig = {
       },
       {
         id: "process.execute",
-        description: "命令按配置风险处理。",
+        description: "auto 放行已解码的工作区常规命令，其他命令维持高风险。",
         scope: "operation",
         evaluate({ operation }) {
-          if (operation?.kind === "process")
-            return {
-              risk: risk.process,
-              reason: `执行命令：${operation.command}`,
-            };
+          if (operation?.kind !== "process") return;
+          const decoded = operation.decoded;
+          const workspaceCommand =
+            mode === "auto" &&
+            decoded &&
+            containsPath(workspacePath, operation.cwd) &&
+            decoded.targets.every((target) =>
+              containsPath(workspacePath, target),
+            );
+          return {
+            risk: workspaceCommand
+              ? decoded.filesystem === "write"
+                ? risk.process.workspaceWrite
+                : risk.process.workspaceRead
+              : risk.process.opaque,
+            reason: `执行命令：${operation.command}`,
+          };
         },
       },
       {

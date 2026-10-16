@@ -163,8 +163,8 @@ try {
     ...bundleOptions,
     entryPoints: [join(piRoot, "tools/worker.ts")],
     outfile: join(runtime, entries.piToolWorker.output),
-    applications: [
-      ...bundleOptions.applications,
+    plugins: [
+      ...bundleOptions.plugins,
       {
         name: "powershell-process-fixture",
         setup(builder) {

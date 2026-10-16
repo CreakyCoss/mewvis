@@ -13,6 +13,7 @@ import {
 import type { AgentRuntimeCallbacks, RuntimeAgentCommand } from "../../types.js";
 import type { PiAgentSession } from "../agent/session.js";
 import type { ResolvedAgentAccess } from "../../../../../../../security/access/index.js";
+import { prepareBashExecution } from "../../../../../../../security/safety/bash.js";
 
 const fileActions: Readonly<Record<string, Extract<Operation, { kind: "filesystem" }>["action"]>> = {
   read: "read",
@@ -82,7 +83,8 @@ export function analyzePiExecution(
   if (name === "bash" || name === "powershell") {
     const { command } = request.input;
     if (typeof command !== "string" || !command.trim()) throw new Error("Shell 操作缺少有效命令。");
-    // Parsing a command name cannot account for scripts, expansions or subprocesses.
+    if (name === "bash") return prepareBashExecution(command, request.workspacePath).analysis;
+    // PowerShell remains opaque until its language and path semantics are decoded.
     return {
       coverage: "partial",
       operations: [{ kind: "process", command, cwd: request.workspacePath }],
@@ -135,6 +137,10 @@ export function installPiSafety(
       workspacePath: command.workspacePath,
     };
     if (Object.hasOwn(fileActions, request.entry)) input.path = fileTarget(request, request.entry);
+    if (request.entry === "bash" && typeof input.command === "string") {
+      const prepared = prepareBashExecution(input.command, request.workspacePath);
+      if (prepared.command) input.command = prepared.command;
+    }
     const result = await checkExecution({
       request,
       policy,

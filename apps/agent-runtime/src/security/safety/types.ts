@@ -12,7 +12,18 @@ export type Operation =
       target: string;
       recursive: boolean;
     }>
-  | Readonly<{ kind: "process"; command: string; cwd: string }>
+  | Readonly<{
+      kind: "process";
+      command: string;
+      cwd: string;
+      /** Host-decoded literal command effects; never accepted from tool arguments. */
+      decoded?: Readonly<{
+        executable: string;
+        args: readonly string[];
+        filesystem: "read" | "write";
+        targets: readonly string[];
+      }>;
+    }>
   | Readonly<{ kind: "network"; url: string; method: string }>
   | Readonly<{ kind: "interaction"; action: "ask" | "delegate" }>
   /** Risk declared by an enabled tool's definition. Actual effects remain confined by execution policy. */
