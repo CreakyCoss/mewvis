@@ -11,7 +11,8 @@ import {
 import { Textarea } from "design-system/components/ui/textarea";
 import { Button } from "design-system/components/ui/button";
 import { Input } from "design-system/components/ui/input";
-import { Choice, Field, pretty } from "./fields";
+import { ToggleGroup, ToggleGroupItem } from "design-system/components/ui/toggle-group";
+import { Field, pretty } from "./fields";
 
 export function CallPreview({
   purpose,
@@ -26,10 +27,17 @@ export function CallPreview({
   const [input, setInput] = useState(() => pretty(preset?.sampleInput ?? editorPresets.sampleInput));
   const [overrides, setOverrides] = useState("{}");
   const [sample, setSample] = useState("{}");
-  const [phase, setPhase] = useState<"initial" | "result">("initial");
+  const [selectedPhase, setPhase] = useState<"initial" | "result" | "retrieve">("initial");
   const [taskId, setTaskId] = useState("example-task-id");
+  const [taskResult, setTaskResult] = useState("{}");
   const [result, setResult] = useState("");
   const [responseError, setResponseError] = useState("");
+  const stages = [
+    { value: "initial" as const, label: "创建任务" },
+    ...(purpose.response?.mode === "task" ? [{ value: "result" as const, label: "查询任务" }] : []),
+    ...(purpose.response?.task?.resultRequest ? [{ value: "retrieve" as const, label: "获取产物" }] : []),
+  ];
+  const phase = stages.some((stage) => stage.value === selectedPhase) ? selectedPhase : "initial";
   const connection = getModelConnection(provider, model, purpose.type);
   let preview = "";
   let error = "";
@@ -51,6 +59,7 @@ export function CallPreview({
             overrides: JSON.parse(overrides),
             phase,
             taskId,
+            ...(phase === "retrieve" ? { result: JSON.parse(taskResult) as JsonValue } : {}),
           }),
     );
   } catch (e) {
@@ -86,17 +95,30 @@ export function CallPreview({
       {purpose.response?.mode === "task" && (
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="任务阶段">
-            <Choice
-              label="任务预览阶段"
+            <ToggleGroup
+              type="single"
+              variant="outline"
+              size="sm"
+              spacing={0}
+              className="w-full"
+              aria-label="任务预览阶段"
               value={phase}
-              options={[
-                { value: "initial", label: "创建任务" },
-                { value: "result", label: "查询任务" },
-              ]}
-              onChange={setPhase}
-            />
+              onValueChange={(value) => {
+                const stage = stages.find((stage) => stage.value === value);
+                if (!stage) return;
+                setPhase(stage.value);
+                setResult("");
+                setResponseError("");
+              }}
+            >
+              {stages.map((stage) => (
+                <ToggleGroupItem key={stage.value} value={stage.value} className="h-8 min-w-0 flex-1 px-2 text-xs">
+                  {stage.label}
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
           </Field>
-          {phase === "result" && (
+          {phase !== "initial" && (
             <Field label="任务 ID">
               <Input
                 aria-label="预览任务 ID"
@@ -107,6 +129,18 @@ export function CallPreview({
             </Field>
           )}
         </div>
+      )}
+      {purpose.response?.task?.resultRequest && phase === "retrieve" && (
+        <Field label="任务成功查询结果 · JSON">
+          <Textarea
+            aria-label="预览任务成功查询结果"
+            className="min-h-24 font-mono text-xs leading-5"
+            spellCheck={false}
+            placeholder={'{"file_id":"example-file-id"}'}
+            value={taskResult}
+            onChange={(event) => setTaskResult(event.currentTarget.value)}
+          />
+        </Field>
       )}
       <Field label={purpose.adapter === "native" ? "对话运行时配置" : "组合后的请求"}>
         <pre className="max-h-80 overflow-auto rounded-lg border border-border/70 bg-muted/20 p-3 font-mono text-[11px] leading-5 whitespace-pre-wrap break-all">

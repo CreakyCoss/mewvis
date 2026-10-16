@@ -61,6 +61,40 @@
     var(--film-directory-width) minmax(0, 1fr) var(--film-panel-width)
     56px;
 }
+.film-studio.has-assistant .film-workbench-body {
+  grid-template-columns:
+    var(--film-directory-width) minmax(0, 1fr)
+    var(--film-assistant-width, var(--film-panel-width)) 56px;
+}
+.film-studio .film-assistant-resizer {
+  grid-column: 3;
+  grid-row: 1;
+  position: relative;
+  justify-self: start;
+  width: 9px;
+  margin-left: -4px;
+  z-index: 10;
+  cursor: col-resize;
+  touch-action: none;
+  user-select: none;
+}
+.film-studio .film-assistant-resizer::after {
+  content: "";
+  position: absolute;
+  inset: 0 3px;
+  background: transparent;
+  transition: background 120ms;
+}
+.film-studio .film-assistant-resizer:hover::after,
+.film-studio .film-assistant-resizer:focus-visible::after,
+.film-studio .film-assistant-resizer.is-resizing::after {
+  background: var(--primary);
+}
+.film-studio:has(.film-assistant-resizer.is-resizing),
+.film-studio:has(.film-assistant-resizer.is-resizing) * {
+  cursor: col-resize;
+  user-select: none;
+}
 .film-studio .film-shot-directory {
   grid-column: 1;
   grid-row: 1;
@@ -537,6 +571,50 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+}
+.film-studio .film-chat-messages {
+  padding: 20px 16px 12px;
+  scrollbar-width: thin;
+}
+.film-studio .film-chat-messages > [aria-live] {
+  gap: 24px;
+}
+.film-studio .film-chat-message > [data-role] {
+  gap: 0;
+  padding-right: 0;
+}
+.film-studio .film-chat-message > [data-role="assistant"] > :not([data-role]),
+.film-studio
+  .film-chat-message
+  > [data-role="assistant"]
+  > [data-role]
+  > div:first-child {
+  display: none;
+}
+.film-studio .film-chat-message > [data-role="assistant"] > [data-role] {
+  width: 100%;
+  max-width: 100%;
+}
+.film-studio .film-chat-message > [data-role="user"] > [data-role] {
+  max-width: 88%;
+}
+.film-studio .film-chat-message article {
+  font-size: 13px;
+  line-height: 1.75;
+}
+.film-studio .film-chat-message article[data-role="user"] {
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: var(--muted);
+  color: var(--foreground);
+  box-shadow: none;
+}
+.film-studio .film-chat-message article[data-role="assistant"] {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 .film-studio .film-assistant-chat .film-chat-layout .film-chat-footer {
   padding: 0;
@@ -1086,6 +1164,23 @@
   }
 }
 
+/* Dragging the assistant wider also narrows the editor on large screens. */
+@container film-workspace (max-width: 560px) {
+  .film-studio .film-focused-camera {
+    gap: 8px;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr) minmax(0, 1fr);
+  }
+  .film-studio .film-focused-camera .film-field {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+  }
+  .film-studio .film-stage-footer > span {
+    display: none;
+  }
+}
+
 /* Workspace-backed files and generated storyboard versions. */
 .film-workspace-notice {
   display: flex;
@@ -1113,6 +1208,20 @@
   gap: 12px;
   padding-top: 16px;
   border-top: 1px solid var(--border);
+}
+.film-generation-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.film-generation-status p {
+  flex: 1;
+  margin: 0;
+  font-size: 12px;
+}
+.film-generation-status button {
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 .film-media-panel {
   min-width: 0;

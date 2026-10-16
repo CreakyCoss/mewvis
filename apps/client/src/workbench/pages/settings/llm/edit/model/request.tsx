@@ -1,4 +1,5 @@
 import type { ModelPurpose, ModelRequest, JsonValue } from "@mewvis/chat-contracts";
+import { RotateCcw } from "lucide-react";
 import type { LlmProviderConfig, ProviderModelConfig } from "@/agent-client/runtime-model";
 import { applyPurposeTemplate } from "./configuration";
 import { editorPresets } from "../presets";
@@ -45,16 +46,27 @@ export function RequestEditor({
         <span className="text-xs font-medium">请求模板</span>
         <Button
           type="button"
-          variant="ghost"
+          variant="link"
           size="sm"
-          className="h-7 text-xs text-muted-foreground"
+          className="h-6 px-0 text-[11px] font-normal text-muted-foreground hover:text-primary"
           onClick={() => applyPreset(selectedPresetId)}
         >
+          <RotateCcw className="size-3" />
           恢复当前模板
         </Button>
       </div>
       <Field
         label="基础模板"
+        labelAction={currentPreset?.sourceUrl && (
+          <a
+            className="text-[11px] text-primary hover:underline"
+            target="_blank"
+            rel="noreferrer"
+            href={currentPreset.sourceUrl}
+          >
+            查看接口文档
+          </a>
+        )}
         hint="选择型号模板填充请求模型、参数与返回配置；跨供应商时需填写对应 Key。恢复当前模板保留连接与请求模型 ID。"
       >
         <Choice
@@ -69,16 +81,6 @@ export function RequestEditor({
           }}
         />
       </Field>
-      {currentPreset?.sourceUrl && (
-        <a
-          className="text-[11px] text-primary hover:underline"
-          target="_blank"
-          rel="noreferrer"
-          href={currentPreset.sourceUrl}
-        >
-          查看接口文档
-        </a>
-      )}
       {purpose.adapter === "native" ? (
         <div className="rounded-xl border border-border/70 bg-muted/15 p-4 text-xs leading-6 text-muted-foreground">
           使用此用途的对话协议处理流式返回、工具调用和附件。默认思考等级和上下文限制在「可调参数」中设置。
@@ -157,7 +159,7 @@ export function RequestEditor({
                     if (body === undefined) delete next.body;
                     onChange({ ...purpose, request: next });
                   }}
-                  hint={'整值 "{{params.n}}" 保留数字、布尔、对象或数组类型。字符串内插只接受标量。'}
+                  hint={'整值 "{{params.n}}" 保留原始类型；"{{input.image?}}" 缺失时省略字段。可选对象用 $optional / $value 包裹。字符串内插只接受标量。'}
                 />
                 <div className="flex flex-wrap items-center gap-1.5">
                   <span className="text-[11px] text-muted-foreground">可用变量</span>

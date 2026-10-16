@@ -2,7 +2,7 @@ import {
   NativeSelect,
   NativeSelectOption,
 } from "design-system/components/ui/native-select";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -41,6 +41,7 @@ import type { FilmView } from "./view-state";
 import { Dialog } from "./components/Dialog";
 import { Field } from "./components/Fields";
 import { StepRail } from "./components/StepRail";
+import { AssistantResizer } from "./components/AssistantResizer";
 import { ShotArtwork } from "./artwork";
 import { StageEditor } from "./StageEditors";
 import { Assistant } from "./Assistant";
@@ -73,6 +74,9 @@ export function Workbench({
     "assistant",
   );
   const [mobilePanel, setMobilePanel] = useState(false);
+  const [assistantWidth, setAssistantWidth] = useState<number | null>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const assistantRef = useRef<HTMLDivElement>(null);
   const [directoryOpen, setDirectoryOpen] = useState(false);
   const [expandedEpisodeId, setExpandedEpisodeId] = useState<string | null>(
     initialView.episodeId,
@@ -198,6 +202,13 @@ export function Workbench({
   return (
     <main
       className={`film-app film-workbench film-studio ${panel ? "has-panel" : ""} ${panel === "assistant" ? "has-assistant" : ""} ${mobilePanel ? "panel-mobile-open" : ""} ${directoryOpen ? "directory-mobile-open" : ""} ${focused ? "is-focused" : ""}`}
+      style={
+        assistantWidth === null
+          ? undefined
+          : ({
+              "--film-assistant-width": `${assistantWidth}px`,
+            } as CSSProperties)
+      }
     >
       <header className="film-workbench-header">
         <div className="film-project-heading">
@@ -323,18 +334,7 @@ export function Workbench({
           )}
         </p>
       )}
-      {generation.busy && (
-        <div className="film-workspace-notice" role="status">
-          <span>分镜生图进行中，结果会自动保存到对应镜头。</span>
-          <button
-            disabled={generation.starting || generation.stopping}
-            onClick={() => void generation.stop()}
-          >
-            {generation.stopping ? "停止中…" : "停止生图"}
-          </button>
-        </div>
-      )}
-      <div className="film-workbench-body">
+      <div className="film-workbench-body" ref={bodyRef}>
         {directoryOpen && (
           <button
             className="film-drawer-scrim"
@@ -474,6 +474,9 @@ export function Workbench({
               onSelectShot={setShotId}
               generate={generation.generate}
               generationBusy={generation.busy}
+              stopGeneration={generation.stop}
+              generationStarting={generation.starting}
+              generationStopping={generation.stopping}
             />
           </section>
           <footer className="film-stage-footer">
@@ -507,8 +510,17 @@ export function Workbench({
             )}
           </footer>
         </section>
+        {panel === "assistant" && !focused && !compactScreen && (
+          <AssistantResizer
+            containerRef={bodyRef}
+            panelRef={assistantRef}
+            onResize={setAssistantWidth}
+          />
+        )}
         {
           <div
+            id="film-assistant-panel"
+            ref={assistantRef}
             className="film-side-panel"
             hidden={panel !== "assistant" || focused}
           >

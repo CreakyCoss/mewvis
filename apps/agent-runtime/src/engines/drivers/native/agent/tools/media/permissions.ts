@@ -40,10 +40,15 @@ export async function authorizeMediaPath(
   const sandbox = execution.sandbox?.filesystem;
   const denied = action === "write" ? sandbox?.denyWrite : sandbox?.denyRead;
   const allowed = action === "write" ? sandbox?.allowWrite : sandbox?.allowRead;
+  // Policy and protected roots are resolved before isolation. Inspect only the
+  // requested file here: other roots can be unreadable inside this sandbox.
   if (
-    denied?.some((path) => containsPath(canonicalPath(path), target)) ||
-    (allowed &&
-      !allowed.some((path) => containsPath(canonicalPath(path), target)))
+    denied?.some((path) => {
+      // The POSIX read allowlist uses a root denial with explicit carve-outs.
+      if (action === "read" && allowed && path === "/") return false;
+      return containsPath(path, target);
+    }) ||
+    (allowed && !allowed.some((path) => containsPath(path, target)))
   )
     throw new Error("当前执行策略禁止访问该媒体文件目录");
   if (action === "write") {
@@ -59,9 +64,7 @@ export async function authorizeMediaPath(
       parts.includes(".git") ||
       parts.includes(APP_DATA_DIR_NAME) ||
       managed.some(
-        (path) =>
-          containsPath(canonicalPath(path), target) ||
-          containsPath(target, canonicalPath(path)),
+        (path) => containsPath(path, target) || containsPath(target, path),
       )
     )
       throw new Error("不能修改宿主管理的配置、数据库或工作区标识");

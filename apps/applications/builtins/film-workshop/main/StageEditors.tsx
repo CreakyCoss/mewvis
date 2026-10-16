@@ -55,6 +55,9 @@ type Props = {
   edit: (update: (project: FilmProject) => FilmProject) => void;
   generate?: (episodeId: string, shotId: string) => Promise<void>;
   generationBusy?: boolean;
+  stopGeneration?: () => Promise<void>;
+  generationStarting?: boolean;
+  generationStopping?: boolean;
 };
 export function StageEditor(props: Props) {
   if (props.step === "settings") return <Settings {...props} />;
@@ -652,21 +655,34 @@ function Storyboard(props: Props) {
             )
             .slice(-1)
             .map((job) => (
-              <p
-                key={job.id}
-                className={
-                  job.status === "failed" ? "film-error" : "film-muted"
-                }
-                role="status"
-              >
-                {job.status === "completed"
-                  ? "图片已保存并关联到此镜头"
-                  : job.status === "failed"
-                    ? job.error
-                    : job.status === "stopped"
-                      ? "已停止等待，可在助手中查看详情"
-                      : "正在生成，可在创作助手中查看进度或停止任务"}
-              </p>
+              <div className="film-generation-status" key={job.id}>
+                <p
+                  className={
+                    job.status === "failed" ? "film-error" : "film-muted"
+                  }
+                  role="status"
+                >
+                  {job.status === "completed"
+                    ? "图片已保存并关联到此镜头"
+                    : job.status === "failed"
+                      ? job.error
+                      : job.status === "stopped"
+                        ? "已停止等待，可在助手中查看详情"
+                        : "正在生成，可在创作助手中查看进度"}
+                </p>
+                {["preparing", "running"].includes(job.status) &&
+                  props.stopGeneration && (
+                    <button
+                      className="film-text-button"
+                      disabled={
+                        props.generationStarting || props.generationStopping
+                      }
+                      onClick={() => void props.stopGeneration?.()}
+                    >
+                      {props.generationStopping ? "停止中…" : "停止生图"}
+                    </button>
+                  )}
+              </div>
             ))}
           <MediaPanel
             project={props.project}

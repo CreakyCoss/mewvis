@@ -271,7 +271,7 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
       <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent
           aria-describedby={undefined}
-          className={`!flex max-h-[calc(100vh-2rem)] w-[min(720px,calc(100vw-2rem))] flex-col gap-0 overflow-hidden border-border/70 bg-popover p-0 shadow-[var(--shadow-floating)] sm:max-w-[720px] [&>[data-slot=dialog-close]]:top-2.5 ${modelEditor ? "invisible" : ""}`}
+          className={`!flex max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] flex-col gap-0 overflow-hidden border-border/70 bg-popover p-0 shadow-[var(--shadow-floating)] sm:max-w-[960px] [&>[data-slot=dialog-close]]:top-2.5 ${modelEditor ? "invisible" : ""}`}
           onOpenAutoFocus={(event) => {
             if (!modelFocusTarget.current) return;
             const target = document.getElementById(modelFocusTarget.current);
@@ -283,7 +283,7 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
           }}
         >
           <DialogHeader className="shrink-0 border-b border-border/70 bg-card/35 px-6 py-3 pr-14">
-            <DialogTitle className="flex items-center gap-2.5 text-lg leading-tight font-semibold">
+            <DialogTitle className="flex items-center gap-2.5 text-base leading-tight font-semibold">
               <span className="flex size-8 items-center justify-center rounded-lg bg-accent text-primary">
                 <ServerCog className="size-4" />
               </span>
@@ -293,17 +293,43 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
 
           {providerDraft && (
             <form
-              className="flex min-h-0 flex-col"
+              className="flex min-h-0 flex-1 flex-col"
               onSubmit={(event) => {
                 event.preventDefault();
                 void saveProvider();
               }}
             >
-              <div className="min-h-0 max-h-[calc(100vh-12rem)] overflow-y-auto">
+              <div className="min-h-0 flex-1 overflow-y-auto">
                 <section className="px-6 py-5" aria-labelledby="llm-connection-heading">
-                  <h3 id="llm-connection-heading" className="mb-4 text-sm font-semibold">
-                    连接信息
-                  </h3>
+                  <div className="mb-4 flex items-center justify-between gap-3">
+                    <h3 id="llm-connection-heading" className="shrink-0 text-sm font-semibold">
+                      连接信息
+                    </h3>
+                    <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
+                      {connectionTest && (
+                        <p
+                          role={connectionTest.type === "error" ? "alert" : "status"}
+                          className={`min-w-0 break-words text-right text-xs ${connectionTest.type === "success" ? "text-success" : "text-destructive"}`}
+                        >
+                          {connectionTest.message}
+                        </p>
+                      )}
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        className="h-7 gap-1 bg-primary/10 px-2 text-xs text-primary hover:bg-primary/15"
+                        disabled={isTestingConnection || isSaving}
+                        onClick={() => void testConnection()}
+                      >
+                        {isTestingConnection ? (
+                          <Loader2 className="size-3 animate-spin motion-reduce:animate-none" />
+                        ) : (
+                          <Zap className="size-3" />
+                        )}
+                        <span>{isTestingConnection ? "测速中…" : "测速"}</span>
+                      </Button>
+                    </div>
+                  </div>
 
                   <div className="grid gap-x-4 gap-y-4 md:grid-cols-2">
                     <div className="space-y-2">
@@ -404,19 +430,6 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
                     </div>
                   </div>
 
-                  <div className="mt-5 flex items-center gap-3 border-t border-border/70 pt-4">
-                    <Switch
-                      id="llm-default-provider"
-                      checked={providerDraft.isDefault}
-                      onCheckedChange={(checked) => {
-                        if (!checked) return;
-                        updateProviderDraft((current) => ({ ...current, isDefault: true }));
-                      }}
-                    />
-                    <Label htmlFor="llm-default-provider" className="font-normal">
-                      设为默认 Provider
-                    </Label>
-                  </div>
                 </section>
 
                 <section className="border-t border-border/70 px-6 py-5" aria-labelledby="llm-models-heading">
@@ -459,16 +472,19 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
                     <table className="w-full table-fixed text-left text-sm" aria-labelledby="llm-models-heading">
                       <thead className="border-b border-border/70 bg-muted/30 text-xs text-muted-foreground">
                         <tr>
-                          <th scope="col" className="px-3 py-2.5 font-normal">
+                          <th scope="col" className="px-3 py-2.5 font-normal md:w-[30%]">
                             模型
                           </th>
-                          <th scope="col" className="hidden w-20 px-3 py-2.5 text-center font-normal sm:table-cell">
+                          <th scope="col" className="hidden px-3 py-2.5 font-normal md:table-cell">
+                            用途与输入
+                          </th>
+                          <th scope="col" className="hidden w-20 px-3 py-2.5 font-normal sm:table-cell lg:w-24">
                             上下文
                           </th>
-                          <th scope="col" className="w-24 px-2 py-2.5 font-normal sm:w-36 sm:px-3">
+                          <th scope="col" className="w-24 px-2 py-2.5 font-normal sm:w-32 sm:px-3 lg:w-36">
                             思考等级
                           </th>
-                          <th scope="col" className="w-20 px-2 py-2.5 font-normal sm:w-24 sm:px-3">
+                          <th scope="col" className="w-14 px-2 py-2.5 font-normal sm:w-16 sm:px-3">
                             操作
                           </th>
                         </tr>
@@ -478,6 +494,36 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
                           const thinking = getModelThinking(providerDraft, model);
                           const defaultLevel = thinking?.levels.find((level) => level.value === thinking.defaultLevel);
                           const capabilities = getModelCapabilities(providerDraft, model);
+                          const capabilityContent = (
+                            <div className="flex flex-wrap gap-x-2 gap-y-1 text-[11px] leading-5 text-muted-foreground">
+                              {MODEL_OPERATION_OPTIONS.filter((option) =>
+                                capabilities.declared.operations.includes(option.value),
+                              ).map((option) => (
+                                <span key={option.value}>
+                                  {option.label}
+                                  {capabilities.available.operations.includes(option.value)
+                                    ? ""
+                                    : ["image-generation", "image-editing", "video-generation", "speech"].includes(
+                                          option.value,
+                                        ) &&
+                                        model.configuration?.purposes.some(
+                                          (purpose) =>
+                                            purpose.type === option.value && purpose.adapter === "http-json",
+                                        )
+                                      ? "（工具调用）"
+                                      : "（待接入）"}
+                                </span>
+                              ))}
+                              {capabilities.declared.input.includes("image") && (
+                                <span>
+                                  图片输入{capabilities.available.input.includes("image") ? "" : "（待接入）"}
+                                </span>
+                              )}
+                              {capabilities.declared.input.includes("audio") && <span>音频输入（待接入）</span>}
+                              {capabilities.declared.input.includes("video") && <span>视频输入（待接入）</span>}
+                              {capabilities.source === "custom" && <span className="text-primary">自定义能力</span>}
+                            </div>
+                          );
                           return (
                             <tr key={model.id} className="transition-colors hover:bg-muted/20">
                               <td className="px-3 py-3">
@@ -490,36 +536,10 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
                                 >
                                   {model.modelId || "待设置模型 ID"}
                                 </p>
-                                <div className="mt-1.5 flex flex-wrap gap-x-2 gap-y-1 text-[10px] text-muted-foreground">
-                                  {MODEL_OPERATION_OPTIONS.filter((option) =>
-                                    capabilities.declared.operations.includes(option.value),
-                                  ).map((option) => (
-                                    <span key={option.value}>
-                                      {option.label}
-                                      {capabilities.available.operations.includes(option.value)
-                                        ? ""
-                                        : ["image-generation", "image-editing", "video-generation", "speech"].includes(
-                                              option.value,
-                                            ) &&
-                                            model.configuration?.purposes.some(
-                                              (purpose) =>
-                                                purpose.type === option.value && purpose.adapter === "http-json",
-                                            )
-                                          ? "（工具调用）"
-                                          : "（待接入）"}
-                                    </span>
-                                  ))}
-                                  {capabilities.declared.input.includes("image") && (
-                                    <span>
-                                      图片输入{capabilities.available.input.includes("image") ? "" : "（待接入）"}
-                                    </span>
-                                  )}
-                                  {capabilities.declared.input.includes("audio") && <span>音频输入（待接入）</span>}
-                                  {capabilities.declared.input.includes("video") && <span>视频输入（待接入）</span>}
-                                  {capabilities.source === "custom" && <span className="text-primary">自定义能力</span>}
-                                </div>
+                                <div className="mt-1.5 md:hidden">{capabilityContent}</div>
                               </td>
-                              <td className="hidden px-3 py-3 text-center text-xs text-muted-foreground sm:table-cell">
+                              <td className="hidden px-3 py-3 md:table-cell">{capabilityContent}</td>
+                              <td className="hidden px-3 py-3 text-xs text-muted-foreground sm:table-cell">
                                 {capabilities.available.operations.includes("chat")
                                   ? formatContextWindow(getModelLimits(providerDraft, model).contextWindow)
                                   : "—"}
@@ -582,30 +602,20 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
                     {error}
                   </p>
                 )}
-                <DialogFooter className="sm:justify-between">
-                  <div className="flex min-w-0 flex-wrap items-center gap-2 sm:max-w-[65%]">
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      className="h-7 gap-1 bg-primary/10 px-2 text-primary hover:bg-primary/15"
-                      disabled={isTestingConnection || isSaving}
-                      onClick={() => void testConnection()}
-                    >
-                      {isTestingConnection ? (
-                        <Loader2 className="size-3 animate-spin motion-reduce:animate-none" />
-                      ) : (
-                        <Zap className="size-3" />
-                      )}
-                      <span>{isTestingConnection ? "测速中…" : "测速"}</span>
-                    </Button>
-                    {connectionTest && (
-                      <p
-                        role={connectionTest.type === "error" ? "alert" : "status"}
-                        className={`min-w-0 break-words text-xs ${connectionTest.type === "success" ? "text-success" : "text-destructive"}`}
-                      >
-                        {connectionTest.message}
-                      </p>
-                    )}
+                <DialogFooter className="flex-col sm:items-center sm:justify-between">
+                  <div className="flex min-h-8 items-center gap-2.5">
+                    <Switch
+                      id="llm-default-provider"
+                      checked={providerDraft.isDefault}
+                      disabled={isSaving}
+                      onCheckedChange={(checked) => {
+                        if (!checked) return;
+                        updateProviderDraft((current) => ({ ...current, isDefault: true }));
+                      }}
+                    />
+                    <Label htmlFor="llm-default-provider" className="cursor-pointer text-xs font-normal text-muted-foreground">
+                      设为默认 Provider
+                    </Label>
                   </div>
                   <div className="flex justify-end gap-2">
                     <Button type="button" variant="outline" onClick={() => handleOpenChange(false)} disabled={isSaving}>

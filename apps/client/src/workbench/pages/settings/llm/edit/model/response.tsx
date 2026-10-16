@@ -161,6 +161,56 @@ export function ResponseEditor({
               )}
             </div>
           </details>
+          <details>
+            <summary className="cursor-pointer text-[11px] text-muted-foreground">
+              完成后获取产物{response.task.resultRequest ? " · 已配置" : "（可选）"}
+            </summary>
+            <div className="space-y-3 pt-3">
+              <p className="text-[11px] leading-5 text-muted-foreground">
+                任务完成后再请求一次 JSON。可用 {"{{result.file_id}}"} 引用成功查询的返回值，输出规则从此请求的返回中提取。
+              </p>
+              {response.task.resultRequest ? (
+                <>
+                  <JsonField
+                    id={`${prefix}result-request`}
+                    label="产物获取请求"
+                    value={response.task.resultRequest}
+                    objectOnly
+                    rows={6}
+                    onChange={(value) => updateTask({ resultRequest: value as unknown as ModelRequest })}
+                  />
+                  <ConfirmDelete
+                    title="删除产物获取请求？"
+                    description="任务完成后将直接从查询结果中提取输出。"
+                    onConfirm={() => {
+                      const task = { ...response.task! };
+                      delete task.resultRequest;
+                      buffers.clear(`${prefix}result-request`);
+                      update({ task });
+                    }}
+                  >
+                    <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs text-muted-foreground hover:text-destructive">
+                      <Trash2 className="size-3.5" />删除请求
+                    </Button>
+                  </ConfirmDelete>
+                </>
+              ) : (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={() => updateTask({ resultRequest: {
+                    method: "GET",
+                    path: "/files/{{result.id}}",
+                    headers: { Authorization: "Bearer {{auth.apiKey}}" },
+                  } })}
+                >
+                  <Plus className="size-3.5" />添加请求
+                </Button>
+              )}
+            </div>
+          </details>
         </section>
       )}
       <section className="space-y-2" aria-label="输出提取规则">

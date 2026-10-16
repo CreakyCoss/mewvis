@@ -12,7 +12,11 @@ import {
   type ApplicationChatSummary,
   type ChatContext,
 } from "@mewvis/app-sdk/chat";
-import { Chat, useChatSnapshot } from "@mewvis/app-sdk/chat/react";
+import {
+  Chat,
+  useChatSnapshot,
+  type RenderMessage,
+} from "@mewvis/app-sdk/chat/react";
 import { getApplicationDataClient } from "@mewvis/app-sdk/data";
 import { getApplicationFileClient } from "@mewvis/app-sdk/files";
 import { ArrowRight, History, Plus, Sparkles, RefreshCw } from "lucide-react";
@@ -54,6 +58,13 @@ const historyDate = (createdAt: number) =>
     minute: "2-digit",
     hour12: false,
   });
+
+// Retain the SDK's message blocks, media previews and actions, as App Workshop does.
+const renderMessage: RenderMessage = (message, content) => (
+  <div className="film-chat-message" data-speaker={message.role}>
+    {content}
+  </div>
+);
 
 export function Assistant({
   editor,
@@ -155,10 +166,12 @@ export function Assistant({
     setHistoryLoading(true);
     setHistoryError("");
     try {
-      const current = await reference(key);
-      if (!current) throw new Error("当前会话尚未连接");
+      const workspaceId =
+        latest.current.project.workspace?.id ??
+        (await reference(key))?.workspaceId;
+      if (!workspaceId) throw new Error("当前会话尚未连接");
       const chats = await getApplicationChatClient().listSessions({
-        workspaceId: current.workspaceId,
+        workspaceId,
       });
       if (version === generation.current)
         setHistory(
@@ -177,11 +190,10 @@ export function Assistant({
     if (
       switching.current ||
       submittingRef.current ||
-      !session ||
-      !["idle", "closed"].includes(session.getSnapshot().phase)
+      (session && !["idle", "closed"].includes(session.getSnapshot().phase))
     )
       return;
-    if (chatId === session.identity.id) return;
+    if (chatId && chatId === session?.identity.id) return;
     switching.current = true;
     const version = ++generation.current;
     const previous = connections.get(key);
@@ -189,18 +201,19 @@ export function Assistant({
     setActionError("");
     setHistoryLoading(false);
     const pending = (async () => {
-      const current = await reference(key);
-      if (!current) throw new Error("当前会话尚未连接");
       const value = latest.current;
+      const workspaceId =
+        value.project.workspace?.id ?? (await reference(key))?.workspaceId;
       const context = assistantContext(
         value.project,
         value.episode,
         value.step,
         value.selectedShotId,
       );
-      if (!chatId) return createSession(key, current.workspaceId, context);
+      if (!chatId) return createSession(key, workspaceId, context);
+      if (!workspaceId) throw new Error("当前会话尚未连接");
       const opened = await getApplicationChatClient().openSession({
-        workspaceId: current.workspaceId,
+        workspaceId,
         chatId,
       });
       if (opened.getSnapshot().phase === "idle") {
@@ -208,7 +221,7 @@ export function Assistant({
         if (!result.ok) throw new Error(result.error);
       }
       await getApplicationDataClient().storage.setItem(key, {
-        workspaceId: current.workspaceId,
+        workspaceId,
         chatId,
         profileVersion:
           (await getApplicationDataClient().storage.getItem<number>(
@@ -222,6 +235,7 @@ export function Assistant({
       const opened = await pending;
       if (version === generation.current) {
         appliedContext.current = "";
+        setError("");
         setSession(opened);
       }
     } catch (e) {
@@ -252,11 +266,13 @@ export function Assistant({
         .then((result) => {
           if (result.ok) appliedContext.current = next.requestContext;
           else if (active && session.getSnapshot().phase === "idle")
-            setError(result.error);
+            setActionError(result.error);
         })
         .catch((error: unknown) => {
           if (active)
-            setError(error instanceof Error ? error.message : String(error));
+            setActionError(
+              error instanceof Error ? error.message : String(error),
+            );
         });
     }, 400);
     return () => {
@@ -265,7 +281,7 @@ export function Assistant({
     };
   }, [session, opening, phase, project, episode, step, selectedShotId]);
   const conversationDisabled =
-    opening || submitting || !session || !["idle", "closed"].includes(phase);
+    opening || submitting || (!!session && !["idle", "closed"].includes(phase));
   const beforeSubmit = async () => {
     if (!session || switching.current || session.getSnapshot().phase !== "idle")
       throw new Error("请等待助手会话就绪");
@@ -519,7 +535,10 @@ function FilmConversation({
   return (
     <Chat.Layout className="film-chat-layout">
       {hasConversation ? (
-        <Chat.Messages />
+        <Chat.Messages
+          className="film-chat-messages"
+          renderMessage={renderMessage}
+        />
       ) : (
         <div className="film-assistant-welcome">
           <Sparkles size={27} />

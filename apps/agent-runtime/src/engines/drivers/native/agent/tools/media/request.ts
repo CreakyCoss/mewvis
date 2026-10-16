@@ -90,7 +90,7 @@ export async function executeMedia(options: {
   progress(stage: string, taskId?: string): void;
 }): Promise<MediaOutput[]> {
   const { purpose, context, parameters, transport, progress } = options;
-  const request = async (phase: "initial" | "result") => {
+  const request = async (phase: "initial" | "result" | "retrieve") => {
     const built = buildModelRequest(purpose, context, parameters, phase);
     const response = await fetchMedia(
       built.url,
@@ -103,7 +103,10 @@ export async function executeMedia(options: {
       },
       transport,
     );
-    return parseModelResponse(purpose, await readJson(response), phase);
+    const value = await readJson(response);
+    const parsed = parseModelResponse(purpose, value, phase);
+    if (parsed.status === "retrieving") context.result = value;
+    return parsed;
   };
   progress("submitting");
   let result = await request("initial");
@@ -117,6 +120,7 @@ export async function executeMedia(options: {
       result = await request("result");
     }
   }
+  if (result.status === "retrieving") result = await request("retrieve");
   if (result.status === "failed")
     throw new Error(result.error || "媒体生成失败");
   if (!result.outputs.length)

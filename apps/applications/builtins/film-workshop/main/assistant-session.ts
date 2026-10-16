@@ -91,7 +91,10 @@ export async function connect(
     if (previous.profileVersion !== profileVersion)
       return createSession(key, workspaceId ?? previous.workspaceId);
     try {
-      return await getApplicationChatClient().openSession(previous);
+      return await getApplicationChatClient().openSession({
+        workspaceId: previous.workspaceId,
+        chatId: previous.chatId,
+      });
     } catch (error) {
       if (!(error instanceof Error) || error.message !== "未找到聊天记录")
         throw error;

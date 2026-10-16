@@ -300,6 +300,80 @@ test("all request presets validate and preserve typed template values", () => {
   assert.deepEqual(nested.body, { nested: [{ images: [{ url: "https://example.com/image.png" }], prompt: "A Sea" }] });
 });
 
+test("explicit optional JSON values omit missing fields while preserving supplied values and strict variables", () => {
+  const purpose = imagePurpose();
+  purpose.parameters.push({ name: "optional", type: "object", overridable: true });
+  const preview = (input: JsonValue = { prompt: "Sea" }) => previewModelRequest(purpose, {
+    modelId: "image-01", apiEndpoint: "https://api.minimax.io", input,
+  });
+  purpose.request!.body = {
+    image: "{{input.image?}}",
+    params: "{{params.optional?}}",
+    nested: { absent: "{{input.details.image?}}", kept: "{{input.zero?}}" },
+    items: ["{{input.absent?}}", "{{input.zero?}}", null, false, 0, ""],
+    zero: "{{input.zero?}}", off: "{{input.off?}}", empty: "{{input.empty?}}", nullable: "{{input.nullable?}}",
+    object: "{{input.object?}}", array: "{{input.array?}}",
+  };
+  const input = { prompt: "Sea", zero: 0, off: false, empty: "", nullable: null, object: { value: 1 }, array: [1, 2] };
+  const request = preview(input);
+  assert.deepEqual(request.body, {
+    nested: { kept: 0 }, items: [0, null, false, 0, ""],
+    zero: 0, off: false, empty: "", nullable: null, object: { value: 1 }, array: [1, 2],
+  });
+  assert.doesNotMatch(JSON.stringify(request), /undefined/);
+  purpose.request!.body = "{{input.absent?}}";
+  assert.equal(Object.hasOwn(preview(), "body"), false);
+  purpose.request!.body = { required: "{{input.absent}}" };
+  assert.throws(() => preview(), /未提供值/);
+  purpose.request!.body = { prompt: "{{input.prompt?}}" };
+  assert.throws(() => preview({}), /应用输入/);
+  for (const expression of ["{{params.unknown?}}", "{{input.constructor?}}", "{{input.image??}}"] ) {
+    purpose.request!.body = { image: expression };
+    assert.ok(getModelConfigurationError(configuration([purpose])), expression);
+  }
+  purpose.request!.body = { image: "prefix {{input.image?}}" };
+  assert.match(getModelConfigurationError(configuration([purpose])), /可选变量仅支持/);
+  purpose.request!.body = {};
+  purpose.request!.path = "/images/{{input.image?}}";
+  assert.match(getModelConfigurationError(configuration([purpose])), /可选变量仅支持/);
+  purpose.request!.path = "/images";
+  purpose.request!.headers["x-image"] = "{{input.image?}}";
+  assert.match(getModelConfigurationError(configuration([purpose])), /可选变量仅支持/);
+});
+
+test("optional JSON nodes omit entire nested structures without rendering missing children", () => {
+  const purpose = imagePurpose();
+  const preview = (input: JsonValue) => previewModelRequest(purpose, {
+    modelId: "image-01", apiEndpoint: "https://api.minimax.io", input,
+  });
+  purpose.request!.body = {
+    content: [
+      { type: "text", text: "{{input.prompt}}" },
+      { $optional: "{{input.image?}}", $value: { type: "image_url", image_url: { url: "{{input.image}}" } } },
+    ],
+    optionalObject: { $optional: "{{input.details?}}", $value: { value: "{{input.details.value}}" } },
+  };
+  assert.deepEqual(preview({ prompt: "Sea" }).body, { content: [{ type: "text", text: "Sea" }] });
+  assert.deepEqual(preview({ prompt: "Sea", image: "https://example.com/image.png", details: { value: 1 } }).body, {
+    content: [{ type: "text", text: "Sea" }, { type: "image_url", image_url: { url: "https://example.com/image.png" } }],
+    optionalObject: { value: 1 },
+  });
+  purpose.request!.body = { value: { $optional: "{{input.value?}}", $value: "{{input.value}}" } };
+  for (const value of [null, false, 0, ""])
+    assert.deepEqual(preview({ prompt: "Sea", value }).body, { value });
+  for (const node of [
+    { $optional: "{{input.image?}}" },
+    { $optional: "{{input.image?}}", $value: {}, unexpected: true },
+    { $optional: "{{input.image}}", $value: {} },
+    { $optional: true, $value: {} },
+    { $optional: "{{input.constructor?}}", $value: {} },
+    { $optional: "{{params.unknown?}}", $value: {} },
+  ]) {
+    purpose.request!.body = node;
+    assert.ok(getModelConfigurationError(configuration([purpose])));
+  }
+});
+
 test("input schemas, override rules, reserved names and unknown variables are enforced", () => {
   const purpose = imagePurpose();
   const preview = (input: unknown, overrides = {}) =>
@@ -384,6 +458,96 @@ test("response extraction supports arrays, mixed outputs, business failures and 
     parseModelResponse(video, { task: { status: "failed" }, error: { message: "Failed" } }, "result").error,
     "Failed",
   );
+});
+
+test("Hailuo 2.3 presets submit V1 payloads and resolve completed task file IDs", () => {
+  const p = applyProviderDefaults(createProviderConfig(true), "minimax-cn");
+  const m = createModelConfig(p, { modelId: "MiniMax-Hailuo-2.3", modelName: "Hailuo 2.3" });
+  assert.equal(m.configuration?.purposes[0].preset?.id, "minimax-video-hailuo-2.3");
+  assert.deepEqual(m.configuration?.purposes[0].input, ["text", "image"]);
+  assert.equal(editorPresets.getModelTemplates("minimax-cn", "MiniMax-Hailuo-2.3").length, 1);
+  const inputs: Record<string, JsonValue>[] = [{ prompt: "Sea" }, { prompt: "Sea", image: "https://example.com/first.png" }];
+  for (const input of inputs) {
+    const id = "minimax-video-hailuo-2.3";
+    const purpose = editorPresets.instantiateTemplate(id, "video-generation");
+    const options = { modelId: "MiniMax-Hailuo-2.3", apiEndpoint: "https://api.minimaxi.com/anthropic", input };
+    const initial = previewModelRequest(purpose, options);
+    const body = initial.body as Record<string, JsonValue>;
+    assert.equal(initial.url, "https://api.minimaxi.com/v1/video_generation");
+    assert.equal(body.model, options.modelId);
+    assert.equal(body.duration, 6);
+    assert.equal(body.resolution, "768P");
+    assert.equal(body.prompt_optimizer, true);
+    assert.equal(body.fast_pretreatment, false);
+    assert.equal(body.first_frame_image, readJsonPointer(input, "/image"));
+    assert.equal(Object.hasOwn(body, "first_frame_image"), Object.hasOwn(input, "image"));
+    assert.deepEqual((purpose.inputSchema as { required: string[] }).required, ["prompt"]);
+    assert.throws(() => previewModelRequest(purpose, { ...options, input: { prompt: "Sea", image: "" } }), /应用输入/);
+    assert.throws(() => previewModelRequest(purpose, { ...options, input: { prompt: "Sea", image: null } }), /应用输入/);
+    assert.equal((previewModelRequest(purpose, { ...options, overrides: { resolution: "1080P", duration: 6 } }).body as Record<string, JsonValue>).resolution, "1080P");
+    assert.throws(() => previewModelRequest(purpose, { ...options, overrides: { duration: 8 } }), /不符合/);
+
+    const ok = { base_resp: { status_code: 0 } };
+    assert.equal(parseModelResponse(purpose, { ...ok, task_id: "job/1" }).taskId, "job/1");
+    assert.equal(previewModelRequest(purpose, { ...options, phase: "result", taskId: "job/1" }).url,
+      "https://api.minimaxi.com/v1/query/video_generation?task_id=job%2F1");
+    for (const status of ["Preparing", "Queueing", "Processing"])
+      assert.equal(parseModelResponse(purpose, { ...ok, status }, "result").status, "pending");
+    assert.equal(parseModelResponse(purpose, { ...ok, status: "Fail" }, "result").status, "failed");
+    const result = { ...ok, status: "Success", file_id: "file/1?x=y" };
+    assert.deepEqual(parseModelResponse(purpose, result, "result"), { status: "retrieving", outputs: [] });
+    const retrieve = previewModelRequest(purpose, { ...options, phase: "retrieve", result });
+    assert.equal(retrieve.url, "https://api.minimaxi.com/v1/files/retrieve?file_id=file%2F1%3Fx%3Dy");
+    assert.equal(retrieve.headers.Authorization, "••••••••");
+    assert.equal(parseModelResponse(purpose, { ...ok, file: { download_url: "https://cdn.example/video.mp4" } }, "retrieve").outputs[0].value,
+      "https://cdn.example/video.mp4");
+    assert.equal(parseModelResponse(purpose, { base_resp: { status_code: 1004, status_msg: "Invalid key" } }, "retrieve").error, "Invalid key");
+    assert.throws(() => previewModelRequest(purpose, { ...options, phase: "retrieve", result: {} }), /file_id/);
+    purpose.request!.path = "/submit?file={{result.file_id}}";
+    assert.match(getModelConfigurationError(configuration([purpose])), /未知变量/);
+    purpose.request!.path = "/v1/video_generation";
+    purpose.response!.task!.resultRequest!.path = "/file/{{result.__proto__.key}}";
+    assert.match(getModelConfigurationError(configuration([purpose])), /变量路径无效/);
+  }
+});
+
+test("H3 models use one template for text, first frame, last frame and paired frames", () => {
+  for (const modelId of ["MiniMax-H3", "MiniMax-H3-Max"]) {
+    const templates = editorPresets.getModelTemplates("minimax-cn", modelId);
+    assert.equal(templates.length, 1);
+    const purpose = templates[0].purpose;
+    assert.deepEqual(purpose.input, ["text", "image"]);
+    assert.deepEqual((purpose.inputSchema as { required: string[] }).required, ["prompt"]);
+    const build = (input: JsonValue, overrides = {}) => previewModelRequest(purpose, {
+      modelId, apiEndpoint: "https://api.minimaxi.com/anthropic", input, overrides,
+    });
+    for (const frames of [
+      {},
+      { image: "https://example.com/first.png" },
+      { lastImage: "https://example.com/last.png" },
+      { image: "https://example.com/first.png", lastImage: "https://example.com/last.png" },
+    ]) {
+      const request = build({ prompt: "Sea", ...frames });
+      assert.equal(request.url, "https://api.minimaxi.com/v2/video_generation");
+      assert.deepEqual(request.body, {
+        model: modelId,
+        content: [
+          { type: "text", text: "Sea" },
+          ...(frames.image ? [{ type: "image_url", image_url: { url: frames.image }, role: "first_frame" }] : []),
+          ...(frames.lastImage ? [{ type: "image_url", image_url: { url: frames.lastImage }, role: "last_frame" }] : []),
+        ],
+        resolution: "768P", duration: 6, ratio: "16:9",
+      });
+      assert.doesNotMatch(JSON.stringify(request), /\$optional|\$value|undefined/);
+    }
+    const lowerDuration = modelId === "MiniMax-H3" ? 4 : 5;
+    assert.doesNotThrow(() => build({ prompt: "Sea" }, { duration: lowerDuration }));
+    assert.throws(() => build({ prompt: "Sea" }, { duration: lowerDuration - 1 }), /参数 duration/);
+    assert.throws(() => build({ prompt: "Sea" }, { resolution: modelId === "MiniMax-H3" ? "480P" : "2K" }), /参数 resolution/);
+    assert.throws(() => build({ prompt: "Sea", image: "" }), /应用输入/);
+    assert.throws(() => build({ prompt: "Sea", lastImage: null }), /应用输入/);
+    assert.throws(() => build({ image: "https://example.com/first.png" }), /应用输入/);
+  }
 });
 
 test("purpose connections and model IDs resolve independently before reaching runtime", () => {
@@ -774,7 +938,7 @@ test("new known models include every default purpose and reopening preserves rem
   assert.equal(video.configuration?.purposes[0].preset?.id, "minimax-video-h3");
   assert.equal(
     editorPresets.listTemplates("video-generation").filter((preset) => preset.modelId === "MiniMax-H3").length,
-    3,
+    1,
   );
   const chat = createModelConfig(p, { modelId: "MiniMax-M3", modelName: "M3" });
   assert.deepEqual(

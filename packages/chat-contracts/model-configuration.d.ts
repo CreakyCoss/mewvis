@@ -31,6 +31,7 @@ export interface ModelRequest {
   method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   path: string;
   headers: Record<string, string>;
+  /** {{input.image?}} omits a missing value; {$optional: "{{input.image?}}", $value: ...} omits a whole node. Explicit null/false/0/"" remain values. */
   body?: JsonValue;
 }
 export interface ModelOutputRule {
@@ -48,6 +49,8 @@ export interface ModelResponse {
   task?: {
     idPath: string;
     request: ModelRequest;
+    /** Optional JSON request after the task succeeds, before extracting outputs. */
+    resultRequest?: ModelRequest;
     statusPath: string;
     successValues: JsonValue[];
     failureValues: JsonValue[];
@@ -83,6 +86,8 @@ export interface ModelTemplateContext {
   params: Record<string, JsonValue>;
   auth: { apiKey: string };
   task?: { id: string };
+  /** Successful task response, available to resultRequest templates as {{result.*}}. */
+  result?: JsonValue;
 }
 export declare const MODEL_PROTOCOLS: readonly ModelProtocol[];
 export declare const MODEL_PARAMETER_TYPES: readonly ModelParameter["type"][];
@@ -103,7 +108,7 @@ export declare function buildModelRequest(
   purpose: ModelPurpose,
   context: Omit<ModelTemplateContext, "params">,
   overrides?: Record<string, JsonValue>,
-  phase?: "initial" | "result",
+  phase?: "initial" | "result" | "retrieve",
 ): {
   method: string;
   url: string;
@@ -118,7 +123,8 @@ export declare function previewModelRequest(
     input: JsonValue;
     overrides?: Record<string, JsonValue>;
     taskId?: string;
-    phase?: "initial" | "result";
+    result?: JsonValue;
+    phase?: "initial" | "result" | "retrieve";
   },
 ): {
   method: string;
@@ -133,9 +139,9 @@ export declare function readJsonPointer(
 export declare function parseModelResponse(
   purpose: ModelPurpose,
   value: JsonValue,
-  phase?: "initial" | "result",
+  phase?: "initial" | "result" | "retrieve",
 ): {
-  status: "completed" | "pending" | "failed";
+  status: "completed" | "pending" | "retrieving" | "failed";
   taskId?: string;
   error?: string;
   outputs: {

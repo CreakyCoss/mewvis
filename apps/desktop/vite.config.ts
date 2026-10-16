@@ -10,6 +10,8 @@ const host = process.env.TAURI_DEV_HOST;
 
 export default defineConfig({
   ...config,
+  // Desktop and Web use different platform aliases but share the Client root.
+  cacheDir: fileURLToPath(new URL("./node_modules/.vite", import.meta.url)),
   define: {
     ...config.define,
     // Tauri provides the target platform, including when cross-compiling from macOS to Windows.

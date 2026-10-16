@@ -11,6 +11,7 @@ import {
   ProgramExecutor,
   type ExecutionPolicy,
 } from "../../../../../../security/execution/index.js";
+import { canonicalPath } from "../../../../../../security/platforms/resources.js";
 import entries from "../../../../../../../build-entries.json" with { type: "json" };
 import {
   redactMedia,
@@ -160,7 +161,10 @@ export function createMediaTool(context: MediaToolContext) {
       },
     },
     execution: context.execution,
-    protectedPaths: [...(context.protectedPaths ?? [])],
+    // Resolve host-owned paths before isolation; workers cannot inspect them.
+    protectedPaths: [
+      ...new Set((context.protectedPaths ?? []).map(canonicalPath)),
+    ],
   });
   if (snapshot.execution.workspacePath !== context.workspacePath)
     throw new Error("媒体工具的执行范围与工作区不一致");

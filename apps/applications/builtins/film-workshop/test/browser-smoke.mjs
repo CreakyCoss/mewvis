@@ -103,7 +103,7 @@ const host = `<!doctype html><meta charset="utf-8"><style>html,body{margin:0;hei
 <iframe id="app" name="app" title="影视工坊" sandbox="allow-scripts"></iframe><script type="module">
 import { createPreviewChat } from "/chat-host.js";
 const owner = window.document.getElementById("app"), channel = "mewvis-app-ui-v1";
-window.test = { errors: [], calls: [], contexts: [], clipboard: "", failStorage: false, failChat: false, ready: false };
+window.test = { errors: [], calls: [], contexts: [], clipboard: "", failStorage: false, failChat: ${process.env.MEWVIS_FILM_FAIL_CHAT === "1"}, ready: false };
 const preview = createPreviewChat({ name: "@mewvis/film-workshop", permissions: ["chat", "application-data", "application-workspaces"], tools: ${JSON.stringify(catalog)}, executeTool: async (name, args) => {
   const response = await fetch("/tool", { method: "POST", body: JSON.stringify({ name, args }) });
   const result = await response.json(); if (result.error) throw new Error(result.error); return result;
@@ -126,7 +126,10 @@ addEventListener("message", async event => {
         if (request.method === "workspaces.create" && result.ok) await fetch("/workspace", { method: "POST", body: JSON.stringify(result.value) });
         reply(result); }
     } else if (message.type === "chat:request") {
-      if (test.failChat) { test.failChat = false; throw new Error("测试助手连接失败"); }
+      if (["open", "create"].includes(message.request.method)) {
+        if (Object.keys(message.request.input).some(key => !(message.request.method === "open" ? ["workspaceId", "chatId"] : ["workspaceId", "sceneId", "profile"]).includes(key))) throw new Error("包含不支持的聊天参数");
+        if (test.failChat) { test.failChat = false; throw new Error("测试助手连接失败"); }
+      }
       const result = await preview.transport.request(message.request);
       if (message.request.method === "setContext" && result.result?.ok) test.contexts.push(message.request.input);
       reply(result);
@@ -512,6 +515,18 @@ try {
     .getByRole("alert")
     .filter({ hasText: "测试助手连接失败" })
     .waitFor();
+  assert.equal(
+    await frame
+      .getByRole("button", { name: "新建会话", exact: true })
+      .isEnabled(),
+    true,
+  );
+  assert.equal(
+    await frame
+      .getByRole("button", { name: "会话历史", exact: true })
+      .isEnabled(),
+    true,
+  );
   assert.equal(
     await frame.getByLabel("对话内容", { exact: true }).inputValue(),
     "旧会话的未发送草稿",

@@ -129,13 +129,20 @@ const checkPointer = (pointer, label) => {
   )
     fail(`${label}含有保留字段`);
 };
-const checkVariables = (value, purpose, taskAllowed = false) => {
+const checkVariables = (value, purpose, taskAllowed = false, resultAllowed = false, optionalAllowed = false) => {
   if (Array.isArray(value))
-    return value.forEach((item) => checkVariables(item, purpose, taskAllowed));
-  if (isObject(value))
+    return value.forEach((item) => checkVariables(item, purpose, taskAllowed, resultAllowed, optionalAllowed));
+  if (isObject(value)) {
+    if (own(value, "$optional")) {
+      keys(value, ["$optional", "$value"], "可选节点");
+      if (!optionalAllowed || !own(value, "$value") ||
+        typeof value.$optional !== "string" || !/^\{\{\s*[^{}]+?\?\s*\}\}$/.test(value.$optional))
+        fail("可选节点需要请求体中的可选变量 $optional 和内容 $value");
+    }
     return Object.values(value).forEach((item) =>
-      checkVariables(item, purpose, taskAllowed),
+      checkVariables(item, purpose, taskAllowed, resultAllowed, optionalAllowed),
     );
+  }
   if (typeof value !== "string") return;
   const matches = [...value.matchAll(/\{\{\s*([^{}]+?)\s*\}\}/g)];
   if (
@@ -144,9 +151,13 @@ const checkVariables = (value, purpose, taskAllowed = false) => {
   )
     fail("变量格式无效，请使用 {{input.prompt}} 等形式");
   for (const match of matches) {
-    const name = match[1].trim();
+    const expression = match[1].trim();
+    const optional = expression.endsWith("?");
+    const name = (optional ? expression.slice(0, -1) : expression).trim();
+    if (optional && (!optionalAllowed || value !== match[0]))
+      fail("可选变量仅支持请求体中的整值变量，例如 {{input.image?}}");
     const parts = name.split(".");
-    if (parts.some((part) => !part || forbidden.has(part)))
+    if (parts.some((part) => !part || part.includes("?") || forbidden.has(part)))
       fail("变量路径无效");
     const allowed =
       name === "model.id" ||
@@ -154,12 +165,13 @@ const checkVariables = (value, purpose, taskAllowed = false) => {
       name.startsWith("input.") ||
       name === "auth.apiKey" ||
       (taskAllowed && name === "task.id") ||
+      (resultAllowed && (name === "result" || name.startsWith("result."))) ||
       (parts[0] === "params" &&
         purpose.parameters.some((param) => param.name === parts[1]));
     if (!allowed) fail(`未知变量：${name}`);
   }
 };
-const checkRequest = (request, purpose, taskAllowed = false) => {
+const checkRequest = (request, purpose, taskAllowed = false, resultAllowed = false) => {
   keys(request, ["method", "path", "headers", "body"], "请求配置");
   if (
     !["GET", "POST", "PUT", "PATCH", "DELETE"].includes(request.method) ||
@@ -178,7 +190,10 @@ const checkRequest = (request, purpose, taskAllowed = false) => {
   )
     fail("请求头必须是字符串键值对");
   json(request);
-  checkVariables(request, purpose, taskAllowed);
+  checkVariables(request.path, purpose, taskAllowed, resultAllowed);
+  checkVariables(request.headers, purpose, taskAllowed, resultAllowed);
+  if (request.body !== undefined)
+    checkVariables(request.body, purpose, taskAllowed, resultAllowed, true);
   if (request.method === "GET" && request.body !== undefined)
     fail("GET 请求不支持请求体");
   if (
@@ -375,6 +390,7 @@ export function getModelConfigurationError(value) {
           [
             "idPath",
             "request",
+            "resultRequest",
             "statusPath",
             "successValues",
             "failureValues",
@@ -385,6 +401,8 @@ export function getModelConfigurationError(value) {
         checkPointer(response.task.idPath, "任务 ID 路径");
         checkPointer(response.task.statusPath, "任务状态路径");
         checkRequest(response.task.request, purpose, true);
+        if (response.task.resultRequest !== undefined)
+          checkRequest(response.task.resultRequest, purpose, true, true);
         if (
           ![response.task.successValues, response.task.failureValues].every(
             (v) =>
@@ -453,11 +471,14 @@ export function resolveModelParameters(purpose, overrides = {}) {
   }
   return result;
 }
-const variable = (name, context) => {
+const variable = (name, context, optional = false) => {
   let value = context;
   for (const part of name.trim().split(".")) {
-    if (forbidden.has(part) || !own(value, part))
+    if (forbidden.has(part)) fail("变量路径无效");
+    if (!own(value, part)) {
+      if (optional) return undefined;
       fail(`变量 ${name.trim()} 未提供值`);
+    }
     value = value[part];
   }
   return value;
@@ -475,19 +496,25 @@ const renderString = (value, context, encode = false) =>
 const renderJson = (value, context) => {
   if (typeof value === "string") {
     const whole = value.match(/^\{\{\s*([^{}]+?)\s*\}\}$/);
-    return whole
-      ? structuredClone(variable(whole[1], context))
-      : renderString(value, context);
+    if (!whole) return renderString(value, context);
+    const expression = whole[1].trim();
+    const optional = expression.endsWith("?");
+    return structuredClone(variable(optional ? expression.slice(0, -1) : expression, context, optional));
   }
   if (Array.isArray(value))
-    return value.map((item) => renderJson(item, context));
-  if (isObject(value))
+    return value.map((item) => renderJson(item, context)).filter((item) => item !== undefined);
+  if (isObject(value)) {
+    if (own(value, "$optional"))
+      return renderJson(value.$optional, context) === undefined
+        ? undefined
+        : renderJson(value.$value, context);
     return Object.fromEntries(
-      Object.entries(value).map(([key, item]) => [
-        key,
-        renderJson(item, context),
-      ]),
+      Object.entries(value).flatMap(([key, item]) => {
+        const rendered = renderJson(item, context);
+        return rendered === undefined ? [] : [[key, rendered]];
+      }),
     );
+  }
   return value;
 };
 export function buildModelRequest(
@@ -503,14 +530,17 @@ export function buildModelRequest(
   });
   if (configError) fail(configError);
   json(context.input);
+  if (context.result !== undefined) json(context.result);
   matchesSchema(purpose.inputSchema, context.input, "应用输入");
   const resolved = {
     ...context,
     params: resolveModelParameters(purpose, overrides),
   };
   const template =
-    phase === "result" ? purpose.response?.task?.request : purpose.request;
-  if (!template) fail("没有配置任务查询请求");
+    phase === "retrieve"
+      ? purpose.response?.task?.resultRequest
+      : phase === "result" ? purpose.response?.task?.request : purpose.request;
+  if (!template) fail(phase === "retrieve" ? "没有配置产物获取请求" : "没有配置任务查询请求");
   const path = renderString(template.path, resolved, true);
   let url;
   try {
@@ -534,13 +564,12 @@ export function buildModelRequest(
   );
   if (Object.values(headers).some((value) => /[\r\n]/.test(value)))
     fail("请求头值含有无效换行");
+  const body = template.body === undefined ? undefined : renderJson(template.body, resolved);
   return {
     method: template.method,
     url: url.toString(),
     headers,
-    ...(template.body !== undefined
-      ? { body: renderJson(template.body, resolved) }
-      : {}),
+    ...(body === undefined ? {} : { body }),
   };
 }
 const redact = (value) => {
@@ -558,7 +587,7 @@ const redact = (value) => {
 };
 export function previewModelRequest(
   purpose,
-  { modelId, apiEndpoint, input, overrides, taskId, phase = "initial" },
+  { modelId, apiEndpoint, input, overrides, taskId, result: taskResult, phase = "initial" },
 ) {
   const result = buildModelRequest(
     purpose,
@@ -568,6 +597,7 @@ export function previewModelRequest(
       input,
       auth: { apiKey: "••••••••" },
       ...(taskId ? { task: { id: taskId } } : {}),
+      ...(taskResult === undefined ? {} : { result: taskResult }),
     },
     overrides,
     phase,
@@ -597,6 +627,8 @@ export function parseModelResponse(purpose, value, phase = "initial") {
   json(value);
   const response = purpose.response;
   if (!response) fail("原生对话由协议适配器处理返回");
+  if (phase === "retrieve" && !response.task?.resultRequest)
+    fail("没有配置产物获取请求");
   const get = (path) =>
     path === undefined ? undefined : readJsonPointer(value, path);
   const error = () => {
@@ -617,13 +649,15 @@ export function parseModelResponse(purpose, value, phase = "initial") {
       fail("返回结果中没有找到任务 ID");
     return { status: "pending", taskId: String(id), outputs: [] };
   }
-  if (response.mode === "task") {
+  if (response.mode === "task" && phase !== "retrieve") {
     const status = get(response.task.statusPath);
     if (status === undefined) fail("返回结果中没有找到任务状态");
     if (response.task.failureValues.includes(status))
       return { status: "failed", error: error(), outputs: [] };
     if (!response.task.successValues.includes(status))
       return { status: "pending", outputs: [] };
+    if (response.task.resultRequest)
+      return { status: "retrieving", outputs: [] };
   }
   const outputs = response.outputs.flatMap((rule) => {
     const extracted = get(rule.path);

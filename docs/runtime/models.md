@@ -32,7 +32,13 @@ MiniMax 型号预设参考[官方 Anthropic SDK 文档](https://platform.minimax
 
 参数支持默认值、调用时覆盖开关和 JSON Schema 约束。请求模板通过 `model`、`input`、`params`、`auth` 变量组合内容；整值变量保留原始 JSON 类型。返回配置通过 JSON Pointer 提取文本、JSON、URL 或 Base64 结果，也可声明业务成功条件、错误字段和任务查询规则。
 
+请求体支持显式可选整值变量，例如 `"first_frame_image": "{{input.image?}}"`。变量路径未提供时省略对应字段或数组元素；显式传入的 `null`、`false`、`0` 和空字符串仍保留，并照常通过输入结构校验。嵌套对象不会因字段省略而自动删除。普通变量缺失仍报错；请求路径、请求头及字符串内插不支持可选标记。海螺 2.3 使用同一视频模板，图片为可选输入，未提供时文生视频，提供时图生视频。
+
+需要省略整个嵌套对象或数组项时，使用可选节点 `{ "$optional": "{{input.image?}}", "$value": { ... } }`。检测变量未提供时跳过整个节点，不渲染其中的必填变量；变量存在时，仅输出渲染后的 `$value`，不会把包装字段发送给供应商。H3/H3-Max 各用一个视频模板，首帧 `image`、尾帧 `lastImage` 均为可选项，支持无图、仅首帧、仅尾帧和首尾帧。具体画幅参数用于文生视频，有图时服务端按输入图片自动适配。
+
 通用合同、参数校验、请求组合、返回解析和本地预览位于 `@mewvis/chat-contracts/model-configuration`，不依赖供应商预设。本地预览隐藏凭据，不发送请求。已配置的 HTTP / JSON 图片生成、图片编辑、视频生成和语音合成用途可由内置 `generate_media` 工具执行；原生用途继续使用各自的协议适配器。语音合成提供 MiniMax `speech-2.8-hd`、`speech-2.8-turbo` 模板，使用[非流式 HTTP 接口](https://platform.minimax.io/docs/api-reference/speech-t2a-http)返回音频 URL，保存后可在聊天中播放。
+
+异步调用预览以按钮组切换创建、查询及获取产物阶段，仅显示当前配置实际支持的阶段；同一时间始终选中一项。
 
 完整配置随 `runtimeModel.configuration` 传入。提交时为每个用途固定已解析的连接和请求模型 ID，使媒体用途继承原 Provider，而不会误用已独立配置的对话连接。媒体工具只使用当前选中模型的用途；没有可执行媒体用途或禁用工具调用时，不注册媒体工具，也不自动调用其他模型。
 
@@ -58,6 +64,7 @@ MiniMax 型号预设参考[官方 Anthropic SDK 文档](https://platform.minimax
 | ------- | ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | OpenAI  | `gpt-image-2.5-sunburst`、`gpt-image-2.5-flare` | [文生图](https://developers.openai.com/api/reference/resources/images/methods/generate)、[JSON 图片编辑](https://developers.openai.com/api/reference/resources/images/methods/edit)                                                       |
 | MiniMax | `image-01`                                      | [文生图](https://platform.minimax.io/docs/api-reference/image-generation-t2i)、[人物参考图生成](https://platform.minimax.io/docs/api-reference/image-generation-i2i)                                                                      |
+| MiniMax | `MiniMax-Hailuo-2.3`                            | [文生视频](https://platform.minimax.io/docs/api-reference/video-generation-t2v)、[图生视频](https://platform.minimax.io/docs/api-reference/video-generation-i2v)；V1 任务轮询成功后，通过 `file_id` 获取下载地址。默认 768P / 6 秒，10 秒仅支持 768P，1080P 仅支持 6 秒 |
 | MiniMax | `MiniMax-H3`、`MiniMax-H3-Max`                  | [文生视频、图生视频、首尾帧生视频](https://platform.minimax.io/docs/api-reference/video-generation-v2-create)，[任务轮询](https://platform.minimax.io/docs/api-reference/video-generation-v2-query)；两个型号分别声明分辨率及持续时间范围 |
 | 智谱    | `glm-image`                                     | [文生图](https://docs.bigmodel.cn/cn/guide/models/image-generation/glm-image)                                                                                                                                                             |
 | 智谱    | `cogvideox-3`                                   | [文生视频、图生视频、首尾帧生视频](https://docs.bigmodel.cn/cn/guide/models/video-generation/cogvideox-3)，[任务轮询](https://docs.bigmodel.cn/api-reference/模型-api/查询异步结果)                                                       |
@@ -76,6 +83,8 @@ MiniMax 型号预设参考[官方 Anthropic SDK 文档](https://platform.minimax
 | Kimi     | [官方快速开始](https://platform.kimi.com/docs/get-api-key)优先推荐 K3，同时仍明确提供 K2.6 作为通用场景选项，均保留。                                                                                                                                                                                                                                                                      |
 | MiMo     | [MiMo V2.5 官方型号页](https://mimo.mi.com/models/zh-CN/mimo-v2.5)仍将其作为原生全模态感知型号提供，保留。                                                                                                                                                                                                                                                                                 |
 | 智谱     | [官方推荐列表](https://docs.bigmodel.cn/cn/guide/start/model-overview)仍包含 GLM 5.3 Flash/FlashX、GLM-Image、CogVideoX-3，均保留。                                                                                                                                                                                                                                                        |
+
+海螺 2.3 按需保留为新建视频配置的候选项，与 H3/H3-Max 并存，不替换用户已有用途。
 
 清理只移除编辑器候选项，不重命名、替换或迁移用户已保存的模型及用途快照。旧型号仍可手动输入；接口提供的能力元数据仍按原有规则使用，运行时继续执行已保存的配置。
 

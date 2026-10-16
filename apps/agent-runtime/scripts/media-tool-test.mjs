@@ -22,7 +22,9 @@ const temporary = await realpath(
 );
 after(() => rm(temporary, { recursive: true, force: true }));
 const runtime = fileURLToPath(new URL("../", import.meta.url));
-const bundle = join(temporary, "tools.mjs");
+const runtimeDirectory = join(temporary, "runtime");
+await mkdir(runtimeDirectory);
+const bundle = join(runtimeDirectory, "tools.mjs");
 const common = {
   bundle: true,
   platform: "node",
@@ -41,6 +43,7 @@ await build({
       "engines/drivers/native/agent/runtimes/pi/tools/media-tool.ts",
       "engines/drivers/native/agent/runtimes/pi/tools/safety.ts",
       "security/access/index.ts",
+      "security/execution/index.ts",
     ]
       .map(
         (path) =>
@@ -59,7 +62,7 @@ for (const entry of [entries.executionHost, entries.mediaToolWorker])
   await build({
     ...common,
     entryPoints: [join(runtime, entry.source)],
-    outfile: join(temporary, entry.output),
+    outfile: join(runtimeDirectory, entry.output),
   });
 const api = await import(pathToFileURL(bundle));
 const configuration = JSON.parse(
@@ -411,6 +414,83 @@ test("video polling and collection remain inside the generic tool without model 
   assert.equal(await readFile(result.outputs[0].filePath, "utf8"), "video");
 });
 
+test("Hailuo 2.3 retrieves task file URLs and saves videos without resubmitting", async (t) => {
+  const preset = api.minimaxPreset.models.find((model) => model.modelId === "MiniMax-Hailuo-2.3");
+  const template = preset.templates[0];
+  const inputs = [template.sampleInput, { ...template.sampleInput, image: "https://example.com/first.png" }];
+  for (const input of inputs) await t.test(input.image ? "image to video" : "text to video", async (t) => {
+    const calls = [];
+    const ok = { base_resp: { status_code: 0 } };
+    const f = await fixture(t, async (url, init) => {
+      const path = new URL(url).pathname;
+      calls.push({ url: String(url), init });
+      if (path === "/video.mp4") {
+        assert.equal(new Headers(init.headers).get("authorization"), null);
+        return new Response("hailuo-video", { headers: { "content-type": "video/mp4" } });
+      }
+      assert.equal(new Headers(init.headers).get("authorization"), "Bearer hailuo-secret");
+      if (path === "/v1/video_generation") {
+        assert.equal(init.method, "POST");
+        return Response.json({ ...ok, task_id: "job/1" });
+      }
+      if (path === "/v1/query/video_generation") {
+        assert.equal(init.method, "GET");
+        assert.equal(new URL(url).searchParams.get("task_id"), "job/1");
+        return Response.json({ ...ok, status: "Success", file_id: "file/1" });
+      }
+      assert.equal(path, "/v1/files/retrieve");
+      assert.equal(init.method, "GET");
+      assert.equal(new URL(url).searchParams.get("file_id"), "file/1");
+      return Response.json({ ...ok, file: { download_url: "https://cdn.example/video.mp4" } });
+    });
+    const purpose = structuredClone(template.purpose);
+    purpose.modelId = preset.modelId;
+    purpose.connection = { apiEndpoint: "https://video.example/anthropic", apiKey: "hailuo-secret" };
+    purpose.response.task.intervalSeconds = 1;
+    f.model.configuration.purposes = [purpose];
+    const args = { purpose: "video-generation", input, parameters: { duration: 10, resolution: "768P" } };
+    const result = await f.generate(args, "hailuo");
+    assert.equal(result.status, "completed", JSON.stringify(result));
+    assert.equal(result.taskId, "job/1");
+    assert.equal(result.outputs[0].type, "video");
+    assert.equal(result.outputs[0].mimeType, "video/mp4");
+    assert.equal(await readFile(result.outputs[0].filePath, "utf8"), "hailuo-video");
+    const body = JSON.parse(calls[0].init.body);
+    assert.equal(body.model, "MiniMax-Hailuo-2.3");
+    assert.equal(body.duration, 10);
+    assert.equal(body.first_frame_image, input.image);
+    assert.equal(Object.hasOwn(body, "first_frame_image"), Object.hasOwn(input, "image"));
+    assert.equal(calls.length, 4);
+    assert.deepEqual(await f.generate(args, "hailuo"), result);
+    assert.equal(calls.filter((call) => call.init.method === "POST").length, 1);
+    assert.doesNotMatch(JSON.stringify(result), /hailuo-secret|cdn\.example|file\/1/);
+  });
+  await t.test("retrieval business failures stop without another submission", async (t) => {
+    let submissions = 0;
+    const f = await fixture(t, async (url, init) => {
+      if (init.method === "POST") {
+        submissions++;
+        return Response.json({ task_id: "job", base_resp: { status_code: 0 } });
+      }
+      if (new URL(url).pathname === "/v1/query/video_generation")
+        return Response.json({ status: "Success", file_id: "file", base_resp: { status_code: 0 } });
+      assert.equal(new URL(url).pathname, "/v1/files/retrieve");
+      return Response.json({ base_resp: { status_code: 1004, status_msg: "File unavailable" } });
+    });
+    const purpose = structuredClone(preset.templates[0].purpose);
+    purpose.connection = { apiEndpoint: "https://video.example" };
+    purpose.response.task.intervalSeconds = 1;
+    f.model.configuration.purposes = [purpose];
+    const args = { purpose: "video-generation" };
+    const result = await f.generate(args, "failed-hailuo");
+    assert.equal(result.status, "failed");
+    assert.match(result.error, /File unavailable/);
+    assert.deepEqual(result.outputs, []);
+    assert.deepEqual(await f.generate(args, "failed-hailuo"), result);
+    assert.equal(submissions, 1);
+  });
+});
+
 test("schema errors, immutable parameters, protected paths and symlinks fail before submission", async (t) => {
   let requests = 0;
   const f = await fixture(t, async () => {
@@ -603,6 +683,113 @@ test("Pi is a thin adapter over the generic tool and its existing safety analysi
     ],
   );
 });
+
+test(
+  "sandboxed generation cannot inspect host databases but can save media and read authorized references",
+  { skip: process.platform !== "darwin", timeout: 20_000 },
+  async (t) => {
+    const f = await fixture(t);
+    const hostData = await realpath(
+      await mkdtemp(join(tmpdir(), "mewvis-media-protected-")),
+    );
+    t.after(() => rm(hostData, { recursive: true, force: true }));
+    const database = join(hostData, "config.db");
+    await writeFile(database, "host configuration must stay private");
+    const managed = join(f.workspace, "managed");
+    await mkdir(managed);
+    const alias = join(hostData, "managed-alias");
+    await symlink(managed, alias);
+    const deniedReference = join(f.workspace, "private-reference.png");
+    await writeFile(deniedReference, png);
+    f.context.protectedPaths = [database, database + "-wal", alias];
+    f.context.execution = api.resolveExecutionPolicy(
+      "auto",
+      f.workspace,
+      { ...api.EXECUTION_CONFIG, enabled: true },
+      runtimeDirectory,
+      {
+        access: api.resolveAgentAccess(
+          {
+            filesystem: {
+              read: [{ base: "workspace" }],
+              write: [{ base: "workspace" }],
+            },
+            network: { hosts: ["api.example.com"] },
+          },
+          { workspacePath: f.workspace },
+        ),
+      },
+    );
+    f.context.execution.sandbox.filesystem.denyRead.push(deniedReference);
+    const probeWorker = join(runtimeDirectory, "sandbox-media-probe.mjs");
+    await writeFile(
+      probeWorker,
+      `import { lstat } from "node:fs/promises";
+import { serveWorker, runMediaGeneration } from ${JSON.stringify(pathToFileURL(bundle).href)};
+let submissions = 0;
+serveWorker({
+  async execute(method, request, context) {
+    if (method === "submissions") return submissions;
+    if (method === "probe") {
+      try { await lstat(request); return { readable: true }; }
+      catch (error) { return { code: error.code }; }
+    }
+    return runMediaGeneration(request, {
+      ...context,
+      fetch: async () => {
+        submissions++;
+        return Response.json({
+          base_resp: { status_code: 0 },
+          data: { image_base64: [${JSON.stringify(png.toString("base64"))}] },
+        });
+      },
+    });
+  },
+});`,
+    );
+    let worker;
+    t.after(() => worker?.dispose());
+    f.context.run = async (request, context) => {
+      worker ??= new api.ProgramExecutor({
+        policy: request.execution,
+        program: { executable: process.execPath, args: [probeWorker] },
+      });
+      const probe = await worker.call("probe", database);
+      assert.match(probe.code ?? "", /^(EPERM|EACCES)$/);
+      return worker.call("generate", request, context.signal, context.progress);
+    };
+    const result = await f.generate();
+    assert.equal(result.status, "completed", JSON.stringify(result));
+    assert.deepEqual(await readFile(result.outputs[0].filePath), png);
+
+    const reference = join(f.workspace, "reference.png");
+    await writeFile(reference, png);
+    f.model.configuration.purposes[0].inputSchema.properties.reference = {
+      type: "string",
+    };
+    f.model.configuration.purposes[0].request.body.reference =
+      "{{input.reference}}";
+    f.reset();
+    const withReference = await f.generate({
+      files: [{ pointer: "/reference", filePath: reference }],
+    });
+    assert.equal(
+      withReference.status,
+      "completed",
+      JSON.stringify(withReference),
+    );
+    const denied = await f.generate({ outputDirectory: "managed/outputs" });
+    assert.equal(denied.status, "failed");
+    assert.match(denied.error, /不能修改宿主管理/);
+    assert.equal(denied.stage, "preparing");
+    const deniedRead = await f.generate({
+      files: [{ pointer: "/reference", filePath: deniedReference }],
+    });
+    assert.equal(deniedRead.status, "failed");
+    assert.equal(deniedRead.stage, "preparing");
+    assert.equal(await worker.call("submissions"), 2);
+  },
+);
 
 test(
   "default execution runs the same generic workflow in an independent execution worker",

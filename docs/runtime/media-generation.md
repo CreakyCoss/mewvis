@@ -76,6 +76,8 @@ flowchart LR
 
 请求复用 `buildModelRequest` 和 `parseModelResponse`。直返接口读取最终结果；任务接口提取 ID、等待并查询状态，直到成功或失败。所有步骤由通用工具维护，不需要 Agent 或 Server 反复查询。
 
+如果成功查询只返回文件 ID，可配置 `response.task.resultRequest` 再获取一次 JSON；通过 `{{result.file_id}}` 等变量引用成功查询的返回值。此请求仍经过统一网络权限检查，输出规则应用于它的返回 JSON。请求失败即结束，不重新提交生成任务。海螺 2.3 使用此流程从 `/v1/files/retrieve` 取得视频下载地址；设置页支持编辑请求和本地预览“获取产物”阶段。
+
 URL 产物流式下载，Base64 产物解码后保存；大文件不进入工具 IPC 或聊天记录。默认保存到当前工作区的 `generated-media`，也可指定工作区内的其他目录。文件名自动生成 UUID，临时文件写入完成后提交，不覆盖已有文件。图片上限 64 MiB，音频上限 256 MiB，视频上限 2 GiB，JSON 响应上限 64 MiB。CDN 下载不附带 Provider 凭据，跨域跳转不转发请求头；生成提交发生重定向时拒绝重放。
 
 结果包含 `status`（`completed`、`failed` 或 `stopped`）、当前 `modelId`、用途、可用的上游任务 ID，以及 `outputs`。文件产物返回绝对 `filePath`、类型、MIME 和大小；附加文本或 JSON 单项最多 32 KiB。失败时返回阶段和错误说明，保留已保存产物并清理未完成文件。

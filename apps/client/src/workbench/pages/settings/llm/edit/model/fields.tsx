@@ -46,10 +46,17 @@ export function EditorBuffers({ children, onError }: { children: ReactNode; onEr
 export const useEditorBuffers = () => useContext(Buffers);
 export const pretty = (value: unknown) => JSON.stringify(value, null, 2) ?? "";
 
-export function Field({ label, children, hint }: { label: string; children: ReactNode; hint?: string }) {
+export function Field({ label, children, hint, labelAction }: { label: string; children: ReactNode; hint?: string; labelAction?: ReactNode }) {
   return (
     <div className="min-w-0 space-y-1.5">
-      <Label className="text-xs font-medium">{label}</Label>
+      {labelAction ? (
+        <div className="flex items-center gap-2">
+          <Label className="text-xs font-medium">{label}</Label>
+          {labelAction}
+        </div>
+      ) : (
+        <Label className="text-xs font-medium">{label}</Label>
+      )}
       {children}
       {hint && <p className="text-[11px] leading-5 text-muted-foreground">{hint}</p>}
     </div>
