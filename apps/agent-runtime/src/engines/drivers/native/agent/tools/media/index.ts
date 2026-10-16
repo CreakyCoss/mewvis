@@ -5,6 +5,7 @@ import {
   MODEL_PROTOCOLS,
   resolveModelConnection,
   type ModelConfiguration,
+  type ModelPurpose,
 } from "@mewvis/chat-contracts/model-configuration";
 import type { ToolParameterDefinition } from "../../../../../builtins/definition.js";
 import {
@@ -51,16 +52,45 @@ export const MEDIA_TOOL_DEFINITION = {
           "Required for generate. Follow the selected model purpose's inputSchema exactly; field names vary by configuration.",
       },
       files: {
-        type: "json",
+        type: "array",
         optional: true,
         description:
-          "Optional local reference files inserted into input before schema validation. Array of {pointer, filePath, format?: 'data-url'|'base64', mimeType?}. Use a JSON Pointer such as /image or /images/0, an absolute local filePath, and prepare the parent input structure. Only authorized workspace files can be read. Maximum 8 files, 16 MiB each. Multipart or provider uploads are not supported.",
+          'Optional local references inserted into input before schema validation. Use an array, e.g. [{"pointer":"/image","filePath":"/workspace/first.png"}], never an {item: ...} wrapper. Prepare the parent input structure. Only authorized workspace files can be read. Maximum 8 files, 16 MiB each. Multipart or provider uploads are not supported.',
+        items: {
+          type: "object",
+          properties: {
+            pointer: {
+              type: "string",
+              description: "JSON Pointer into input, e.g. /image or /images/0.",
+            },
+            filePath: {
+              type: "string",
+              description:
+                "Absolute path to an authorized local reference file.",
+            },
+            format: {
+              type: "union",
+              optional: true,
+              description: "File encoding, defaults to data-url.",
+              anyOf: [
+                { type: "literal", value: "data-url" },
+                { type: "literal", value: "base64" },
+              ],
+            },
+            mimeType: {
+              type: "string",
+              optional: true,
+              description:
+                "Optional MIME type, e.g. image/png; otherwise detected from the file.",
+            },
+          },
+        },
       },
       parameters: {
         type: "json",
         optional: true,
         description:
-          "Optional object containing only parameters listed as overridable. Omitted values use configured defaults.",
+          "Optional object containing only parameters listed as overridable. Preserve their JSON types: integer/number values must be numbers, boolean values must be booleans. Omitted values use configured defaults.",
       },
       outputDirectory: {
         type: "string",
@@ -85,12 +115,76 @@ const argumentsSchema = z
       .enum(["image-generation", "image-editing", "video-generation", "speech"])
       .optional(),
     input: z.json().optional(),
-    files: z.json().optional(),
+    files: z
+      .array(
+        z
+          .object({
+            pointer: z.string(),
+            filePath: z.string().min(1),
+            format: z.enum(["data-url", "base64"]).optional(),
+            mimeType: z.string().min(1).optional(),
+          })
+          .strict(),
+      )
+      .max(8)
+      .optional(),
     parameters: z.record(z.string(), z.json()).optional(),
     outputDirectory: z.string().trim().min(1).optional(),
     timeoutSeconds: z.number().int().min(1).max(3600).optional(),
   })
   .strict();
+
+/** Expose known override types to the model; per-purpose constraints are still validated before submission. */
+function overrideParameters(
+  purposes: readonly ModelPurpose[],
+): ToolParameterDefinition {
+  const parameters = new Map<string, Map<string, ToolParameterDefinition>>();
+  for (const purpose of purposes) {
+    for (const parameter of purpose.parameters.filter(
+      (item) => item.overridable,
+    )) {
+      const variants =
+        parameters.get(parameter.name) ??
+        new Map<string, ToolParameterDefinition>();
+      const description = `Override ${parameter.name}; follow the selected purpose's list result for allowed values.`;
+      variants.set(
+        parameter.type,
+        parameter.type === "object"
+          ? { type: "json", description }
+          : parameter.type === "array"
+            ? {
+                type: "array",
+                description,
+                items: { type: "json", description: "Configured array item." },
+              }
+            : { type: parameter.type, description },
+      );
+      parameters.set(parameter.name, variants);
+    }
+  }
+  return {
+    type: "object",
+    optional: true,
+    description:
+      MEDIA_TOOL_DEFINITION.parameters.properties.parameters.description,
+    properties: Object.fromEntries(
+      [...parameters].map(([name, variants]) => {
+        const types = [...variants.values()];
+        return [
+          name,
+          types.length === 1
+            ? { ...types[0], optional: true }
+            : {
+                type: "union",
+                optional: true,
+                description: `Type depends on the selected purpose; consult list.`,
+                anyOf: types,
+              },
+        ];
+      }),
+    ),
+  };
+}
 
 export type MediaToolContext = {
   workspacePath: string;
@@ -197,6 +291,13 @@ export function createMediaTool(context: MediaToolContext) {
   let running = 0;
   return {
     ...MEDIA_TOOL_DEFINITION,
+    parameters: {
+      ...MEDIA_TOOL_DEFINITION.parameters,
+      properties: {
+        ...MEDIA_TOOL_DEFINITION.parameters.properties,
+        parameters: overrideParameters(catalog),
+      },
+    },
     async execute(
       callId: string,
       input: unknown,

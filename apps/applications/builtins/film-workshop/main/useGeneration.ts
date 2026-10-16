@@ -8,8 +8,11 @@ import { assistantContext } from "./assistant-context";
 import { projectSession } from "./assistant-session";
 import {
   applyGeneration,
-  generationMarker,
+  generationMessage,
+  generationPrompt,
   generationResult,
+  GENERATION_TYPES,
+  generationType,
   relativeMediaPath,
 } from "./media";
 import { newId, type FilmGeneration, type FilmMedia } from "./model";
@@ -77,6 +80,8 @@ export function useGeneration(editor: ReturnType<typeof useEditor>) {
                     (media) => media.path === path,
                   );
                   if (known) {
+                    if (known.kind !== generationType(record).kind)
+                      throw new Error("生成文件类型与当前任务不一致");
                     outputs.push(known);
                     continue;
                   }
@@ -89,7 +94,7 @@ export function useGeneration(editor: ReturnType<typeof useEditor>) {
                     id: newId(),
                     path,
                     name: info.name.slice(0, 120),
-                    kind: "image",
+                    kind: generationType(record).kind,
                     size: info.size,
                     mimeType: output.mimeType ?? "",
                     source: "generated",
@@ -143,7 +148,11 @@ export function useGeneration(editor: ReturnType<typeof useEditor>) {
     [],
   );
 
-  const generate = async (episodeId: string, shotId: string) => {
+  const generate = async (
+    episodeId: string,
+    shotId: string,
+    purpose: FilmGeneration["purpose"] = "image-generation",
+  ) => {
     if (startingRef.current) return;
     startingRef.current = true;
     setStarting(true);
@@ -161,9 +170,14 @@ export function useGeneration(editor: ReturnType<typeof useEditor>) {
           ["preparing", "running"].includes(item.status),
         )
       )
-        throw new Error("请等待当前生图结束，或在助手中停止任务");
-      const prompt = shot.imagePrompt.trim() || shot.description.trim();
-      if (!prompt) throw new Error("请先填写画面内容或图片提示词");
+        throw new Error("请等待当前生成任务结束，或在助手中停止任务");
+      const prompt = generationPrompt(shot, purpose);
+      if (!prompt)
+        throw new Error(
+          purpose === "speech"
+            ? "请先在分镜设计中填写台词"
+            : "请先填写画面内容或生成提示词",
+        );
       await editor.flush();
       const session = await projectSession(project, episodeId);
       if (session.getSnapshot().phase !== "idle")
@@ -171,18 +185,24 @@ export function useGeneration(editor: ReturnType<typeof useEditor>) {
       if (!session.getSnapshot().config.selectedModelId)
         throw new Error("请先在创作助手中选择模型");
       const context = await session.setContext(
-        assistantContext(project, episode, "storyboard", shotId),
+        assistantContext(
+          project,
+          episode,
+          GENERATION_TYPES[purpose].step,
+          shotId,
+        ),
       );
       if (!context.ok) throw new Error(context.error);
       job = {
         id: newId(),
+        purpose,
         episodeId,
         shotId,
         chatId: session.identity.id,
         workspaceId: project.workspace.id,
         status: "preparing",
         prompt,
-        previousMediaId: shot.imageMediaId,
+        previousMediaId: shot[GENERATION_TYPES[purpose].field],
         outputIds: [],
         createdAt: Date.now(),
       };
@@ -198,41 +218,7 @@ export function useGeneration(editor: ReturnType<typeof useEditor>) {
         return;
       const result = await session.send({
         requestId: job.id,
-        blocks: [
-          {
-            type: "text",
-            content: `为「${shot.title}」生成一张 ${project.aspectRatio} 分镜图。\n${prompt}\n${generationMarker(job.id)}`,
-          },
-        ],
-        text: `请结合项目的画面比例与视觉风格，为镜头「${shot.title}」生成一张分镜图片。\n${generationMarker(job.id)}\n先查询 generate_media 的 image-generation 用途，按其 Schema 组合输入，只调用一次生成；不要用文字建议代替实际生成。参考文件只在当前用途支持时使用。失败或停止后不要自动重试。\n${JSON.stringify(
-          {
-            projectId: project.id,
-            episodeId,
-            shotId,
-            prompt,
-            style: project.style,
-            aspectRatio: project.aspectRatio,
-            references: project.assets
-              .filter(
-                (asset) =>
-                  asset.id === shot.sceneId ||
-                  shot.characterIds.includes(asset.id),
-              )
-              .map((asset) => ({
-                name: asset.name,
-                description: asset.description,
-                files: (asset.mediaIds ?? []).flatMap((id) => {
-                  const media = project.media?.find((item) => item.id === id);
-                  return media
-                    ? [`${project.workspace!.directory}/${media.path}`]
-                    : [];
-                }),
-              })),
-            outputDirectory: `${project.workspace.directory}/generated/${job.id}`,
-          },
-          null,
-          2,
-        )}`,
+        ...generationMessage(project, episode, shot, job),
       });
       if (result.status !== "dispatched")
         throw new Error(result.reason || "生成请求未提交");

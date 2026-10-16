@@ -491,6 +491,59 @@ test("Hailuo 2.3 retrieves task file URLs and saves videos without resubmitting"
   });
 });
 
+test("Hailuo local first-frame calls expose typed files and overrides and reject malformed bindings before execution", async (t) => {
+  const requests = [];
+  const f = await fixture(t, async (url, init) => {
+    const path = new URL(url).pathname;
+    requests.push({ path, init });
+    const ok = { base_resp: { status_code: 0 } };
+    if (path === "/v1/video_generation")
+      return Response.json({ ...ok, task_id: "local-frame-task" });
+    if (path === "/v1/query/video_generation")
+      return Response.json({ ...ok, status: "Success", file_id: "local-frame-file" });
+    if (path === "/v1/files/retrieve")
+      return Response.json({ ...ok, file: { download_url: "https://cdn.example/video.mp4" } });
+    assert.equal(path, "/video.mp4");
+    return new Response("local-frame-video", { headers: { "content-type": "video/mp4" } });
+  });
+  const preset = api.minimaxPreset.models.find((model) => model.modelId === "MiniMax-Hailuo-2.3");
+  const purpose = structuredClone(preset.templates[0].purpose);
+  purpose.modelId = preset.modelId;
+  purpose.connection = { apiEndpoint: "https://video.example" };
+  purpose.response.task.intervalSeconds = 1;
+  f.model.configuration.purposes = [purpose];
+  const reference = join(f.workspace, "first.png");
+  await writeFile(reference, png);
+  const tool = api.createPiMediaTool(f.context);
+  const schema = tool.parameters.properties;
+  assert.equal(schema.files.type, "array");
+  assert.equal(schema.files.items.type, "object");
+  assert.deepEqual(schema.files.items.required, ["pointer", "filePath"]);
+  assert.equal(schema.parameters.type, "object");
+  assert.equal(schema.parameters.properties.duration.type, "integer");
+  assert.equal(schema.parameters.properties.resolution.type, "string");
+  assert.equal(schema.parameters.properties.prompt_optimizer.type, "boolean");
+  const args = {
+    action: "generate",
+    purpose: "video-generation",
+    input: { prompt: "Rain on a window" },
+    files: [{ pointer: "/image", filePath: reference }],
+    parameters: { duration: 6, resolution: "768P" },
+  };
+  for (const files of [{ item: args.files[0] }, null, Array(9).fill(args.files[0])])
+    await assert.rejects(tool.execute("bad-files", { ...args, files }), /files/);
+  const invalid = await tool.execute("string-duration", { ...args, parameters: { duration: "6" } });
+  assert.equal(invalid.details.status, "failed");
+  assert.equal(requests.length, 0);
+  const result = await tool.execute("local-frame", args);
+  assert.equal(result.details.status, "completed", JSON.stringify(result));
+  const body = JSON.parse(requests[0].init.body);
+  assert.equal(body.first_frame_image, `data:image/png;base64,${png.toString("base64")}`);
+  assert.equal(body.duration, 6);
+  assert.equal(requests.filter((request) => request.init.method === "POST").length, 1);
+  assert.equal(await readFile(result.details.outputs[0].filePath, "utf8"), "local-frame-video");
+});
+
 test("schema errors, immutable parameters, protected paths and symlinks fail before submission", async (t) => {
   let requests = 0;
   const f = await fixture(t, async () => {

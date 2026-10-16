@@ -76,6 +76,10 @@ const storage = memoryStorage(),
   registeredWorkspaces = [];
 const fileHost = createFileHost(
   await readFile(join(app, "main/assets/rain-window.jpg")),
+  {
+    ...(process.env.MEWVIS_FILM_QA_VIDEO ? { video: await readFile(process.env.MEWVIS_FILM_QA_VIDEO) } : {}),
+    ...(process.env.MEWVIS_FILM_QA_AUDIO ? { audio: await readFile(process.env.MEWVIS_FILM_QA_AUDIO) } : {}),
+  },
 );
 const files = createApplicationFileClient({
   version: 1,
@@ -137,8 +141,8 @@ addEventListener("message", async event => {
       const result = await (await fetch("/files", { method: "POST", body: JSON.stringify(message.request) })).json();
       reply(result);
       if (message.request.method === "preview.openDialog" && result.ok) {
-        const resource = result.value, dialog = document.createElement("dialog"), image = document.createElement("img"), close = document.createElement("button");
-        image.src = resource.resourceUrl; image.style.cssText = "max-width:85vw;max-height:80vh;display:block"; close.textContent = "关闭预览";
+        const resource = result.value, dialog = document.createElement("dialog"), image = document.createElement(resource.kind === "video" ? "video" : resource.kind === "audio" ? "audio" : "img"), close = document.createElement("button");
+        image.src = resource.resourceUrl; if (resource.kind === "video" || resource.kind === "audio") image.controls = true; image.style.cssText = "max-width:85vw;max-height:80vh;display:block"; close.textContent = "关闭预览";
         close.onclick = () => dialog.close(); dialog.onclose = () => { post({ type: "files:preview-close", event: { id: resource.id } }); dialog.remove(); }; dialog.append(image, close); document.body.append(dialog); dialog.showModal();
       }
     } else if (message.type === "header:set") reply({ supported: false });
@@ -182,11 +186,12 @@ const server = createServer(async (req, res) => {
         }
         if (turn.input.text.includes("[影视生成:")) {
           const toolCallId = turn.taskId + "-media";
-          emit(turn.taskId, { type: "tool_execution_start", toolCallId, toolName: "generate_media", args: { action: "generate", purpose: "image-generation" } });
+          const mediaInput = JSON.parse(turn.input.text.slice(turn.input.text.indexOf("{\\n")));
+          emit(turn.taskId, { type: "tool_execution_start", toolCallId, toolName: "generate_media", args: { action: "generate", purpose: mediaInput.purpose || "image-generation" } });
           await new Promise(resolve => setTimeout(resolve, 1500)); signal.throwIfAborted();
           const result = await (await fetch("/generate", { method: "POST", body: JSON.stringify({ text: turn.input.text }) })).json();
           emit(turn.taskId, { type: "tool_execution_end", toolCallId, toolName: "generate_media", result, isError: false });
-          emit(turn.taskId, { type: "done", text: "模拟图片已保存。" }); return;
+          emit(turn.taskId, { type: "done", text: "模拟媒体已保存。" }); return;
         }`,
           ),
       );
@@ -696,7 +701,7 @@ try {
     .getByRole("button", { name: "检查制作计划", exact: true })
     .click();
   await frame
-    .getByText("制作计划检查通过；媒体尚未生成或校验。", { exact: true })
+    .getByText("制作计划检查通过；此检查不校验媒体内容或成片。", { exact: true })
     .waitFor();
   assert.equal(
     await frame

@@ -43,6 +43,7 @@ export interface FilmMedia {
 }
 export interface FilmGeneration {
   id: string;
+  purpose: "image-generation" | "video-generation" | "speech";
   episodeId: string;
   shotId: string;
   chatId: string;
@@ -85,6 +86,8 @@ export interface FilmShot {
   audioReference: string;
   mediaIds?: string[];
   imageMediaId?: string;
+  videoMediaId?: string;
+  audioMediaId?: string;
 }
 export interface FilmEpisode {
   id: string;
@@ -322,6 +325,12 @@ export function validateProject(value: unknown): FilmProject {
         ...(s.imageMediaId
           ? { imageMediaId: text(s.imageMediaId, "分镜图片标识", 80) }
           : {}),
+        ...(s.videoMediaId
+          ? { videoMediaId: text(s.videoMediaId, "镜头视频标识", 80) }
+          : {}),
+        ...(s.audioMediaId
+          ? { audioMediaId: text(s.audioMediaId, "镜头音频标识", 80) }
+          : {}),
       };
     });
     return {
@@ -334,12 +343,19 @@ export function validateProject(value: unknown): FilmProject {
   if (!episodes.length) throw new Error("项目至少需要一个分集");
   for (const episode of episodes)
     for (const shot of episode.shots)
-      if (
-        shot.imageMediaId &&
-        (!shot.mediaIds?.includes(shot.imageMediaId) ||
-          !media?.some((m) => m.id === shot.imageMediaId && m.kind === "image"))
-      )
-        throw new Error("当前分镜图片引用无效");
+      for (const [field, kind] of [
+        ["imageMediaId", "image"],
+        ["videoMediaId", "video"],
+        ["audioMediaId", "audio"],
+      ] as const) {
+        const selected = shot[field];
+        if (
+          selected &&
+          (!shot.mediaIds?.includes(selected) ||
+            !media?.some((m) => m.id === selected && m.kind === kind))
+        )
+          throw new Error("当前镜头媒体引用无效");
+      }
   let workspace: FilmWorkspace | undefined;
   if (p.workspace !== undefined) {
     const w = object(p.workspace, "工作目录");
@@ -365,6 +381,12 @@ export function validateProject(value: unknown): FilmProject {
           const g = object(item, "生成记录");
           return {
             id: id(g.id),
+            // Existing project files contain image jobs without an explicit purpose.
+            purpose: choice(
+              g.purpose === undefined ? "image-generation" : g.purpose,
+              ["image-generation", "video-generation", "speech"],
+              "生成用途",
+            ),
             episodeId: text(g.episodeId, "分集标识", 80),
             shotId: text(g.shotId, "镜头标识", 80),
             chatId: text(g.chatId, "会话标识", 256),
@@ -379,7 +401,7 @@ export function validateProject(value: unknown): FilmProject {
             createdAt: timestamp(g.createdAt),
             ...(g.taskId ? { taskId: text(g.taskId, "任务标识", 256) } : {}),
             ...(g.previousMediaId
-              ? { previousMediaId: text(g.previousMediaId, "原图片标识", 80) }
+              ? { previousMediaId: text(g.previousMediaId, "原媒体标识", 80) }
               : {}),
             ...(g.error ? { error: text(g.error, "生成错误", 4000) } : {}),
           };
@@ -471,6 +493,8 @@ export function copyProject(source: FilmProject): FilmProject {
         id: newId(),
         mediaIds: [],
         imageMediaId: undefined,
+        videoMediaId: undefined,
+        audioMediaId: undefined,
         characterIds: s.characterIds.map((id) => assetIds.get(id)!),
         sceneId: assetIds.get(s.sceneId) ?? "",
         speakerId: assetIds.get(s.speakerId) ?? "",
@@ -515,7 +539,20 @@ export function stageStatus(
         ? "ready"
         : "draft"
       : "empty";
-  if (step === "video" || step === "dubbing") return "blocked";
+  if (step === "video")
+    return !episode.shots.length
+      ? "empty"
+      : episode.shots.every((shot) => shot.videoMediaId)
+        ? "ready"
+        : "draft";
+  if (step === "dubbing") {
+    const spoken = episode.shots.filter((shot) => shot.dialogue.trim());
+    return !episode.shots.length
+      ? "empty"
+      : spoken.every((shot) => shot.audioMediaId)
+        ? "ready"
+        : "draft";
+  }
   return episode.shots.length ? "draft" : "empty";
 }
 export function deliveryReport(project: FilmProject, episode: FilmEpisode) {
@@ -579,9 +616,11 @@ export function productionManifest(
       `图片提示词：${s.imagePrompt || "待补充"}`,
       `分镜图片：${project.media?.find((media) => media.id === s.imageMediaId)?.path || "尚未选择"}`,
       `视频提示词：${s.videoPrompt || "待补充"}`,
+      `镜头视频：${project.media?.find((media) => media.id === s.videoMediaId)?.path || "尚未选择"}`,
       `台词：${s.dialogue || "无"}`,
       `说话角色：${assetName(s.speakerId)}；音色备注：${s.voice || "未设置"}`,
       `声音设计：${s.sound || "未设置"}`,
+      `角色配音：${project.media?.find((media) => media.id === s.audioMediaId)?.path || "尚未选择"}`,
       `文件备注：图片 ${s.imageReference || "无"}；视频 ${s.videoReference || "无"}；音频 ${s.audioReference || "无"}`,
       "",
     ]),
@@ -590,7 +629,6 @@ export function productionManifest(
     ...(report.issues.length
       ? report.issues.map((issue) => `- ${issue}`)
       : ["- 制作计划已准备，可以进入素材生成阶段。"]),
-    "- 视频与配音生成流程待完善。",
     "- 成片合成与文件导出待接入。",
     "",
   ].join("\n");

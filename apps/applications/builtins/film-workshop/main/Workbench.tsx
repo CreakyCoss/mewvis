@@ -195,6 +195,14 @@ export function Workbench({
   };
   const closePanel = () =>
     compactScreen ? setMobilePanel(false) : setPanel(null);
+  const showAssistant = () => {
+    setPanel("assistant");
+    setMobilePanel(true);
+    setFocused(false);
+  };
+  useEffect(() => {
+    if (generation.error) showAssistant();
+  }, [generation.error]);
   const scopedShot = ["storyboard", "video", "dubbing"].includes(step);
   const selectedNumber = shot
     ? episode.shots.findIndex((s) => s.id === shot.id) + 1
@@ -320,19 +328,11 @@ export function Workbench({
       )}
       {!project.workspace && (
         <div className="film-workspace-notice">
-          <span>选择工作目录，开始导入素材和生成分镜图。</span>
+          <span>选择工作目录，开始导入素材和生成媒体。</span>
           <button disabled={attaching} onClick={() => void chooseWorkspace()}>
             {attaching ? "准备中…" : "选择工作目录"}
           </button>
         </div>
-      )}
-      {generation.error && (
-        <p className="film-save-error" role="alert">
-          {generation.error}
-          {generation.busy && (
-            <button onClick={generation.retry}>重新连接</button>
-          )}
-        </p>
       )}
       <div className="film-workbench-body" ref={bodyRef}>
         {directoryOpen && (
@@ -477,6 +477,7 @@ export function Workbench({
               stopGeneration={generation.stop}
               generationStarting={generation.starting}
               generationStopping={generation.stopping}
+              onShowAssistant={showAssistant}
             />
           </section>
           <footer className="film-stage-footer">
@@ -531,6 +532,10 @@ export function Workbench({
               episode={episode}
               step={step}
               selectedShotId={shot?.id}
+              generationError={generation.error}
+              onReconnectGeneration={
+                generation.busy ? generation.retry : undefined
+              }
             />
           </div>
         }

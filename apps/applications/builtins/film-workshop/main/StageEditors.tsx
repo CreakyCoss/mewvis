@@ -12,13 +12,19 @@ import {
 import {
   ArrowDown,
   ArrowUp,
+  CircleAlert,
+  CircleCheck,
   Copy,
   FileText,
   Image,
+  LoaderCircle,
   Plus,
   MoreHorizontal,
+  Square,
   Trash2,
   Upload,
+  Video,
+  Volume2,
 } from "lucide-react";
 import {
   getApplicationHost,
@@ -37,6 +43,7 @@ import {
   type FilmAsset,
   type FilmEpisode,
   type FilmProject,
+  type FilmGeneration,
   type FilmShot,
   type FlowStep,
 } from "./model";
@@ -45,6 +52,7 @@ import { CapabilityNotice, EmptyState, Field } from "./components/Fields";
 import { Dialog } from "./components/Dialog";
 import { ShotArtwork } from "./artwork";
 import { MediaPanel } from "./components/MediaPanel";
+import { GENERATION_TYPES, generationPrompt } from "./media";
 
 type Props = {
   project: FilmProject;
@@ -53,11 +61,16 @@ type Props = {
   selectedShotId?: string;
   onSelectShot?: (id: string) => void;
   edit: (update: (project: FilmProject) => FilmProject) => void;
-  generate?: (episodeId: string, shotId: string) => Promise<void>;
+  generate?: (
+    episodeId: string,
+    shotId: string,
+    purpose?: FilmGeneration["purpose"],
+  ) => Promise<void>;
   generationBusy?: boolean;
   stopGeneration?: () => Promise<void>;
   generationStarting?: boolean;
   generationStopping?: boolean;
+  onShowAssistant?: () => void;
 };
 export function StageEditor(props: Props) {
   if (props.step === "settings") return <Settings {...props} />;
@@ -631,96 +644,12 @@ function Storyboard(props: Props) {
               onChange={(e) => patch({ imageReference: e.target.value })}
             />
           </Field>
-          <button
-            className="film-primary"
-            disabled={
-              !props.generate ||
-              !props.project.workspace ||
-              props.generationBusy ||
-              !(shot.imagePrompt.trim() || shot.description.trim())
-            }
-            onClick={() => void props.generate?.(props.episode.id, shot.id)}
-          >
-            <Image size={16} />
-            {props.generationBusy
-              ? "生成任务进行中…"
-              : shot.imageMediaId
-                ? "重新生成分镜图片"
-                : "生成分镜图片"}
-          </button>
-          {props.project.generations
-            ?.filter(
-              (job) =>
-                job.shotId === shot.id && job.episodeId === props.episode.id,
-            )
-            .slice(-1)
-            .map((job) => (
-              <div className="film-generation-status" key={job.id}>
-                <p
-                  className={
-                    job.status === "failed" ? "film-error" : "film-muted"
-                  }
-                  role="status"
-                >
-                  {job.status === "completed"
-                    ? "图片已保存并关联到此镜头"
-                    : job.status === "failed"
-                      ? job.error
-                      : job.status === "stopped"
-                        ? "已停止等待，可在助手中查看详情"
-                        : "正在生成，可在创作助手中查看进度"}
-                </p>
-                {["preparing", "running"].includes(job.status) &&
-                  props.stopGeneration && (
-                    <button
-                      className="film-text-button"
-                      disabled={
-                        props.generationStarting || props.generationStopping
-                      }
-                      onClick={() => void props.stopGeneration?.()}
-                    >
-                      {props.generationStopping ? "停止中…" : "停止生图"}
-                    </button>
-                  )}
-              </div>
-            ))}
-          <MediaPanel
-            project={props.project}
-            imagesOnly
-            ids={shot.mediaIds ?? []}
-            activeId={shot.imageMediaId}
-            onImport={(media) =>
-              props.edit((project) => ({
-                ...project,
-                media: [...(project.media ?? []), media],
-                episodes: project.episodes.map((episode) =>
-                  episode.id !== props.episode.id
-                    ? episode
-                    : {
-                        ...episode,
-                        shots: episode.shots.map((item) =>
-                          item.id !== shot.id
-                            ? item
-                            : {
-                                ...item,
-                                mediaIds: [...(item.mediaIds ?? []), media.id],
-                                imageMediaId: media.id,
-                              },
-                        ),
-                      },
-                ),
-              }))
-            }
-            onSelect={(id) => patch({ imageMediaId: id })}
-            onDetach={(id) =>
-              patch({
-                mediaIds: shot.mediaIds?.filter((value) => value !== id),
-                ...(shot.imageMediaId === id
-                  ? { imageMediaId: undefined }
-                  : {}),
-              })
-            }
+          <GenerationControls
+            {...props}
+            shot={shot}
+            purpose="image-generation"
           />
+          <ShotMediaPanel {...props} shot={shot} purpose="image-generation" />
         </section>
       </div>
       {removing && (
@@ -746,18 +675,160 @@ function Storyboard(props: Props) {
     </article>
   );
 }
+function GenerationControls(
+  props: Props & { shot: FilmShot; purpose: FilmGeneration["purpose"] },
+) {
+  const { shot, purpose } = props;
+  const type = GENERATION_TYPES[purpose];
+  const job = props.project.generations
+    ?.filter(
+      (job) =>
+        job.episodeId === props.episode.id &&
+        job.shotId === shot.id &&
+        (job.purpose ?? "image-generation") === purpose,
+    )
+    .at(-1);
+  const running = !!job && ["preparing", "running"].includes(job.status);
+  const status = running
+    ? props.generationStopping
+      ? "正在停止…"
+      : job.status === "preparing"
+        ? "准备中…"
+        : "生成中…"
+    : props.generationBusy
+      ? "其他任务进行中"
+      : job?.status === "completed"
+        ? "已保存"
+        : job?.status === "failed"
+          ? "生成失败"
+          : job?.status === "stopped"
+            ? "已停止"
+            : "";
+  const tone = running || props.generationBusy ? "running" : job?.status;
+  const StatusIcon =
+    tone === "running"
+      ? LoaderCircle
+      : tone === "completed"
+        ? CircleCheck
+        : tone === "failed"
+          ? CircleAlert
+          : Square;
+  const GenerateIcon =
+    purpose === "video-generation"
+      ? Video
+      : purpose === "speech"
+        ? Volume2
+        : Image;
+  const label = purpose === "video-generation" ? "视频片段" : type.label;
+  const canStop = running && !!props.stopGeneration;
+  return (
+    <div
+      className="film-generation-controls"
+      role="group"
+      aria-label={`${type.label}生成操作`}
+    >
+      <button
+        type="button"
+        className={`film-generation-trigger${canStop ? "" : " film-primary"}`}
+        disabled={
+          canStop
+            ? props.generationStarting || props.generationStopping
+            : !props.generate ||
+              !props.project.workspace ||
+              props.generationBusy ||
+              !generationPrompt(shot, purpose)
+        }
+        onClick={() => {
+          if (canStop) void props.stopGeneration?.();
+          else void props.generate?.(props.episode.id, shot.id, purpose);
+        }}
+      >
+        {canStop ? (
+          <Square size={13} aria-hidden />
+        ) : (
+          <GenerateIcon size={15} aria-hidden />
+        )}
+        {canStop
+          ? props.generationStopping
+            ? "停止中…"
+            : "停止生成"
+          : `${shot[type.field] || job?.status === "failed" ? "重新生成" : "生成"}${label}`}
+      </button>
+      <div className="film-generation-feedback">
+        <span
+          className="film-generation-status"
+          data-state={tone}
+          role="status"
+        >
+          {status && (
+            <>
+              <StatusIcon size={14} aria-hidden />
+              {status}
+            </>
+          )}
+        </span>
+        {!props.generationBusy &&
+          (job?.status === "failed" || job?.status === "stopped") &&
+          props.onShowAssistant && (
+            <button
+              className="film-text-button"
+              onClick={props.onShowAssistant}
+            >
+              查看详情
+            </button>
+          )}
+      </div>
+    </div>
+  );
+}
+function ShotMediaPanel(
+  props: Props & { shot: FilmShot; purpose: FilmGeneration["purpose"] },
+) {
+  const { shot } = props;
+  const type = GENERATION_TYPES[props.purpose];
+  return (
+    <MediaPanel
+      project={props.project}
+      kind={type.kind}
+      ids={shot.mediaIds ?? []}
+      activeId={shot[type.field]}
+      onImport={(media) =>
+        props.edit((project) => ({
+          ...project,
+          media: [...(project.media ?? []), media],
+          episodes: project.episodes.map((episode) =>
+            episode.id !== props.episode.id
+              ? episode
+              : {
+                  ...episode,
+                  shots: episode.shots.map((item) =>
+                    item.id !== shot.id
+                      ? item
+                      : {
+                          ...item,
+                          mediaIds: [...(item.mediaIds ?? []), media.id],
+                          [type.field]: media.id,
+                        },
+                  ),
+                },
+          ),
+        }))
+      }
+      onSelect={(id) => updateShot(props, shot.id, { [type.field]: id })}
+      onDetach={(id) =>
+        updateShot(props, shot.id, {
+          mediaIds: shot.mediaIds?.filter((value) => value !== id),
+          ...(shot[type.field] === id ? { [type.field]: undefined } : {}),
+        })
+      }
+    />
+  );
+}
 function MediaPlan(props: Props & { mode: "video" | "dubbing" }) {
   const video = props.mode === "video",
     characters = props.project.assets.filter((a) => a.kind === "character");
   return (
     <div className="film-media-plan">
-      <CapabilityNotice
-        text={
-          video
-            ? MEDIA_CAPABILITIES.videos.reason
-            : MEDIA_CAPABILITIES.speech.reason
-        }
-      />
       {props.project.kind === "comic" && (
         <p className="film-muted">
           静态漫画可以跳过视频与配音，直接整理制作清单。
@@ -786,7 +857,9 @@ function MediaPlan(props: Props & { mode: "video" | "dubbing" }) {
                       {shot.framing} · {shot.duration} 秒
                     </p>
                   </div>
-                  <span className="film-tag">制作计划</span>
+                  <span className="film-tag">
+                    {video ? "镜头视频" : "角色配音"}
+                  </span>
                 </header>
                 {video ? (
                   <>
@@ -816,7 +889,11 @@ function MediaPlan(props: Props & { mode: "video" | "dubbing" }) {
                         }
                       />
                     </Field>
-                    <button disabled>生成视频片段</button>
+                    <p className="film-muted">
+                      {shot.imageMediaId
+                        ? "使用当前分镜图片作为首帧生成视频。"
+                        : "未选择分镜图片，将使用文字生成视频。"}
+                    </p>
                   </>
                 ) : (
                   <>
@@ -888,9 +965,21 @@ function MediaPlan(props: Props & { mode: "video" | "dubbing" }) {
                         }
                       />
                     </Field>
-                    <button disabled>生成角色配音</button>
+                    <p className="film-muted">
+                      台词原样朗读；音色备注用于选择模型支持的音色。背景音乐和音画合成后续接入。
+                    </p>
                   </>
                 )}
+                <GenerationControls
+                  {...props}
+                  shot={shot}
+                  purpose={video ? "video-generation" : "speech"}
+                />
+                <ShotMediaPanel
+                  {...props}
+                  shot={shot}
+                  purpose={video ? "video-generation" : "speech"}
+                />
               </article>
             );
           })
@@ -995,7 +1084,7 @@ function Delivery({ project, episode }: Props) {
               .then(({ value }) =>
                 setMessage(
                   value.ready
-                    ? "制作计划检查通过；媒体尚未生成或校验。"
+                    ? "制作计划检查通过；此检查不校验媒体内容或成片。"
                     : `发现 ${value.issues.length} 项待完善内容。`,
                 ),
               )

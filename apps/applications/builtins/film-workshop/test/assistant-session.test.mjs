@@ -116,7 +116,7 @@ test("saved profile metadata stays local when restoring through the real chat ho
   const f = await fixture(t);
   const created = await f.api.createSession(f.key, "workspace");
   const index = structuredClone(f.values.get(f.key));
-  assert.equal(index.profileVersion, 3);
+  assert.equal(index.profileVersion, 4);
   await assert.rejects(
     f.api.getApplicationChatClient().openSession(index),
     /包含不支持的聊天参数/,

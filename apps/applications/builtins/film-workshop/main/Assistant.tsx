@@ -72,12 +72,16 @@ export function Assistant({
   episode,
   step,
   selectedShotId,
+  generationError,
+  onReconnectGeneration,
 }: {
   editor: ReturnType<typeof useEditor>;
   project: FilmProject;
   episode: FilmEpisode;
   step: FlowStep;
   selectedShotId?: string;
+  generationError?: string;
+  onReconnectGeneration?: () => void;
 }) {
   const key = assistantKey(project, episode.id);
   const store = useMemo(
@@ -415,6 +419,19 @@ export function Assistant({
         <p className="film-assistant-action-error" role="alert">
           {actionError}
         </p>
+      )}
+      {generationError && (
+        <div className="film-assistant-action-error" role="alert">
+          {generationError}
+          {onReconnectGeneration && (
+            <button
+              className="film-text-button"
+              onClick={onReconnectGeneration}
+            >
+              重新连接生成任务
+            </button>
+          )}
+        </div>
       )}
       {error ? (
         <div className="film-assistant-error">

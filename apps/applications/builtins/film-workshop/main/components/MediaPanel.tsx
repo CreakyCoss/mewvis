@@ -1,16 +1,22 @@
 import { useEffect, useRef, useState } from "react";
 import { FilePreview, FilePreviewDialog } from "@mewvis/app-sdk/files/react";
 import { getApplicationFileClient } from "@mewvis/app-sdk/files";
-import { Check, Expand, File, Upload, X } from "lucide-react";
+import { Check, Expand, File, Film, Volume2, Upload, X } from "lucide-react";
 import { importMedia, mediaPath } from "../media";
 import type { FilmMedia, FilmProject } from "../model";
 import { Dialog } from "./Dialog";
 
-export function LocalPreview({ filePath }: { filePath: string }) {
+export function LocalPreview({
+  filePath,
+  eager = false,
+}: {
+  filePath: string;
+  eager?: boolean;
+}) {
   const ref = useRef<HTMLDivElement>(null);
-  const [visible, setVisible] = useState(false);
+  const [visible, setVisible] = useState(eager);
   useEffect(() => {
-    if (!ref.current || typeof IntersectionObserver === "undefined") {
+    if (eager || !ref.current || typeof IntersectionObserver === "undefined") {
       setVisible(true);
       return;
     }
@@ -20,7 +26,7 @@ export function LocalPreview({ filePath }: { filePath: string }) {
     );
     observer.observe(ref.current);
     return () => observer.disconnect();
-  }, []);
+  }, [eager]);
   return (
     <div ref={ref} className="film-local-preview">
       {visible ? <FilePreview filePath={filePath} /> : <File size={20} />}
@@ -32,7 +38,7 @@ export function MediaPanel({
   project,
   ids,
   activeId,
-  imagesOnly,
+  kind,
   onImport,
   onSelect,
   onDetach,
@@ -40,7 +46,7 @@ export function MediaPanel({
   project: FilmProject;
   ids: string[];
   activeId?: string;
-  imagesOnly?: boolean;
+  kind?: "image" | "video" | "audio";
   onImport: (media: FilmMedia) => void;
   onSelect?: (id: string) => void;
   onDetach: (id: string) => void;
@@ -50,15 +56,79 @@ export function MediaPanel({
     [error, setError] = useState("");
   const [preview, setPreview] = useState<FilmMedia>(),
     [removing, setRemoving] = useState<FilmMedia>();
-  const media = (project.media ?? []).filter((item) => ids.includes(item.id));
+  const media = (project.media ?? []).filter(
+    (item) => ids.includes(item.id) && (!kind || item.kind === kind),
+  );
+  const label = kind
+    ? { image: "分镜图片", video: "镜头视频", audio: "角色配音" }[kind]
+    : "参考素材";
+  const extensions = {
+    image: "png|jpe?g|webp|gif|avif|bmp",
+    video: "mp4|webm|mov",
+    audio: "mp3|wav|ogg|m4a",
+  };
+  const selected = media.find((item) => item.id === activeId);
+  const player = kind === "video" || kind === "audio";
+  const versions = player
+    ? media.filter((item) => item.id !== selected?.id)
+    : media;
+  const caption = (item: FilmMedia) => (
+    <div className="film-media-caption">
+      <span title={item.name}>{item.name}</span>
+      <small>
+        {player && `版本 ${media.indexOf(item) + 1} · `}
+        {item.source === "generated" ? "生成" : "导入"} ·{" "}
+        {item.size >= 1048576
+          ? `${(item.size / 1048576).toFixed(1)} MB`
+          : `${Math.ceil(item.size / 1024)} KB`}
+      </small>
+    </div>
+  );
+  const actions = (item: FilmMedia, selectable = true) => (
+    <div className="film-media-actions">
+      <button
+        type="button"
+        aria-label={`预览 ${item.name}`}
+        onClick={() => setPreview(item)}
+      >
+        <Expand size={13} />
+        {player ? "放大预览" : "预览"}
+      </button>
+      {onSelect && selectable && (
+        <button
+          type="button"
+          aria-pressed={activeId === item.id}
+          onClick={() => onSelect(item.id)}
+        >
+          {activeId === item.id ? (
+            <>
+              <Check size={13} />
+              当前
+            </>
+          ) : (
+            "使用"
+          )}
+        </button>
+      )}
+      <button
+        type="button"
+        className="film-icon-button"
+        aria-label={`解除关联 ${item.name}`}
+        title="解除关联"
+        onClick={() => setRemoving(item)}
+      >
+        <X size={13} />
+      </button>
+    </div>
+  );
   return (
     <section
       className="film-media-panel"
-      aria-label={imagesOnly ? "分镜图片版本" : "参考素材文件"}
+      aria-label={kind ? `${label}版本` : "参考素材文件"}
     >
       <header>
         <strong>
-          {imagesOnly ? "分镜图片" : "参考素材"}
+          {label}
           {media.length ? ` · ${media.length}` : ""}
         </strong>
         <button
@@ -75,11 +145,15 @@ export function MediaPanel({
         type="file"
         multiple
         className="film-visually-hidden"
-        aria-label={imagesOnly ? "导入分镜图片" : "导入参考素材"}
+        aria-label={`导入${label}`}
         accept={
-          imagesOnly
+          kind === "image"
             ? ".png,.jpg,.jpeg,.webp,.gif,.avif,.bmp"
-            : ".png,.jpg,.jpeg,.webp,.gif,.avif,.bmp,.mp4,.webm,.mov,.mp3,.wav,.ogg,.m4a,.pdf,.txt,.md"
+            : kind === "video"
+              ? ".mp4,.webm,.mov"
+              : kind === "audio"
+                ? ".mp3,.wav,.ogg,.m4a"
+                : ".png,.jpg,.jpeg,.webp,.gif,.avif,.bmp,.mp4,.webm,.mov,.mp3,.wav,.ogg,.m4a,.pdf,.txt,.md"
         }
         onChange={(event) => {
           const files = [...(event.target.files ?? [])];
@@ -90,10 +164,10 @@ export function MediaPanel({
           void (async () => {
             for (const file of files) {
               if (
-                imagesOnly &&
-                !/\.(png|jpe?g|webp|gif|avif|bmp)$/i.test(file.name)
+                kind &&
+                !new RegExp(`\\.(${extensions[kind]})$`, "i").test(file.name)
               )
-                throw new Error("分镜图片请选择图片文件");
+                throw new Error(`请选择${label}支持的文件格式`);
               const imported = await importMedia(
                 project,
                 file,
@@ -118,63 +192,44 @@ export function MediaPanel({
           {error}
         </p>
       )}
-      {!!media.length && (
-        <div className="film-media-grid">
-          {media.map((item) => (
+      {selected && player && (
+        <div className="film-selected-media" aria-label={`当前${label}预览`}>
+          <LocalPreview
+            key={selected.id}
+            filePath={mediaPath(project, selected)}
+            eager
+          />
+          <div className="film-selected-media-footer">
+            {caption(selected)}
+            {actions(selected, false)}
+          </div>
+        </div>
+      )}
+      {!!versions.length && (
+        <div className={player ? "film-media-versions" : "film-media-grid"}>
+          {player && selected && (
+            <p className="film-media-versions-label">其他版本</p>
+          )}
+          {versions.map((item) => (
             <article
               key={item.id}
               className={item.id === activeId ? "is-active" : ""}
             >
-              <div className="film-media-thumbnail">
-                {item.kind === "image" ? (
-                  <LocalPreview filePath={mediaPath(project, item)} />
-                ) : (
-                  <File size={28} />
-                )}
-              </div>
-              <div className="film-media-caption">
-                <span title={item.name}>{item.name}</span>
-                <small>
-                  {item.source === "generated" ? "生成" : "导入"} ·{" "}
-                  {item.size >= 1048576
-                    ? `${(item.size / 1048576).toFixed(1)} MB`
-                    : `${Math.ceil(item.size / 1024)} KB`}
-                </small>
-              </div>
-              <div className="film-media-actions">
-                <button
-                  type="button"
-                  aria-label={`预览 ${item.name}`}
-                  onClick={() => setPreview(item)}
-                >
-                  <Expand size={13} />
-                  预览
-                </button>
-                {onSelect && (
-                  <button
-                    type="button"
-                    aria-pressed={activeId === item.id}
-                    onClick={() => onSelect(item.id)}
-                  >
-                    {activeId === item.id ? (
-                      <>
-                        <Check size={13} />
-                        当前
-                      </>
-                    ) : (
-                      "使用"
-                    )}
-                  </button>
-                )}
-                <button
-                  type="button"
-                  className="film-icon-button"
-                  aria-label={`解除关联 ${item.name}`}
-                  onClick={() => setRemoving(item)}
-                >
-                  <X size={13} />
-                </button>
-              </div>
+              {!player && (
+                <div className="film-media-thumbnail">
+                  {item.kind === "image" ? (
+                    <LocalPreview filePath={mediaPath(project, item)} />
+                  ) : item.kind === "video" ? (
+                    <Film size={28} />
+                  ) : item.kind === "audio" ? (
+                    <Volume2 size={28} />
+                  ) : (
+                    <File size={28} />
+                  )}
+                </div>
+              )}
+              {caption(item)}
+              {actions(item)}
             </article>
           ))}
         </div>

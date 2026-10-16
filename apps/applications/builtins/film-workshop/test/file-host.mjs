@@ -1,10 +1,19 @@
 import { randomUUID } from "node:crypto";
 
 /** Isolated preview files; never touches a user's working directory or model. */
-export function createFileHost(sampleImage) {
+export function createFileHost(sampleImage, samples = {}) {
   const files = new Map(),
     writes = new Map(),
     previews = new Map();
+  const mediaType = (path) =>
+    /\.mp4$/i.test(path)
+      ? { kind: "video", mimeType: "video/mp4" }
+      : /\.wav$/i.test(path)
+        ? { kind: "audio", mimeType: "audio/wav" }
+        : {
+            kind: "image",
+            mimeType: /\.png$/i.test(path) ? "image/png" : "image/jpeg",
+          };
   const info = (filePath) => {
     const bytes = files.get(filePath);
     if (!bytes) throw new Error("预览文件不存在");
@@ -22,27 +31,31 @@ export function createFileHost(sampleImage) {
       return path
         ? {
             bytes: files.get(path),
-            mimeType: /\.(jpg|jpeg)$/i.test(path)
-              ? "image/jpeg"
-              : /\.png$/i.test(path)
-                ? "image/png"
-                : "text/plain",
+            mimeType: mediaType(path).mimeType,
           }
         : undefined;
     },
     generate(text) {
       const input = JSON.parse(text.slice(text.indexOf("{\n")));
-      const filePath = `${input.outputDirectory}/storyboard.jpg`;
-      files.set(filePath, sampleImage);
+      const purpose = input.purpose ?? "image-generation";
+      const kind = {
+        "image-generation": "image",
+        "video-generation": "video",
+        speech: "audio",
+      }[purpose];
+      const bytes = kind === "image" ? sampleImage : samples[kind];
+      if (!bytes) throw new Error("请提供此媒体类型的本地测试样本");
+      const filePath = `${input.outputDirectory}/output.${kind === "image" ? "jpg" : kind === "video" ? "mp4" : "wav"}`;
+      files.set(filePath, bytes);
       return {
         status: "completed",
-        purpose: "image-generation",
+        purpose,
         outputs: [
           {
-            type: "image",
+            type: kind,
             filePath,
-            mimeType: "image/jpeg",
-            size: sampleImage.length,
+            mimeType: mediaType(filePath).mimeType,
+            size: bytes.length,
           },
         ],
       };
@@ -115,10 +128,7 @@ export function createFileHost(sampleImage) {
             id,
             name: metadata.name,
             size: metadata.size,
-            mimeType: /\.(jpg|jpeg)$/i.test(p.filePath)
-              ? "image/jpeg"
-              : "image/png",
-            kind: "image",
+            ...mediaType(p.filePath),
             resourcePath: `/resource/${id}`,
             resourceUrl: `http://127.0.0.1:${this.port}/resource/${id}`,
             expiresAt: Date.now() + 3600000,

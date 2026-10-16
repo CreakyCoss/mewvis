@@ -154,7 +154,7 @@ test("shot order drives manifest and timeline duration, file notes never imply m
     s.videoReference = "done.mp4";
     s.audioReference = "done.wav";
   });
-  assert.equal(f.stageStatus(project, moved, "video"), "blocked");
+  assert.equal(f.stageStatus(project, moved, "video"), "draft");
   assert.equal(f.stageStatus(project, moved, "delivery"), "draft");
   const manifest = f.productionManifest(project, moved);
   assert.ok(manifest.indexOf(second.title) < manifest.indexOf(first.title));

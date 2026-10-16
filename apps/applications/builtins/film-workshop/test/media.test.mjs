@@ -78,6 +78,7 @@ function image(project, suffix = "one") {
 function job(project) {
   return {
     id: f.newId(),
+    purpose: "image-generation",
     episodeId: project.episodes[0].id,
     shotId: project.episodes[0].shots[0].id,
     workspaceId: project.workspace.id,
@@ -282,6 +283,129 @@ test("generation results belong to the marked user turn and do not mix other tur
     execution: { taskId: record.taskId, state: "cancelled" },
   });
   assert.equal(stopped.status, "stopped");
+});
+
+test("video and speech results are isolated by purpose and preserve independent selections", async () => {
+  for (const purpose of ["video-generation", "speech"]) {
+    const { project } = await projectWithWorkspace();
+    const record = { ...job(project), purpose };
+    const { kind, field } = f.generationType(record);
+    const generated = {
+      ...image(project),
+      kind,
+      path: `generated/${record.id}/output.${kind === "video" ? "mp4" : "wav"}`,
+    };
+    const unrelated = result("/unrelated.png");
+    const proper = message("assistant", [
+      {
+        type: "tool",
+        name: "generate_media",
+        media: {
+          purpose,
+          status: "completed",
+          outputs: [
+            { type: kind, filePath: generated.path },
+            output("/wrong-kind.png"),
+          ],
+        },
+      },
+    ]);
+    const snapshot = { messages: [user(record.id), unrelated, proper] };
+    assert.deepEqual(f.generationResult(record, snapshot).outputs, [
+      { type: kind, filePath: generated.path },
+    ]);
+    const manual = {
+      ...generated,
+      id: f.newId(),
+      path: "media/manual." + (kind === "video" ? "mp4" : "wav"),
+    };
+    const selectedImage = image(project, "current-image");
+    project.media = [manual, selectedImage];
+    project.generations = [record];
+    const shot = project.episodes[0].shots[0];
+    shot.mediaIds = [selectedImage.id];
+    shot.imageMediaId = selectedImage.id;
+    const applied = f.applyGeneration(project, record.id, "completed", [
+      generated,
+    ]);
+    assert.equal(applied.episodes[0].shots[0][field], generated.id);
+    assert.equal(applied.episodes[0].shots[0].imageMediaId, selectedImage.id);
+    assert.equal(applied.episodes[0].shots[1][field], undefined);
+    f.validateProject(applied);
+    assert.deepEqual(
+      f.validateProject(applied).generations[0].purpose,
+      purpose,
+    );
+    shot.mediaIds.push(manual.id);
+    shot[field] = manual.id;
+    assert.equal(
+      f.applyGeneration(project, record.id, "completed", [generated])
+        .episodes[0].shots[0][field],
+      manual.id,
+    );
+    assert.equal(
+      f.applyGeneration(project, record.id, "completed", [selectedImage])
+        .generations[0].outputIds.length,
+      0,
+    );
+    const copy = f.copyProject(applied);
+    assert.equal(copy.episodes[0].shots[0][field], undefined);
+    const failed = f.generationResult(record, {
+      messages: [user(record.id)],
+      execution: { taskId: record.taskId, state: "failed" },
+    });
+    assert.equal(failed.status, "failed");
+    const invalid = structuredClone(applied);
+    invalid.episodes[0].shots[0][field] = selectedImage.id;
+    assert.throws(() => f.validateProject(invalid), /媒体引用无效/);
+    invalid.episodes[0].shots[0][field] = generated.id;
+    invalid.generations[0].purpose = null;
+    assert.throws(() => f.validateProject(invalid), /生成用途/);
+  }
+});
+
+test("generation requests use the selected frame and exact dialogue with a pinned output directory", async () => {
+  const { project } = await projectWithWorkspace();
+  const episode = project.episodes[0],
+    shot = episode.shots[2];
+  const frame = image(project);
+  project.media = [frame];
+  shot.mediaIds = [frame.id];
+  shot.imageMediaId = frame.id;
+  const record = {
+    ...job(project),
+    shotId: shot.id,
+    purpose: "video-generation",
+    prompt: f.generationPrompt(shot, "video-generation"),
+  };
+  const video = f.generationMessage(project, episode, shot, record);
+  const details = JSON.parse(video.text.slice(video.text.indexOf("{\n")));
+  assert.equal(details.firstFrame, f.mediaPath(project, frame));
+  assert.equal(details.duration, shot.duration);
+  assert.equal(details.purpose, "video-generation");
+  assert.equal(
+    details.outputDirectory,
+    `${project.workspace.directory}/generated/${record.id}`,
+  );
+  assert.match(video.text, /只调用一次生成/);
+  assert.match(video.text, /files 数组/);
+  assert.match(video.text, /数值参数使用 JSON 数字/);
+  assert.match(video.text, /不得取最接近的值/);
+  assert.match(video.blocks[0].content, new RegExp(record.id));
+  record.purpose = "speech";
+  record.prompt = f.generationPrompt(shot, "speech");
+  const audio = f.generationMessage(project, episode, shot, record);
+  const speech = JSON.parse(audio.text.slice(audio.text.indexOf("{\n")));
+  assert.equal(speech.text, shot.dialogue);
+  assert.equal(speech.voice, shot.voice);
+  assert.equal(speech.firstFrame, undefined);
+  assert.match(audio.text, /台词必须原样朗读/);
+  assert.match(audio.text, /不得直接当作 voice_id/);
+  project.generations = [{ ...record, purpose: undefined }];
+  assert.equal(
+    f.validateProject(project).generations[0].purpose,
+    "image-generation",
+  );
 });
 
 test("writeback pins the submitted shot, deduplicates files and preserves a manual image choice", async () => {
