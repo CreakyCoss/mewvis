@@ -6,7 +6,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { build } from "esbuild";
-import { fixture as f } from "./fixture.mjs";
+import { fixture as f, memoryStorage } from "./fixture.mjs";
+import { createApplicationFileClient } from "@mewvis/app-sdk/files";
 import { createFileHost } from "./file-host.mjs";
 
 // Exercise the production opaque-origin sandbox and the public SDK bridge.
@@ -70,15 +71,27 @@ const document = sandboxDocument(ui, chat, {
 const packed = (
   await import(pathToFileURL(join(app, "dist/mewvis/index.js")).href)
 ).default;
+const storage = memoryStorage(),
+  values = storage.values,
+  registeredWorkspaces = [];
+const fileHost = createFileHost(
+  await readFile(join(app, "main/assets/rain-window.jpg")),
+);
+const files = createApplicationFileClient({
+  version: 1,
+  request: async (request) => fileHost.request(request),
+});
 const tools = [],
   skills = [];
 packed.apply({
+  storage,
+  files,
   tools: { register: (tool) => tools.push(tool) },
   skills: { register: (skill) => skills.push(skill) },
 });
 assert.deepEqual(
   tools.map((t) => t.name),
-  ["film_check_delivery"],
+  ["film_check_delivery", "film_propose_changes"],
 );
 assert.equal(skills.length, 1);
 const catalog = tools.map(({ name, description, risk }) => ({
@@ -133,11 +146,6 @@ addEventListener("message", async event => {
 });
 owner.srcdoc = ${JSON.stringify(document).replaceAll("<", "\\u003c")};
 </script>`;
-const values = new Map(),
-  registeredWorkspaces = [];
-const fileHost = createFileHost(
-  await readFile(join(app, "main/assets/rain-window.jpg")),
-);
 const server = createServer(async (req, res) => {
   try {
     if (req.url === "/") {
@@ -161,6 +169,14 @@ const server = createServer(async (req, res) => {
           .replace(
             "dispatches++;",
             `dispatches++;
+        if (turn.context.runtimeInstruction?.includes("影视工坊结构化建议") && /提交.*建议|结构化/.test(turn.input.text)) {
+          const toolCallId = turn.taskId + "-proposal";
+          const identity = JSON.parse(turn.context.runtimeInstruction.match(/本轮上下文：(\\{[^}]+\\})/)[1]);
+          emit(turn.taskId, { type: "tool_execution_start", toolCallId, toolName: "film_propose_changes", args: { title: "本集创作建议", ...identity } });
+          const result = await (await fetch("/proposal-demo", { method: "POST", body: JSON.stringify({ ...identity, text: turn.input.text }) })).json();
+          emit(turn.taskId, { type: "tool_execution_end", toolCallId, toolName: "film_propose_changes", result, isError: !!result.error });
+          emit(turn.taskId, { type: "done", text: result.error || "建议已提交，请点击「预览建议」查看并按项采用。" }); return;
+        }
         if (turn.input.text.includes("[影视生成:")) {
           const toolCallId = turn.taskId + "-media";
           emit(turn.taskId, { type: "tool_execution_start", toolCallId, toolName: "generate_media", args: { action: "generate", purpose: "image-generation" } });
@@ -218,6 +234,60 @@ const server = createServer(async (req, res) => {
           throw new Error("Unexpected data method");
       }
       result = { ok: true, value: result };
+    } else if (req.url === "/proposal-demo") {
+      const source = await f
+        .createAssistantStore(storage, files)
+        .context(input.chatId, input.contextId);
+      const episode = source.project.episodes.find(
+        (item) => item.id === source.episodeId,
+      );
+      const args = {
+        contextId: input.contextId,
+        chatId: input.chatId,
+        title: "雨夜电台 · 创作建议",
+      };
+      if (input.text.includes("打磨"))
+        args.script =
+          episode.script + "\n\n林夏按下播放键。磁带轻轻转动，熟悉的声音响起。";
+      else {
+        args.assets = [
+          {
+            key: "new-scene",
+            kind: "scene",
+            name: "雨夜街角",
+            description:
+              "电台楼下，雨水映着路灯和红色播音灯，深蓝夜色中透出暖光。",
+            prompt: "雨夜街角，老电台，蓝色雨幕，暖黄色路灯，手绘电影质感",
+          },
+        ];
+        if (!input.text.includes("提取"))
+          args.shots = [
+            {
+              title: "街角的灯",
+              description: "雨水打在街角的旧招牌上，电台窗内的暖光照亮人行道。",
+              sceneId: "new-scene",
+              framing: "远景",
+              camera: "缓慢推进",
+              duration: 4,
+              imagePrompt:
+                "雨夜电台楼下，湿润街角，蓝色雨幕与窗内暖光，手绘电影远景",
+            },
+            {
+              title: "最后的来电",
+              description:
+                "电话铃响起，林夏停下手中的磁带，抬头望向红色指示灯。",
+              framing: "近景",
+              camera: "固定镜头",
+              duration: 5,
+              dialogue: "你好，这里是最后一次夜间电台。",
+              imagePrompt:
+                "年轻电台主持人看向电话，红色指示灯，暖色台灯，手绘电影近景",
+            },
+          ];
+      }
+      result = await tools
+        .find((tool) => tool.name === "film_propose_changes")
+        .execute(args);
     } else if (req.url === "/tool") {
       const tool = tools.find((t) => t.name === input.name);
       if (!tool) throw new Error("Unknown tool");

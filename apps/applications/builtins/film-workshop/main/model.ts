@@ -108,6 +108,7 @@ export interface FilmProject {
   workspace?: FilmWorkspace;
   media?: FilmMedia[];
   generations?: FilmGeneration[];
+  appliedAssistantChangeIds?: string[];
 }
 export const MAX_PROJECT_BYTES = 16 * 1024 * 1024;
 export const newId = () => crypto.randomUUID();
@@ -411,6 +412,20 @@ export function validateProject(value: unknown): FilmProject {
     ...(workspace ? { workspace } : {}),
     ...(media ? { media } : {}),
     ...(generations ? { generations } : {}),
+    ...(p.appliedAssistantChangeIds !== undefined
+      ? {
+          appliedAssistantChangeIds: array(
+            p.appliedAssistantChangeIds,
+            "已采用的助手建议",
+            20000,
+          ).map((value) => {
+            const result = text(value, "建议标识", 80);
+            if (!/^[a-zA-Z0-9_-]+$/.test(result))
+              throw new Error("建议标识无效");
+            return result;
+          }),
+        }
+      : {}),
   };
   checkProjectSize(result);
   return result;
@@ -465,6 +480,7 @@ export function copyProject(source: FilmProject): FilmProject {
   delete copy.workspace;
   delete copy.media;
   delete copy.generations;
+  delete copy.appliedAssistantChangeIds;
   return copy;
 }
 export function moveShot(

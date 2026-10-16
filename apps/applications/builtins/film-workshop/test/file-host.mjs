@@ -50,6 +50,9 @@ export function createFileHost(sampleImage) {
     request({ method, params: p = {} }) {
       let value = null;
       switch (method) {
+        case "roots":
+          value = { dataPath: "/memory/application-data", workspacePaths: [] };
+          break;
         case "mkdir":
           value = {
             filePath: p.filePath,

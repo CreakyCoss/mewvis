@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   useSyncExternalStore,
@@ -13,6 +14,7 @@ import {
 } from "@mewvis/app-sdk/chat";
 import { Chat, useChatSnapshot } from "@mewvis/app-sdk/chat/react";
 import { getApplicationDataClient } from "@mewvis/app-sdk/data";
+import { getApplicationFileClient } from "@mewvis/app-sdk/files";
 import { ArrowRight, History, Plus, Sparkles, RefreshCw } from "lucide-react";
 import {
   DropdownMenu,
@@ -29,9 +31,14 @@ import {
 } from "./model";
 import { assistantContext } from "./assistant-context";
 import { FilmComposer } from "./FilmComposer";
+import { createAssistantStore } from "./assistant/store";
+import { applyProposal, type FilmProposal } from "./assistant/proposals";
+import { ProposalTray } from "./assistant/ProposalReview";
+import type { useEditor } from "./useEditor";
 
 import {
   assistantKey,
+  assistantProfileKey,
   connections,
   reference,
   createSession,
@@ -49,17 +56,27 @@ const historyDate = (createdAt: number) =>
   });
 
 export function Assistant({
+  editor,
   project,
   episode,
   step,
   selectedShotId,
 }: {
+  editor: ReturnType<typeof useEditor>;
   project: FilmProject;
   episode: FilmEpisode;
   step: FlowStep;
   selectedShotId?: string;
 }) {
   const key = assistantKey(project, episode.id);
+  const store = useMemo(
+    () =>
+      createAssistantStore(
+        getApplicationDataClient().storage,
+        getApplicationFileClient(),
+      ),
+    [],
+  );
   const [session, setSession] = useState<ApplicationChatSession>();
   const [error, setError] = useState("");
   const [attempt, setAttempt] = useState(0);
@@ -193,6 +210,10 @@ export function Assistant({
       await getApplicationDataClient().storage.setItem(key, {
         workspaceId: current.workspaceId,
         chatId,
+        profileVersion:
+          (await getApplicationDataClient().storage.getItem<number>(
+            assistantProfileKey(chatId),
+          )) ?? 0,
       });
       return opened;
     })();
@@ -245,6 +266,41 @@ export function Assistant({
   }, [session, opening, phase, project, episode, step, selectedShotId]);
   const conversationDisabled =
     opening || submitting || !session || !["idle", "closed"].includes(phase);
+  const beforeSubmit = async () => {
+    if (!session || switching.current || session.getSnapshot().phase !== "idle")
+      throw new Error("请等待助手会话就绪");
+    const version = generation.current;
+    await editor.flush();
+    const current = editor.current.current;
+    const currentEpisode = current.episodes.find(
+      (item) => item.id === episode.id,
+    );
+    if (!currentEpisode) throw new Error("当前分集已不存在");
+    const context = assistantContext(
+      current,
+      currentEpisode,
+      latest.current.step,
+      latest.current.selectedShotId,
+    );
+    const source = await store.prepare(
+      current,
+      currentEpisode.id,
+      session.identity.id,
+      context.requestContext,
+    );
+    const result = await session.setContext({
+      ...context,
+      runtimeInstruction: `影视工坊结构化建议：写作、整理素材或设计分镜时，调用 film_propose_changes 提交建议，等待用户在页面预览和采用；不要声称已经修改项目。本轮上下文：${JSON.stringify({ contextId: source.id, chatId: source.chatId })}。仅填写要修改的字段；新素材使用唯一 key，镜头可引用此 key。已有素材／镜头使用上下文中的 id，保留未修改的文字及媒体。不支持删除或跨分集修改。`,
+    });
+    if (!result.ok) throw new Error(result.error);
+    if (version !== generation.current)
+      throw new Error("会话已切换，请在当前会话重试");
+    appliedContext.current = context.requestContext;
+  };
+  const adopt = async (proposal: FilmProposal, selected: string[]) => {
+    editor.edit((current) => applyProposal(current, proposal, selected));
+    await editor.flush();
+  };
   return (
     <aside className="film-assistant" aria-label="影视创作助手">
       <header>
@@ -365,9 +421,13 @@ export function Assistant({
             viewId={`film-${episode.id}`}
           >
             <FilmConversation
+              project={project}
+              episodeId={episode.id}
+              beforeSubmit={beforeSubmit}
+              onApply={adopt}
               session={session}
               step={step}
-              opening={opening}
+              opening={opening || submitting}
               onSubmitting={(value) => {
                 submittingRef.current = value;
                 setSubmitting(value);
@@ -390,12 +450,20 @@ export function Assistant({
 }
 
 function FilmConversation({
+  project,
+  episodeId,
+  beforeSubmit,
+  onApply,
   session,
   step,
   source,
   opening,
   onSubmitting,
 }: {
+  project: FilmProject;
+  episodeId: string;
+  beforeSubmit: () => Promise<void>;
+  onApply: (proposal: FilmProposal, selected: string[]) => Promise<void>;
   session: ApplicationChatSession;
   step: FlowStep;
   source: string;
@@ -410,23 +478,34 @@ function FilmConversation({
   );
   const prompts =
     step === "storyboard"
-      ? ["帮我优化当前镜头", "检查这组分镜的节奏", "角色和场景是否一致？"]
+      ? [
+          "帮我优化当前镜头并提交修改建议",
+          "根据本集剧本拆分分镜并提交建议",
+          "角色和场景是否一致？",
+        ]
       : step === "script"
         ? [
-            "帮我打磨这段剧本",
+            "帮我打磨这段剧本并提交修改建议",
             "检查人物对白是否自然",
             "这集的转折可以怎样加强？",
           ]
-        : [
-            "当前步骤还需要准备什么？",
-            "帮我梳理故事和视觉风格",
-            "检查这部作品的制作计划",
-          ];
+        : step === "assets"
+          ? [
+              "从本集剧本提取角色、场景和道具并提交建议",
+              "完善现有素材设定并提交建议",
+              "角色和场景是否一致？",
+            ]
+          : [
+              "当前步骤还需要准备什么？",
+              "帮我梳理故事和视觉风格",
+              "检查这部作品的制作计划",
+            ];
   const suggest = async (text: string) => {
     setSending(true);
     onSubmitting(true);
     setSendError("");
     try {
+      await beforeSubmit();
       const result = await session.send({ text });
       if (result.status === "rejected")
         setSendError(result.reason || "消息发送失败，请重试。");
@@ -464,6 +543,12 @@ function FilmConversation({
           </div>
         </div>
       )}
+      <ProposalTray
+        project={project}
+        episodeId={episodeId}
+        chatId={session.identity.id}
+        onApply={onApply}
+      />
       <Chat.Footer className="film-chat-footer">
         {sendError && (
           <p role="alert" className="film-error">
@@ -471,6 +556,7 @@ function FilmConversation({
           </p>
         )}
         <FilmComposer
+          beforeSubmit={beforeSubmit}
           disabled={opening}
           onSubmitting={onSubmitting}
           source={source}

@@ -514,6 +514,7 @@ export function Workbench({
           >
             <Assistant
               key={episode.id}
+              editor={editor}
               project={project}
               episode={episode}
               step={step}

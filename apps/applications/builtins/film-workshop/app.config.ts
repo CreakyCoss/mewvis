@@ -17,9 +17,6 @@ export default defineConfig({
     network: { hosts: "all" },
     process: { execute: false },
   },
-  host: {
-    tools: "./main/host/tools.ts",
-    skills: "./main/host/skills.ts",
-  },
+  host: { entry: "./main/host/index.ts" },
   ui: { title: "影视工坊" },
 });

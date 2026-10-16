@@ -19,7 +19,7 @@
 - 分镜画面、景别、运镜、时长、角色和场景引用；镜头重排、删除，图片提示词与文件备注。分镜支持本地图片导入、生图和多版本选择。
 - 按镜头编辑视频提示词、音色和声音设计，配音台词引用分镜内容。
 - 制作时间轴、计划检查、Markdown 制作清单与项目 JSON 复制。
-- 通过 Chat SDK 连接的创作助手，按项目与分集恢复会话，提供文字建议和计划检查。
+- 通过 Chat SDK 连接的创作助手，按项目与分集恢复会话，提供剧本、素材与分镜的结构化建议、媒体生成和计划检查。
 
 示例「雨夜电台」只有在用户主动打开时创建，包含手工编写的剧本、素材与分镜，不模拟生成任务或媒体结果。七步导航为固定步骤视图，尚非可自由编辑的节点画布。
 
@@ -47,9 +47,9 @@
 
 工作目录项目允许最大 16 MiB 的 JSON，素材通过文件 SDK 按 64 KiB 分块导入，文件大小不受业务存储的 JSON 限制。尚未选择工作目录的旧项目保留 220 KiB 的存储上限。文件备注不能作为生成成功或成片完成证据，制作计划检查通过只说明文字计划准备就绪。复制通过 SDK，需要用户操作。
 
-助手提供文字建议；分镜生图由专用按钮发起，生成图片的回填由工坊管理。小项目上下文包含完整数据，大项目提供有界摘要并明确标记，不能将截取的镜头当成完整计划检查。回复期间的项目修改等待会话空闲后同步，不打断当前回复。有工作目录的项目使用其注册工作区，旧项目暂用应用默认工作区；仅确认「未找到聊天记录」时重建空会话，其他连接错误保留引用并允许重试。
+助手的剧本、素材和分镜建议通过工具提交，用户在界面预览后按项采用；分镜生图由专用按钮发起，生成图片的回填由工坊管理。小项目上下文包含完整数据，大项目提供有界摘要并明确标记，不能将截取的镜头当成完整计划检查。回复期间的项目修改等待会话空闲后同步，不打断当前回复。有工作目录的项目使用其注册工作区，旧项目暂用应用默认工作区；仅确认「未找到聊天记录」时重建空会话，其他连接错误保留引用并允许重试。
 
-应用声明 `application-data`、`application-workspaces`、`workspace-files` 和 `chat`。Agent 仅可在当前工作区读写文件，允许访问所选模型及媒体输出所需的网络，仍受宿主权限及沙箱约束，不允许执行子进程。助手工具范围为 `film_check_delivery` 与 `generate_media`。模型、凭据和生成能力全部沿用宿主当前选中模型，不读取其他应用私有存储。
+应用声明 `application-data`、`application-workspaces`、`workspace-files` 和 `chat`。Agent 仅可在当前工作区读写文件，允许访问所选模型及媒体输出所需的网络，仍受宿主权限及沙箱约束，不允许执行子进程。助手工具范围为 `film_check_delivery`、`film_propose_changes` 与 `generate_media`。模型、凭据和生成能力全部沿用宿主当前选中模型，不读取其他应用私有存储。
 
 ## 分镜生图与回填
 
@@ -59,21 +59,35 @@
 
 界面提供进度、停止和重新连接。项目重新打开时恢复对未结束请求的监听，不重新发起生成。停止调用宿主会话的停止能力；上游是否取消由宿主和供应商决定，工坊不会声称已退费或已取消供应商账单。关闭工坊后宿主任务可以继续运行，再次打开后恢复结果关联。
 
+## 助手结构化建议
+
+在助手中要求打磨剧本、提取角色／场景／道具、拆分分镜或优化镜头，助手通过 `film_propose_changes` 提交建议。助手区显示「预览建议」，预览中可勾选需要采用的项目，更新字段同时显示当前内容与建议内容。未采用的项目继续保留，也可忽略整份建议。普通讨论和计划检查不产生回写。
+
+- 发送前先保存项目，记录当前会话、分集和内容快照。每轮使用新的上下文标识，拒绝过期上下文或跨分集目标。如果本轮只提供剧本摘要，不允许据此替换完整剧本。
+- 建议只允许修改剧本、素材文字字段和镜头创作字段；新增素材和镜头追加，已有实体以 ID 更新。不能通过建议删除实体、修改文件引用或覆盖整个项目。
+- 新素材使用局部 key 供同一建议中的镜头引用，应用生成实际 ID。选择镜头会同时选中其依赖的新增素材；取消素材会取消依赖它的镜头。
+- 采用前重新比较涉及字段。无关字段的手动修改、素材文件、图片版本和镜头顺序保留；同一字段已改动或目标已删除时禁止覆盖，其他项目仍可采用。
+- 已采用的变更 ID 与项目内容一起保存，重复点击或重新打开不会重复添加。保存失败保留当前草稿，预览中可以重试保存。
+- 完整建议与发送前快照保存在应用数据目录 `film-assistant/proposals/`、`film-assistant/contexts/`，业务存储只记录建议索引，聊天工具结果只返回短引用，避免 2000 字符的工具诊断截断。每个会话只保留当前轮的上下文文件，建议按项目、分集、会话隔离。
+
+应用宿主入口为 `main/host/index.ts`，使用 SDK 注入的 storage/files 服务。新工具配置使用 v3 助手档案；已有助手索引首次连接会建立新档案会话，原会话继续保留在本集历史中。
+
 ## 代码归属
 
-| 文件                                                                       | 职责                                     |
-| -------------------------------------------------------------------------- | ---------------------------------------- |
-| `main/model.ts`                                                            | 项目协议、校验、引用、流程状态与制作清单 |
-| `main/repository.ts`、`main/useEditor.ts`                                  | SDK 持久化、顺序写入、自动保存与错误恢复 |
-| `main/App.tsx`、`main/Workbench.tsx`                                       | 作品库、分集与镜头目录、步骤导航         |
-| `main/Library.tsx`、`main/view-state.ts`                                   | 最近作品、紧凑列表与创作位置恢复         |
-| `main/artwork.tsx`、`main/assets/`                                         | 打包插图与示例分镜示意                   |
-| `main/StageEditors.tsx`                                                    | 七步业务编辑与计划检查                   |
-| `main/Assistant.tsx`、`main/assistant-session.ts`、`main/FilmComposer.tsx` | Chat SDK 会话、上下文与输入区            |
-| `main/media.ts`、`main/useGeneration.ts`、`main/components/MediaPanel.tsx` | 素材导入、宿主预览、分镜生图与回填       |
-| `main/ReferencePanel.tsx`、`main/studio.css`                               | 只读创作参考与三栏响应式布局             |
-| `main/host/`                                                               | 应用工具与技能                           |
-| `main/capabilities.ts`                                                     | 后续工坊步骤的说明文案                   |
+| 文件                                                                       | 职责                                       |
+| -------------------------------------------------------------------------- | ------------------------------------------ |
+| `main/model.ts`                                                            | 项目协议、校验、引用、流程状态与制作清单   |
+| `main/repository.ts`、`main/useEditor.ts`                                  | SDK 持久化、顺序写入、自动保存与错误恢复   |
+| `main/App.tsx`、`main/Workbench.tsx`                                       | 作品库、分集与镜头目录、步骤导航           |
+| `main/Library.tsx`、`main/view-state.ts`                                   | 最近作品、紧凑列表与创作位置恢复           |
+| `main/artwork.tsx`、`main/assets/`                                         | 打包插图与示例分镜示意                     |
+| `main/StageEditors.tsx`                                                    | 七步业务编辑与计划检查                     |
+| `main/Assistant.tsx`、`main/assistant-session.ts`、`main/FilmComposer.tsx` | Chat SDK 会话、上下文与输入区              |
+| `main/media.ts`、`main/useGeneration.ts`、`main/components/MediaPanel.tsx` | 素材导入、宿主预览、分镜生图与回填         |
+| `main/ReferencePanel.tsx`、`main/studio.css`                               | 只读创作参考与三栏响应式布局               |
+| `main/assistant/`                                                          | 结构化建议协议、持久化、按项预览和冲突检查 |
+| `main/host/`                                                               | 应用工具与技能                             |
+| `main/capabilities.ts`                                                     | 后续工坊步骤的说明文案                     |
 
 剧本预览、状态标记组件与流程元数据从 AID Studio 抽取适配。具体来源与修改见应用内 `THIRD_PARTY_NOTICES.md`。完整版权、MIT 许可与上游 NOTICE 保存于 `LICENSE` 并随应用打包。
 
@@ -96,7 +110,7 @@ pnpm --filter @mewvis/film-workshop test
 
 `test:browser` 使用本地构建产物、生产沙箱文档、SDK 桥与隔离的测试存储验证编辑和重新加载，不接触用户应用数据或真实供应商。需要已安装的 Playwright，可用 `MEWVIS_PLAYWRIGHT_MODULE` 指定模块路径，用 `CHROME_PATH` 指定浏览器。验收图默认写入 `/tmp/mewvis-film-workshop-qa`。
 
-构建后可执行 `node apps/applications/builtins/film-workshop/test/browser-smoke.mjs --preview`，在 `http://127.0.0.1:5188/` 打开使用三部示例作品的生产沙箱预览。该模式使用隔离的内存数据、虚拟文件和模拟聊天；分镜生图返回应用内示例图片，不调用真实模型。支持工作目录、图片回填与预览检查，不需要 Playwright，重启后重置。可用 `MEWVIS_FILM_PREVIEW_PORT` 调整端口。设计对照和响应式验收记录见仓库根目录 `design-qa.md`。
+构建后可执行 `node apps/applications/builtins/film-workshop/test/browser-smoke.mjs --preview`，在 `http://127.0.0.1:5188/` 打开使用三部示例作品的生产沙箱预览。该模式使用隔离的内存数据、虚拟文件和模拟聊天；分镜生图返回应用内示例图片，结构化创作建议使用固定样例，不调用真实模型。支持工作目录、图片回填与预览检查，不需要 Playwright，重启后重置。可用 `MEWVIS_FILM_PREVIEW_PORT` 调整端口。设计对照和响应式验收记录见仓库根目录 `design-qa.md`。
 
 ## 工作台布局
 

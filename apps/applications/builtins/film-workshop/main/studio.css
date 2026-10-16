@@ -1212,3 +1212,211 @@
     flex-wrap: wrap;
   }
 }
+
+.film-proposal-tray {
+  flex-shrink: 0;
+  max-height: 150px;
+  overflow: auto;
+  padding: 8px 14px;
+  border-top: 1px solid var(--border);
+  background: var(--background);
+}
+.film-proposal-summary {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 5px 0;
+  font-size: 12px;
+}
+.film-proposal-summary > svg {
+  flex-shrink: 0;
+  color: var(--primary);
+}
+.film-proposal-summary > span {
+  flex: 1;
+  min-width: 0;
+}
+.film-proposal-summary strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 500;
+}
+.film-proposal-summary small {
+  color: var(--muted-foreground);
+  font-size: 11px;
+}
+.film-proposal-summary button {
+  flex-shrink: 0;
+  font-size: 11px;
+  padding: 4px 7px;
+  min-height: 28px;
+}
+.film-proposal-adopted {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 2px 0;
+  font-size: 11px;
+  color: var(--muted-foreground);
+}
+.film-dialog:has(.film-proposal-review) {
+  width: min(880px, calc(100vw - 32px));
+  max-width: 880px;
+  margin: auto;
+  padding: 20px;
+  max-height: calc(100dvh - 32px);
+}
+.film-proposal-review {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  gap: 12px;
+}
+.film-proposal-review > header strong {
+  font-size: 14px;
+  font-weight: 500;
+}
+.film-proposal-review > header p {
+  color: var(--muted-foreground);
+  font-size: 12px;
+  margin: 4px 0 0;
+}
+.film-proposal-changes {
+  display: grid;
+  gap: 10px;
+  max-height: 55vh;
+  overflow: auto;
+  padding: 1px;
+}
+.film-proposal-change {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.film-proposal-change-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--muted);
+  font-size: 12px;
+}
+.film-proposal-change-heading input {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  accent-color: var(--primary);
+}
+.film-proposal-change-heading strong {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 500;
+}
+.film-proposal-change-heading span {
+  flex-shrink: 0;
+  color: var(--muted-foreground);
+  font-size: 11px;
+}
+.film-proposal-change.is-conflict .film-proposal-change-heading span,
+.film-proposal-conflict {
+  color: var(--destructive);
+}
+.film-proposal-conflict {
+  font-size: 12px;
+  margin: 0;
+}
+.film-proposal-field {
+  padding: 0 12px;
+}
+.film-proposal-field h4 {
+  margin: 10px 0 5px;
+  font-size: 11px;
+  color: var(--muted-foreground);
+  font-weight: 500;
+}
+.film-proposal-diff {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  padding: 10px 12px;
+}
+.film-proposal-field .film-proposal-diff {
+  padding: 0 0 10px;
+}
+.film-proposal-diff.is-new {
+  grid-template-columns: 1fr;
+}
+.film-proposal-diff > div {
+  min-width: 0;
+}
+.film-proposal-diff small {
+  font-size: 10px;
+  color: var(--muted-foreground);
+}
+.film-proposal-diff pre {
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.65;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin: 4px 0 0;
+  max-height: 210px;
+  overflow: auto;
+}
+.film-proposal-change > .film-muted {
+  margin: 0;
+  padding: 0 12px 10px;
+  font-size: 11px;
+}
+.film-proposal-review > footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+  margin-top: 0;
+}
+.film-proposal-review > footer > span {
+  margin-right: auto;
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+@media (max-width: 600px) {
+  .film-proposal-diff {
+    grid-template-columns: 1fr;
+  }
+  .film-proposal-review > footer {
+    flex-wrap: wrap;
+  }
+}
+
+.film-proposal-summary > button,
+.film-proposal-review > footer > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--card);
+  color: var(--foreground);
+  padding: 6px 10px;
+  min-height: 30px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.film-proposal-summary > button:disabled,
+.film-proposal-review > footer > button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.film-proposal-summary > .film-icon-button {
+  border-color: transparent;
+  background: transparent;
+  padding: 4px;
+  min-width: 24px;
+}

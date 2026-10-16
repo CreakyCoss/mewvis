@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   ChevronDown,
   Send,
@@ -36,14 +36,18 @@ export function FilmComposer({
   placeholder,
   disabled = false,
   onSubmitting,
+  beforeSubmit,
 }: {
   source: string;
   placeholder: string;
   disabled?: boolean;
   onSubmitting?: (value: boolean) => void;
+  beforeSubmit?: () => Promise<void>;
 }) {
   const binding = useChatComposer();
   const [error, setError] = useState("");
+  const preparingRef = useRef(false);
+  const [preparing, setPreparing] = useState(false);
   const models = binding.controls.resources.models ?? [];
   const selectedModelId = binding.controls.options.selectedModelId;
   const model = models.find((item) => item.value === selectedModelId);
@@ -53,16 +57,27 @@ export function FilmComposer({
   const permission = permissions.find((item) => item.mode === mode);
   const PermissionIcon = mode ? permissionAppearance[mode].icon : Shield;
   const send = async () => {
-    if (disabled || !binding.canSubmit || binding.disabled) return;
+    if (
+      preparingRef.current ||
+      disabled ||
+      !binding.canSubmit ||
+      binding.disabled
+    )
+      return;
+    preparingRef.current = true;
+    setPreparing(true);
     setError("");
     onSubmitting?.(true);
     try {
+      await beforeSubmit?.();
       const result = await binding.submit();
       if (result.status === "rejected")
         setError(result.reason || "发送失败，请重试。");
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
+      preparingRef.current = false;
+      setPreparing(false);
       onSubmitting?.(false);
     }
   };
@@ -224,7 +239,9 @@ export function FilmComposer({
               type="button"
               className="film-send"
               aria-label="发送消息"
-              disabled={disabled || !binding.canSubmit || binding.disabled}
+              disabled={
+                preparing || disabled || !binding.canSubmit || binding.disabled
+              }
               onClick={() => void send()}
             >
               <Send size={18} />
