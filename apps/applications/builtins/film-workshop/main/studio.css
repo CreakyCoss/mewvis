@@ -1085,3 +1085,130 @@
     border-left: 0;
   }
 }
+
+/* Workspace-backed files and generated storyboard versions. */
+.film-workspace-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 18px;
+  border-bottom: 1px solid var(--border);
+  background: var(--muted);
+  font-size: 12px;
+}
+.film-directory-field {
+  display: flex;
+  gap: 8px;
+}
+.film-directory-field input {
+  min-width: 0;
+  flex: 1;
+}
+.film-directory-field button {
+  flex-shrink: 0;
+}
+.film-image-generation {
+  display: grid;
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.film-media-panel {
+  min-width: 0;
+  display: grid;
+  gap: 10px;
+}
+.film-media-panel > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+}
+.film-media-panel > header button {
+  font-size: 11px;
+  min-height: 28px;
+  padding: 4px 8px;
+}
+.film-media-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(145px, 1fr));
+  gap: 10px;
+}
+.film-media-grid > article {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.film-media-grid > article.is-active {
+  border-color: var(--primary);
+}
+.film-media-thumbnail {
+  height: 108px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--muted);
+  color: var(--muted-foreground);
+}
+.film-local-preview {
+  height: 100%;
+  width: 100%;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.film-local-preview [aria-label="文件预览"] {
+  width: 100%;
+}
+.film-local-preview p {
+  padding: 6px;
+  font-size: 10px;
+}
+.film-media-caption {
+  padding: 7px 9px 4px;
+  display: grid;
+  gap: 3px;
+}
+.film-media-caption span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+}
+.film-media-caption small {
+  font-size: 10px;
+  color: var(--muted-foreground);
+}
+.film-media-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px 7px;
+}
+.film-app .film-media-actions button {
+  min-height: 26px;
+  padding: 3px 5px;
+  font-size: 10px;
+  border: 0;
+  box-shadow: none;
+}
+.film-media-actions button[aria-pressed="true"] {
+  color: var(--primary);
+}
+.film-media-actions .film-icon-button {
+  margin-left: auto;
+}
+@media (max-width: 760px) {
+  .film-workspace-notice {
+    padding: 8px 12px;
+    font-size: 11px;
+  }
+  .film-directory-field {
+    flex-wrap: wrap;
+  }
+}

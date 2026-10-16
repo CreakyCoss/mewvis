@@ -44,6 +44,7 @@ import { MEDIA_CAPABILITIES } from "./capabilities";
 import { CapabilityNotice, EmptyState, Field } from "./components/Fields";
 import { Dialog } from "./components/Dialog";
 import { ShotArtwork } from "./artwork";
+import { MediaPanel } from "./components/MediaPanel";
 
 type Props = {
   project: FilmProject;
@@ -52,6 +53,8 @@ type Props = {
   selectedShotId?: string;
   onSelectShot?: (id: string) => void;
   edit: (update: (project: FilmProject) => FilmProject) => void;
+  generate?: (episodeId: string, shotId: string) => Promise<void>;
+  generationBusy?: boolean;
 };
 export function StageEditor(props: Props) {
   if (props.step === "settings") return <Settings {...props} />;
@@ -152,6 +155,15 @@ function Settings({ project, edit }: Props) {
           先完成一小段剧本、一个角色和一个场景，再整理分镜。各步骤可以随时返回修改。
         </p>
       </div>
+      {project.workspace && (
+        <Field label="工作目录">
+          <input
+            readOnly
+            value={project.workspace.directory}
+            title={project.workspace.directory}
+          />
+        </Field>
+      )}
     </div>
   );
 }
@@ -359,21 +371,36 @@ function Assets(props: Props) {
                 onChange={(e) => update({ prompt: e.target.value })}
               />
             </Field>
-            <Field
-              label="参考文件备注"
-              hint="先记录文件名或素材说明，文件导入和预览将在后续接入。"
-            >
+            <Field label="参考文件备注">
               <input
                 value={selected.reference}
                 maxLength={1000}
                 onChange={(e) => update({ reference: e.target.value })}
               />
             </Field>
-            <CapabilityNotice text={MEDIA_CAPABILITIES.images.reason} />
-            <button disabled>
-              <Image size={16} />
-              生成素材图片
-            </button>
+            <MediaPanel
+              project={props.project}
+              ids={selected.mediaIds ?? []}
+              onImport={(media) =>
+                props.edit((project) => ({
+                  ...project,
+                  media: [...(project.media ?? []), media],
+                  assets: project.assets.map((asset) =>
+                    asset.id === selected.id
+                      ? {
+                          ...asset,
+                          mediaIds: [...(asset.mediaIds ?? []), media.id],
+                        }
+                      : asset,
+                  ),
+                }))
+              }
+              onDetach={(id) =>
+                update({
+                  mediaIds: selected.mediaIds?.filter((value) => value !== id),
+                })
+              }
+            />
           </div>
         </div>
       ) : (
@@ -585,8 +612,7 @@ function Storyboard(props: Props) {
             )}
           </fieldset>
         </details>
-        <details className="film-focused-options">
-          <summary>画面提示词与文件备注</summary>
+        <section className="film-image-generation">
           <Field label="分镜图片提示词">
             <textarea
               rows={3}
@@ -602,12 +628,84 @@ function Storyboard(props: Props) {
               onChange={(e) => patch({ imageReference: e.target.value })}
             />
           </Field>
-          <CapabilityNotice text={MEDIA_CAPABILITIES.images.reason} />
-          <button disabled>
+          <button
+            className="film-primary"
+            disabled={
+              !props.generate ||
+              !props.project.workspace ||
+              props.generationBusy ||
+              !(shot.imagePrompt.trim() || shot.description.trim())
+            }
+            onClick={() => void props.generate?.(props.episode.id, shot.id)}
+          >
             <Image size={16} />
-            生成分镜图片
+            {props.generationBusy
+              ? "生成任务进行中…"
+              : shot.imageMediaId
+                ? "重新生成分镜图片"
+                : "生成分镜图片"}
           </button>
-        </details>
+          {props.project.generations
+            ?.filter(
+              (job) =>
+                job.shotId === shot.id && job.episodeId === props.episode.id,
+            )
+            .slice(-1)
+            .map((job) => (
+              <p
+                key={job.id}
+                className={
+                  job.status === "failed" ? "film-error" : "film-muted"
+                }
+                role="status"
+              >
+                {job.status === "completed"
+                  ? "图片已保存并关联到此镜头"
+                  : job.status === "failed"
+                    ? job.error
+                    : job.status === "stopped"
+                      ? "已停止等待，可在助手中查看详情"
+                      : "正在生成，可在创作助手中查看进度或停止任务"}
+              </p>
+            ))}
+          <MediaPanel
+            project={props.project}
+            imagesOnly
+            ids={shot.mediaIds ?? []}
+            activeId={shot.imageMediaId}
+            onImport={(media) =>
+              props.edit((project) => ({
+                ...project,
+                media: [...(project.media ?? []), media],
+                episodes: project.episodes.map((episode) =>
+                  episode.id !== props.episode.id
+                    ? episode
+                    : {
+                        ...episode,
+                        shots: episode.shots.map((item) =>
+                          item.id !== shot.id
+                            ? item
+                            : {
+                                ...item,
+                                mediaIds: [...(item.mediaIds ?? []), media.id],
+                                imageMediaId: media.id,
+                              },
+                        ),
+                      },
+                ),
+              }))
+            }
+            onSelect={(id) => patch({ imageMediaId: id })}
+            onDetach={(id) =>
+              patch({
+                mediaIds: shot.mediaIds?.filter((value) => value !== id),
+                ...(shot.imageMediaId === id
+                  ? { imageMediaId: undefined }
+                  : {}),
+              })
+            }
+          />
+        </section>
       </div>
       {removing && (
         <Dialog title="删除镜头" onClose={() => setRemoving(false)}>

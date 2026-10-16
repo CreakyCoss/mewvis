@@ -22,7 +22,9 @@ export function useEditor(
     { project: FilmProject; promise: Promise<void> } | undefined
   >(undefined);
   const edit = useCallback((update: (project: FilmProject) => FilmProject) => {
-    const next = { ...update(current.current), updatedAt: Date.now() };
+    const changed = update(current.current);
+    if (changed === current.current) return;
+    const next = { ...changed, updatedAt: Date.now() };
     current.current = next;
     setProject(next);
     setStatus("dirty");
@@ -83,5 +85,5 @@ export function useEditor(
     window.addEventListener("keydown", listener);
     return () => window.removeEventListener("keydown", listener);
   }, [save]);
-  return { project, edit, save, flush, status, error };
+  return { project, edit, save, flush, status, error, current };
 }

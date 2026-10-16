@@ -66,13 +66,21 @@ test("import validation rejects incompatible formats, duplicate identities, inva
   mutate((p) => (p.assets = {}), /素材/);
 });
 
-test("storage limit measures UTF-8 bytes, and returned projects do not alias imported objects", () => {
+test("large projects require a file-backed workspace; validated records do not alias imported objects", async () => {
   const project = f.exampleProject();
   const validated = f.validateProject(project);
   validated.episodes[0].shots[0].characterIds.push("changed");
   assert.deepEqual(project.episodes[0].shots[0].characterIds, []);
   project.episodes[0].script = "中".repeat(78000);
-  assert.throws(() => f.validateProject(project), /220 KiB/);
+  f.validateProject(project);
+  await assert.rejects(
+    f.createRepository(memoryStorage()).save(project),
+    /工作目录/,
+  );
+  assert.throws(
+    () => f.checkProjectSize({ script: "中".repeat(6 * 1024 * 1024) }),
+    /16 MiB/,
+  );
 });
 
 test("asset removal clears references in all episodes while retaining authored text", () => {

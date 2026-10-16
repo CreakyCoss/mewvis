@@ -6,6 +6,8 @@ import warmTown from "./assets/warm-town.jpg";
 import creativeDesk from "./assets/creative-desk.jpg";
 import seasideLetter from "./assets/seaside-letter.jpg";
 import type { FilmProject, FilmShot } from "./model";
+import { LocalPreview } from "./components/MediaPanel";
+import { mediaPath } from "./media";
 
 export function ProjectCover({ project }: { project: FilmProject }) {
   const source =
@@ -31,6 +33,13 @@ export function ShotArtwork({
   project: FilmProject;
   shot: FilmShot;
 }) {
+  const media = project.media?.find((item) => item.id === shot.imageMediaId);
+  if (media && project.workspace)
+    return (
+      <figure className="film-shot-art">
+        <LocalPreview filePath={mediaPath(project, media)} />
+      </figure>
+    );
   const source =
     project.title === "雨夜电台"
       ? (

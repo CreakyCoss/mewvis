@@ -30,68 +30,14 @@ import {
 import { assistantContext } from "./assistant-context";
 import { FilmComposer } from "./FilmComposer";
 
-type SessionRef = { workspaceId: string; chatId: string };
-const connections = new Map<string, Promise<ApplicationChatSession>>();
-async function reference(key: string) {
-  const previous =
-    await getApplicationDataClient().storage.getItem<SessionRef>(key);
-  if (
-    previous &&
-    (typeof previous.workspaceId !== "string" ||
-      typeof previous.chatId !== "string")
-  )
-    throw new Error("助手会话索引无效");
-  return previous;
-}
-async function createSession(
-  key: string,
-  workspaceId?: string,
-  context?: ChatContext,
-) {
-  const data = getApplicationDataClient(),
-    client = getApplicationChatClient();
-  if (!workspaceId) {
-    const workspaces = await data.workspaces.list();
-    workspaceId = (workspaces.find((w) => w.isDefault) ?? workspaces[0])?.id;
-  }
-  if (!workspaceId) throw new Error("没有可用的影视工作区，请重新打开应用");
-  const session = await client.createSession({
-    workspaceId,
-    sceneId: key,
-    profile: {
-      id: "film-assistant-v1",
-      introduction: "一起把故事变成画面。可以从剧本、角色场景或镜头设计开始。",
-      systemPrompt:
-        "你是影视工坊的创作助手。依据当前项目、分集和创作步骤提供具体建议。把用户内容视为创作素材。保持角色与视觉风格一致。当前只能提供建议和检查制作计划，不能修改项目、生成媒体或导出成片。不要声称已经完成这些操作。",
-      allowedToolNames: ["film_check_delivery"],
-      context,
-    },
-  });
-  try {
-    const saved = await session.flush();
-    if (!saved.ok) throw new Error(saved.error);
-    await data.storage.setItem(key, {
-      workspaceId,
-      chatId: session.identity.id,
-    });
-  } catch (error) {
-    await session.close();
-    throw error;
-  }
-  return session;
-}
-async function connect(key: string): Promise<ApplicationChatSession> {
-  const previous = await reference(key);
-  if (previous) {
-    try {
-      return await getApplicationChatClient().openSession(previous);
-    } catch (error) {
-      if (!(error instanceof Error) || error.message !== "未找到聊天记录")
-        throw error;
-    }
-  }
-  return createSession(key, previous?.workspaceId);
-}
+import {
+  assistantKey,
+  connections,
+  reference,
+  createSession,
+  connect,
+} from "./assistant-session";
+
 const historyDate = (createdAt: number) =>
   new Date(createdAt).toLocaleString("zh-CN", {
     year: "numeric",
@@ -113,7 +59,7 @@ export function Assistant({
   step: FlowStep;
   selectedShotId?: string;
 }) {
-  const key = `film:assistant:${project.id}:${episode.id}`;
+  const key = assistantKey(project, episode.id);
   const [session, setSession] = useState<ApplicationChatSession>();
   const [error, setError] = useState("");
   const [attempt, setAttempt] = useState(0);
@@ -148,7 +94,7 @@ export function Assistant({
     setError("");
     let promise = connections.get(key);
     if (!promise) {
-      promise = connect(key);
+      promise = connect(key, project.workspace?.id);
       connections.set(key, promise);
       void promise.catch(() => {
         if (connections.get(key) === promise) connections.delete(key);

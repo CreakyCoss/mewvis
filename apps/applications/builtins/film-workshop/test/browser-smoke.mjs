@@ -7,6 +7,7 @@ import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { build } from "esbuild";
 import { fixture as f } from "./fixture.mjs";
+import { createFileHost } from "./file-host.mjs";
 
 // Exercise the production opaque-origin sandbox and the public SDK bridge.
 // Only the test host's isolated storage and preview Chat are used.
@@ -63,7 +64,9 @@ const chat = {
     "utf8",
   ),
 };
-const document = sandboxDocument(ui, chat);
+const document = sandboxDocument(ui, chat, {
+  fileResourceSource: "http://127.0.0.1:*",
+});
 const packed = (
   await import(pathToFileURL(join(app, "dist/mewvis/index.js")).href)
 ).default;
@@ -104,12 +107,24 @@ addEventListener("message", async event => {
       test.calls.push(message.request.method);
       if (test.failStorage && message.request.method === "storage.setItem" && message.request.params.key.startsWith("film:project:")) { test.failStorage = false; reply({ ok: false, error: { code: "STORAGE_ERROR", message: "测试保存失败" } }); }
       else if (message.request.method.startsWith("storage.")) reply(await (await fetch("/data", { method: "POST", body: JSON.stringify(message.request) })).json());
-      else reply(await preview.data.request(message.request));
+      else if (message.request.method === "workspaces.selectDirectory") reply({ ok: true, value: null });
+      else { const request = structuredClone(message.request); if (request.method === "workspaces.create") delete request.params.path;
+        const result = await preview.data.request(request);
+        if (request.method === "workspaces.create" && result.ok) await fetch("/workspace", { method: "POST", body: JSON.stringify(result.value) });
+        reply(result); }
     } else if (message.type === "chat:request") {
       if (test.failChat) { test.failChat = false; throw new Error("测试助手连接失败"); }
       const result = await preview.transport.request(message.request);
       if (message.request.method === "setContext" && result.result?.ok) test.contexts.push(message.request.input);
       reply(result);
+    } else if (message.type === "files:request") {
+      const result = await (await fetch("/files", { method: "POST", body: JSON.stringify(message.request) })).json();
+      reply(result);
+      if (message.request.method === "preview.openDialog" && result.ok) {
+        const resource = result.value, dialog = document.createElement("dialog"), image = document.createElement("img"), close = document.createElement("button");
+        image.src = resource.resourceUrl; image.style.cssText = "max-width:85vw;max-height:80vh;display:block"; close.textContent = "关闭预览";
+        close.onclick = () => dialog.close(); dialog.onclose = () => { post({ type: "files:preview-close", event: { id: resource.id } }); dialog.remove(); }; dialog.append(image, close); document.body.append(dialog); dialog.showModal();
+      }
     } else if (message.type === "header:set") reply({ supported: false });
     else if (message.type === "host:clipboard-write") { test.clipboard = message.text; reply({ written: true }); }
     else if (message.type === "tool:execute") reply(await (await fetch("/tool", { method: "POST", body: JSON.stringify({ name: message.toolName, args: message.args }) })).json());
@@ -118,7 +133,11 @@ addEventListener("message", async event => {
 });
 owner.srcdoc = ${JSON.stringify(document).replaceAll("<", "\\u003c")};
 </script>`;
-const values = new Map();
+const values = new Map(),
+  registeredWorkspaces = [];
+const fileHost = createFileHost(
+  await readFile(join(app, "main/assets/rain-window.jpg")),
+);
 const server = createServer(async (req, res) => {
   try {
     if (req.url === "/") {
@@ -128,14 +147,58 @@ const server = createServer(async (req, res) => {
     }
     if (req.url === "/chat-host.js") {
       res.writeHead(200, { "content-type": "text/javascript" });
-      res.end(await readFile(join(root, "packages/app/dev/dist/chat-host.js")));
+      const code = await readFile(
+        join(root, "packages/app/dev/dist/chat-host.js"),
+        "utf8",
+      );
+      res.end(
+        code
+          .replace(
+            /const workspaces = \[([\s\S]*?)\];/,
+            (_, defaults) =>
+              `const workspaces = [${defaults}, ...${JSON.stringify(registeredWorkspaces)}];`,
+          )
+          .replace(
+            "dispatches++;",
+            `dispatches++;
+        if (turn.input.text.includes("[影视生成:")) {
+          const toolCallId = turn.taskId + "-media";
+          emit(turn.taskId, { type: "tool_execution_start", toolCallId, toolName: "generate_media", args: { action: "generate", purpose: "image-generation" } });
+          await new Promise(resolve => setTimeout(resolve, 1500)); signal.throwIfAborted();
+          const result = await (await fetch("/generate", { method: "POST", body: JSON.stringify({ text: turn.input.text }) })).json();
+          emit(turn.taskId, { type: "tool_execution_end", toolCallId, toolName: "generate_media", result, isError: false });
+          emit(turn.taskId, { type: "done", text: "模拟图片已保存。" }); return;
+        }`,
+          ),
+      );
+      return;
+    }
+    if (req.url.startsWith("/resource/")) {
+      const resource = fileHost.resource(req.url.slice("/resource/".length));
+      if (!resource) {
+        res.writeHead(404);
+        res.end();
+        return;
+      }
+      res.writeHead(200, {
+        "content-type": resource.mimeType,
+        "access-control-allow-origin": "*",
+      });
+      res.end(resource.bytes);
       return;
     }
     let body = "";
     for await (const chunk of req) body += chunk;
     const input = JSON.parse(body);
     let result;
-    if (req.url === "/data") {
+    if (req.url === "/workspace") {
+      registeredWorkspaces.push(input);
+      result = {};
+    } else if (req.url === "/files") {
+      result = fileHost.request(input);
+    } else if (req.url === "/generate") {
+      result = fileHost.generate(input.text);
+    } else if (req.url === "/data") {
       switch (input.method) {
         case "storage.keys":
           result = [...values.keys()];
@@ -199,6 +262,7 @@ server.listen(
   "127.0.0.1",
 );
 await once(server, "listening");
+fileHost.port = server.address().port;
 if (previewOnly) {
   console.log(
     `Film sandbox preview: http://127.0.0.1:${server.address().port}/ (isolated sample data)`,
@@ -475,7 +539,6 @@ try {
   await frame
     .getByLabel("画面内容", { exact: true })
     .fill("旅人转过身，望向站台尽头");
-  await expandDetails("画面提示词与文件备注");
   await frame
     .getByLabel("分镜图片提示词", { exact: true })
     .fill("电影中景，清晨车站，灰色风衣旅人回头");
@@ -493,7 +556,6 @@ try {
   await frame
     .getByLabel("画面内容", { exact: true })
     .fill("列车驶离，空站台浮出晨雾");
-  await expandDetails("画面提示词与文件备注");
   await frame
     .getByLabel("分镜图片提示词", { exact: true })
     .fill("电影远景，晨雾，空荡的旧站台");

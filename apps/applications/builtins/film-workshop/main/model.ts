@@ -25,6 +25,37 @@ export type ProjectKind = keyof typeof PROJECT_KINDS;
 export type AssetKind = keyof typeof ASSET_KINDS;
 export type StageStatus = "empty" | "draft" | "ready" | "blocked";
 
+export interface FilmWorkspace {
+  id: string;
+  root: string;
+  directory: string;
+}
+export interface FilmMedia {
+  id: string;
+  name: string;
+  kind: "image" | "video" | "audio" | "pdf" | "text";
+  /** Relative to this project's directory; never a temporary preview URL. */
+  path: string;
+  size: number;
+  mimeType: string;
+  source: "imported" | "generated";
+  createdAt: number;
+}
+export interface FilmGeneration {
+  id: string;
+  episodeId: string;
+  shotId: string;
+  chatId: string;
+  workspaceId: string;
+  taskId?: string;
+  status: "preparing" | "running" | "completed" | "failed" | "stopped";
+  prompt: string;
+  previousMediaId?: string;
+  outputIds: string[];
+  error?: string;
+  createdAt: number;
+}
+
 export interface FilmAsset {
   id: string;
   kind: AssetKind;
@@ -32,6 +63,7 @@ export interface FilmAsset {
   description: string;
   prompt: string;
   reference: string;
+  mediaIds?: string[];
 }
 export interface FilmShot {
   id: string;
@@ -51,6 +83,8 @@ export interface FilmShot {
   imageReference: string;
   videoReference: string;
   audioReference: string;
+  mediaIds?: string[];
+  imageMediaId?: string;
 }
 export interface FilmEpisode {
   id: string;
@@ -71,8 +105,11 @@ export interface FilmProject {
   updatedAt: number;
   assets: FilmAsset[];
   episodes: FilmEpisode[];
+  workspace?: FilmWorkspace;
+  media?: FilmMedia[];
+  generations?: FilmGeneration[];
 }
-export const MAX_PROJECT_BYTES = 220 * 1024;
+export const MAX_PROJECT_BYTES = 16 * 1024 * 1024;
 export const newId = () => crypto.randomUUID();
 export const blankEpisode = (title = "第 1 集"): FilmEpisode => ({
   id: newId(),
@@ -164,9 +201,7 @@ export function checkProjectSize(project: FilmProject): void {
     new TextEncoder().encode(JSON.stringify(project)).byteLength >
     MAX_PROJECT_BYTES
   )
-    throw new Error(
-      "项目超过 220 KiB，请减少剧本或分镜文本后保存。大素材接入后将单独存储。",
-    );
+    throw new Error("项目数据超过 16 MiB，请拆分项目后保存。");
 }
 
 /** Validate every persisted/imported record; never repair or discard unknown versions. */
@@ -183,6 +218,49 @@ export function validateProject(value: unknown): FilmProject {
     return result;
   };
   const projectId = id(p.id);
+  const media =
+    p.media === undefined
+      ? undefined
+      : array(p.media, "媒体文件", 10000).map((item): FilmMedia => {
+          const m = object(item, "媒体文件");
+          const path = text(m.path, "媒体路径", 4096);
+          if (
+            !path ||
+            path.startsWith("/") ||
+            /^[a-z]:/i.test(path) ||
+            path.includes("\\") ||
+            path
+              .split("/")
+              .some((part) => !part || part === "." || part === "..") ||
+            /[\0\r\n]/.test(path)
+          )
+            throw new Error("媒体路径必须位于项目目录中");
+          return {
+            id: id(m.id),
+            name: name(m.name, "文件名称"),
+            kind: choice(
+              m.kind,
+              ["image", "video", "audio", "pdf", "text"],
+              "媒体类型",
+            ),
+            path,
+            size: timestamp(m.size),
+            mimeType: text(m.mimeType, "MIME 类型", 255),
+            source: choice(m.source, ["imported", "generated"], "媒体来源"),
+            createdAt: timestamp(m.createdAt),
+          };
+        });
+  const mediaIds = (value: unknown) => {
+    const values = array(value, "媒体引用", 1000).map((v) =>
+      text(v, "媒体标识", 80),
+    );
+    if (
+      new Set(values).size !== values.length ||
+      values.some((v) => !media?.some((m) => m.id === v))
+    )
+      throw new Error("引用了不存在的媒体文件");
+    return values;
+  };
   const assets = array(p.assets, "素材", 150).map((item): FilmAsset => {
     const a = object(item, "素材");
     return {
@@ -192,6 +270,7 @@ export function validateProject(value: unknown): FilmProject {
       description: text(a.description, "素材描述"),
       prompt: text(a.prompt, "素材提示词"),
       reference: text(a.reference, "素材文件备注", 1000),
+      ...(a.mediaIds !== undefined ? { mediaIds: mediaIds(a.mediaIds) } : {}),
     };
   });
   const hasAsset = (assetId: string, kind: AssetKind) =>
@@ -238,6 +317,10 @@ export function validateProject(value: unknown): FilmProject {
         imageReference: text(s.imageReference, "图片文件备注", 1000),
         videoReference: text(s.videoReference, "视频文件备注", 1000),
         audioReference: text(s.audioReference, "音频文件备注", 1000),
+        ...(s.mediaIds !== undefined ? { mediaIds: mediaIds(s.mediaIds) } : {}),
+        ...(s.imageMediaId
+          ? { imageMediaId: text(s.imageMediaId, "分镜图片标识", 80) }
+          : {}),
       };
     });
     return {
@@ -248,6 +331,66 @@ export function validateProject(value: unknown): FilmProject {
     };
   });
   if (!episodes.length) throw new Error("项目至少需要一个分集");
+  for (const episode of episodes)
+    for (const shot of episode.shots)
+      if (
+        shot.imageMediaId &&
+        (!shot.mediaIds?.includes(shot.imageMediaId) ||
+          !media?.some((m) => m.id === shot.imageMediaId && m.kind === "image"))
+      )
+        throw new Error("当前分镜图片引用无效");
+  let workspace: FilmWorkspace | undefined;
+  if (p.workspace !== undefined) {
+    const w = object(p.workspace, "工作目录");
+    const root = text(w.root, "工作区路径", 4096),
+      directory = text(w.directory, "项目目录", 4096);
+    if (
+      !/^(\/|[a-z]:\/)/i.test(root) ||
+      root.includes("\\") ||
+      directory !==
+        root.replace(/[\\/]+$/, "") + "/film-projects/" + projectId ||
+      directory.split(/[\\/]/).includes("..") ||
+      /[\0\r\n]/.test(directory + root)
+    )
+      throw new Error("项目工作目录无效");
+    const workspaceId = text(w.id, "工作区标识", 256);
+    if (!workspaceId.trim()) throw new Error("工作区标识无效");
+    workspace = { id: workspaceId, root, directory };
+  }
+  const generations =
+    p.generations === undefined
+      ? undefined
+      : array(p.generations, "生成记录", 2000).map((item): FilmGeneration => {
+          const g = object(item, "生成记录");
+          return {
+            id: id(g.id),
+            episodeId: text(g.episodeId, "分集标识", 80),
+            shotId: text(g.shotId, "镜头标识", 80),
+            chatId: text(g.chatId, "会话标识", 256),
+            workspaceId: text(g.workspaceId, "工作区标识", 256),
+            status: choice(
+              g.status,
+              ["preparing", "running", "completed", "failed", "stopped"],
+              "生成状态",
+            ),
+            prompt: text(g.prompt, "生成提示词", 32000),
+            outputIds: mediaIds(g.outputIds),
+            createdAt: timestamp(g.createdAt),
+            ...(g.taskId ? { taskId: text(g.taskId, "任务标识", 256) } : {}),
+            ...(g.previousMediaId
+              ? { previousMediaId: text(g.previousMediaId, "原图片标识", 80) }
+              : {}),
+            ...(g.error ? { error: text(g.error, "生成错误", 4000) } : {}),
+          };
+        });
+  if ((media?.length || generations?.length) && !workspace)
+    throw new Error("媒体和生成记录需要项目工作目录");
+  if (
+    generations?.some(
+      (job) => job.workspaceId !== workspace?.id || !job.chatId.trim(),
+    )
+  )
+    throw new Error("生成记录与项目工作区不一致");
   const result: FilmProject = {
     format: "mewvis-film-project",
     version: 1,
@@ -265,6 +408,9 @@ export function validateProject(value: unknown): FilmProject {
     updatedAt: timestamp(p.updatedAt),
     assets,
     episodes,
+    ...(workspace ? { workspace } : {}),
+    ...(media ? { media } : {}),
+    ...(generations ? { generations } : {}),
   };
   checkProjectSize(result);
   return result;
@@ -292,24 +438,34 @@ export function copyProject(source: FilmProject): FilmProject {
   const project = validateProject(source),
     assetIds = new Map(project.assets.map((a) => [a.id, newId()]));
   const now = Date.now();
-  return {
+  const copy: FilmProject = {
     ...project,
     id: newId(),
     createdAt: now,
     updatedAt: now,
-    assets: project.assets.map((a) => ({ ...a, id: assetIds.get(a.id)! })),
+    assets: project.assets.map((a) => ({
+      ...a,
+      id: assetIds.get(a.id)!,
+      mediaIds: [],
+    })),
     episodes: project.episodes.map((e) => ({
       ...e,
       id: newId(),
       shots: e.shots.map((s) => ({
         ...s,
         id: newId(),
+        mediaIds: [],
+        imageMediaId: undefined,
         characterIds: s.characterIds.map((id) => assetIds.get(id)!),
         sceneId: assetIds.get(s.sceneId) ?? "",
         speakerId: assetIds.get(s.speakerId) ?? "",
       })),
     })),
   };
+  delete copy.workspace;
+  delete copy.media;
+  delete copy.generations;
+  return copy;
 }
 export function moveShot(
   episode: FilmEpisode,
@@ -405,6 +561,7 @@ export function productionManifest(
       s.description || "画面内容待补充",
       "",
       `图片提示词：${s.imagePrompt || "待补充"}`,
+      `分镜图片：${project.media?.find((media) => media.id === s.imageMediaId)?.path || "尚未选择"}`,
       `视频提示词：${s.videoPrompt || "待补充"}`,
       `台词：${s.dialogue || "无"}`,
       `说话角色：${assetName(s.speakerId)}；音色备注：${s.voice || "未设置"}`,
@@ -417,7 +574,7 @@ export function productionManifest(
     ...(report.issues.length
       ? report.issues.map((issue) => `- ${issue}`)
       : ["- 制作计划已准备，可以进入素材生成阶段。"]),
-    "- 图片、视频、配音生成及媒体预览待接入。",
+    "- 视频与配音生成流程待完善。",
     "- 成片合成与文件导出待接入。",
     "",
   ].join("\n");

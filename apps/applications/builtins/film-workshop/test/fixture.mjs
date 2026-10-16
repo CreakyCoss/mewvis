@@ -8,7 +8,7 @@ import { pathToFileURL } from "node:url";
 const result = await build({
   stdin: {
     contents:
-      'export * from "./main/model"; export * from "./main/view-state"; export * from "./main/repository"; export * from "./main/example"; export * from "./main/assistant-context"; export { default as tools } from "./main/host/tools";',
+      'export * from "./main/model"; export * from "./main/view-state"; export * from "./main/repository"; export * from "./main/example"; export * from "./main/assistant-context"; export * from "./main/media"; export { default as tools } from "./main/host/tools";',
     resolveDir: fileURLToPath(new URL("../", import.meta.url)),
   },
   bundle: true,

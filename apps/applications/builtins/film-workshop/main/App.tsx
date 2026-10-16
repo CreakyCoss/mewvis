@@ -5,8 +5,10 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getApplicationDataClient } from "@mewvis/app-sdk/data";
 import { getApplicationHost } from "@mewvis/app-sdk/browser";
+import { getApplicationFileClient } from "@mewvis/app-sdk/files";
 import {
   PROJECT_KINDS,
+  MAX_PROJECT_BYTES,
   copyProject,
   createProject,
   validateProject,
@@ -25,7 +27,11 @@ import "./studio.css";
 
 export default function App() {
   const repository = useMemo(
-    () => createRepository(getApplicationDataClient().storage),
+    () =>
+      createRepository(getApplicationDataClient().storage, {
+        files: getApplicationFileClient(),
+        workspaces: getApplicationDataClient().workspaces,
+      }),
     [],
   );
   const [projects, setProjects] = useState<FilmProject[]>([]),
@@ -38,6 +44,7 @@ export default function App() {
     [removing, setRemoving] = useState<FilmProject>();
   const [title, setTitle] = useState(""),
     [kind, setKind] = useState<ProjectKind>("comicDrama");
+  const [directory, setDirectory] = useState("");
   const upload = useRef<HTMLInputElement>(null);
   const reload = async () => {
     setLoading(true);
@@ -87,8 +94,13 @@ export default function App() {
       ),
     );
   const addProject = async (project: FilmProject) => {
-    await repository.save(project);
-    remember(project);
+    const attached = await repository.attach(
+      project,
+      dialog ? directory || undefined : undefined,
+    );
+    if (!attached) return;
+    await repository.save(attached);
+    remember(attached);
     setDialog(false);
     setSelectedId(project.id);
   };
@@ -122,6 +134,7 @@ export default function App() {
         onCreate={() => {
           setTitle("");
           setKind("comicDrama");
+          setDirectory("");
           setDialog(true);
         }}
         onImport={() => upload.current?.click()}
@@ -139,10 +152,8 @@ export default function App() {
             event.target.value = "";
             if (!file) return;
             void run(async () => {
-              if (file.size > 256 * 1024)
-                throw new Error(
-                  "项目文件超过 256 KiB，请导入影视工坊导出的项目 JSON。",
-                );
+              if (file.size > MAX_PROJECT_BYTES)
+                throw new Error("项目文件超过 16 MiB，请拆分项目后导入。");
               const project = copyProject(
                 validateProject(JSON.parse(await file.text())),
               );
@@ -199,6 +210,32 @@ export default function App() {
             <p className="film-muted">
               先创建第一集，进入工作台后可以随时添加分集、调整风格和比例。
             </p>
+            <Field
+              label="工作目录"
+              hint="剧本、素材和生成图片会保存在所选目录的项目子文件夹中。"
+            >
+              <div className="film-directory-field">
+                <input
+                  readOnly
+                  value={directory}
+                  placeholder="创建时选择工作目录"
+                />
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() =>
+                    void getApplicationDataClient()
+                      .workspaces.selectDirectory()
+                      .then((path) => {
+                        if (path) setDirectory(path);
+                      })
+                      .catch((reason) => setError(String(reason)))
+                  }
+                >
+                  选择文件夹
+                </button>
+              </div>
+            </Field>
             {error && (
               <p className="film-error" role="alert">
                 {error}
@@ -233,7 +270,7 @@ export default function App() {
         >
           <p>
             删除「{removing.title}
-            」的剧本、素材设定和分镜计划？历史助手会话会保留。
+            」从作品库中移除？工作目录中的项目文件、素材和历史助手会话会保留。
           </p>
           {error && (
             <p className="film-error" role="alert">

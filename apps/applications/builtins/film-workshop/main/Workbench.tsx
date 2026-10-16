@@ -45,6 +45,7 @@ import { ShotArtwork } from "./artwork";
 import { StageEditor } from "./StageEditors";
 import { Assistant } from "./Assistant";
 import { ReferencePanel } from "./ReferencePanel";
+import { useGeneration } from "./useGeneration";
 
 export function Workbench({
   initial,
@@ -63,6 +64,8 @@ export function Workbench({
 }) {
   const editor = useEditor(initial, repository, onSaved),
     { project, edit } = editor;
+  const generation = useGeneration(editor);
+  const [attaching, setAttaching] = useState(false);
   const [episodeId, setEpisodeId] = useState(initialView.episodeId);
   const [step, setStep] = useState<FlowStep>(initialView.step),
     [shotId, setShotId] = useState(initialView.shotId);
@@ -83,6 +86,23 @@ export function Workbench({
   const [episodeTitle, setEpisodeTitle] = useState(""),
     [leaving, setLeaving] = useState(false),
     [viewError, setViewError] = useState("");
+  const chooseWorkspace = async () => {
+    if (attaching) return;
+    setAttaching(true);
+    setViewError("");
+    try {
+      await editor.flush();
+      const attached = await repository.attach(editor.current.current);
+      if (attached) {
+        edit(() => attached);
+        await editor.flush();
+      }
+    } catch (reason) {
+      setViewError(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setAttaching(false);
+    }
+  };
   const episode =
     project.episodes.find((e) => e.id === episodeId) ?? project.episodes[0];
   useEffect(() => setExpandedEpisodeId(episode.id), [episode.id]);
@@ -287,6 +307,33 @@ export function Workbench({
           {editor.error && "更改仍在当前页面，请修正后重新保存。"}
         </div>
       )}
+      {!project.workspace && (
+        <div className="film-workspace-notice">
+          <span>选择工作目录，开始导入素材和生成分镜图。</span>
+          <button disabled={attaching} onClick={() => void chooseWorkspace()}>
+            {attaching ? "准备中…" : "选择工作目录"}
+          </button>
+        </div>
+      )}
+      {generation.error && (
+        <p className="film-save-error" role="alert">
+          {generation.error}
+          {generation.busy && (
+            <button onClick={generation.retry}>重新连接</button>
+          )}
+        </p>
+      )}
+      {generation.busy && (
+        <div className="film-workspace-notice" role="status">
+          <span>分镜生图进行中，结果会自动保存到对应镜头。</span>
+          <button
+            disabled={generation.starting || generation.stopping}
+            onClick={() => void generation.stop()}
+          >
+            {generation.stopping ? "停止中…" : "停止生图"}
+          </button>
+        </div>
+      )}
       <div className="film-workbench-body">
         {directoryOpen && (
           <button
@@ -425,6 +472,8 @@ export function Workbench({
               edit={edit}
               selectedShotId={shot?.id}
               onSelectShot={setShotId}
+              generate={generation.generate}
+              generationBusy={generation.busy}
             />
           </section>
           <footer className="film-stage-footer">
