@@ -40,6 +40,9 @@ const mimeTypes: Record<string, [PreviewKind, string]> = {
   ".wav": ["audio", "audio/wav"],
   ".ogg": ["audio", "audio/ogg"],
   ".m4a": ["audio", "audio/mp4"],
+  ".flac": ["audio", "audio/flac"],
+  ".aac": ["audio", "audio/aac"],
+  ".weba": ["audio", "audio/webm"],
   ".pdf": ["pdf", "application/pdf"],
 };
 for (const extension of [

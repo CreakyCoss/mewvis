@@ -32,7 +32,7 @@ MiniMax 型号预设参考[官方 Anthropic SDK 文档](https://platform.minimax
 
 参数支持默认值、调用时覆盖开关和 JSON Schema 约束。请求模板通过 `model`、`input`、`params`、`auth` 变量组合内容；整值变量保留原始 JSON 类型。返回配置通过 JSON Pointer 提取文本、JSON、URL 或 Base64 结果，也可声明业务成功条件、错误字段和任务查询规则。
 
-通用合同、参数校验、请求组合、返回解析和本地预览位于 `@mewvis/chat-contracts/model-configuration`，不依赖供应商预设。本地预览隐藏凭据，不发送请求。已配置的 HTTP / JSON 图片生成、图片编辑和视频生成用途可由内置 `generate_media` 工具执行；原生用途继续使用各自的协议适配器。
+通用合同、参数校验、请求组合、返回解析和本地预览位于 `@mewvis/chat-contracts/model-configuration`，不依赖供应商预设。本地预览隐藏凭据，不发送请求。已配置的 HTTP / JSON 图片生成、图片编辑、视频生成和语音合成用途可由内置 `generate_media` 工具执行；原生用途继续使用各自的协议适配器。语音合成提供 MiniMax `speech-2.8-hd`、`speech-2.8-turbo` 模板，使用[非流式 HTTP 接口](https://platform.minimax.io/docs/api-reference/speech-t2a-http)返回音频 URL，保存后可在聊天中播放。
 
 完整配置随 `runtimeModel.configuration` 传入。提交时为每个用途固定已解析的连接和请求模型 ID，使媒体用途继承原 Provider，而不会误用已独立配置的对话连接。媒体工具只使用当前选中模型的用途；没有可执行媒体用途或禁用工具调用时，不注册媒体工具，也不自动调用其他模型。
 
@@ -62,7 +62,7 @@ MiniMax 型号预设参考[官方 Anthropic SDK 文档](https://platform.minimax
 | 智谱    | `glm-image`                                     | [文生图](https://docs.bigmodel.cn/cn/guide/models/image-generation/glm-image)                                                                                                                                                             |
 | 智谱    | `cogvideox-3`                                   | [文生视频、图生视频、首尾帧生视频](https://docs.bigmodel.cn/cn/guide/models/video-generation/cogvideox-3)，[任务轮询](https://docs.bigmodel.cn/api-reference/模型-api/查询异步结果)                                                       |
 
-多模态对话预设还包括 DeepSeek Flash、MiniMax M3 系列、Kimi K3/K2.6、MiMo V2.5 和 GLM 5.3 Flash/FlashX。官方声明的音频、视频输入可保留在用途能力中，当前聊天桥接仍只放行文字和图片。预设不会自行赋予型号文档没有声明的生成能力，也不新增语音、实时通信或上传接口适配。
+多模态对话预设还包括 DeepSeek Flash、MiniMax M3 系列、Kimi K3/K2.6、MiMo V2.5 和 GLM 5.3 Flash/FlashX。官方声明的音频、视频输入可保留在用途能力中，当前聊天桥接仍只放行文字和图片。预设不会自行赋予型号文档没有声明的生成能力；语音合成通过媒体工具执行，语音转写、实时通信和上传接口尚未接入。
 
 ### 型号维护与清理
 

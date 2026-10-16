@@ -212,6 +212,55 @@ test("runtime IDs and capabilities are independent of any editor model catalog",
 const imagePurpose = () => editorPresets.instantiateTemplate("minimax-image-01", "image-generation");
 const configuration = (purposes: ModelPurpose[]): ModelConfiguration => ({ version: 1, purposes });
 
+test("speech templates configure independent audio generation and preserve it through settings and runtime snapshots", () => {
+  const p = applyProviderDefaults(createProviderConfig(true), "deepseek");
+  p.apiKey = "chat-key";
+  for (const modelId of ["speech-2.8-hd", "speech-2.8-turbo"]) {
+    const m = createModelConfig(p, { modelId: "deepseek-flash", modelName: "Chat with speech" });
+    const speech = applyPurposeTemplate(p, m, createModelPurpose("speech"), `minimax-${modelId}`);
+    assert.equal(speech.modelId, modelId);
+    assert.deepEqual(speech.input, ["text"]);
+    assert.deepEqual(speech.output, ["audio"]);
+    speech.connection!.apiKey = "speech-key";
+    m.configuration!.purposes.push(speech);
+    const saved = normalizeLlmSettingsConfig({ providers: [{ ...p, models: [m] }] });
+    assert.equal(validateLlmSettingsConfig(saved), "");
+    const runtime = createRuntimeModelInput(p, saved.providers[0].models[0]);
+    assert.deepEqual(runtime.input, ["text", "image"]);
+    const purpose = runtime.configuration!.purposes.find((entry) => entry.type === "speech")!;
+    const request = buildModelRequest(
+      purpose,
+      {
+        apiEndpoint: purpose.connection!.apiEndpoint!,
+        auth: { apiKey: purpose.connection!.apiKey! },
+        model: { id: purpose.modelId! },
+        input: { text: "你好" },
+      },
+      { voice_id: "custom-voice", speed: 1.2 },
+    );
+    assert.equal(request.url, "https://api.minimaxi.com/v1/t2a_v2");
+    assert.equal(request.headers.Authorization, "Bearer speech-key");
+    const body = request.body as {
+      model: string;
+      stream: boolean;
+      output_format: string;
+      voice_setting: { voice_id: string; speed: number };
+    };
+    assert.equal(body.model, modelId);
+    assert.equal(body.stream, false);
+    assert.equal(body.output_format, "url");
+    assert.equal(body.voice_setting.voice_id, "custom-voice");
+    assert.equal(body.voice_setting.speed, 1.2);
+    assert.deepEqual(
+      parseModelResponse(purpose, {
+        base_resp: { status_code: 0 },
+        data: { audio: "https://cdn.example/speech.mp3" },
+      }).outputs,
+      [{ type: "audio", source: "url", value: "https://cdn.example/speech.mp3", mimeType: "audio/mpeg" }],
+    );
+  }
+});
+
 test("all request presets validate and preserve typed template values", () => {
   for (const preset of editorPresets.listTemplates())
     assert.equal(getModelConfigurationError(configuration([preset.purpose])), "", preset.id);

@@ -4,7 +4,9 @@ const object = (value: unknown): Record<string, unknown> | undefined =>
   value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : undefined;
 const text = (value: unknown) => (typeof value === "string" ? value.slice(0, 2000) : undefined);
 const purpose = (value: unknown): ChatMediaResult["purpose"] =>
-  value === "image-generation" || value === "image-editing" || value === "video-generation" ? value : undefined;
+  value === "image-generation" || value === "image-editing" || value === "video-generation" || value === "speech"
+    ? value
+    : undefined;
 
 export function startMediaResult(args: unknown): ChatMediaResult | undefined {
   const input = object(args);
@@ -27,7 +29,7 @@ export function readMediaResult(value: unknown, previous?: ChatMediaResult): Cha
     const item = object(value);
     if (
       !item ||
-      (item.type !== "image" && item.type !== "video") ||
+      (item.type !== "image" && item.type !== "video" && item.type !== "audio") ||
       typeof item.filePath !== "string" ||
       item.filePath.length > 4096 ||
       !/^(\/|[a-z]:[\\/]|\\\\)/i.test(item.filePath) ||

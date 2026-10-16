@@ -7,6 +7,10 @@ import { DesktopChatEnvironment, useDesktopChatRecord } from "../../src/chat/des
 import type { DesktopChatService } from "../../src/chat/desktop";
 import { Chat, EmptyComposer, useChatComposer, type ComposerBinding } from "../../src/chat/react";
 import { AgentRuntimeEventType as E } from "../../src/agent-client/wire";
+import { ChatEnvironment } from "../../src/chat/react/provider";
+import { ToolBlock } from "../../src/chat/react/messages/block/types/tool";
+import { renderFilePreview } from "@mewvis/app-sdk/files/view";
+import type { ApplicationFilePreviewResource } from "@mewvis/app-sdk/files";
 import "../../src/App.css";
 
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
@@ -614,8 +618,107 @@ async function run() {
   );
   await applicationSession.close();
   await checkApprovals();
+  await checkAudio();
   results.textContent = `PASS ${assertions.length} assertions\n${assertions.join("\n")}`;
   results.style.whiteSpace = "pre-wrap";
+}
+async function checkAudio() {
+  const bytes = new Uint8Array(32044);
+  const view = new DataView(bytes.buffer);
+  const tag = (offset: number, value: string) => {
+    for (let index = 0; index < value.length; index++) bytes[offset + index] = value.charCodeAt(index);
+  };
+  tag(0, "RIFF");
+  view.setUint32(4, bytes.length - 8, true);
+  tag(8, "WAVE");
+  tag(12, "fmt ");
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
+  view.setUint32(24, 8000, true);
+  view.setUint32(28, 16000, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  tag(36, "data");
+  view.setUint32(40, bytes.length - 44, true);
+  const url = URL.createObjectURL(new Blob([bytes], { type: "audio/wav" }));
+  const filePath = "/workspace/generated-media/speech.wav";
+  const resource: ApplicationFilePreviewResource = {
+    id: "speech-preview",
+    name: "speech.wav",
+    size: bytes.length,
+    mimeType: "audio/wav",
+    kind: "audio",
+    expiresAt: Date.now() + 60_000,
+    resourcePath: "speech-preview",
+    resourceUrl: url,
+  };
+  let released = 0;
+  const filePreview = {
+    async open(container: Parameters<typeof renderFilePreview>[0], input: { filePath: string }) {
+      assert(input.filePath === filePath, "Generated audio preview uses its saved local file path");
+      const preview = renderFilePreview(container, resource);
+      return {
+        ready: preview.ready,
+        close: async () => {
+          preview.close();
+          released++;
+        },
+      };
+    },
+    async openDialog() {
+      return resource;
+    },
+  };
+  root = createRoot(fixture);
+  const render = (status: "running" | "completed") =>
+    root.render(
+      <ChatEnvironment filePreview={filePreview}>
+        <ToolBlock
+          showProcess={false}
+          block={{
+            id: "speech",
+            type: "tool",
+            toolCallId: "speech",
+            name: "generate_media",
+            events: [],
+            status: status === "running" ? "running" : "done",
+            media: {
+              status,
+              purpose: "speech",
+              outputs:
+                status === "running" ? [] : [{ type: "audio", filePath, mimeType: "audio/wav", size: bytes.length }],
+            },
+          }}
+        />
+      </ChatEnvironment>,
+    );
+  try {
+    await act(async () => render("running"));
+    assert(fixture.textContent?.includes("正在生成音频"), "Speech generation displays audio progress");
+    await act(async () => render("completed"));
+    fixture.scrollIntoView();
+    for (let attempts = 0; attempts < 50 && !fixture.querySelector("audio"); attempts++)
+      await act(async () => new Promise((resolve) => setTimeout(resolve, 20)));
+    const audio = fixture.querySelector("audio")!;
+    assert(audio?.controls && !audio.autoplay, "Completed speech exposes playback controls without autoplay");
+    assert(
+      fixture.textContent?.includes("音频已生成") && fixture.textContent?.includes("音频 1"),
+      "Audio cards display even when tool process is hidden",
+    );
+    for (let attempts = 0; attempts < 50 && audio.readyState < 1; attempts++)
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    assert(audio.duration === 2, "The shared file renderer decodes the saved WAV audio");
+    audio.muted = true;
+    await audio.play();
+    assert(!audio.paused, "Generated audio can play");
+    audio.pause();
+    assert(audio.paused, "Generated audio can pause");
+  } finally {
+    await act(async () => root.unmount());
+    URL.revokeObjectURL(url);
+  }
+  assert(released === 1, "Unmounting an audio card releases its file preview");
 }
 async function checkApprovals() {
   const session = await createChatSession({
@@ -714,7 +817,13 @@ async function checkApprovals() {
   });
   await session.close();
 }
-run().catch((error) => {
+(new URLSearchParams(location.search).has("audio")
+  ? checkAudio().then(() => {
+      results.textContent = `PASS ${assertions.length} assertions\n${assertions.join("\n")}`;
+      results.style.whiteSpace = "pre-wrap";
+    })
+  : run()
+).catch((error) => {
   results.textContent = `FAIL ${String(error.stack || error)}\n${assertions.join("\n")}`;
   results.style.whiteSpace = "pre-wrap";
   console.error(error);

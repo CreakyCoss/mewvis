@@ -242,7 +242,54 @@ test("stopping media generation finalizes progress and keeps completed artifacts
   assert.match(block.media.error, /上游/);
   await session.close();
 });
-test("media display accepts only absolute image/video paths and excludes model discovery", async () => {
+test("speech generation progress, audio metadata and saved playback references survive history restoration", async () => {
+  const { session, calls, emit } = await setup();
+  await session.send({ text: "生成一段语音" });
+  emit({
+    type: E.ToolExecutionStart,
+    toolCallId: "speech",
+    toolName: "generate_media",
+    args: { action: "generate", purpose: "speech" },
+  });
+  const media = () => session.getSnapshot().messages[1].blocks.find((block) => block.type === "tool")?.media;
+  assert.equal(media()?.purpose, "speech");
+  assert.equal(media()?.status, "running");
+  const output = {
+    type: "audio",
+    filePath: "/workspace/generated-media/speech.mp3",
+    mimeType: "audio/mpeg",
+    size: 1024,
+  };
+  emit({
+    type: E.ToolExecutionEnd,
+    toolCallId: "speech",
+    toolName: "generate_media",
+    isError: false,
+    result: {
+      details: {
+        status: "completed",
+        purpose: "speech",
+        outputs: [{ ...output, resourceUrl: "https://temporary.example" }],
+      },
+    },
+  });
+  emit({ type: E.Done, text: "语音已保存" });
+  await session.flush();
+  assert.deepEqual(media(), {
+    status: "completed",
+    purpose: "speech",
+    message: undefined,
+    error: undefined,
+    outputs: [output],
+  });
+  const saved = JSON.parse(JSON.stringify(calls.saved.at(-1)));
+  assert.doesNotMatch(JSON.stringify(media()), /temporary\.example|resourceUrl/);
+  const restored = await setup({ storage: { load: async () => saved } });
+  assert.deepEqual(restored.session.getSnapshot().messages[1].blocks[0].media, JSON.parse(JSON.stringify(media())));
+  await restored.session.close();
+  await session.close();
+});
+test("media display accepts only absolute image/video/audio paths and excludes model discovery", async () => {
   const outputs = [
     "https://example.com/image.png",
     "data:image/png;base64,abc",
@@ -250,6 +297,8 @@ test("media display accepts only absolute image/video paths and excludes model d
     "/workspace/../private/image.png",
     "/bad\u0000.png",
   ].map((filePath) => ({ type: "image", filePath }));
+  outputs.push({ type: "audio", filePath: "https://example.com/speech.mp3" });
+  outputs.push({ type: "audio", filePath: "relative.mp3" });
   outputs.push({ type: "text", filePath: "/workspace/text.txt" });
   assert.deepEqual(readMediaResult({ status: "completed", outputs })?.outputs, []);
   assert.equal(readMediaResult({ purposes: [] }), undefined);

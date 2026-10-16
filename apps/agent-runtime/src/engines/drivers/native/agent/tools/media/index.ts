@@ -24,7 +24,7 @@ export const MEDIA_TOOL_DEFINITION = {
   name: "generate_media",
   label: "生成媒体",
   description:
-    "Generate or edit images and generate videos using only the currently selected model's configuration. First call action=list to discover its available purposes, inputSchema and overridable parameters. Then call action=generate with input matching that schema. The tool handles model credentials, provider polling and saving files. Wait for the result and use its absolute file paths in later tools or the answer. Do not switch models or invent unsupported purposes or options. A saved path does not mean you have visually inspected the result. On failure or stopped waiting, do not automatically resubmit a paid generation request.",
+    "Generate or edit images, generate videos and synthesize speech using only the currently selected model's configuration. First call action=list to discover its available purposes, inputSchema and overridable parameters. Then call action=generate with input matching that schema. The tool handles model credentials, provider polling and saving files. Wait for the result and use its absolute file paths in later tools or the answer. Do not switch models or invent unsupported purposes or options. A saved path does not mean you have inspected or listened to the result. On failure or stopped waiting, do not automatically resubmit a paid generation request.",
   parameters: {
     type: "object",
     properties: {
@@ -41,7 +41,7 @@ export const MEDIA_TOOL_DEFINITION = {
         type: "string",
         optional: true,
         description:
-          "Required for generate; optional filter for list. image-generation, image-editing or video-generation.",
+          "Required for generate; optional filter for list. image-generation, image-editing, video-generation or speech.",
       },
       input: {
         type: "json",
@@ -81,7 +81,7 @@ const argumentsSchema = z
   .object({
     action: z.enum(["list", "generate"]),
     purpose: z
-      .enum(["image-generation", "image-editing", "video-generation"])
+      .enum(["image-generation", "image-editing", "video-generation", "speech"])
       .optional(),
     input: z.json().optional(),
     files: z.json().optional(),
@@ -173,13 +173,18 @@ export function createMediaTool(context: MediaToolContext) {
   ];
   const catalog = model.configuration.purposes.filter(
     (purpose) =>
-      ["image-generation", "image-editing", "video-generation"].includes(
-        purpose.type,
-      ) &&
+      [
+        "image-generation",
+        "image-editing",
+        "video-generation",
+        "speech",
+      ].includes(purpose.type) &&
       purpose.adapter === "http-json" &&
       purpose.request &&
       purpose.response &&
-      purpose.output.some((type) => type === "image" || type === "video") &&
+      purpose.output.some(
+        (type) => type === "image" || type === "video" || type === "audio",
+      ) &&
       (!!purpose.connection?.apiEndpoint ||
         /^https?:\/\//i.test(purpose.request.path)),
   );

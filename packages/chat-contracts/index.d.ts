@@ -69,14 +69,15 @@ export type ChatToolEvent = {
 
 /** Saved file metadata only. Temporary preview URLs are created by each view. */
 export type ChatMediaArtifact = {
-  type: "image" | "video";
+  type: "image" | "video" | "audio";
   filePath: string;
   mimeType?: string;
   size?: number;
 };
 export type ChatMediaResult = {
   status: "running" | "completed" | "failed" | "stopped";
-  purpose?: "image-generation" | "image-editing" | "video-generation";
+  purpose?:
+    "image-generation" | "image-editing" | "video-generation" | "speech";
   message?: string;
   error?: string;
   outputs: ChatMediaArtifact[];

@@ -1,5 +1,14 @@
 import { useEffect, useRef, useState } from "react";
-import { CheckIcon, CircleAlertIcon, CopyIcon, ExpandIcon, ImageIcon, Loader2Icon, VideoIcon } from "lucide-react";
+import {
+  CheckIcon,
+  CircleAlertIcon,
+  CopyIcon,
+  ExpandIcon,
+  ImageIcon,
+  Loader2Icon,
+  VideoIcon,
+  Volume2Icon,
+} from "lucide-react";
 import { writeClipboardText } from "@mewvis/app-sdk/browser";
 import { getApplicationFileClient, type FilePreviewView } from "@mewvis/app-sdk/files";
 import { Button } from "design-system/components/ui/button";
@@ -24,7 +33,7 @@ function MediaArtifact({ artifact, index }: { artifact: ChatMediaArtifact; index
   const [revision, setRevision] = useState(0);
   const [opening, setOpening] = useState(false);
   const [copied, setCopied] = useState(false);
-  const title = `${artifact.type === "video" ? "视频" : "图片"} ${index + 1}`;
+  const title = `${artifact.type === "audio" ? "音频" : artifact.type === "video" ? "视频" : "图片"} ${index + 1}`;
   const name = artifact.filePath.split(/[\\/]/).at(-1) || title;
 
   useEffect(() => {
@@ -89,7 +98,7 @@ function MediaArtifact({ artifact, index }: { artifact: ChatMediaArtifact; index
   };
   return (
     <figure className="min-w-0 overflow-hidden rounded-xl border border-border/60 bg-background/60">
-      <div className="relative h-64 bg-muted/25 sm:h-72">
+      <div className={`relative bg-muted/25 ${artifact.type === "audio" ? "h-28" : "h-64 sm:h-72"}`}>
         <div
           ref={container}
           aria-label={`${title}预览`}
@@ -167,7 +176,8 @@ function MediaArtifact({ artifact, index }: { artifact: ChatMediaArtifact; index
 
 export function MediaResult({ result }: { result: ChatMediaResult }) {
   const video = result.purpose === "video-generation";
-  const type = video ? "视频" : "图片";
+  const audio = result.purpose === "speech";
+  const type = audio ? "音频" : video ? "视频" : "图片";
   const label =
     result.status === "running"
       ? `正在生成${type}`
@@ -181,9 +191,11 @@ export function MediaResult({ result }: { result: ChatMediaResult }) {
       ? Loader2Icon
       : result.status === "failed"
         ? CircleAlertIcon
-        : video
-          ? VideoIcon
-          : ImageIcon;
+        : audio
+          ? Volume2Icon
+          : video
+            ? VideoIcon
+            : ImageIcon;
   return (
     <section aria-label="媒体生成结果" className="w-[36rem] min-w-0 max-w-full space-y-3 py-1">
       <div className="flex items-center gap-2 text-xs text-muted-foreground" role="status">
@@ -204,7 +216,7 @@ export function MediaResult({ result }: { result: ChatMediaResult }) {
       ) : null}
       {result.outputs.length ? (
         <div
-          className={`grid min-w-0 gap-3 ${result.outputs.length > 1 ? "grid-cols-[repeat(auto-fit,minmax(min(100%,14rem),1fr))]" : "max-w-md grid-cols-1"}`}
+          className={`grid min-w-0 gap-3 ${result.outputs.length > 1 && !audio ? "grid-cols-[repeat(auto-fit,minmax(min(100%,14rem),1fr))]" : "max-w-md grid-cols-1"}`}
         >
           {result.outputs.map((artifact, index) => (
             <MediaArtifact key={artifact.filePath} artifact={artifact} index={index} />

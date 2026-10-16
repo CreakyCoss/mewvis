@@ -498,7 +498,7 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
                                       {option.label}
                                       {capabilities.available.operations.includes(option.value)
                                         ? ""
-                                        : ["image-generation", "image-editing", "video-generation"].includes(
+                                        : ["image-generation", "image-editing", "video-generation", "speech"].includes(
                                               option.value,
                                             ) &&
                                             model.configuration?.purposes.some(

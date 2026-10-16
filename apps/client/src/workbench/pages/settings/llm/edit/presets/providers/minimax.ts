@@ -1,4 +1,4 @@
-import type { ProviderPreset } from "../types";
+import type { ModelPreset, ProviderPreset } from "../types";
 
 export const minimaxPreset: ProviderPreset = {
   id: "minimax-cn",
@@ -957,5 +957,88 @@ export const minimaxPreset: ProviderPreset = {
         },
       ],
     },
+    ...["speech-2.8-hd", "speech-2.8-turbo"].map((modelId): ModelPreset => ({
+      modelId,
+      label: modelId,
+      sourceUrls: ["https://platform.minimax.io/docs/api-reference/speech-t2a-http"],
+      templates: [
+        {
+          id: `minimax-${modelId}`,
+          version: 1,
+          label: "语音合成",
+          purpose: {
+            type: "speech",
+            adapter: "http-json",
+            input: ["text"],
+            output: ["audio"],
+            inputSchema: {
+              type: "object",
+              required: ["text"],
+              properties: {
+                text: { type: "string", minLength: 1, maxLength: 9999 },
+              },
+            },
+            parameters: [
+              {
+                name: "voice_id",
+                type: "string",
+                default: "male-qn-qingse",
+                overridable: true,
+                schema: { minLength: 1 },
+              },
+              {
+                name: "speed",
+                type: "number",
+                default: 1,
+                overridable: true,
+                schema: { minimum: 0.5, maximum: 2 },
+              },
+              {
+                name: "vol",
+                type: "number",
+                default: 1,
+                overridable: true,
+                schema: { exclusiveMinimum: 0, maximum: 10 },
+              },
+              {
+                name: "pitch",
+                type: "integer",
+                default: 0,
+                overridable: true,
+                schema: { minimum: -12, maximum: 12 },
+              },
+            ],
+            request: {
+              method: "POST",
+              path: "/v1/t2a_v2",
+              headers: {
+                Authorization: "Bearer {{auth.apiKey}}",
+                "Content-Type": "application/json",
+              },
+              body: {
+                model: "{{model.id}}",
+                text: "{{input.text}}",
+                stream: false,
+                output_format: "url",
+                voice_setting: {
+                  voice_id: "{{params.voice_id}}",
+                  speed: "{{params.speed}}",
+                  vol: "{{params.vol}}",
+                  pitch: "{{params.pitch}}",
+                },
+                audio_setting: { sample_rate: 32000, bitrate: 128000, format: "mp3", channel: 1 },
+              },
+            },
+            response: {
+              mode: "direct",
+              outputs: [{ type: "audio", source: "url", path: "/data/audio", mimeType: "audio/mpeg" }],
+              success: { path: "/base_resp/status_code", equals: 0 },
+              errorPath: "/base_resp/status_msg",
+            },
+          },
+          sampleInput: { text: "你好，欢迎来到 Mewvis。" },
+        },
+      ],
+    })),
   ],
 };

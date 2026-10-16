@@ -24,6 +24,17 @@ const extensions: Record<string, string> = {
   "video/mp4": "mp4",
   "video/webm": "webm",
   "video/quicktime": "mov",
+  "audio/mpeg": "mp3",
+  "audio/mp3": "mp3",
+  "audio/wav": "wav",
+  "audio/x-wav": "wav",
+  "audio/ogg": "ogg",
+  "audio/mp4": "m4a",
+  "audio/x-m4a": "m4a",
+  "audio/flac": "flac",
+  "audio/x-flac": "flac",
+  "audio/aac": "aac",
+  "audio/webm": "weba",
 };
 
 function detectMime(bytes: Buffer): string | undefined {
@@ -34,6 +45,14 @@ function detectMime(bytes: Buffer): string | undefined {
   if (bytes[0] === 255 && bytes[1] === 216 && bytes[2] === 255)
     return "image/jpeg";
   if (bytes.subarray(0, 3).toString() === "GIF") return "image/gif";
+  if (bytes.subarray(0, 3).toString() === "ID3") return "audio/mpeg";
+  if (
+    bytes.subarray(0, 4).toString() === "RIFF" &&
+    bytes.subarray(8, 12).toString() === "WAVE"
+  )
+    return "audio/wav";
+  if (bytes.subarray(0, 4).toString() === "OggS") return "audio/ogg";
+  if (bytes.subarray(0, 4).toString() === "fLaC") return "audio/flac";
   if (
     bytes.subarray(0, 4).toString() === "RIFF" &&
     bytes.subarray(8, 12).toString() === "WEBP"
@@ -149,7 +168,7 @@ export async function collectMedia(
   try {
     if (
       !mimeType ||
-      !["image", "video"].includes(output.type) ||
+      !["image", "video", "audio"].includes(output.type) ||
       !mimeType.toLowerCase().startsWith(output.type + "/")
     )
       throw new Error("生成产物的媒体类型与用途配置不匹配，请检查 MIME 配置");
@@ -176,9 +195,13 @@ export async function collectMedia(
       await options.authorize(temporary);
       if (
         size + chunk.length >
-        (output.type === "image" ? 64 : 2048) * 1024 * 1024
+        (output.type === "image" ? 64 : output.type === "audio" ? 256 : 2048) *
+          1024 *
+          1024
       )
-        throw new Error("生成文件超过大小上限（图片 64 MiB，视频 2 GiB）");
+        throw new Error(
+          "生成文件超过大小上限（图片 64 MiB，音频 256 MiB，视频 2 GiB）",
+        );
       let offset = 0;
       while (offset < chunk.length)
         offset += (

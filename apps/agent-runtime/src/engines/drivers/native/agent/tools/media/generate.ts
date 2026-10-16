@@ -95,7 +95,7 @@ export async function runMediaGeneration(
     }
     if (!outputs.some((output) => output.filePath))
       throw new Error(
-        "接口没有返回可保存的图片或视频，请检查用途的响应提取规则",
+        "接口没有返回可保存的图片、视频或音频，请检查用途的响应提取规则",
       );
     return redactMedia(
       {

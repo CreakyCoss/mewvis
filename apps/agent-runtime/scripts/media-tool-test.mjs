@@ -46,6 +46,9 @@ await build({
         (path) =>
           `export * from ${JSON.stringify(join(runtime, "src", path))};`,
       )
+      .concat(
+        `export { minimaxPreset } from ${JSON.stringify(join(runtime, "../client/src/workbench/pages/settings/llm/edit/presets/providers/minimax.ts"))};`,
+      )
       .join("\n"),
     loader: "ts",
     resolveDir: runtime,
@@ -164,6 +167,102 @@ test("generic workflow composes requests, saves large outputs and deduplicates c
   assert.equal(JSON.parse(requests[0].init.body).n, 1);
   assert.deepEqual(await readFile(a.outputs[0].filePath), png);
   assert.doesNotMatch(JSON.stringify(a), /model-fixture-key|base64|iVBOR/);
+});
+
+test("speech presets list, submit and save playable audio paths through the existing media workflow", async (t) => {
+  const audio = Buffer.from("ID3-synthesized-audio");
+  const requests = [];
+  const f = await fixture(t, async (url, init) => {
+    requests.push({ url: String(url), init });
+    if (init.method === "POST")
+      return Response.json({
+        base_resp: { status_code: 0 },
+        data: { audio: "https://cdn.example/speech.mp3" },
+      });
+    assert.equal(new Headers(init.headers).get("authorization"), null);
+    return new Response(audio, { headers: { "content-type": "audio/mpeg" } });
+  });
+  const preset = api.minimaxPreset.models.find(
+    (model) => model.modelId === "speech-2.8-hd",
+  );
+  const purpose = structuredClone(preset.templates[0].purpose);
+  purpose.modelId = preset.modelId;
+  purpose.connection = {
+    apiEndpoint: "https://tts.example",
+    apiKey: "speech-secret",
+  };
+  f.model.configuration.purposes = [purpose];
+  const list = await f.call({ action: "list", purpose: "speech" });
+  assert.deepEqual(
+    list.purposes.map((entry) => entry.purpose),
+    ["speech"],
+  );
+  assert.deepEqual(list.purposes[0].inputSchema.required, ["text"]);
+  assert.doesNotMatch(JSON.stringify(list), /speech-secret|tts\.example/);
+  const args = {
+    purpose: "speech",
+    input: { text: "Hello" },
+    parameters: { speed: 1.2 },
+  };
+  const result = await f.generate(args, "speech");
+  assert.equal(result.status, "completed", JSON.stringify(result));
+  assert.equal(result.modelId, "speech-2.8-hd");
+  assert.equal(result.purpose, "speech");
+  assert.equal(requests[0].url, "https://tts.example/v1/t2a_v2");
+  assert.equal(
+    new Headers(requests[0].init.headers).get("authorization"),
+    "Bearer speech-secret",
+  );
+  const body = JSON.parse(requests[0].init.body);
+  assert.equal(body.model, "speech-2.8-hd");
+  assert.equal(body.text, "Hello");
+  assert.equal(body.stream, false);
+  assert.equal(body.output_format, "url");
+  assert.equal(body.voice_setting.speed, 1.2);
+  assert.equal(body.audio_setting.format, "mp3");
+  assert.equal(result.outputs[0].type, "audio");
+  assert.equal(result.outputs[0].mimeType, "audio/mpeg");
+  assert.match(result.outputs[0].filePath, /\.mp3$/);
+  assert.deepEqual(await readFile(result.outputs[0].filePath), audio);
+  assert.doesNotMatch(
+    JSON.stringify(result),
+    /speech-secret|cdn\.example|ID3-synthesized/,
+  );
+  assert.deepEqual(await f.generate(args, "speech"), result);
+  assert.equal(requests.length, 2);
+});
+
+test("base64 speech infers WAV MIME and rejects mismatched media without leaving files", async (t) => {
+  const audio = Buffer.from("RIFF0000WAVE-audio-data");
+  const f = await fixture(t, async () =>
+    Response.json({
+      base_resp: { status_code: 0 },
+      data: { audio: audio.toString("base64") },
+    }),
+  );
+  const purpose = structuredClone(
+    api.minimaxPreset.models.find(
+      (model) => model.modelId === "speech-2.8-turbo",
+    ).templates[0].purpose,
+  );
+  purpose.connection = { apiEndpoint: "https://tts.example" };
+  purpose.response.outputs = [
+    { type: "audio", source: "base64", path: "/data/audio" },
+  ];
+  f.model.configuration.purposes = [purpose];
+  const args = { purpose: "speech", input: { text: "Hello" } };
+  const result = await f.generate(args);
+  assert.equal(result.status, "completed", JSON.stringify(result));
+  assert.equal(result.outputs[0].mimeType, "audio/wav");
+  assert.match(result.outputs[0].filePath, /\.wav$/);
+  assert.deepEqual(await readFile(result.outputs[0].filePath), audio);
+  purpose.response.outputs[0].mimeType = "video/mp4";
+  f.reset();
+  const failed = await f.generate(args);
+  assert.equal(failed.status, "failed");
+  assert.match(failed.error, /媒体类型/);
+  assert.deepEqual(failed.outputs, []);
+  assert.equal((await readdir(join(f.workspace, "generated-media"))).length, 1);
 });
 
 test("media tools are absent unless the selected model has executable media purposes and tool calling", async (t) => {
