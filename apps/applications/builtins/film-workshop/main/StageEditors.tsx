@@ -2,7 +2,7 @@ import {
   NativeSelect,
   NativeSelectOption,
 } from "design-system/components/ui/native-select";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,17 +12,21 @@ import {
 import {
   ArrowDown,
   ArrowUp,
+  Box,
   CircleAlert,
   CircleCheck,
   Copy,
   FileText,
   Image,
+  ImagePlus,
   LoaderCircle,
   Plus,
   MoreHorizontal,
+  MapPin,
   Square,
   Trash2,
   Upload,
+  UserRound,
   Video,
   Volume2,
 } from "lucide-react";
@@ -51,8 +55,8 @@ import { MEDIA_CAPABILITIES } from "./capabilities";
 import { CapabilityNotice, EmptyState, Field } from "./components/Fields";
 import { Dialog } from "./components/Dialog";
 import { ShotArtwork } from "./artwork";
-import { MediaPanel } from "./components/MediaPanel";
-import { GENERATION_TYPES } from "./media";
+import { LocalPreview, MediaPanel } from "./components/MediaPanel";
+import { GENERATION_TYPES, mediaPath } from "./media";
 
 type Props = {
   project: FilmProject;
@@ -293,8 +297,39 @@ function Assets(props: Props) {
   const [kind, setKind] = useState<AssetKind>("character");
   const [selectedId, setSelectedId] = useState("");
   const [removing, setRemoving] = useState<FilmAsset>();
+  const strip = useRef<HTMLDivElement>(null);
   const items = props.project.assets.filter((a) => a.kind === kind);
   const selected = items.find((a) => a.id === selectedId) ?? items[0];
+  useEffect(() => {
+    const rail = strip.current;
+    const active = rail?.querySelector<HTMLElement>('[aria-pressed="true"]');
+    if (!rail || !active) return;
+    const item = active.getBoundingClientRect();
+    const viewport = rail.getBoundingClientRect();
+    if (item.left < viewport.left) rail.scrollLeft += item.left - viewport.left;
+    else if (item.right > viewport.right)
+      rail.scrollLeft += item.right - viewport.right;
+  }, [selected?.id]);
+  const icons = { character: UserRound, scene: MapPin, prop: Box };
+  const Icon = icons[kind];
+  const references = (props.project.media ?? []).filter((media) =>
+    selected?.mediaIds?.includes(media.id),
+  );
+  const usedBy = props.project.episodes.reduce(
+    (count, episode) =>
+      count +
+      episode.shots.filter(
+        (shot) =>
+          shot.sceneId === selected?.id ||
+          shot.characterIds.includes(selected?.id ?? ""),
+      ).length,
+    0,
+  );
+  const add = () => {
+    const asset = blankAsset(kind);
+    props.edit((p) => ({ ...p, assets: [...p.assets, asset] }));
+    setSelectedId(asset.id);
+  };
   const update = (patch: Partial<FilmAsset>) =>
     props.edit((p) => ({
       ...p,
@@ -304,121 +339,182 @@ function Assets(props: Props) {
     }));
   return (
     <div className="film-assets">
-      <div className="film-section-toolbar">
-        <div className="film-segmented" aria-label="素材类型">
-          {Object.entries(ASSET_KINDS).map(([id, label]) => (
-            <button
-              key={id}
-              aria-pressed={kind === id}
-              onClick={() => {
-                setKind(id as AssetKind);
-                setSelectedId("");
-              }}
-            >
-              {label}
-              <span>
-                {props.project.assets.filter((a) => a.kind === id).length}
-              </span>
-            </button>
-          ))}
+      <div className="film-assets-toolbar">
+        <div className="film-asset-tabs" role="group" aria-label="素材类型">
+          {Object.entries(ASSET_KINDS).map(([id, label]) => {
+            const KindIcon = icons[id as AssetKind];
+            return (
+              <button
+                key={id}
+                type="button"
+                aria-pressed={kind === id}
+                onClick={() => {
+                  setKind(id as AssetKind);
+                  setSelectedId("");
+                }}
+              >
+                <KindIcon size={15} aria-hidden />
+                {label}
+                <span>
+                  {props.project.assets.filter((a) => a.kind === id).length}
+                </span>
+              </button>
+            );
+          })}
         </div>
         <button
-          className="film-primary"
+          type="button"
+          className="film-primary film-asset-add"
+          aria-label={`添加${ASSET_KINDS[kind]}`}
+          title={`添加${ASSET_KINDS[kind]}`}
           disabled={props.project.assets.length >= 150}
-          onClick={() => {
-            const asset = blankAsset(kind);
-            props.edit((p) => ({ ...p, assets: [...p.assets, asset] }));
-            setSelectedId(asset.id);
-          }}
+          onClick={add}
         >
           <Plus size={16} />
-          添加{ASSET_KINDS[kind]}
+          <span>添加{ASSET_KINDS[kind]}</span>
         </button>
       </div>
       {selected ? (
-        <div className="film-split-editor">
-          <div className="film-item-list" aria-label="素材列表">
-            {items.map((a) => (
-              <button
-                key={a.id}
-                aria-pressed={a.id === selected.id}
-                onClick={() => setSelectedId(a.id)}
-              >
-                <span className="film-avatar">{a.name.slice(0, 1)}</span>
-                <span>
-                  <strong>{a.name || "未命名"}</strong>
-                  <small>{a.description || "补充形象与设定"}</small>
-                </span>
-              </button>
-            ))}
+        <>
+          <div
+            ref={strip}
+            className="film-asset-strip"
+            role="group"
+            aria-label="素材列表"
+          >
+            {items.map((asset) => {
+              const cover = props.project.media?.find(
+                (media) =>
+                  asset.mediaIds?.includes(media.id) && media.kind === "image",
+              );
+              return (
+                <button
+                  key={asset.id}
+                  type="button"
+                  aria-pressed={asset.id === selected.id}
+                  onClick={() => setSelectedId(asset.id)}
+                >
+                  <span className="film-asset-thumbnail" aria-hidden>
+                    {cover && props.project.workspace ? (
+                      <LocalPreview filePath={mediaPath(props.project, cover)} />
+                    ) : (
+                      <Icon size={20} />
+                    )}
+                  </span>
+                  <span className="film-asset-summary">
+                    <strong>{asset.name || "未命名"}</strong>
+                    <small>{asset.description || "待补充设定"}</small>
+                  </span>
+                </button>
+              );
+            })}
           </div>
-          <div className="film-form">
-            <div className="film-editor-heading">
-              <h3>{ASSET_KINDS[kind]}设定</h3>
-              <button
-                className="film-icon-button film-danger"
-                aria-label={`删除${ASSET_KINDS[kind]}`}
-                onClick={() => setRemoving(selected)}
-              >
-                <Trash2 size={16} />
-              </button>
+          <article
+            className="film-asset-detail"
+            aria-label={`${ASSET_KINDS[kind]}设定`}
+          >
+            <header className="film-asset-detail-header">
+              <div className="film-asset-identity">
+                <span>{ASSET_KINDS[kind]}设定</span>
+                <Field label={`${ASSET_KINDS[kind]}名称`}>
+                  <input
+                    value={selected.name}
+                    maxLength={120}
+                    placeholder={`未命名${ASSET_KINDS[kind]}`}
+                    onChange={(e) => update({ name: e.target.value })}
+                  />
+                </Field>
+              </div>
+              <div className="film-asset-detail-actions">
+                {usedBy > 0 && <span>{usedBy} 个镜头引用</span>}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="film-icon-button" aria-label="素材操作">
+                      <MoreHorizontal size={17} />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="film-popup">
+                    <DropdownMenuItem
+                      variant="destructive"
+                      onSelect={() => setRemoving(selected)}
+                    >
+                      <Trash2 size={15} />
+                      删除{ASSET_KINDS[kind]}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </header>
+            <div className="film-asset-detail-body">
+              <section className="film-asset-definitions" aria-label="文字设定">
+                <Field label="外观与设定">
+                  <textarea
+                    rows={3}
+                    value={selected.description}
+                    maxLength={12000}
+                    placeholder={
+                      kind === "character"
+                        ? "记录外貌、性格、服装与辨识特征…"
+                        : kind === "scene"
+                          ? "记录空间、环境、光线与氛围…"
+                          : "记录外形、材质与剧情用途…"
+                    }
+                    onChange={(e) => update({ description: e.target.value })}
+                  />
+                </Field>
+                <Field label="素材图片提示词">
+                  <textarea
+                    rows={3}
+                    value={selected.prompt}
+                    maxLength={12000}
+                    placeholder="描述主体、细节与画面风格，保持视觉一致…"
+                    onChange={(e) => update({ prompt: e.target.value })}
+                  />
+                </Field>
+              </section>
+              <section className="film-asset-references" aria-label="参考文件">
+                <MediaPanel
+                  project={props.project}
+                  ids={selected.mediaIds ?? []}
+                  onImport={(media) =>
+                    props.edit((project) => ({
+                      ...project,
+                      media: [...(project.media ?? []), media],
+                      assets: project.assets.map((asset) =>
+                        asset.id === selected.id
+                          ? {
+                              ...asset,
+                              mediaIds: [...(asset.mediaIds ?? []), media.id],
+                            }
+                          : asset,
+                      ),
+                    }))
+                  }
+                  onDetach={(id) =>
+                    update({
+                      mediaIds: selected.mediaIds?.filter((value) => value !== id),
+                    })
+                  }
+                />
+                {!references.length && (
+                  <div className="film-asset-reference-empty">
+                    <ImagePlus size={24} strokeWidth={1.5} aria-hidden />
+                    <p>为{ASSET_KINDS[kind]}添加视觉参考</p>
+                    <span>图片、视频或文档，让创作设定更清晰。</span>
+                  </div>
+                )}
+                <Field label="参考文件备注">
+                  <input
+                    value={selected.reference}
+                    maxLength={1000}
+                    placeholder="记录参考来源或使用说明"
+                    onChange={(e) => update({ reference: e.target.value })}
+                  />
+                </Field>
+              </section>
             </div>
-            <Field label={`${ASSET_KINDS[kind]}名称`}>
-              <input
-                value={selected.name}
-                maxLength={120}
-                onChange={(e) => update({ name: e.target.value })}
-              />
-            </Field>
-            <Field label="外观与设定">
-              <textarea
-                rows={5}
-                value={selected.description}
-                maxLength={12000}
-                placeholder="描述辨识特征、服装、环境或用途…"
-                onChange={(e) => update({ description: e.target.value })}
-              />
-            </Field>
-            <Field label="素材图片提示词">
-              <textarea
-                rows={4}
-                value={selected.prompt}
-                maxLength={12000}
-                onChange={(e) => update({ prompt: e.target.value })}
-              />
-            </Field>
-            <Field label="参考文件备注">
-              <input
-                value={selected.reference}
-                maxLength={1000}
-                onChange={(e) => update({ reference: e.target.value })}
-              />
-            </Field>
-            <MediaPanel
-              project={props.project}
-              ids={selected.mediaIds ?? []}
-              onImport={(media) =>
-                props.edit((project) => ({
-                  ...project,
-                  media: [...(project.media ?? []), media],
-                  assets: project.assets.map((asset) =>
-                    asset.id === selected.id
-                      ? {
-                          ...asset,
-                          mediaIds: [...(asset.mediaIds ?? []), media.id],
-                        }
-                      : asset,
-                  ),
-                }))
-              }
-              onDetach={(id) =>
-                update({
-                  mediaIds: selected.mediaIds?.filter((value) => value !== id),
-                })
-              }
-            />
-          </div>
-        </div>
+          </article>
+        </>
       ) : (
         <EmptyState
           title={`建立${ASSET_KINDS[kind]}素材`}
