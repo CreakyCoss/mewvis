@@ -1,5 +1,5 @@
 import { APP_DISPLAY_NAME } from "@mewvis/product-config";
-import type { ExtensionAPI, Skill } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { isRiskLevel } from "@mewvis/chat-contracts";
 import { fileURLToPath } from "node:url";
 import entries from "../../../../../../../../build-entries.json" with { type: "json" };
@@ -30,22 +30,19 @@ import type {
 } from "../agent/session.js";
 import { registerPiAskUserTool } from "./ask-user-tool.js";
 import { createPiMediaTool } from "./media-tool.js";
+import { createPiApplicationResources } from "../apps/bridge.js";
 import { registerPiSubagentTool } from "./subagent.js";
 import { installPiSafety } from "./safety.js";
-import {
-  accessAllowsPath,
-  resolveAgentAccess,
-} from "../../../../../../../security/access/index.js";
+import { resolveAgentAccess } from "../../../../../../../security/access/index.js";
 
 type PiTool = Parameters<ExtensionAPI["registerTool"]>[0];
 type Catalog = {
   tools: (Pick<PiTool, "name" | "label" | "description" | "parameters"> & {
     risk?: SafetyRisk;
   })[];
-  skillContents: { skill: Skill; content: string }[];
 };
 
-/** Agent control stays in the host; effectful implementations run in the configured execution worker. */
+/** Native file/shell tools run in the execution worker; application tools delegate to their owning host. */
 export async function createPiToolSet(
   command: RuntimeAgentCommand,
   callbacks: AgentRuntimeCallbacks,
@@ -62,15 +59,6 @@ export async function createPiToolSet(
         }));
   if (options.policies && access && !options.policies.execution.access)
     throw new Error("继承的执行策略缺少当前请求的访问范围。");
-  if (
-    access &&
-    resources.applications?.settingsPath &&
-    !accessAllowsPath(
-      access.filesystem.read,
-      resources.applications.settingsPath,
-    )
-  )
-    delete resources.applications.settingsPath;
   // Safety rules are an immutable host snapshot containing functions. Only execution data is cloned.
   const policies = options.policies
     ? {
@@ -85,14 +73,7 @@ export async function createPiToolSet(
           command.workspacePath,
           undefined,
           undefined,
-          access
-            ? {
-                access,
-                programPaths: resources.applications?.items?.map(
-                  (application) => application.packageRoot,
-                ),
-              }
-            : undefined,
+          access ? { access } : undefined,
         ),
         access,
       };
@@ -103,10 +84,12 @@ export async function createPiToolSet(
     protectedPaths: resources.protectedPaths ?? [],
     execution: policies.execution,
   });
-  // The host selected these enabled applications. Initialization uses the same constrained worker as tool execution.
+  // Only native filesystem/shell tools are initialized in the constrained worker.
   let worker: ProgramExecutor | undefined;
   let starting: Promise<Catalog> | undefined;
   let disposed = false;
+  let applications:
+    Awaited<ReturnType<typeof createPiApplicationResources>> | undefined;
   const initialize = async (signal = options.signal) => {
     signal?.throwIfAborted();
     if (disposed) throw new Error("工具资源已释放。");
@@ -124,7 +107,10 @@ export async function createPiToolSet(
       });
       starting = worker.call<Catalog>(
         "initialize",
-        { workspacePath: command.workspacePath, resources },
+        {
+          workspacePath: command.workspacePath,
+          resources: { skills: resources.skills },
+        },
         signal,
         undefined,
         60_000,
@@ -134,7 +120,12 @@ export async function createPiToolSet(
   };
   try {
     const catalog = await initialize();
-    const names = catalog.tools.map((tool) => tool.name);
+    applications = await createPiApplicationResources(
+      { ...command, resources },
+      callbacks,
+    );
+    const descriptors = [...catalog.tools, ...applications.tools];
+    const names = descriptors.map((tool) => tool.name);
     if (
       new Set(names).size !== names.length ||
       names.includes("ask_user") ||
@@ -175,7 +166,7 @@ export async function createPiToolSet(
     const toolRisks = new Map<string, SafetyRisk>();
     if (enabled.includes("generate_media"))
       toolRisks.set("generate_media", "medium");
-    for (const tool of catalog.tools) {
+    for (const tool of descriptors) {
       if (tool.risk === undefined || !enabled.includes(tool.name)) continue;
       if (!isRiskLevel(tool.risk))
         throw new Error(`工具 ${tool.name} 的风险声明无效`);
@@ -214,6 +205,11 @@ export async function createPiToolSet(
             : execute();
         },
       }));
+    tools.push(
+      ...applications.tools
+        .filter((tool) => enabled.includes(tool.name))
+        .map(({ risk: _risk, ...tool }) => tool),
+    );
     const collector: Pick<ExtensionAPI, "registerTool"> = {
       registerTool: (tool) => {
         if (enabled.includes(tool.name)) tools.push(tool as PiTool);
@@ -234,30 +230,7 @@ export async function createPiToolSet(
       tools,
       access,
       builtins,
-      applications: {
-        skills: catalog.skillContents.map(({ skill }) => skill),
-        registerSkills(pi: ExtensionAPI, resolvedSkills: readonly Skill[]) {
-          const paths = new Set(resolvedSkills.map((skill) => skill.filePath));
-          const contents = catalog.skillContents.filter(
-            ({ skill }) =>
-              !skill.disableModelInvocation && paths.has(skill.filePath),
-          );
-          pi.on("before_agent_start", (event) => {
-            if (
-              (!access && pi.getActiveTools().includes("read")) ||
-              !contents.length
-            )
-              return;
-            return {
-              systemPrompt: [
-                event.systemPrompt,
-                "已加载应用技能；执行仍遵守当前权限配置。",
-                ...contents.map(({ content }) => content),
-              ].join("\n\n"),
-            };
-          });
-        },
-      },
+      applications,
       installSafety: (session: PiAgentSession) =>
         installPiSafety(
           session,
@@ -275,12 +248,20 @@ export async function createPiToolSet(
       },
       async dispose() {
         disposed = true;
-        await worker?.dispose();
+        try {
+          await worker?.dispose();
+        } finally {
+          await applications?.dispose();
+        }
       },
     };
   } catch (error) {
     disposed = true;
-    await worker?.dispose();
+    try {
+      await worker?.dispose();
+    } finally {
+      await applications?.dispose();
+    }
     throw error;
   }
 }

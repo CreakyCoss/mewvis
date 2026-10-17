@@ -297,59 +297,11 @@ try {
     assert.equal(hits, 1, "concurrent executors must not share a permissive proxy");
   } else await assert.rejects(open("auto"), /不同的文件或网络范围/);
   console.log("PASS configured write/network boundaries and supported concurrent policy scopes");
-  const applicationRoot = join(workspace, "application");
-  mkdirSync(applicationRoot);
-  const sdk = pathToFileURL(resolve("../../packages/app/sdk/index.js")).href;
-  writeFileSync(
-    join(applicationRoot, "package.json"),
-    JSON.stringify({ type: "module", name: "sandbox-fixture", main: "./index.js" }),
-  );
-  writeFileSync(
-    join(applicationRoot, "index.js"),
-    `
-    import { defineApplication, defineTool } from ${JSON.stringify(sdk)};
-    import { readFile, writeFile } from 'node:fs/promises';
-    console.log(JSON.stringify({id:1,result:'application stdout is not RPC'}));
-    let startupBlocked = false;
-    try { await readFile(${JSON.stringify(join(privatePath, "secret"))}); } catch { startupBlocked = true; }
-    export default defineApplication({ name: 'sandbox-fixture', inject: ['tools'], apply(ctx) {
-      ctx.tools.register(defineTool({ name: 'fixture_effect', risk: 'low', description: 'Exercise native Node effects.',
-        parameters: { type: 'object', properties: { action: { type: 'string' }, target: { type: 'string' } }, required: ['action'] },
-        output: { schema: {}, render: (_args, value) => [{type:'text',text:JSON.stringify(value)}] },
-        async execute(args) {
-          if (args.action === 'read') return await readFile(args.target, 'utf8');
-          if (args.action === 'write') { await writeFile(args.target, 'application'); return 'written'; }
-          if (args.action === 'network') return await (await fetch(args.target)).text();
-          return { pid: process.pid, startupBlocked, hasSecret: Boolean(process.env.MEWVIS_TEST_SECRET) };
-        }
-      }));
-    }});
-  `,
-  );
-  process.env.MEWVIS_TEST_SECRET = "must-not-inherit";
-  const applications = {
-    applications: {
-      items: [
-        { kind: "mewvis", id: "sandbox-fixture", packageRoot: applicationRoot, entry: join(applicationRoot, "index.js") },
-      ],
-    },
-  };
+  const applications = { applications: { items: [{ id: "host-fixture", tools: [{ name: "fixture_effect", description: "Host tool", parameters: { type: "object" } }], skills: [] }] } };
   const application = await open("full", applications);
-  delete process.env.MEWVIS_TEST_SECRET;
-  const meta = await application.call("fixture_effect", { action: "meta" });
-  assert.notEqual(meta.details.value.pid, process.pid);
-  assert.equal(meta.details.value.startupBlocked, true, "module initialization is isolated too");
-  assert.equal(meta.details.value.hasSecret, false);
-  await assert.rejects(application.call("fixture_effect", { action: "read", target: join(privatePath, "secret") }));
-  await assert.rejects(
-    application.call("fixture_effect", { action: "write", target: join(privatePath, "application-write") }),
-  );
-  const fetched = await application.call("fixture_effect", {
-    action: "network",
-    target: `http://127.0.0.1:${server.address().port}`,
-  });
-  assert.match(JSON.stringify(fetched), /network-ok/);
-  console.log("PASS application module initialization, native fs/fetch, IPC separation and environment isolation");
+  assert(!application.catalog.tools.some((tool) => tool.name === "fixture_effect"));
+  await assert.rejects(application.call("fixture_effect", {}), /不在执行目录/);
+  console.log("PASS native worker never registers or executes application declarations");
 
   const abort = new AbortController();
   const sleep = full.call("bash", { command: "sleep 20; touch late-effect" }, abort.signal);
@@ -366,9 +318,9 @@ try {
   await application.executor.dispose();
   const afterCleanup = await open("auto", applications);
   await assert.rejects(afterCleanup.call("write", { path: ".env", content: "blocked-again" }));
-  await assert.rejects(afterCleanup.call("fixture_effect", { action: "write", target: join(workspace, ".env") }));
-  await afterCleanup.call("fixture_effect", { action: "write", target: join(workspace, "declared-risk.txt") });
-  assert.equal(readFileSync(join(workspace, "declared-risk.txt"), "utf8"), "application");
+  await assert.rejects(afterCleanup.call("fixture_effect", {}), /不在执行目录/);
+  await afterCleanup.call("write", { path: "declared-risk.txt", content: "native" });
+  assert.equal(readFileSync(join(workspace, "declared-risk.txt"), "utf8"), "native");
   assert.match(JSON.stringify(await afterCleanup.call("bash", { command })), /network-ok/);
   await afterCleanup.executor.dispose();
   console.log("PASS cleanup permits a restricted session after full sessions finish");

@@ -14,6 +14,7 @@ export interface RpcRequest {
   params: JsonObject;
 }
 export type RuntimeMessage =
+  | { kind: "application-tool"; id: string; value: JsonObject }
   | { kind: "response"; id: unknown; value: JsonObject }
   | { kind: "error"; id: unknown; error: JsonObject }
   | { kind: "event" | "result"; value: JsonObject };
@@ -23,6 +24,7 @@ export class RuntimeProtocol {
   private readonly request: ValidateFunction;
   private readonly response: ValidateFunction;
   private readonly notification: ValidateFunction;
+  private readonly applicationRequest: ValidateFunction;
 
   constructor(protocolDir: string) {
     const schema = (name: string) =>
@@ -40,6 +42,11 @@ export class RuntimeProtocol {
     this.request = ajv.compile(schema("request"));
     this.response = ajv.compile(schema("response"));
     this.notification = ajv.compile(schema("notification"));
+    const applicationSchema = schema("application-host");
+    ajv.addSchema(applicationSchema);
+    this.applicationRequest = ajv.getSchema(
+      `${applicationSchema.$id}#/definitions/ApplicationToolHostRequest`,
+    )!;
   }
 
   command(method: string, params: JsonObject, id?: string): RpcRequest {
@@ -60,6 +67,12 @@ export class RuntimeProtocol {
 
   decode(line: string): RuntimeMessage {
     const raw = object(JSON.parse(line), "Runtime message");
+    if (Boolean(this.applicationRequest(raw)))
+      return {
+        kind: "application-tool",
+        id: raw.id as string,
+        value: object(raw.params),
+      };
     if (Boolean(this.response(raw))) {
       if ("error" in raw)
         return { kind: "error", id: raw.id, error: object(raw.error) };

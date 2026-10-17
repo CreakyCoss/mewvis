@@ -25,6 +25,7 @@ export type AgentRuntimeSdkOptions = {
     onEvent?: (event: AgentRuntimeEvent) => void;
     onResult?: (result: AgentRuntimeResult) => void;
     requestUserInput?: AgentRuntimeUserInputHandler;
+    executeApplicationTool?: RuntimeEngineCallbacks["executeApplicationTool"];
   };
 };
 
@@ -32,6 +33,7 @@ export const createAgentRuntime = (options: AgentRuntimeSdkOptions = {}): AgentR
   const callbacks = options.callbacks;
   const requestUserInput = callbacks?.requestUserInput;
   const runtimeCallbacks: RuntimeEngineCallbacks = {
+    executeApplicationTool: callbacks?.executeApplicationTool,
     onExtensionError: callbacks?.onExtensionError,
     onExtensionAdaptation: callbacks?.onExtensionAdaptation,
   };

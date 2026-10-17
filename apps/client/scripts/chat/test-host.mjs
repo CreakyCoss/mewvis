@@ -41,7 +41,7 @@ try {
 } finally {
   rmSync(output, { recursive: true, force: true });
 }
-// Regression for 9610802f5: compile the complete strict schema and validate DSH patchPath.
+// Agent accepts declarations from the host; module paths and local execution switches are rejected.
 const ajv = new Ajv({ strict: true, strictTypes: false, allowUnionTypes: true });
 const dir = "../agent-runtime/protocol/v1/schema";
 const model = JSON.parse(readFileSync(`${dir}/model.schema.json`, "utf8"));
@@ -52,8 +52,8 @@ ajv.addSchema(JSON.parse(readFileSync(`${dir}/access.schema.json`, "utf8")));
 ajv.addSchema(request);
 const validate = ajv.compile({ $ref: `${request.$id}#/definitions/AgentRuntimeApplication` });
 assert.equal(
-  validate({ kind: "dsh", id: "fixture", entry: "", packageRoot: "/fixture", patchPath: "/fixture/patch.js" }),
+  validate({ id: "fixture", tools: [{ name: "echo", description: "echo", parameters: { type: "object" } }], skills: [] }),
   true,
 );
 assert.equal(validate({ kind: "dsh", id: "fixture", entry: "", packageRoot: "/fixture" }), false);
-console.log("DSH strict patchPath schema regression passed.");
+console.log("Host application declarations schema passed.");

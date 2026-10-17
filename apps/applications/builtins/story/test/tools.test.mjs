@@ -112,7 +112,7 @@ test("tools resolve only this application's registered workspace", async t => {
     { code: "ENOENT" });
 });
 
-test("agent tools use the authenticated working directory when workspace data is unavailable", async t => {
+test("tools require host workspace authorization even when cwd contains a workspace marker", async t => {
   const workspace = await fixture();
   t.after(workspace.dispose);
   const agentTools = new Map();
@@ -126,10 +126,9 @@ test("agent tools use the authenticated working directory when workspace data is
   const previous = process.cwd();
   process.chdir(workspace.workspacePath);
   try {
-    assert.equal((await agentTools.get("mewvis_story_inspect").execute({ workspaceId: workspace.workspaceId })).status,
-      "empty");
+    await assert.rejects(agentTools.get("mewvis_story_inspect").execute({ workspaceId: workspace.workspaceId }), /无持久化数据连接/);
     await assert.rejects(agentTools.get("mewvis_story_inspect").execute({ workspaceId: randomUUID() }),
-      /未登记/);
+      /无持久化数据连接/);
   } finally {
     process.chdir(previous);
   }

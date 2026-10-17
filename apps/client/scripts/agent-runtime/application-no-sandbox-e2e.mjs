@@ -1,3 +1,4 @@
+import { applicationFixture } from "./application-fixture.mjs";
 import assert from "node:assert/strict";
 import { build } from "esbuild";
 import { dshBundleCompatibilityPlugin } from "@mewvis/app-dev/dsh";
@@ -9,6 +10,7 @@ import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import entries from "../../../agent-runtime/build-entries.json" with { type: "json" };
 
+const hosts = [];
 const temp = realpathSync(mkdtempSync(join(tmpdir(), "mewvis-application-no-sandbox-")));
 const previousSettingsPath = process.env.MEWVIS_SANDBOX_SETTINGS_PATH;
 const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
@@ -85,12 +87,10 @@ try {
     stdin: {
       contents: `
         import { defineApplication, defineTool } from ${JSON.stringify(resolve("../../packages/app/sdk/index.js"))};
-        import { execFileSync } from 'node:child_process';
         export default defineApplication({ name: 'scope-fixture', inject: ['tools'], apply(ctx) {
           for (const [name, risk, execute] of [
             ['scope_echo', 'low', (args) => args.text],
             ['scope_risky', 'high', () => 'approved'],
-            ['scope_process', 'low', () => execFileSync(process.execPath, ['-e', 'console.log("spawned")'])],
           ]) ctx.tools.register(defineTool({ name, risk, description: name,
             parameters: { type: 'object', properties: { text: { type: 'string' } }, required: ['text'] },
             output: { schema: {}, render: (_args, value) => [{ type: 'text', text: String(value) }] }, execute,
@@ -105,6 +105,8 @@ try {
     format: "esm",
   });
   writeFileSync(join(application, "package.json"), '{"type":"module"}');
+  const fixture = await applicationFixture({ kind: "mewvis", id: "scope-fixture", entry: join(application, "index.js"), packageRoot: application }, { cwd: workspace });
+  hosts.push(fixture);
   const api = await import(pathToFileURL(apiFile).href);
   assert.equal((await api.getSandboxStatus()).state, "disabled");
   server.listen(0, "127.0.0.1");
@@ -133,15 +135,12 @@ try {
         permissions: { mode },
         agentAccess: { filesystem: { read: [{ base: "workspace" }], write: [{ base: "workspace" }] } },
         resources: {
-          tools: { allowed: ["scope_echo", "scope_risky", "scope_process", "read", "write", "bash", "powershell"] },
-          applications: {
-            items: [
-              { kind: "mewvis", id: "scope-fixture", entry: join(application, "index.js"), packageRoot: application },
-            ],
-          },
+          tools: { allowed: ["scope_echo", "scope_risky", "read", "write", "bash", "powershell"] },
+          applications: fixture.resources,
         },
       },
       {
+        ...fixture.callbacks,
         requestApproval: async (request) => {
           approvals.push(request.summary);
           return true;
@@ -166,8 +165,7 @@ try {
       assert.match((await check(shell.name, { command: "echo denied" })).reason, /未申请执行命令/);
       assert.equal(await check("scope_risky", { text: "risk" }), undefined);
       assert.equal(approvals.includes("scope_risky"), mode !== "full");
-      const processTool = created.session.agent.state.tools.find((tool) => tool.name === "scope_process");
-      await assert.rejects(processTool.execute("probe", { text: "probe" }), /Access|permission|denied/i);
+      await assert.rejects(shell.execute("probe", { command: "echo denied" }), /Access|permission|denied|未申请/i);
     } finally {
       created.session.dispose();
       await created.disposeResources();
@@ -180,6 +178,8 @@ try {
   for (const name of ["learning", "story", "chat-playground"]) {
     const packageRoot = resolve("../applications/dist", name);
     const manifest = JSON.parse(readFileSync(join(packageRoot, "package.json"), "utf8"));
+    const fixture = await applicationFixture({ kind: "mewvis", id: manifest.name, packageRoot, entry: join(packageRoot, manifest.mewvis.app.entry) }, { cwd: workspace });
+    hosts.push(fixture);
     const created = await api.createPiAgentSession(
       {
         ...command,
@@ -187,14 +187,10 @@ try {
         permissions: { mode: "ask" },
         resources: {
           tools: { allowed: ["ask_user"] },
-          applications: {
-            items: [
-              { kind: "mewvis", id: manifest.name, packageRoot, entry: join(packageRoot, manifest.mewvis.app.entry) },
-            ],
-          },
+          applications: fixture.resources,
         },
       },
-      { requestApproval: async () => assert.fail("chat initialization must not require approval") },
+      { ...fixture.callbacks, requestApproval: async () => assert.fail("chat initialization must not require approval") },
     );
     try {
       await created.session.prompt("hello");
@@ -206,6 +202,7 @@ try {
   }
   console.log("PASS Learning, Story and Chat Playground chat with their actual manifests and disabled sandbox");
 } finally {
+  await Promise.allSettled(hosts.map((host) => host.dispose()));
   server.closeAllConnections();
   if (server.listening) await new Promise((resolve) => server.close(resolve));
   if (previousSettingsPath === undefined) delete process.env.MEWVIS_SANDBOX_SETTINGS_PATH;

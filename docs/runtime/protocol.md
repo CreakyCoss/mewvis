@@ -64,6 +64,12 @@ Node 使用 Ajv 校验协议文件。Python 实现应以 `jsonschema.Draft7Valid
 - 主响应之后的附加结果通过 `runtime/result` 通知发送。
 - `params` 始终使用按名称传参的对象。
 
+## 应用宿主工具
+
+Server 从已加载的应用宿主查询 `runtimeResources`，将按应用隔离、过滤用户禁用工具后的声明快照放入 `resources.applications.items`。每项只有应用 ID、工具定义和技能内容，不传应用入口、包目录、配置文件路径或执行模式开关。Agent 在相同 stdio 通道上发出反向 JSON-RPC 请求 `application/tool.execute`，请求和响应由 `application-host.schema.json` 定义，`id` 使用独立的 `application-tool:` 前缀，不进入聊天事件或会话记录。普通查询 RPC 不接受这类请求。
+
+Server 将请求与当前运行任务绑定，校验 `taskId`、应用身份和本轮工具白名单，再交给已有应用宿主执行；宿主重新检查应用权限、工具归属和用户禁用规则。文件与数据服务继续使用按应用隔离的连接及原有路径校验。Agent 只适配声明与返回结果；应用模块在应用宿主中初始化一次，文件和 Shell 工具仍在 Agent 的独立执行进程中运行。取消或超时后丢弃迟到响应，不自动重放可能产生副作用的操作。SDK 嵌入方可提供 `executeApplicationTool` 回调；提供应用工具声明却缺少回调时明确失败。
+
 ## 插件命令
 
 `extensions/commands/list` 读取当前宿主配置并返回命令 ID、描述和参数 schema；`extensions/commands/execute` 接收 `workspacePath`、`sessionRootDir`、`taskId`、`commandId` 与 JSON `arguments`，返回 `extension_command_result`。执行期间仍通过既有 `runtime/event` 请求审批，宿主可使用原审批回答和取消入口。

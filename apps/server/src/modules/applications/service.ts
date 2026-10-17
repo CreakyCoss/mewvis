@@ -90,6 +90,10 @@ export class Applications {
       supervisor.events,
       this.files,
     );
+    supervisor.setApplicationToolHandler(async (call) => {
+      await this.packages.authorize(call.applicationId, "chat");
+      return this.host.invoke("execute", call);
+    });
   }
   async initialize() {
     const migration = join(
@@ -119,22 +123,17 @@ export class Applications {
     this.data.close();
     await this.host.close();
   }
-  async session(id: unknown) {
+  async session(id: unknown, cwd?: string) {
     const p = await this.packages.authorize(id, "chat");
     return {
       access: p.agentAccess ?? {},
       resources: {
         items: [
-          {
-            kind: p.runtimeKind,
-            id: p.id,
-            entry: p.entry,
-            packageRoot: p.path,
-            ...(p.patchPath ? { patchPath: p.patchPath } : {}),
-            config: null,
-          },
+          await this.host.invoke("runtimeResources", {
+            applicationId: p.id,
+            cwd,
+          }),
         ],
-        settingsPath: null,
       },
     };
   }

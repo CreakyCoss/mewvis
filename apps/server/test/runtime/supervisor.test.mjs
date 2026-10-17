@@ -4,6 +4,132 @@ import { access, mkdir, writeFile, symlink } from "node:fs/promises";
 import { join } from "node:path";
 import { setup, waitFor } from "../support/helpers.mjs";
 
+test("application tool reverse RPC binds the active application and tool ceiling without publishing host traffic", async (t) => {
+  const s = await setup(t);
+  const calls = [];
+  s.supervisor.setApplicationToolHandler(async (call) => {
+    calls.push(call);
+    return { value: { requestId: "registered" }, content: [] };
+  });
+  const run = async (
+    taskId,
+    override = {},
+    applicationId = "film",
+    allowed = ["film_prepare_media"],
+  ) => {
+    s.supervisor.submit({
+      taskId,
+      applicationId,
+      sessionKey: "film-host",
+      workspacePath: s.root,
+      command: s.supervisor.protocol.command(
+        "agent/run",
+        {
+          taskId,
+          workspacePath: s.root,
+          userMessage: "application-tool",
+          requestContext: JSON.stringify(override),
+          resources: {
+            applications: {
+              items: [
+                {
+                  id: "film",
+                  tools: [
+                    {
+                      name: "film_prepare_media",
+                      description: "prepare",
+                      parameters: {},
+                    },
+                  ],
+                  skills: [],
+                },
+              ],
+            },
+            tools: { allowed },
+          },
+        },
+        taskId,
+      ),
+    });
+    await s.done(taskId);
+    const reply = s.events.find(
+      (e) =>
+        e.payload.taskId === taskId && e.payload.event.type === "text_delta",
+    );
+    return JSON.parse(reply.payload.event.delta);
+  };
+  assert.equal(
+    (await run("host-success")).result.value.requestId,
+    "registered",
+  );
+  for (const [id, override, applicationId, allowed] of [
+    ["wrong-app", { applicationId: "other" }],
+    ["wrong-task", { taskId: "stale-task" }],
+    ["disabled-tool", {}, "film", []],
+    ["ordinary-chat", {}, null],
+  ])
+    assert.match(
+      (await run(id, override, applicationId, allowed)).error.message,
+      /授权范围/,
+    );
+  assert.equal(calls.length, 1);
+  assert(
+    !s.events.some((e) => e.payload.event.type === "application/tool.execute"),
+  );
+});
+
+test("cancelled application host replies cannot resume another task or automatically retry", async (t) => {
+  const s = await setup(t);
+  let resolve,
+    calls = 0;
+  s.supervisor.setApplicationToolHandler(() => {
+    calls++;
+    return new Promise((done) => {
+      resolve = done;
+    });
+  });
+  s.supervisor.submit({
+    taskId: "pending-host",
+    applicationId: "film",
+    sessionKey: "host-cancel",
+    workspacePath: s.root,
+    command: s.supervisor.protocol.command(
+      "agent/run",
+      {
+        taskId: "pending-host",
+        workspacePath: s.root,
+        userMessage: "application-tool",
+        resources: {
+          applications: {
+            items: [
+              {
+                id: "film",
+                tools: [
+                  {
+                    name: "film_prepare_media",
+                    description: "prepare",
+                    parameters: {},
+                  },
+                ],
+                skills: [],
+              },
+            ],
+          },
+        },
+      },
+      "pending-host",
+    ),
+  });
+  await waitFor(() => calls === 1);
+  await s.supervisor.abort("pending-host");
+  await s.done("pending-host", "cancelled");
+  resolve({ value: {}, content: [] });
+  await s.run("after-host-cancel");
+  await s.done("after-host-cancel");
+  assert.equal(calls, 1);
+  assert.equal(s.supervisor.snapshot("pending-host").taskState, "cancelled");
+});
+
 test("same-session FIFO and process reuse, different sessions run concurrently", async (t) => {
   const s = await setup(t);
   await s.run("first", "hold");

@@ -1,0 +1,76 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://mewvis.local/protocol/agent-runtime/v1/application-host.schema.json",
+  "title": "ApplicationHostMessage",
+  "description": "Reverse JSON-RPC on the existing stdio channel. The trusted host executes application tools with its scoped services.",
+  "oneOf": [
+    { "$ref": "#/definitions/ApplicationToolHostRequest" },
+    { "$ref": "#/definitions/ApplicationToolHostResponse" }
+  ],
+  "definitions": {
+    "ApplicationToolHostCall": {
+      "type": "object",
+      "required": [
+        "taskId",
+        "applicationId",
+        "callId",
+        "toolName",
+        "arguments"
+      ],
+      "properties": {
+        "taskId": { "type": "string", "minLength": 1 },
+        "applicationId": { "type": "string", "minLength": 1 },
+        "callId": { "type": "string", "minLength": 1 },
+        "toolName": { "type": "string", "minLength": 1 },
+        "arguments": { "type": "object" }
+      },
+      "additionalProperties": false
+    },
+    "ApplicationToolHostResult": {
+      "type": "object",
+      "required": ["value", "content"],
+      "properties": {
+        "value": {},
+        "content": { "type": "array", "items": {} },
+        "meta": {},
+        "additionalContexts": {},
+        "concludesTurn": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "ApplicationToolHostRequest": {
+      "type": "object",
+      "required": ["jsonrpc", "id", "method", "params"],
+      "properties": {
+        "jsonrpc": { "const": "2.0" },
+        "id": { "type": "string", "pattern": "^application-tool:" },
+        "method": { "const": "application/tool.execute" },
+        "params": { "$ref": "#/definitions/ApplicationToolHostCall" }
+      },
+      "additionalProperties": false
+    },
+    "ApplicationToolHostResponse": {
+      "type": "object",
+      "required": ["jsonrpc", "id"],
+      "properties": {
+        "jsonrpc": { "const": "2.0" },
+        "id": { "type": "string", "pattern": "^application-tool:" },
+        "result": { "$ref": "#/definitions/ApplicationToolHostResult" },
+        "error": {
+          "type": "object",
+          "required": ["code", "message"],
+          "properties": {
+            "code": { "type": "integer" },
+            "message": { "type": "string" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "oneOf": [
+        { "properties": { "result": {} }, "required": ["result"] },
+        { "properties": { "error": {} }, "required": ["error"] }
+      ],
+      "additionalProperties": false
+    }
+  }
+}

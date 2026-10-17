@@ -89,6 +89,7 @@ export class NativeAgentRuntimeEngine extends AgentRuntimeEngine {
     const userInput = createUserInputManager(this.emitAgentEvent);
     const runtimeCallbacks: AgentRuntimeCallbacks = {
       ...userInput.callbacks,
+      executeApplicationTool: callbacks?.executeApplicationTool,
       onExtensionError: callbacks?.onExtensionError,
       onExtensionAdaptation: callbacks?.onExtensionAdaptation,
       requestUserInput:

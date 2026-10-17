@@ -1,4 +1,3 @@
-import { readFile } from "node:fs/promises";
 import {
   createReadTool,
   createEditTool,
@@ -12,12 +11,10 @@ import { serveWorker } from "../../../../../../../security/execution/index.js";
 import { resolveBuiltins } from "../../../../../../builtins/index.js";
 import type { RuntimeAgentCommand } from "../../types.js";
 import { registerPiBuiltinTool } from "./builtin-tool.js";
-import { createApplicationRuntimeBridge } from "../apps/bridge.js";
 import { createPiShellTool } from "./shell.js";
 
 type Tool = Parameters<ExtensionAPI["registerTool"]>[0];
 let tools: Tool[] = [];
-let applications: Awaited<ReturnType<typeof createApplicationRuntimeBridge>>;
 let initialized = false;
 
 serveWorker({
@@ -26,24 +23,31 @@ serveWorker({
       if (initialized) throw new Error("工具进程已经初始化。");
       initialized = true;
       const command = input as RuntimeAgentCommand;
-      const builtins = resolveBuiltins(command.resources?.skills?.enabled ?? []);
-      const collector: Pick<ExtensionAPI, "registerTool"> = { registerTool: (tool) => tools.push(tool as Tool) };
-      tools = [createReadTool, createEditTool, createWriteTool, createLsTool, createFindTool, createGrepTool].map(
-        (create) => create(command.workspacePath) as Tool,
+      const builtins = resolveBuiltins(
+        command.resources?.skills?.enabled ?? [],
       );
+      const collector: Pick<ExtensionAPI, "registerTool"> = {
+        registerTool: (tool) => tools.push(tool as Tool),
+      };
+      tools = [
+        createReadTool,
+        createEditTool,
+        createWriteTool,
+        createLsTool,
+        createFindTool,
+        createGrepTool,
+      ].map((create) => create(command.workspacePath) as Tool);
       const shell = createPiShellTool(command.workspacePath);
       if (shell) tools.push(shell as Tool);
       for (const tool of builtins.requiredTools.internal)
-        registerPiBuiltinTool(collector, tool, { workspacePath: command.workspacePath });
-      applications = await createApplicationRuntimeBridge(command);
-      const applicationRisks = applications?.registerTools(collector);
+        registerPiBuiltinTool(collector, tool, {
+          workspacePath: command.workspacePath,
+        });
       const toolRisks = new Map([
-        ...builtins.requiredTools.internal.map((tool) => [tool.name, tool.risk] as const),
-        ...(applicationRisks ?? []),
+        ...builtins.requiredTools.internal.map(
+          (tool) => [tool.name, tool.risk] as const,
+        ),
       ]);
-      const skillContents = await Promise.all(
-        (applications?.skills ?? []).map(async (skill) => ({ skill, content: await readFile(skill.filePath, "utf8") })),
-      );
       return {
         tools: tools.map(({ name, label, description, parameters }) => ({
           name,
@@ -52,19 +56,28 @@ serveWorker({
           parameters,
           risk: toolRisks.get(name),
         })),
-        skillContents,
       };
     }
     if (method === "execute") {
       if (!initialized) throw new Error("工具进程尚未初始化。");
-      const call = input as { callId: string; name: string; arguments: Record<string, unknown> };
+      const call = input as {
+        callId: string;
+        name: string;
+        arguments: Record<string, unknown>;
+      };
       const tool = tools.find((tool) => tool.name === call.name);
       if (!tool) throw new Error("工具不在执行目录中。");
-      return tool.execute(call.callId, call.arguments, context.signal, context.progress, {} as never);
+      return tool.execute(
+        call.callId,
+        call.arguments,
+        context.signal,
+        context.progress,
+        {} as never,
+      );
     }
     throw new Error("未知工具进程请求。");
   },
   async dispose() {
-    await applications?.dispose();
+    tools = [];
   },
 });

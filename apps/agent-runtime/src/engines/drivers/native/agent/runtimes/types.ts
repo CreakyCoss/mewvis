@@ -7,6 +7,8 @@ import type {
 import type { ExecutionApprovalRequest } from "../../../../../security/safety/index.js";
 import type {
   AgentEvent,
+  ApplicationToolHostCall,
+  ApplicationToolHostResult,
   AgentPermissions,
   AgentAccess,
   AgentRuntimeResources,
@@ -123,6 +125,7 @@ export type RuntimeEmitContext = {
 };
 
 export type AgentRuntimeCallbacks = {
+  executeApplicationTool?: (call: ApplicationToolHostCall, signal?: AbortSignal) => Promise<ApplicationToolHostResult>;
   runExtensionTask?: (
     command: AgentRunCommand,
     context: AgentRuntimeContext,

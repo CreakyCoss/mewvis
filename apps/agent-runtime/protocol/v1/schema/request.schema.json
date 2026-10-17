@@ -50,44 +50,43 @@
       "properties": { "servers": { "type": "array" } },
       "additionalProperties": true
     },
-    "AgentRuntimeApplicationKind": {
-      "type": "string",
-      "enum": ["mewvis", "dsh"]
+    "AgentRuntimeApplicationTool": {
+      "type": "object",
+      "required": ["name", "description", "parameters"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "description": { "type": "string" },
+        "parameters": { "type": "object" },
+        "risk": { "enum": ["low", "medium", "high"] }
+      },
+      "additionalProperties": false
+    },
+    "AgentRuntimeApplicationSkill": {
+      "type": "object",
+      "required": ["name", "description", "content", "modelInvocable"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "description": { "type": "string" },
+        "content": { "type": "string" },
+        "modelInvocable": { "type": "boolean" },
+        "baseDir": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
     },
     "AgentRuntimeApplication": {
       "type": "object",
-      "required": ["kind", "id", "entry", "packageRoot"],
+      "required": ["id", "tools", "skills"],
       "properties": {
-        "kind": { "$ref": "#/definitions/AgentRuntimeApplicationKind" },
         "id": { "type": "string", "minLength": 1 },
-        "entry": { "type": "string" },
-        "packageRoot": { "type": "string", "minLength": 1 },
-        "patchPath": { "type": "string", "minLength": 1 },
-        "config": { "type": ["object", "null"], "additionalProperties": true }
+        "tools": { "type": "array", "items": { "$ref": "#/definitions/AgentRuntimeApplicationTool" } },
+        "skills": { "type": "array", "items": { "$ref": "#/definitions/AgentRuntimeApplicationSkill" } }
       },
-      "additionalProperties": false,
-      "allOf": [
-        {
-          "if": { "properties": { "kind": { "const": "mewvis" } } },
-          "then": { "properties": { "entry": { "minLength": 1 } } }
-        },
-        {
-          "if": { "properties": { "kind": { "const": "dsh" } } },
-          "then": {
-            "properties": { "patchPath": { "type": "string", "minLength": 1 } },
-            "required": ["patchPath"]
-          }
-        }
-      ]
+      "additionalProperties": false
     },
     "AgentRuntimeApplicationResources": {
       "type": "object",
       "properties": {
-        "settingsPath": { "type": ["string", "null"] },
-        "items": {
-          "type": ["array", "null"],
-          "items": { "$ref": "#/definitions/AgentRuntimeApplication" }
-        }
+        "items": { "type": ["array", "null"], "items": { "$ref": "#/definitions/AgentRuntimeApplication" } }
       },
       "additionalProperties": false
     },

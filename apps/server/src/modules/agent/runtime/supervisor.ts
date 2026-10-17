@@ -14,7 +14,11 @@ import {
   type RpcRequest,
   type RuntimeMessage,
 } from "./protocol.js";
-import { ServiceError, type JsonObject } from "../../../shared/validation.js";
+import {
+  object,
+  ServiceError,
+  type JsonObject,
+} from "../../../shared/validation.js";
 
 export type WorkerState =
   | "starting"
@@ -76,11 +80,51 @@ export class AgentRuntimeSupervisor {
     { lifecycle: ProcessLifecycle; stop: () => void }
   >();
   private closing = false;
+  private applicationToolHandler?: (call: JsonObject) => Promise<JsonObject>;
   private closePromise?: Promise<void>;
 
   constructor(readonly config: RuntimeConfig) {
     this.protocol = new RuntimeProtocol(config.protocolDir);
     this.diagnostics = new RuntimeDiagnostics(config);
+  }
+
+  setApplicationToolHandler(
+    handler: (call: JsonObject) => Promise<JsonObject>,
+  ) {
+    this.applicationToolHandler = handler;
+  }
+
+  async executeApplicationTool(task: Submission, call: JsonObject) {
+    const params = task.command.params;
+    const allResources = object(params.resources ?? {});
+    const resources = object(allResources.applications ?? {});
+    const allowed = object(allResources.tools ?? {}).allowed;
+    if (
+      !task.applicationId ||
+      call.taskId !== task.taskId ||
+      call.applicationId !== task.applicationId ||
+      !Array.isArray(resources.items) ||
+      !resources.items.some(
+        (app: JsonObject) =>
+          app.id === task.applicationId &&
+          Array.isArray(app.tools) &&
+          app.tools.some((tool: JsonObject) => tool.name === call.toolName),
+      ) ||
+      (allowed != null &&
+        (!Array.isArray(allowed) || !allowed.includes(call.toolName)))
+    )
+      throw new ServiceError(
+        403,
+        "PERMISSION_DENIED",
+        "应用工具不在本次会话授权范围内",
+      );
+    if (!this.applicationToolHandler)
+      throw new ServiceError(
+        503,
+        "APPLICATION_HOST_UNAVAILABLE",
+        "应用宿主工具服务未连接",
+      );
+    return this.applicationToolHandler(call);
   }
 
   private assertOpen() {
@@ -493,6 +537,10 @@ export class AgentRuntimeSupervisor {
         this.config.maxLineBytes,
         (line) => {
           const message = this.protocol.decode(line);
+          if (message.kind === "application-tool") {
+            fail(new Error("一次性 Runtime 查询不能调用应用工具"));
+            return;
+          }
           if (message.kind === "error") {
             fail(new Error(String(message.error.message)));
             return;
@@ -603,6 +651,7 @@ class RuntimeWorker {
   private readonly startupTimer: NodeJS.Timeout;
   private readonly startupId = `startup-${randomUUID()}`;
   private ready = false;
+  private applicationCalls = new Set<string>();
   private readonly closed: Promise<void>;
   readonly scope: Pick<
     Submission,
@@ -820,6 +869,38 @@ class RuntimeWorker {
   }
 
   private message(message: RuntimeMessage) {
+    if (message.kind === "application-tool") {
+      const task = this.current;
+      if (!task || !this.usable || this.stopReason) return;
+      if (
+        this.applicationCalls.has(message.id) ||
+        this.applicationCalls.size >= 16
+      ) {
+        this.unhealthy(new Error("应用工具请求重复或过多"));
+        return;
+      }
+      this.applicationCalls.add(message.id);
+      void this.supervisor
+        .executeApplicationTool(task, message.value)
+        .then(
+          (result) => ({ jsonrpc: "2.0", id: message.id, result }),
+          (error) => ({
+            jsonrpc: "2.0",
+            id: message.id,
+            error: {
+              code: -32000,
+              message: error instanceof Error ? error.message : String(error),
+            },
+          }),
+        )
+        .then((reply) => {
+          if (this.current === task && this.usable && !this.stopReason)
+            this.child.stdin.write(`${JSON.stringify(reply)}\n`);
+        })
+        .catch((error) => this.unhealthy(error))
+        .finally(() => this.applicationCalls.delete(message.id));
+      return;
+    }
     if (message.kind === "error") {
       if (message.id === this.startupId) {
         this.unhealthy(new Error("Runtime 启动握手失败"), "startup_error");

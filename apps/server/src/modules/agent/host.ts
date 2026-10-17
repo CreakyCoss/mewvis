@@ -91,6 +91,7 @@ export class AgentRuntimeHost {
     readonly supervisor: AgentRuntimeSupervisor,
     private applicationSession?: (
       id: unknown,
+      cwd: string,
     ) => Promise<{ access: unknown; resources: JsonObject }>,
     private resumeTask?: (taskId: string) => Promise<void>,
     private protectedPaths?: (workspacePath: string) => Promise<string[]>,
@@ -397,7 +398,7 @@ export class AgentRuntimeHost {
         const { applicationId, chatId, ...wire } = input;
         const application =
           applicationId != null
-            ? await this.applicationSession?.(applicationId)
+            ? await this.applicationSession?.(applicationId, workspacePath)
             : undefined;
         if (applicationId != null && !application)
           throw new ServiceError(

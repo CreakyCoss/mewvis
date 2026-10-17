@@ -3,9 +3,10 @@
   "$id": "https://mewvis.local/protocol/agent-runtime/v1/bindings.schema.json",
   "title": "AgentRuntimeMessage",
   "description": "Any JSON-RPC message crossing the agent runtime stdio boundary.",
-  "oneOf": [
+  "anyOf": [
     { "$ref": "./request.schema.json" },
     { "$ref": "./response.schema.json" },
-    { "$ref": "./notification.schema.json" }
+    { "$ref": "./notification.schema.json" },
+    { "$ref": "./application-host.schema.json" }
   ]
 }

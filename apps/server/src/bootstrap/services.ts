@@ -88,7 +88,7 @@ export class ServerServices {
     );
     const agent = new AgentRuntimeHost(
       this.supervisor,
-      (id) => this.applications.session(id),
+      (id, cwd) => this.applications.session(id, cwd),
       (taskId) => resumeExtensionTask(this.supervisor, taskId),
       async (workspacePath) =>
         hostProtectedPaths(

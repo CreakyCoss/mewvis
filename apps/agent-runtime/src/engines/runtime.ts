@@ -4,6 +4,8 @@ import type { ExtensionPackageRegistration } from "@mewvis/extension-host/manage
 import type { RuntimeAgent } from "./drivers/native/agent/runtimes/types.js";
 import type {
   AgentRuntimeEvent,
+  ApplicationToolHostCall,
+  ApplicationToolHostResult,
   AskUserInput,
   AgentRunParams,
   EmptyParams,
@@ -54,6 +56,7 @@ export type RuntimeUserInputRequest = {
 export type RuntimeUserInputHandler = (request: RuntimeUserInputRequest) => Promise<string | null>;
 
 export type RuntimeEngineCallbacks = {
+  executeApplicationTool?: (call: ApplicationToolHostCall, signal?: AbortSignal) => Promise<ApplicationToolHostResult>;
   onExtensionAdaptation?: (report: ExtensionAdaptationReport) => void;
   onExtensionError?: (diagnostic: ExtensionDiagnostic) => void;
   requestUserInput?: RuntimeUserInputHandler;

@@ -231,6 +231,27 @@ const uiDocument = (value: unknown) => {
   return document;
 };
 
+const runtimeResources = async (value: unknown) => {
+  if (!host) throw new Error("Application Host 尚未配置。");
+  const input = asObject(value, "应用工具清单参数");
+  const id = requiredString(input, "applicationId");
+  const application = applications.find((item) => item.id === id);
+  if (!application) throw new Error(`应用未启用或不存在：${id}`);
+  if (application.error)
+    throw new Error(`应用 ${application.name} 加载失败：${application.error}`);
+  const resources = await host.runtimeResources(
+    id,
+    typeof input.cwd === "string" ? { cwd: input.cwd } : undefined,
+  );
+  const policy = await readToolPolicy(applicationSettingsRoot!, id);
+  return {
+    ...resources,
+    tools: resources.tools.filter(
+      (tool) => !policy || policy.allowedToolNames.includes(tool.name),
+    ),
+  };
+};
+
 const execute = async (value: unknown) => {
   if (!host) throw new Error("Application Host 尚未配置。");
   const input = asObject(value, "工具调用参数");
@@ -263,7 +284,10 @@ const execute = async (value: unknown) => {
   try {
     const result = await Promise.race([
       host.executeTool({
-        callId: `application-ui-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        callId:
+          typeof input.callId === "string" && input.callId.trim()
+            ? input.callId
+            : `application-ui-${Date.now()}-${Math.random().toString(36).slice(2)}`,
         name: toolName,
         arguments: input.arguments ?? {},
         signal: controller.signal,
@@ -272,9 +296,11 @@ const execute = async (value: unknown) => {
     ]);
     if (result.isError) throw new Error(result.error.message);
     return {
-      value: result.value,
+      value: result.value ?? null,
       content: result.content,
       meta: result.meta ?? null,
+      additionalContexts: result.additionalContexts ?? null,
+      ...(result.concludesTurn ? { concludesTurn: true } : {}),
     };
   } finally {
     clearTimeout(timer);
@@ -301,6 +327,8 @@ const dispatch = async (request: RpcRequest) => {
       return configure(request.params);
     case "catalog":
       return { applications };
+    case "runtimeResources":
+      return runtimeResources(request.params);
     case "execute":
       return execute(request.params);
     case "uiDocument":

@@ -23,6 +23,7 @@ class RuntimePingRequest(Enum):
     AGENT_QUESTION_ANSWER = "agent/question/answer"
     AGENT_RUN = "agent/run"
     AGENT_TOOLS_LIST = "agent/tools/list"
+    APPLICATION_TOOL_EXECUTE = "application/tool.execute"
     COLLABORATION_MODES_LIST = "collaboration/modes/list"
     COLLABORATION_RUN = "collaboration/run"
     COLLABORATION_RUN_MODE = "collaboration/runMode"
@@ -93,25 +94,39 @@ class AgentAccess:
     process: AgentProcessAccess | None
 
 
-class AgentRuntimeApplicationKind(Enum):
-    DSH = "dsh"
-    MEWVIS = "mewvis"
+@dataclass
+class AgentRuntimeApplicationSkill:
+    content: str
+    description: str
+    model_invocable: bool
+    name: str
+    base_dir: str | None
+
+
+class Risk(Enum):
+    HIGH = "high"
+    LOW = "low"
+    MEDIUM = "medium"
+
+
+@dataclass
+class AgentRuntimeApplicationTool:
+    description: str
+    name: str
+    parameters: dict[str, Any]
+    risk: Risk | None
 
 
 @dataclass
 class AgentRuntimeApplication:
-    entry: str
     id: str
-    kind: AgentRuntimeApplicationKind
-    package_root: str
-    config: dict[str, Any] | None
-    patch_path: str | None
+    skills: list[AgentRuntimeApplicationSkill]
+    tools: list[AgentRuntimeApplicationTool]
 
 
 @dataclass
 class AgentRuntimeApplicationResources:
     items: list[AgentRuntimeApplication] | None
-    settings_path: str | None
 
 
 @dataclass
@@ -655,12 +670,14 @@ class AgentRuntimeEvent:
     answer: str | None
     """The user's answer, or null when the user cancels answering."""
 
+    application_id: str | None
     approval_id: str | None
     approved: bool | None
     args: Any
     arguments: dict[str, Any] | None
     avatar: str | None
     bootstrap_instruction: str | None
+    call_id: str | None
     command_id: str | None
     commands: list[Command] | None
     compacted: bool | None
@@ -763,7 +780,7 @@ class RuntimeSessionMessage:
     metadata: dict[str, Any] | None
 
 
-class AgentRuntimeResultType(Enum):
+class ResultType(Enum):
     ACK = "ack"
     AGENT_TOOLS = "agent_tools"
     CHAT_RESULT = "chat_result"
@@ -784,9 +801,11 @@ class AgentRuntimeResultType(Enum):
 
 @dataclass
 class AgentRuntimeResult:
-    type: AgentRuntimeResultType
+    additional_contexts: Any
     commands: list[Command] | None
     compacted: bool | None
+    concludes_turn: bool | None
+    content: list[Any] | None
     default_tool_names: list[str] | None
     display_summaries: list[RuntimeDisplaySummary] | None
     display_summary: RuntimeDisplaySummary | None
@@ -796,6 +815,7 @@ class AgentRuntimeResult:
     message_record_id: str | None
     message_record_ids: list[str] | None
     messages: list[RuntimeSessionMessage] | None
+    meta: Any
     mode: str | None
     modes: list[CollaborationMode] | None
     output: Any
@@ -818,6 +838,7 @@ class AgentRuntimeResult:
     timeline: list[RuntimeTimelineItem] | None
     tools: list[AgentTool] | None
     trace: list[Any] | None
+    type: ResultType | None
     value: Any
     workflow_run_id: str | None
 

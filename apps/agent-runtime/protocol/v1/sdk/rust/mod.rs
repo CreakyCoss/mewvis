@@ -77,6 +77,9 @@ pub enum RuntimePingRequest {
     #[serde(rename = "agent/tools/list")]
     AgentToolsList,
 
+    #[serde(rename = "application/tool.execute")]
+    ApplicationToolExecute,
+
     #[serde(rename = "collaboration/modes/list")]
     CollaborationModesList,
 
@@ -171,6 +174,9 @@ pub struct AgentRuntimeEvent {
     pub answer: Option<String>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub application_id: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub approval_id: Option<String>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -186,6 +192,9 @@ pub struct AgentRuntimeEvent {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub bootstrap_instruction: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub call_id: Option<String>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub command_id: Option<String>,
@@ -696,39 +705,55 @@ pub struct AgentRuntimeResources {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct AgentRuntimeApplicationResources {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub items: Option<Vec<AgentRuntimeApplication>>,
+}
 
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub settings_path: Option<String>,
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct AgentRuntimeApplication {
+    pub id: String,
+
+    pub skills: Vec<AgentRuntimeApplicationSkill>,
+
+    pub tools: Vec<AgentRuntimeApplicationTool>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct AgentRuntimeApplication {
+pub struct AgentRuntimeApplicationSkill {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub config: Option<HashMap<String, Option<serde_json::Value>>>,
+    pub base_dir: Option<String>,
 
-    pub entry: String,
+    pub content: String,
 
-    pub id: String,
+    pub description: String,
 
-    pub kind: AgentRuntimeApplicationKind,
+    pub model_invocable: bool,
 
-    pub package_root: String,
+    pub name: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct AgentRuntimeApplicationTool {
+    pub description: String,
+
+    pub name: String,
+
+    pub parameters: HashMap<String, Option<serde_json::Value>>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub patch_path: Option<String>,
+    pub risk: Option<Risk>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum AgentRuntimeApplicationKind {
-    Dsh,
+pub enum Risk {
+    High,
 
-    Mewvis,
+    Low,
+
+    Medium,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -1678,14 +1703,23 @@ pub struct WorkflowStep {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AgentRuntimeResult {
+    pub additional_contexts: Option<serde_json::Value>,
+
     #[serde(rename = "type")]
-    pub agent_runtime_result_type: AgentRuntimeResultType,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub agent_runtime_result_type: Option<ResultType>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub commands: Option<Vec<Command>>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub compacted: Option<bool>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub concludes_turn: Option<bool>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub content: Option<Vec<Option<serde_json::Value>>>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub default_tool_names: Option<Vec<String>>,
@@ -1713,6 +1747,8 @@ pub struct AgentRuntimeResult {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub messages: Option<Vec<RuntimeSessionMessage>>,
+
+    pub meta: Option<serde_json::Value>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mode: Option<String>,
@@ -1786,7 +1822,7 @@ pub struct AgentRuntimeResult {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum AgentRuntimeResultType {
+pub enum ResultType {
     Ack,
 
     #[serde(rename = "agent_tools")]

@@ -12,7 +12,10 @@
  * Any JSON-RPC message crossing the agent runtime stdio boundary.
  */
 export type AgentRuntimeMessage =
-  MewvisAgentRuntimeJSONRPCRequest | MewvisAgentRuntimeJSONRPCResponse | MewvisAgentRuntimeJSONRPCNotification;
+  | MewvisAgentRuntimeJSONRPCRequest
+  | MewvisAgentRuntimeJSONRPCResponse
+  | MewvisAgentRuntimeJSONRPCNotification
+  | ApplicationHostMessage;
 export type MewvisAgentRuntimeJSONRPCRequest = {
   jsonrpc: "2.0";
   id?: string | number;
@@ -47,18 +50,6 @@ export type MewvisAgentRuntimeJSONRPCRequest = {
   | ExtensionCommandsListRequest
   | ExtensionCommandExecuteRequest
 );
-export type AgentRuntimeApplication = {
-  [k: string]: unknown;
-} & {
-  kind: "mewvis" | "dsh";
-  id: string;
-  entry: string;
-  packageRoot: string;
-  patchPath?: string;
-  config?: {
-    [k: string]: unknown;
-  } | null;
-};
 export type StringArray = string[];
 export type MewvisAgentRuntimeJSONRPCResponse =
   | {
@@ -130,6 +121,28 @@ export type AgentRuntimeEvent =
   | StepSkippedEvent
   | WorkflowDoneEvent
   | CollaborationErrorEvent;
+/**
+ * Reverse JSON-RPC on the existing stdio channel. The trusted host executes application tools with its scoped services.
+ */
+export type ApplicationHostMessage = ApplicationToolHostRequest | ApplicationToolHostResponse;
+export type ApplicationToolHostResponse = {
+  jsonrpc: "2.0";
+  id: string;
+  result?: ApplicationToolHostResult;
+  error?: {
+    code: number;
+    message: string;
+  };
+} & (
+  | {
+      result: unknown;
+      [k: string]: unknown;
+    }
+  | {
+      error: unknown;
+      [k: string]: unknown;
+    }
+);
 
 export interface RuntimePingRequest {
   method?: "runtime/ping";
@@ -250,8 +263,27 @@ export interface AgentRuntimeMcpResources {
   [k: string]: unknown;
 }
 export interface AgentRuntimeApplicationResources {
-  settingsPath?: string | null;
   items?: AgentRuntimeApplication[] | null;
+}
+export interface AgentRuntimeApplication {
+  id: string;
+  tools: AgentRuntimeApplicationTool[];
+  skills: AgentRuntimeApplicationSkill[];
+}
+export interface AgentRuntimeApplicationTool {
+  name: string;
+  description: string;
+  parameters: {
+    [k: string]: unknown;
+  };
+  risk?: "low" | "medium" | "high";
+}
+export interface AgentRuntimeApplicationSkill {
+  name: string;
+  description: string;
+  content: string;
+  modelInvocable: boolean;
+  baseDir?: string;
 }
 export interface AgentPermissions {
   mode: "ask" | "auto" | "full";
@@ -1028,6 +1060,28 @@ export interface CollaborationErrorEvent {
   agentRoleId?: string;
   agentTaskId?: string;
   message: string;
+}
+export interface ApplicationToolHostRequest {
+  jsonrpc: "2.0";
+  id: string;
+  method: "application/tool.execute";
+  params: ApplicationToolHostCall;
+}
+export interface ApplicationToolHostCall {
+  taskId: string;
+  applicationId: string;
+  callId: string;
+  toolName: string;
+  arguments: {
+    [k: string]: unknown;
+  };
+}
+export interface ApplicationToolHostResult {
+  value: unknown;
+  content: unknown[];
+  meta?: unknown;
+  additionalContexts?: unknown;
+  concludesTurn?: boolean;
 }
 
 export const agentRuntimeProtocolVersion = "1.0.0" as const;

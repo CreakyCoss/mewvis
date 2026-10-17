@@ -128,6 +128,7 @@ const sourceSchemas = [
   "request.schema.json",
   "response.schema.json",
   "notification.schema.json",
+  "application-host.schema.json",
   "event.schema.json",
   "result.schema.json",
 ].map((name) => join(schemaRoot, name));

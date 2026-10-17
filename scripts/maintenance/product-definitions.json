@@ -215,28 +215,6 @@
           "$id"
         ],
         "{schemas.runtimeOrigin}/protocol/agent-runtime/v1/request.schema.json"
-      ],
-      [
-        [
-          "definitions",
-          "AgentRuntimeApplicationKind",
-          "enum",
-          0
-        ],
-        "{namespace}"
-      ],
-      [
-        [
-          "definitions",
-          "AgentRuntimeApplication",
-          "allOf",
-          0,
-          "if",
-          "properties",
-          "kind",
-          "const"
-        ],
-        "{namespace}"
       ]
     ]
   },
@@ -499,6 +477,17 @@
           "name"
         ],
         "{namespace}"
+      ]
+    ]
+  },
+  "apps/agent-runtime/protocol/v1/schema/application-host.schema.json": {
+    "keys": [],
+    "values": [
+      [
+        [
+          "$id"
+        ],
+        "{schemas.runtimeOrigin}/protocol/agent-runtime/v1/application-host.schema.json"
       ]
     ]
   }

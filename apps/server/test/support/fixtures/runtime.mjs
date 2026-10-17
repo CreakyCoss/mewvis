@@ -9,6 +9,7 @@ if (process.env.FIXTURE_STARTUP_MODE === "exit") process.exit(7);
 const lines = createInterface({ input: process.stdin });
 const keepAlive = setInterval(() => {}, 1000);
 let held;
+let applicationRequest;
 let ignorePing = false;
 let ignoreShutdown = false;
 const send = (value) => process.stdout.write(`${JSON.stringify(value)}\n`);
@@ -32,6 +33,16 @@ const complete = (command) => {
 lines.on("line", (line) => {
   const command = JSON.parse(line);
   const { id, method, params } = command;
+  if (!method && id?.startsWith("application-tool:") && applicationRequest) {
+    event({
+      type: "text_delta",
+      taskId: applicationRequest.id,
+      delta: JSON.stringify(command),
+    });
+    complete(applicationRequest);
+    applicationRequest = undefined;
+    return;
+  }
   if (method === "runtime/ping") {
     if (process.env.FIXTURE_STARTUP_MODE === "silent") return;
     if (!ignorePing)
@@ -47,7 +58,22 @@ lines.on("line", (line) => {
   } else if (method === "agent/run") {
     const action = params.userMessage;
     event({ type: "started", taskId: id });
-    if (action === "pipe-leak") {
+    if (action === "application-tool") {
+      applicationRequest = command;
+      send({
+        jsonrpc: "2.0",
+        id: `application-tool:${id}`,
+        method: "application/tool.execute",
+        params: {
+          taskId: id,
+          applicationId: "film",
+          callId: "prepare",
+          toolName: "film_prepare_media",
+          arguments: {},
+          ...JSON.parse(params.requestContext ?? "{}"),
+        },
+      });
+    } else if (action === "pipe-leak") {
       const descendant = spawn(
         process.execPath,
         ["-e", "setTimeout(() => {}, 3000)"],

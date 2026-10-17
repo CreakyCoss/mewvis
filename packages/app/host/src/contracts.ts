@@ -60,3 +60,16 @@ export type ApplicationSkillDefinition = Readonly<{
   invocation: { modelInvocable: boolean };
   [key: string]: unknown;
 }>;
+
+/** Serializable declarations from an already loaded application. No module entrypoints cross into Agent. */
+export type ApplicationRuntimeResources = Readonly<{
+  id: string;
+  tools: readonly ApplicationToolSchema[];
+  skills: readonly {
+    name: string;
+    description: string;
+    content: string;
+    modelInvocable: boolean;
+    baseDir?: string;
+  }[];
+}>;

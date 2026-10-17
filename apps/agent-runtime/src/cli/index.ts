@@ -1,14 +1,17 @@
 import { envName } from "@mewvis/product-config";
 import { createRuntimeEngine } from "../engines/index.js";
 import type { AgentRuntimeCommand } from "../engines/protocol/index.js";
+import { ApplicationToolChannel } from "./application-tools.js";
 import {
   AgentRuntimeStdioProtocol,
   createStdioRuntimeReader,
+  writeJsonLine,
 } from "./stdio.js";
 
 const runAgentRuntimeCli = async () => {
   const reader = createStdioRuntimeReader();
   const protocol = new AgentRuntimeStdioProtocol();
+  const applications = new ApplicationToolChannel(writeJsonLine);
   const runtime = createRuntimeEngine({
     profileId: process.env.AGENT_RUNTIME_PROFILE_ID,
     extensionSettingsPath: process.env[envName("EXTENSION_SETTINGS_PATH")],
@@ -18,6 +21,7 @@ const runAgentRuntimeCli = async () => {
       reader.close();
     },
     callbacks: {
+      executeApplicationTool: (call, signal) => applications.execute(call, signal),
       onEvent: (event) => protocol.writeEvent(event),
       onResult: (result) => protocol.writeResult(result),
     },
@@ -25,6 +29,7 @@ const runAgentRuntimeCli = async () => {
 
   try {
     for await (const line of reader) {
+      if (applications.receive(line)) continue;
       let command: AgentRuntimeCommand;
       try {
         command = protocol.parseCommand(line);
@@ -53,6 +58,7 @@ const runAgentRuntimeCli = async () => {
       }
     }
   } finally {
+    applications.close();
     try {
       await runtime.waitForRunningTask();
     } finally {

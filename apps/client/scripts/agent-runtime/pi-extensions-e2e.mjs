@@ -1,3 +1,5 @@
+import { applicationFixture } from "./application-fixture.mjs";
+import { createApplicationDataClient } from "../../../../packages/app/sdk/data/index.js";
 import assert from "node:assert/strict";
 import { build } from "esbuild";
 import { dshBundleCompatibilityPlugin } from "@mewvis/app-dev/dsh";
@@ -21,6 +23,7 @@ process.env.PI_CODING_AGENT_DIR = agentDir;
 const root = join(desktop, "../agent-runtime/src/engines/drivers/native/agent/runtimes/pi");
 let server;
 let created;
+const applicationHosts = [];
 
 try {
   // Match the desktop layout: the bundled worker lives in dist/ beside a source package.
@@ -359,6 +362,8 @@ try {
   writeFileSync(join(settingsRoot, "settings.yaml"), "{}\n");
   writeFileSync(join(settingsRoot, "mewvis-fixture-portable", "settings.yaml"), "prefix: saved\n");
   const fixtureRoot = join(desktop, "../../packages/app/host/fixtures/dsh-portable-application");
+  const portableHost = await applicationFixture({ kind: "dsh", id: "@mewvis/fixture-dsh-portable-application", packageRoot: fixtureRoot, entry: join(fixtureRoot, "index.js"), patchPath: join(fixtureRoot, "cordis.patch.yml") }, { cwd: workspace, settingsPath: settingsRoot });
+  applicationHosts.push(portableHost);
   const applicationExecution = api.resolveExecutionPolicy("ask", workspace);
   applicationExecution.sandbox.filesystem.denyWrite.push(settingsRoot);
   const applicationTools = await api.createPiToolSet(
@@ -366,21 +371,10 @@ try {
       ...command,
       resources: {
         tools: { allowed: ["mewvis_dsh_echo"] },
-        applications: {
-          settingsPath: settingsRoot,
-          items: [
-            {
-              kind: "dsh",
-              id: "@mewvis/fixture-dsh-portable-application",
-              packageRoot: fixtureRoot,
-              entry: join(fixtureRoot, "index.js"),
-              patchPath: join(fixtureRoot, "cordis.patch.yml"),
-            },
-          ],
-        },
+        applications: portableHost.resources,
       },
     },
-    callbacks,
+    { ...callbacks, ...portableHost.callbacks },
     { policies: { safety: api.resolveSafetyPolicy("ask", workspace), execution: applicationExecution } },
   );
   try {
@@ -419,6 +413,8 @@ try {
     platform: "node",
     format: "esm",
   });
+  const scopedHost = await applicationFixture({ kind: "mewvis", id: "scope-fixture", packageRoot: scopedApplicationRoot, entry: join(scopedApplicationRoot, "index.js") }, { cwd: workspace });
+  applicationHosts.push(scopedHost);
   const scopedApplication = await api.createPiToolSet(
     {
       ...command,
@@ -426,20 +422,10 @@ try {
       agentAccess: {},
       resources: {
         tools: { allowed: ["scope_echo"] },
-        applications: {
-          settingsPath: settingsRoot,
-          items: [
-            {
-              kind: "mewvis",
-              id: "scope-fixture",
-              packageRoot: scopedApplicationRoot,
-              entry: join(scopedApplicationRoot, "index.js"),
-            },
-          ],
-        },
+        applications: scopedHost.resources,
       },
     },
-    { ...callbacks, requestApproval: () => assert.fail("enabled application initialization must not prompt") },
+    { ...callbacks, ...scopedHost.callbacks, requestApproval: () => assert.fail("enabled application initialization must not prompt") },
   );
   try {
     const session = { agent: { state: { tools: scopedApplication.tools } } };
@@ -476,6 +462,13 @@ try {
   mkdirSync(join(storyWorkspace, ".mewvis"), { recursive: true });
   writeFileSync(join(storyWorkspace, ".mewvis", "workspace.json"),
     JSON.stringify({ version: 1, id: storyWorkspaceId, applications: ["@mewvis/story"] }));
+  const storyHost = await applicationFixture({ kind: "mewvis", id: "@mewvis/story", packageRoot: storyPackageRoot, entry: join(storyPackageRoot, storyManifest.mewvis.app.entry) }, {
+    cwd: storyWorkspace,
+    data: () => createApplicationDataClient({ version: 1, request: async (request) => request.method === "workspaces.get" && request.params.id === storyWorkspaceId
+      ? { ok: true, value: { id: storyWorkspaceId, name: "Story", path: storyWorkspace, isDefault: false } }
+      : { ok: false, error: { code: "WORKSPACE_NOT_FOUND", message: "应用工作区未登记" } } }),
+  });
+  applicationHosts.push(storyHost);
   const storyTools = await api.createPiToolSet({
     ...command,
     workspacePath: storyWorkspace,
@@ -483,12 +476,9 @@ try {
     agentAccess: storyManifest.mewvis.agentAccess,
     resources: {
       tools: { allowed: ["mewvis_story_inspect"] },
-      applications: { items: [{
-        kind: "mewvis", id: "@mewvis/story", packageRoot: storyPackageRoot,
-        entry: join(storyPackageRoot, storyManifest.mewvis.app.entry),
-      }] },
+      applications: storyHost.resources,
     },
-  }, callbacks);
+  }, { ...callbacks, ...storyHost.callbacks });
   try {
     const inspect = storyTools.tools.find((tool) => tool.name === "mewvis_story_inspect");
     assert.equal((await inspect.execute("story-inspect", { workspaceId: storyWorkspaceId })).details.value.status,
@@ -499,32 +489,8 @@ try {
     await storyTools.dispose();
   }
   console.log("PASS built-in Story tools start and resolve their registered workspace under Agent access");
-  await assert.rejects(
-    api.createPiToolSet(
-      {
-        ...command,
-        resources: {
-          applications: {
-            items: [
-              {
-                kind: "mewvis",
-                id: "bootstrap-test",
-                packageRoot: workspace,
-                entry: "missing-application.js",
-                config: { apiKey: "PRIVATE_CONFIGURATION_SENTINEL" },
-              },
-            ],
-          },
-        },
-      },
-      {
-        ...callbacks,
-        requestApproval: () => assert.fail("application initialization does not request approval"),
-      },
-    ),
-    /missing-application/,
-  );
-  console.log("PASS enabled application initialization and declared low-risk calls do not prompt; missing code still fails");
+  await assert.rejects(applicationFixture({ kind: "mewvis", id: "bootstrap-test", packageRoot: workspace, entry: join(workspace, "missing-application.js") }), /missing-application/);
+  console.log("PASS missing application modules fail in the host before declarations reach Agent");
   created = await api.createPiAgentSession(command, callbacks, { policies: strictPolicies });
   assert.ok(created.session.getActiveToolNames().includes("subagent"));
   const events = [];
@@ -740,6 +706,7 @@ try {
   for (const response of deferredRequests) response.destroy();
   console.log("PASS real Pi child session abort and cleanup");
 } finally {
+  await Promise.allSettled(applicationHosts.map((host) => host.dispose()));
   if (created) {
     await created.session.abort();
     created.session.dispose();

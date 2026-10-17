@@ -120,6 +120,23 @@ const rpc = (method, params = null) =>
     child.stdin.write(JSON.stringify({ id, method, params }) + "\n");
   });
 try {
+  const configured = await rpc("configure", {
+    settingsPath: temporary,
+    applications: [
+      {
+        kind: "mewvis",
+        id: manifest.name,
+        name: manifest.mewvis.displayName,
+        version: manifest.version,
+        description: manifest.description,
+        source: "bundled",
+        packageRoot: outputRoot,
+        entry: join(outputRoot, "index.js"),
+        permissions: manifest.mewvis.permissions,
+        permissionStatus: "declared",
+      },
+    ],
+  });
   // Exercise the actual host registry and Pi skill materialization without a model or user data.
   const bridgeFile = join(temporary, "pi-application-bridge.mjs");
   await build({
@@ -154,21 +171,13 @@ try {
     ],
     logLevel: "silent",
   });
-  const { ApplicationRuntimeBridge } = await import(
+  const { createPiApplicationResources } = await import(
     pathToFileURL(bridgeFile).href
   );
-  const bridge = await ApplicationRuntimeBridge.create(
-    [
-      {
-        kind: "mewvis",
-        id: manifest.name,
-        packageRoot: outputRoot,
-        entry: join(outputRoot, "index.js"),
-      },
-    ],
-    temporary,
-    join(temporary, "pi-settings"),
-  );
+  const resources = await rpc("runtimeResources", { applicationId: manifest.name, cwd: temporary });
+  const bridge = await createPiApplicationResources({ taskId: "playground-test", resources: { applications: { items: [resources] } } }, {
+    executeApplicationTool: (call) => rpc("execute", call),
+  });
   let skillFile;
   try {
     assert.equal(bridge.skills.length, 1);
@@ -180,10 +189,8 @@ try {
     assert.match(content, /chat_playground_inspect_text/);
     assert.match(content, /Unicode 码点/);
     assert.match(content, /不要自行编造/);
-    const tools = [];
-    const risks = bridge.registerTools({
-      registerTool: (tool) => tools.push(tool.name),
-    });
+    const tools = bridge.tools.map((tool) => tool.name);
+    const risks = new Map(bridge.tools.map((tool) => [tool.name, tool.risk]));
     assert.deepEqual(tools.sort(), [
       "chat_playground_echo",
       "chat_playground_inspect_text",
@@ -201,23 +208,6 @@ try {
     await bridge.dispose();
   }
   await assert.rejects(access(skillFile), { code: "ENOENT" });
-  const configured = await rpc("configure", {
-    settingsPath: temporary,
-    applications: [
-      {
-        kind: "mewvis",
-        id: manifest.name,
-        name: manifest.mewvis.displayName,
-        version: manifest.version,
-        description: manifest.description,
-        source: "bundled",
-        packageRoot: outputRoot,
-        entry: join(outputRoot, "index.js"),
-        permissions: manifest.mewvis.permissions,
-        permissionStatus: "declared",
-      },
-    ],
-  });
   const application = configured.applications[0];
   assert.equal(application.error, null);
   assert.equal(application.uiError, null);
