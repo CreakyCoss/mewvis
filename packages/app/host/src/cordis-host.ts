@@ -33,6 +33,10 @@ import {
 } from "@deepseek-ai/dsh-tools";
 import { lstat, mkdir, readFile, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
+import {
+  createApplicationMediaClient,
+  type ApplicationMediaClient,
+} from "@mewvis/app-sdk/media";
 import { dirname, extname, isAbsolute, join, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import { load as loadYaml, JSON_SCHEMA } from "js-yaml";
@@ -56,6 +60,7 @@ export type CordisApplicationHostOptions = Readonly<{
   chat?: (applicationId: string) => ApplicationChatClient | undefined;
   data?: (applicationId: string) => ApplicationDataClient;
   files?: (applicationId: string) => ApplicationFileClient;
+  media?: (applicationId: string) => ApplicationMediaClient;
   toolPresentation?: "native" | "code" | "both";
   /** A YAML/JSON file keeps DSH's monolithic mode; a directory enables Mewvis namespace isolation. */
   settingsPath?: string;
@@ -312,6 +317,7 @@ export class CordisApplicationHost {
     private readonly chatFactory?: CordisApplicationHostOptions["chat"],
     private readonly dataFactory?: CordisApplicationHostOptions["data"],
     private readonly fileFactory?: CordisApplicationHostOptions["files"],
+    private readonly mediaFactory?: CordisApplicationHostOptions["media"],
     private readonly applicationSettingsRoot?: string,
   ) {
     this.context = context;
@@ -366,6 +372,7 @@ export class CordisApplicationHost {
         options.chat,
         options.data,
         options.files,
+        options.media,
         options.applicationSettingsRoot,
       );
     } catch (error) {
@@ -443,7 +450,8 @@ export class CordisApplicationHost {
       .isolate("chat")
       .isolate("storage")
       .isolate("workspaces")
-      .isolate("files");
+      .isolate("files")
+      .isolate("media");
     const data =
       this.dataFactory?.(applicationId) ??
       createApplicationDataClient({
@@ -469,6 +477,19 @@ export class CordisApplicationHost {
         }),
       });
     const removeFiles = scope.provide("files", files);
+    const media =
+      this.mediaFactory?.(applicationId) ??
+      createApplicationMediaClient({
+        version: 1,
+        request: async () => ({
+          ok: false,
+          error: {
+            code: "CAPABILITY_UNAVAILABLE",
+            message: "当前运行环境未提供媒体处理服务",
+          },
+        }),
+      });
+    const removeMedia = scope.provide("media", media);
     const removeStorage = scope.provide("storage", data.storage);
     const removeWorkspaces = scope.provide("workspaces", data.workspaces);
     const removeChat = chat ? scope.provide("chat", chat) : undefined;
@@ -476,6 +497,7 @@ export class CordisApplicationHost {
       chat?.dispose();
       void removeChat?.();
       void removeFiles();
+      void removeMedia();
       void removeStorage();
       void removeWorkspaces();
     };

@@ -2,6 +2,7 @@ import * as fs from "node:fs/promises";
 import type { FileHandle } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { basename, dirname, join } from "node:path";
+import { createReadStream } from "node:fs";
 import {
   onlyKeys,
   nonempty,
@@ -32,6 +33,61 @@ type Upload = {
 export class FileOperations {
   private uploads = new Map<string, Upload>();
   constructor(private access: FileAccess) {}
+  /** Publishes a host-created result without JSON/base64 transfer or replacing an existing file. */
+  async publish(
+    connection: string,
+    source: string,
+    destination: string,
+    signal: AbortSignal,
+    seal: () => void,
+  ) {
+    const target = await this.access.authorize(
+      connection,
+      destination,
+      "write",
+    );
+    await fs.mkdir(dirname(target), { recursive: true });
+    await this.access.authorize(connection, target, "write");
+    const temporary = join(
+      dirname(target),
+      `.mewvis-media-${randomUUID()}.tmp`,
+    );
+    const handle = await fs.open(temporary, "wx", 0o600);
+    const identity = await handle.stat();
+    try {
+      for await (const bytes of createReadStream(source, { signal })) {
+        signal.throwIfAborted();
+        let offset = 0;
+        while (offset < bytes.length)
+          offset += (await handle.write(bytes, offset, bytes.length - offset))
+            .bytesWritten;
+      }
+      await handle.sync();
+      await handle.close();
+      await this.access.authorize(connection, target, "write");
+      const current = await fs.lstat(temporary);
+      if (
+        current.isSymbolicLink() ||
+        current.dev !== identity.dev ||
+        current.ino !== identity.ino
+      )
+        fail("FILE_CHANGED", "成片保存期间临时文件被替换", 409);
+      signal.throwIfAborted();
+      seal();
+      await fs.link(temporary, target);
+      await fs.unlink(temporary);
+      return { ...(await this.info(target)), type: "file" as const };
+    } finally {
+      await handle.close().catch(() => {});
+      // Never remove a substituted file or follow a replaced parent during cleanup.
+      try {
+        await this.access.authorize(connection, temporary, "write");
+        const current = await fs.lstat(temporary);
+        if (current.dev === identity.dev && current.ino === identity.ino)
+          await fs.unlink(temporary);
+      } catch {}
+    }
+  }
   private async info(path: string): Promise<FileInfo> {
     const stat = await fs.lstat(path);
     if (stat.isSymbolicLink() || (!stat.isFile() && !stat.isDirectory()))

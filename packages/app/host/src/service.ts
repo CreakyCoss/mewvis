@@ -145,6 +145,11 @@ const configure = async (value: unknown) => {
         runtimeApplications.find((application) => application.id === id)
           ?.fileConnection,
       ),
+    media: (id) =>
+      nativeFiles.mediaClient(
+        runtimeApplications.find((application) => application.id === id)
+          ?.fileConnection,
+      ),
     data: (id) =>
       nativeData.client(
         runtimeApplications.find((application) => application.id === id)

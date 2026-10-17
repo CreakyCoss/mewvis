@@ -36,7 +36,7 @@ Mewvis 包通过自己的清单暴露 Cordis 应用入口：
 
 入口可以导出 Cordis 函数、类或 `{ apply(ctx, config) }` 对象。作者从 `@mewvis/app-sdk` 导入 `defineApplication`、`defineTool`、`defineSkill`，无需导入 Cordis 或 DSH 服务。Mewvis 上下文提供 Cordis 生命周期语义，以及 `tools`、`skills`、`settings` 服务。
 
-`mewvis.permissions` 声明应用对 `network`、`application-data`、`application-workspaces`、`workspace-files`、`open-external`、`process` 等能力的使用意图。新增原生应用必须声明该字段，不需要能力时填空数组。安装前 Mewvis 校验并展示声明；数据 SDK 对应的宿主接口还会检查声明，未申请的接口直接拒绝。该检查不替代现有文件沙箱和权限档位。工作区与业务存储的接入见 [应用数据 SDK](data.md)。
+`mewvis.permissions` 声明应用对 `network`、`application-data`、`application-workspaces`、`workspace-files`、`open-external`、`process` 等能力的使用意图。新增原生应用必须声明该字段，不需要能力时填空数组。安装前 Mewvis 校验并展示声明；数据 SDK 对应的宿主接口还会检查声明，未申请的接口直接拒绝。该检查不替代现有文件沙箱和权限档位。工作区与业务存储的接入见 [应用数据 SDK](data.md)，本地媒体合成与后台任务见[宿主媒体处理](media.md)。
 
 新安装的原生包缺少该字段会被拒绝；已安装的旧包在清单升级前强制禁用；内置原生包则校验失败。DSH 格式没有等价字段，仍允许导入，但默认禁用，并明确标记为受信任模式的兼容包，不虚构权限。
 

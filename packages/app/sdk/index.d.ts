@@ -105,6 +105,8 @@ export interface MewvisApplicationContext {
   readonly storage?: ApplicationStorage;
   /** File access is checked by the host on every operation. Requires workspace-files. */
   readonly files?: import("./files/index.js").ApplicationFileClient;
+  /** Local media processing, authenticated with the same workspace-files permission. */
+  readonly media?: import("./media/index.js").ApplicationMediaClient;
   /** Application-owned workspace membership; never the desktop workspace registry. */
   readonly workspaces?: ApplicationWorkspaces;
   readonly tools: MewvisToolRegistry;

@@ -1,5 +1,6 @@
 import { createBackendApplicationFileTransport } from "@/api/applications/files";
 import type { ApplicationFileRequest } from "@mewvis/app-sdk/files";
+import type { ApplicationMediaRequest } from "@mewvis/app-sdk/media";
 import { productId } from "@mewvis/product-config";
 import { applicationChatHost } from "@/workbench/shell/chat-service";
 import type { ApplicationChatRequest } from "@mewvis/app-sdk/chat";
@@ -283,7 +284,7 @@ export const ApplicationFrame = ({
           .finally(() => chatRequests.delete(id));
         return;
       }
-      if (message.type === "files:request") {
+      if (message.type === "files:request" || message.type === "media:request") {
         const id = message.id;
         const request = messageObject(message.request);
         if (typeof id !== "string" || !id || id.length > 128 || !request) return;
@@ -303,8 +304,11 @@ export const ApplicationFrame = ({
           return;
         }
         fileRequests.add(id);
-        void files
-          .request(request as unknown as ApplicationFileRequest)
+        void (
+          message.type === "media:request"
+            ? files.media.request(request as unknown as ApplicationMediaRequest)
+            : files.request(request as unknown as ApplicationFileRequest)
+        )
           .then(
             (result) => {
               if (connected) post({ type: "host:result", id, result });

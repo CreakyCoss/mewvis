@@ -54,6 +54,7 @@
 - [应用 SDK](apps/sdk.md)
 - [应用数据与工作区 SDK](apps/data.md)
 - [应用文件与宿主预览](apps/files.md)
+- [宿主媒体处理](apps/media.md)
 - [应用宿主](apps/host.md)
 - [应用界面协议](apps/ui.md)
 - [应用聊天](apps/chat.md)

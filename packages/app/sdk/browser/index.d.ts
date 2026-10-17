@@ -32,6 +32,8 @@ export interface ApplicationBrowserHost {
   readonly header?: ApplicationHeaderHost;
   /** Identity-bound file transport; requires workspace-files. */
   readonly files?: import("../files/index.js").ApplicationFileTransport;
+  /** Local media jobs using the same caller identity and file permissions. */
+  readonly media?: import("../media/index.js").ApplicationMediaTransport;
   /** Optional authenticated data v1 transport. Older hosts omit this capability. */
   readonly data?: import("../data/index.js").ApplicationDataTransport;
   /** Present only when the application declares embedded-views. Children receive no application bridge. */

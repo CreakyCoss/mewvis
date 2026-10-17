@@ -30,6 +30,7 @@ export function hostProtectedPaths(
 ): string[] {
   return [
     ...new Set([
+      join(dataPath, "media"),
       ...sqliteFilePaths(join(dataPath, "config.db")),
       ...applicationDataPaths.flatMap((directory) =>
         applicationProtectedPaths(directory, [join(directory, "workspace")]),

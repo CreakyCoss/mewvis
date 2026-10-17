@@ -50,6 +50,10 @@ export class FileAccess {
       fail("PERMISSION_DENIED", "文件连接已失效", 403);
     return scope;
   }
+  async identity(connection: string) {
+    await this.caller(connection);
+    return this.connections.get(connection)!;
+  }
   async canonical(path: string) {
     const missing: string[] = [];
     let parent = path;

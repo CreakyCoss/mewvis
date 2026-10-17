@@ -1,5 +1,6 @@
 import { invoke, listen } from "@/transport";
 import { platform } from "@/platform";
+import type { ApplicationMediaTransport, ApplicationMediaResponse } from "@mewvis/app-sdk/media";
 import type {
   ApplicationFileTransport,
   ApplicationFileResponse,
@@ -23,12 +24,26 @@ async function browserResource(value: ApplicationFilePreviewResource, includeRun
 }
 export function createBackendApplicationFileTransport(
   applicationId?: string,
-): ApplicationFileTransport & { dispose(): void } {
+): ApplicationFileTransport & { media: ApplicationMediaTransport; dispose(): void } {
   let connection: Promise<string> | undefined,
     disposed = false;
   const owned = new Set<string>(),
     listeners = new Set<(event: { id: string }) => void>();
   let unlisten: (() => void) | undefined;
+  const token = async () => {
+    if (disposed) throw new Error("文件连接已关闭");
+    connection ??= (
+      applicationId
+        ? invoke<string>("connect_application_files", { applicationId })
+        : invoke<string>("connect_host_files")
+    ).catch((error) => {
+      connection = undefined;
+      throw error;
+    });
+    const value = await connection;
+    if (disposed) throw new Error("文件连接已关闭");
+    return value;
+  };
   void listen<{ id: string }>("application-file-preview:close", ({ payload }) => {
     if (owned.delete(payload.id)) for (const listener of listeners) listener(payload);
   })
@@ -39,6 +54,11 @@ export function createBackendApplicationFileTransport(
     .catch(() => {});
   return {
     version: 1,
+    media: {
+      version: 1,
+      request: async (request) =>
+        invoke<ApplicationMediaResponse>("request_application_media", { connection: await token(), request }),
+    },
     subscribe(listener) {
       listeners.add(listener);
       return () => {
@@ -47,18 +67,10 @@ export function createBackendApplicationFileTransport(
     },
     async request(request) {
       if (disposed) return { ok: false, error: { code: "PERMISSION_DENIED", message: "文件连接已关闭" } };
-      connection ??= (
-        applicationId
-          ? invoke<string>("connect_application_files", { applicationId })
-          : invoke<string>("connect_host_files")
-      ).catch((error) => {
-        connection = undefined;
-        throw error;
-      });
-      const token = await connection;
+      const connectionToken = await token();
       if (disposed) return { ok: false, error: { code: "PERMISSION_DENIED", message: "文件连接已关闭" } };
       const response = await invoke<ApplicationFileResponse>("request_application_files", {
-        connection: token,
+        connection: connectionToken,
         request,
       });
       if (response.ok && ["preview.create", "preview.describe", "preview.openDialog"].includes(request.method)) {

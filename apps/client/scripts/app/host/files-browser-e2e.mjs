@@ -49,6 +49,7 @@ const app = await build({
   absWorkingDir: clientRoot,
   stdin: {
     contents: `import {getApplicationFileClient} from '@mewvis/app-sdk/files';
+import {getApplicationMediaClient} from '@mewvis/app-sdk/media';
 import {FilePreview as SDKFilePreview, FilePreviewDialog as SDKFilePreviewDialog} from '@mewvis/app-sdk/files/react';
 import {createElement} from 'react';
 import {createRoot} from 'react-dom/client';
@@ -64,6 +65,15 @@ let nativePreview;
 const sdkPreview=filePath=>sdkRoot.render(createElement(SDKFilePreview,{filePath,style:{height:360}}));
 const sdkDialog=filePath=>sdkRoot.render(createElement(SDKFilePreviewDialog,{filePath,open:true,onOpenChange:open=>{if(!open)sdkRoot.render(null);}}));
 const actions={
+ '合成媒体示例':async()=>{
+   const media=getApplicationMediaClient();const capability=await media.capabilities();if(!capability.available)throw new Error(capability.reason);
+   const png=Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAACXBIWXMAAAABAAAAAQBPJcTWAAAAFUlEQVR4nGNgYPhLIhrVMKph2GoAAISu/QH+5zsIAAAAAElFTkSuQmCC'),c=>c.charCodeAt(0));
+   const frame=path+'/media-frame.png';await files.writeBinary(frame,png,{overwrite:true});
+   let job=await media.compose({requestId:crypto.randomUUID(),width:320,height:180,fps:24,outputFilePath:path+'/render-'+crypto.randomUUID()+'.mp4',clips:[{visual:{kind:'image',filePath:frame},duration:1}]});
+   show(job);while(['queued','running','cancelling'].includes(job.status)){await new Promise(resolve=>setTimeout(resolve,250));job=await media.get(job.id);show(job);}
+   if(job.status!=='completed')throw new Error(job.error?.message||job.status);
+   show({job,info:await media.probe(job.outputFilePath)});sdkPreview(job.outputFilePath);
+ },
  '保存并读取': async()=>{await files.writeText(path+'/demo.txt','宿主统一文件保存与预览',{overwrite:true});show(await files.readText(path+'/demo.txt'));},
  '预览文本':()=>files.preview.openDialog({filePath:path+'/demo.txt'}),
  '预览图片':async()=>{await files.writeText(path+'/image.svg','<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360"><rect width="640" height="360" fill="#eef0ff"/><circle cx="320" cy="140" r="65" fill="#625ce8"/><text x="320" y="265" text-anchor="middle" font-family="sans-serif" font-size="28" fill="#23232d">Mewvis File Preview</text></svg>',{overwrite:true});return files.preview.openDialog({filePath:path+'/image.svg'});},
@@ -295,6 +305,17 @@ try {
       page.on("pageerror", (error) => errors.push(error.message));
       await page.goto(server.url);
       const frame = page.frameLocator("iframe");
+      if (process.argv.includes("--media")) {
+        await frame.getByRole("button", { name: "合成媒体示例", exact: true }).click();
+        const video = frame.locator("#sdk-preview video");
+        await video.waitFor();
+        await video.evaluate(node => node.readyState >= 1 ? true : new Promise(resolve => node.addEventListener('loadedmetadata', resolve, {once:true})));
+        assert.equal(await video.evaluate(node => node.videoWidth), 320);
+        assert.equal(await video.evaluate(node => node.videoHeight), 180);
+        assert.deepEqual(errors, []);
+        console.log(`${engine}: sandbox media SDK -> authenticated host -> real FFmpeg -> shared file preview passed`);
+        continue;
+      }
       if (playground) {
         await testPlaygroundFiles(page, frame, engine).catch(async (error) => {
           await page.screenshot({ path: `/tmp/mewvis-playground-files-failed-${engine}.png` });

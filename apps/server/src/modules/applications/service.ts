@@ -18,6 +18,7 @@ import {
 } from "./packages.js";
 import { ApplicationData } from "./data.js";
 import { ApplicationHost } from "./host.js";
+import { ApplicationMedia } from "../media/service.js";
 
 import { Serial } from "../../shared/serial.js";
 import { jsonWrite } from "../../infrastructure/filesystem/json.js";
@@ -43,6 +44,7 @@ export const applicationsBare = [
   "disconnect_application_data",
   "connect_application_files",
   "request_application_files",
+  "request_application_media",
   "disconnect_application_files",
   "connect_host_files",
 ];
@@ -51,6 +53,7 @@ export class Applications {
   readonly data: ApplicationData;
   readonly host: ApplicationHost;
   readonly files: ApplicationFiles;
+  readonly media: ApplicationMedia;
   private serial = new Serial();
   constructor(
     private config: RuntimeConfig,
@@ -81,14 +84,24 @@ export class Applications {
         dataPath,
         workspacePaths,
       );
-      return { dataPath, workspacePaths, protectedPaths };
+      return {
+        dataPath,
+        workspacePaths,
+        protectedPaths: [...protectedPaths, join(config.dataDir, "media")],
+      };
     }, supervisor.events);
+    this.media = new ApplicationMedia(
+      this.files,
+      join(config.dataDir, "media"),
+      config.env,
+    );
     this.host = new ApplicationHost(
       config,
       this.packages,
       this.data,
       supervisor.events,
       this.files,
+      this.media,
     );
     supervisor.setApplicationToolHandler(async (call) => {
       await this.packages.authorize(call.applicationId, "chat");
@@ -119,6 +132,7 @@ export class Applications {
     );
   }
   async close() {
+    await this.media.close();
     await this.files.close();
     this.data.close();
     await this.host.close();
@@ -138,6 +152,7 @@ export class Applications {
     };
   }
   private async revoke(id: string) {
+    await this.media.revoke(id);
     await this.files.revoke(id);
     this.data.revoke(id);
     this.supervisor.abortApplication(id);
@@ -304,6 +319,22 @@ export class Applications {
               code: error instanceof ServiceError ? error.code : "FILE_ERROR",
               message:
                 error instanceof ServiceError ? error.message : "文件操作失败",
+            },
+          };
+        }
+      },
+      request_application_media: async (i: JsonObject) => {
+        try {
+          return {
+            ok: true,
+            value: await this.media.request(i.connection, i.request),
+          };
+        } catch (error) {
+          return {
+            ok: false,
+            error: {
+              code: error instanceof ServiceError ? error.code : "MEDIA_ERROR",
+              message: error instanceof Error ? error.message : "媒体操作失败",
             },
           };
         }

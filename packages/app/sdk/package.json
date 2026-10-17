@@ -40,6 +40,10 @@
       "types": "./files/index.d.ts",
       "default": "./files/index.js"
     },
+    "./media": {
+      "types": "./media/index.d.ts",
+      "default": "./media/index.js"
+    },
     "./files/react": {
       "types": "./files/react.d.ts",
       "default": "./files/react.js"
@@ -57,7 +61,8 @@
     "data",
     "tools",
     "views",
-    "files"
+    "files",
+    "media"
   ],
   "scripts": {
     "test": "node --test test/*.test.mjs"

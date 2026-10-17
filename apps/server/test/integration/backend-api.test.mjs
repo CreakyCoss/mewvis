@@ -779,7 +779,21 @@ test("corrupt configuration can be inspected and rebuilt without preventing Serv
   assert.equal(await fs.readFile(backup, "utf8"), "original-corrupt-content");
 });
 test("application Agent binding injects only its owner permissions and disable cancels its worker", async (t) => {
-  const s = await setup(t);
+  // Agent binding loads the production application tool catalog beside the simulated Runtime.
+  const runtime = await fs.mkdtemp(join(tmpdir(), "mewvis-owner-runtime-"));
+  let closeRuntimeHost;
+  t.after(async () => {
+    await closeRuntimeHost?.();
+    await fs.rm(runtime, { recursive: true, force: true });
+  });
+  await fs.copyFile(fixture, join(runtime, "cli.mjs"));
+  await fs.mkdir(join(runtime, "app-host"));
+  await fs.copyFile(
+    new URL("../../../../packages/app/host/dist/service.mjs", import.meta.url),
+    join(runtime, "app-host/service.mjs"),
+  );
+  const s = await setup(t, { cliPath: join(runtime, "cli.mjs") });
+  closeRuntimeHost = () => s.server.close();
   const source = join(s.root, "owner");
   await fs.mkdir(source);
   await fs.writeFile(

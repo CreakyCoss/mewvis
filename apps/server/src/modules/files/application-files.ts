@@ -33,6 +33,27 @@ export class ApplicationFiles {
   connect(applicationId: string | null) {
     return this.access.connect(applicationId);
   }
+  identity(connection: string) {
+    return this.access.identity(connection);
+  }
+  openRead(connection: string, path: string) {
+    return this.access.openRead(connection, path);
+  }
+  publish(
+    connection: string,
+    source: string,
+    destination: string,
+    signal: AbortSignal,
+    seal: () => void,
+  ) {
+    return this.operations.publish(
+      connection,
+      source,
+      destination,
+      signal,
+      seal,
+    );
+  }
   authorize(
     connection: string,
     input: unknown,

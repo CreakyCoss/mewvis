@@ -1,4 +1,5 @@
 import type { ApplicationFiles } from "../files/application-files.js";
+import type { ApplicationMedia } from "../media/service.js";
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { dirname, join } from "node:path";
@@ -42,6 +43,7 @@ export class ApplicationHost {
     private data: ApplicationData,
     private events: EventHub,
     private files?: ApplicationFiles,
+    private media?: ApplicationMedia,
   ) {}
   private send(message: unknown) {
     if (!this.child || this.child.stdin.destroyed)
@@ -90,16 +92,31 @@ export class ApplicationHost {
   private receive(message: any, connection: string) {
     if (connection !== this.connection) return;
     if (message.type === "application-files:request" && this.files) {
-      void this.files
-        .request(message.connection, message.request)
+      const service = message.service === "media" ? this.media : this.files;
+      void (
+        service
+          ? service.request(message.connection, message.request)
+          : Promise.reject(
+              new ServiceError(503, "CAPABILITY_UNAVAILABLE", "媒体服务不可用"),
+            )
+      )
         .then(
           (value) => ({ ok: true, value }),
           (error) => ({
             ok: false,
             error: {
-              code: error instanceof ServiceError ? error.code : "FILE_ERROR",
+              code:
+                error instanceof ServiceError
+                  ? error.code
+                  : message.service === "media"
+                    ? "MEDIA_ERROR"
+                    : "FILE_ERROR",
               message:
-                error instanceof ServiceError ? error.message : "文件操作失败",
+                error instanceof ServiceError
+                  ? error.message
+                  : message.service === "media"
+                    ? "媒体操作失败"
+                    : "文件操作失败",
             },
           }),
         )

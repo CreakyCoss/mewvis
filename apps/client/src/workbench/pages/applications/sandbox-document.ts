@@ -73,6 +73,17 @@ const BRIDGE_SOURCE = String.raw`
         });
       },
     }),
+    media: Object.freeze({
+      version: 1,
+      request(request) {
+        const id = String(nextId++);
+        return new Promise((resolve, reject) => {
+          const timer = setTimeout(() => { pending.delete(id); reject(new Error("媒体请求超时，请查询任务确认结果")); }, 30000);
+          pending.set(id, { resolve: (value) => { clearTimeout(timer); resolve(value); }, reject: (error) => { clearTimeout(timer); reject(error); } });
+          send({ type: "media:request", id, request });
+        });
+      },
+    }),
     data: Object.freeze({
       version: 1,
       request(request) {
