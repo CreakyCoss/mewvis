@@ -1,11 +1,15 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   getApplicationChatClient,
   type ApplicationChatSession,
 } from "@mewvis/app-sdk/chat";
 import { getApplicationFileClient } from "@mewvis/app-sdk/files";
+import { getApplicationDataClient } from "@mewvis/app-sdk/data";
 import { assistantContext } from "./assistant-context";
 import { projectSession } from "./assistant-session";
+import { createAssistantStore } from "./assistant/store";
+import { createMediaRequestStore } from "./assistant/media-requests";
+import { assistantInstruction } from "./assistant/instructions";
 import {
   applyGeneration,
   generationMessage,
@@ -19,10 +23,26 @@ import { newId, type FilmGeneration, type FilmMedia } from "./model";
 import type { useEditor } from "./useEditor";
 
 export function useGeneration(editor: ReturnType<typeof useEditor>) {
+  const stores = useMemo(
+    () => ({
+      assistant: createAssistantStore(
+        getApplicationDataClient().storage,
+        getApplicationFileClient(),
+      ),
+      requests: createMediaRequestStore(getApplicationDataClient().storage),
+    }),
+    [],
+  );
   const [error, setError] = useState("");
   const [starting, setStarting] = useState(false);
   const [retry, setRetry] = useState(0);
   const [stopping, setStopping] = useState(false);
+  const [question, setQuestion] = useState<{
+    id: string;
+    jobId: string;
+    episodeId: string;
+    shotId: string;
+  }>();
   const startingRef = useRef(false),
     latest = useRef(editor);
   latest.current = editor;
@@ -37,6 +57,53 @@ export function useGeneration(editor: ReturnType<typeof useEditor>) {
       ["preparing", "running"].includes(job.status),
     ) ?? [];
   const key = pending.map((job) => `${job.id}:${job.taskId ?? ""}`).join(":");
+  useEffect(() => {
+    let disposed = false,
+      reading = false;
+    const seen = new Set<string>();
+    const discover = async () => {
+      if (reading || disposed) return;
+      reading = true;
+      try {
+        const records = await stores.requests.unread(
+          latest.current.current.current,
+          seen,
+        );
+        if (disposed) return;
+        const current = latest.current.current.current;
+        const added = records.filter(
+          ({ job }) => !current.generations?.some((item) => item.id === job.id),
+        );
+        if (added.length) {
+          latest.current.edit((project) => ({
+            ...project,
+            generations: [
+              ...(project.generations ?? []),
+              ...added
+                .map(({ job }) => job)
+                .filter(
+                  (job) =>
+                    !project.generations?.some((item) => item.id === job.id),
+                ),
+            ].sort((a, b) => a.createdAt - b.createdAt),
+          }));
+          await latest.current.flush();
+        }
+        records.forEach(({ key }) => seen.add(key));
+      } catch (reason) {
+        if (!disposed)
+          setError(reason instanceof Error ? reason.message : String(reason));
+      } finally {
+        reading = false;
+      }
+    };
+    void discover();
+    const timer = setInterval(() => void discover(), 1000);
+    return () => {
+      disposed = true;
+      clearInterval(timer);
+    };
+  }, [editor.project.id, stores]);
   useEffect(() => {
     let disposed = false;
     for (const [id, watcher] of watched.current)
@@ -57,6 +124,25 @@ export function useGeneration(editor: ReturnType<typeof useEditor>) {
           let tail = Promise.resolve();
           const sync = () => {
             const snapshot = session.getSnapshot();
+            if (
+              snapshot.pendingQuestion &&
+              (!job.taskId || job.taskId === snapshot.pendingQuestion.taskId)
+            ) {
+              const id = snapshot.pendingQuestion.questionId;
+              setQuestion((current) =>
+                current?.id === id
+                  ? current
+                  : {
+                      id,
+                      jobId: job.id,
+                      episodeId: job.episodeId,
+                      shotId: job.shotId,
+                    },
+              );
+            } else
+              setQuestion((current) =>
+                current?.jobId === job.id ? undefined : current,
+              );
             tail = tail
               .then(async () => {
                 const currentEditor = latest.current;
@@ -103,7 +189,16 @@ export function useGeneration(editor: ReturnType<typeof useEditor>) {
                 }
                 latest.current.edit((project) =>
                   applyGeneration(
-                    project,
+                    result.taskId && !record.taskId
+                      ? {
+                          ...project,
+                          generations: project.generations?.map((item) =>
+                            item.id === job.id
+                              ? { ...item, taskId: result.taskId }
+                              : item,
+                          ),
+                        }
+                      : project,
                     job.id,
                     result.status,
                     outputs,
@@ -172,44 +267,38 @@ export function useGeneration(editor: ReturnType<typeof useEditor>) {
       )
         throw new Error("请等待当前生成任务结束，或在助手中停止任务");
       const prompt = generationPrompt(shot, purpose);
-      if (!prompt)
-        throw new Error(
-          purpose === "speech"
-            ? "请先在分镜设计中填写台词"
-            : "请先填写画面内容或生成提示词",
-        );
       await editor.flush();
       const session = await projectSession(project, episodeId);
       if (session.getSnapshot().phase !== "idle")
         throw new Error("创作助手正在执行任务，请等待结束");
       if (!session.getSnapshot().config.selectedModelId)
         throw new Error("请先在创作助手中选择模型");
-      const context = await session.setContext(
-        assistantContext(
-          project,
-          episode,
-          GENERATION_TYPES[purpose].step,
-          shotId,
-        ),
-      );
-      if (!context.ok) throw new Error(context.error);
-      job = {
-        id: newId(),
-        purpose,
-        episodeId,
+      const context = assistantContext(
+        project,
+        episode,
+        GENERATION_TYPES[purpose].step,
         shotId,
-        chatId: session.identity.id,
-        workspaceId: project.workspace.id,
-        status: "preparing",
-        prompt,
-        previousMediaId: shot[GENERATION_TYPES[purpose].field],
-        outputIds: [],
-        createdAt: Date.now(),
-      };
-      editor.edit((current) => ({
-        ...current,
-        generations: [...(current.generations ?? []), job!],
-      }));
+      );
+      const source = await stores.assistant.prepare(
+        project,
+        episodeId,
+        session.identity.id,
+        context.requestContext,
+      );
+      const updated = await session.setContext({
+        ...context,
+        runtimeInstruction: assistantInstruction(source.id, source.chatId),
+      });
+      if (!updated.ok) throw new Error(updated.error);
+      job = await stores.requests.prepare(source, purpose, shotId, prompt);
+      editor.edit((current) =>
+        current.generations?.some((item) => item.id === job!.id)
+          ? current
+          : {
+              ...current,
+              generations: [...(current.generations ?? []), job!],
+            },
+      );
       await editor.flush();
       if (
         editor.current.current.generations?.find((item) => item.id === job!.id)
@@ -250,8 +339,8 @@ export function useGeneration(editor: ReturnType<typeof useEditor>) {
       setStarting(false);
     }
   };
-  const stop = async () => {
-    const job = pending[0];
+  const stop = async (jobId?: string) => {
+    const job = jobId ? pending.find((item) => item.id === jobId) : pending[0];
     if (!job || startingRef.current || stopping) return;
     setStopping(true);
     setError("");
@@ -286,6 +375,7 @@ export function useGeneration(editor: ReturnType<typeof useEditor>) {
     generate,
     stop,
     stopping,
+    question,
     error,
     starting,
     busy: starting || pending.length > 0,

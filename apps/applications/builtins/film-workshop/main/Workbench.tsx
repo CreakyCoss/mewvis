@@ -2,7 +2,13 @@ import {
   NativeSelect,
   NativeSelectOption,
 } from "design-system/components/ui/native-select";
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -195,14 +201,20 @@ export function Workbench({
   };
   const closePanel = () =>
     compactScreen ? setMobilePanel(false) : setPanel(null);
-  const showAssistant = () => {
+  const showAssistant = useCallback(() => {
     setPanel("assistant");
     setMobilePanel(true);
     setFocused(false);
-  };
+  }, []);
   useEffect(() => {
     if (generation.error) showAssistant();
-  }, [generation.error]);
+  }, [generation.error, showAssistant]);
+  useEffect(() => {
+    if (!generation.question) return;
+    setEpisodeId(generation.question.episodeId);
+    setShotId(generation.question.shotId);
+    showAssistant();
+  }, [generation.question, showAssistant]);
   const scopedShot = ["storyboard", "video", "dubbing"].includes(step);
   const selectedNumber = shot
     ? episode.shots.findIndex((s) => s.id === shot.id) + 1
@@ -472,12 +484,12 @@ export function Workbench({
               edit={edit}
               selectedShotId={shot?.id}
               onSelectShot={setShotId}
+              onOpenStep={openStep}
               generate={generation.generate}
               generationBusy={generation.busy}
               stopGeneration={generation.stop}
               generationStarting={generation.starting}
               generationStopping={generation.stopping}
-              onShowAssistant={showAssistant}
             />
           </section>
           <footer className="film-stage-footer">
@@ -533,6 +545,8 @@ export function Workbench({
               step={step}
               selectedShotId={shot?.id}
               generationError={generation.error}
+              mediaStarting={generation.starting}
+              onQuestion={showAssistant}
               onReconnectGeneration={
                 generation.busy ? generation.retry : undefined
               }

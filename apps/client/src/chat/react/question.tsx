@@ -167,8 +167,10 @@ export const QuestionView = ({ question, onAnswer, answering = false }: ChatQues
           {submitting === "cancel" ? "取消中" : "取消回答"}
         </Button>
         <Button
-          type="submit"
+          // Application iframes disallow native form submission.
+          type="button"
           size="sm"
+          onClick={() => void submitAnswer(answerValue)}
           disabled={isAnswering || expired || !answerValue.trim()}
           className="h-9 shrink-0 gap-1.5 px-3 text-xs"
         >

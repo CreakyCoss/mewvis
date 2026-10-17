@@ -48,6 +48,7 @@ export interface FilmGeneration {
   shotId: string;
   chatId: string;
   workspaceId: string;
+  contextId?: string;
   taskId?: string;
   status: "preparing" | "running" | "completed" | "failed" | "stopped";
   prompt: string;
@@ -399,6 +400,9 @@ export function validateProject(value: unknown): FilmProject {
             prompt: text(g.prompt, "生成提示词", 32000),
             outputIds: mediaIds(g.outputIds),
             createdAt: timestamp(g.createdAt),
+            ...(g.contextId
+              ? { contextId: text(g.contextId, "生成上下文", 80) }
+              : {}),
             ...(g.taskId ? { taskId: text(g.taskId, "任务标识", 256) } : {}),
             ...(g.previousMediaId
               ? { previousMediaId: text(g.previousMediaId, "原媒体标识", 80) }

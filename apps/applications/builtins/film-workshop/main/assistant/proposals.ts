@@ -32,6 +32,7 @@ export type AssistantContext = {
   episodeId: string;
   project: FilmProject;
   scriptComplete: boolean;
+  selectedShotId?: string;
 };
 export type ProposalChange = {
   id: string;

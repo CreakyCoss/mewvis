@@ -52,7 +52,7 @@ import { CapabilityNotice, EmptyState, Field } from "./components/Fields";
 import { Dialog } from "./components/Dialog";
 import { ShotArtwork } from "./artwork";
 import { MediaPanel } from "./components/MediaPanel";
-import { GENERATION_TYPES, generationPrompt } from "./media";
+import { GENERATION_TYPES } from "./media";
 
 type Props = {
   project: FilmProject;
@@ -60,6 +60,7 @@ type Props = {
   step: FlowStep;
   selectedShotId?: string;
   onSelectShot?: (id: string) => void;
+  onOpenStep?: (step: FlowStep) => void;
   edit: (update: (project: FilmProject) => FilmProject) => void;
   generate?: (
     episodeId: string,
@@ -67,10 +68,9 @@ type Props = {
     purpose?: FilmGeneration["purpose"],
   ) => Promise<void>;
   generationBusy?: boolean;
-  stopGeneration?: () => Promise<void>;
+  stopGeneration?: (jobId?: string) => Promise<void>;
   generationStarting?: boolean;
   generationStopping?: boolean;
-  onShowAssistant?: () => void;
 };
 export function StageEditor(props: Props) {
   if (props.step === "settings") return <Settings {...props} />;
@@ -729,17 +729,16 @@ function GenerationControls(
     >
       <button
         type="button"
-        className={`film-generation-trigger${canStop ? "" : " film-primary"}`}
+        className={`film-generation-trigger${canStop ? " film-generation-stop" : " film-primary"}`}
         disabled={
           canStop
             ? props.generationStarting || props.generationStopping
             : !props.generate ||
               !props.project.workspace ||
-              props.generationBusy ||
-              !generationPrompt(shot, purpose)
+              props.generationBusy
         }
         onClick={() => {
-          if (canStop) void props.stopGeneration?.();
+          if (canStop) void props.stopGeneration?.(job?.id);
           else void props.generate?.(props.episode.id, shot.id, purpose);
         }}
       >
@@ -767,16 +766,6 @@ function GenerationControls(
             </>
           )}
         </span>
-        {!props.generationBusy &&
-          (job?.status === "failed" || job?.status === "stopped") &&
-          props.onShowAssistant && (
-            <button
-              className="film-text-button"
-              onClick={props.onShowAssistant}
-            >
-              查看详情
-            </button>
-          )}
       </div>
     </div>
   );
@@ -936,6 +925,7 @@ function MediaPlan(props: Props & { mode: "video" | "dubbing" }) {
                         value={shot.dialogue}
                         maxLength={12000}
                         readOnly
+                        placeholder="此镜头暂无台词"
                         aria-describedby={`dialogue-source-${shot.id}`}
                       />
                     </Field>
@@ -943,7 +933,18 @@ function MediaPlan(props: Props & { mode: "video" | "dubbing" }) {
                       className="film-dialogue-source"
                       id={`dialogue-source-${shot.id}`}
                     >
-                      台词沿用分镜设计；需要修改时返回第四步。
+                      {shot.dialogue.trim()
+                        ? "台词沿用分镜设计。"
+                        : "当前镜头没有台词，可填写台词，或点击生成由助手询问。"}
+                      {props.onOpenStep && (
+                        <button
+                          type="button"
+                          className="film-text-button"
+                          onClick={() => props.onOpenStep?.("storyboard")}
+                        >
+                          {shot.dialogue.trim() ? "编辑台词" : "填写台词"}
+                        </button>
+                      )}
                     </p>
                     <Field label={`镜头 ${index + 1} 声音设计`}>
                       <input

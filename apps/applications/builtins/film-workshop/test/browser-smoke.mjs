@@ -95,7 +95,7 @@ packed.apply({
 });
 assert.deepEqual(
   tools.map((t) => t.name),
-  ["film_check_delivery", "film_propose_changes"],
+  ["film_check_delivery", "film_propose_changes", "film_prepare_media"],
 );
 assert.equal(skills.length, 1);
 const catalog = tools.map(({ name, description, risk }) => ({
@@ -176,7 +176,7 @@ const server = createServer(async (req, res) => {
           .replace(
             "dispatches++;",
             `dispatches++;
-        if (turn.context.runtimeInstruction?.includes("影视工坊结构化建议") && /提交.*建议|结构化/.test(turn.input.text)) {
+        if (turn.context.runtimeInstruction?.includes("影视工坊本轮上下文") && /提交.*建议|结构化/.test(turn.input.text)) {
           const toolCallId = turn.taskId + "-proposal";
           const identity = JSON.parse(turn.context.runtimeInstruction.match(/本轮上下文：(\\{[^}]+\\})/)[1]);
           emit(turn.taskId, { type: "tool_execution_start", toolCallId, toolName: "film_propose_changes", args: { title: "本集创作建议", ...identity } });
@@ -184,15 +184,46 @@ const server = createServer(async (req, res) => {
           emit(turn.taskId, { type: "tool_execution_end", toolCallId, toolName: "film_propose_changes", result, isError: !!result.error });
           emit(turn.taskId, { type: "done", text: result.error || "建议已提交，请点击「预览建议」查看并按项采用。" }); return;
         }
-        if (turn.input.text.includes("[影视生成:")) {
+        if (turn.input.text.includes("[影视生成:") || /生成.*(配音|音频|视频|图片|分镜)|生图/.test(turn.input.text)) {
           const toolCallId = turn.taskId + "-media";
-          const mediaInput = JSON.parse(turn.input.text.slice(turn.input.text.indexOf("{\\n")));
-          emit(turn.taskId, { type: "tool_execution_start", toolCallId, toolName: "generate_media", args: { action: "generate", purpose: mediaInput.purpose || "image-generation" } });
+          const identity = JSON.parse(turn.context.runtimeInstruction.match(/本轮上下文：(\\{[^}]+\\})/)[1]);
+          const purpose = turn.input.text.includes("[影视生成:") ? JSON.parse(turn.input.text.slice(turn.input.text.indexOf("{\\n"))).purpose : /配音|音频/.test(turn.input.text) ? "speech" : /视频/.test(turn.input.text) ? "video-generation" : "image-generation";
+          const prepareId = turn.taskId + "-prepare";
+          emit(turn.taskId, { type: "tool_execution_start", toolCallId: prepareId, toolName: "film_prepare_media", args: { ...identity, purpose } });
+          const registered = await (await fetch("/tool", { method: "POST", body: JSON.stringify({ name: "film_prepare_media", args: { ...identity, purpose } }) })).json();
+          if (registered.error) throw new Error(registered.error);
+          const plan = registered.value;
+          emit(turn.taskId, { type: "tool_execution_end", toolCallId: prepareId, toolName: "film_prepare_media", result: plan, isError: false });
+          const mediaInput = JSON.parse(plan.instruction.slice(plan.instruction.indexOf("{\\n")));
+          if (turn.input.text.includes("询问音色")) {
+            const pending = window.filmPendingMedia ??= new Map();
+            pending.set(turn.taskId, { text: plan.instruction, purpose });
+            emit(turn.taskId, { type: "tool_execution_start", toolCallId: turn.taskId + "-ask", toolName: "ask_user", args: { question: "请选择本次配音音色" } });
+            emit(turn.taskId, { type: "question", questionId: turn.taskId + "-voice", question: "请选择本次配音音色", context: "仅覆盖本次生成，不修改模型设置。", input: { type: "select", options: [{ value: "default", label: "使用默认音色" }, { value: "custom", label: "提供其他音色" }] }, expiresAt: Date.now() + 180000 });
+            return;
+          }
+          emit(turn.taskId, { type: "tool_execution_start", toolCallId, toolName: "generate_media", args: { action: "generate", purpose, outputDirectory: mediaInput.outputDirectory } });
           await new Promise(resolve => setTimeout(resolve, 1500)); signal.throwIfAborted();
-          const result = await (await fetch("/generate", { method: "POST", body: JSON.stringify({ text: turn.input.text }) })).json();
+          const result = await (await fetch("/generate", { method: "POST", body: JSON.stringify({ text: plan.instruction }) })).json();
           emit(turn.taskId, { type: "tool_execution_end", toolCallId, toolName: "generate_media", result, isError: false });
           emit(turn.taskId, { type: "done", text: "模拟媒体已保存。" }); return;
         }`,
+          )
+          .replace(
+            'emit(taskId, { type: "question_answered", questionId, answer });',
+            `emit(taskId, { type: "question_answered", questionId, answer });
+            const media = window.filmPendingMedia?.get(taskId);
+            if (media) {
+              window.filmPendingMedia.delete(taskId);
+              emit(taskId, { type: "tool_execution_end", toolCallId: taskId + "-ask", toolName: "ask_user", result: { details: { answer, cancelled: answer === null } }, isError: false });
+              const toolCallId = taskId + "-media";
+              if (answer === null) { emit(taskId, { type: "done", text: "已取消本次生成。" }); return; }
+              const input = JSON.parse(media.text.slice(media.text.indexOf("{\\n")));
+              emit(taskId, { type: "tool_execution_start", toolCallId, toolName: "generate_media", args: { action: "generate", purpose: media.purpose, outputDirectory: input.outputDirectory } });
+              const result = await (await fetch("/generate", { method: "POST", body: JSON.stringify({ text: media.text }) })).json();
+              emit(taskId, { type: "tool_execution_end", toolCallId, toolName: "generate_media", result, isError: false });
+              emit(taskId, { type: "done", text: "确认音色后，模拟配音已保存。" }); return;
+            }`,
           ),
       );
       return;

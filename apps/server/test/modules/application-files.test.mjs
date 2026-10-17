@@ -11,10 +11,20 @@ import {
   rm,
   realpath,
   rename,
+  copyFile,
+  cp,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
+import { createServer } from "node:http";
+import { once } from "node:events";
+import { createRequire } from "node:module";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { ApplicationHost } from "../../dist/modules/applications/host.js";
+import { AgentRuntimeSupervisor } from "../../dist/modules/agent/runtime/supervisor.js";
+import { runtimeConfig } from "../../dist/config/runtime.js";
+import { createApplicationDataClient } from "../../../../packages/app/sdk/data/index.js";
 import { ApplicationFiles } from "../../dist/modules/files/application-files.js";
 import {
   applicationProtectedPaths,
@@ -26,7 +36,7 @@ import { EventHub } from "../../dist/infrastructure/events/event-hub.js";
 import { createApplicationFileClient } from "../../../../packages/app/sdk/files/index.js";
 import { startHttpServer } from "../../dist/transport/http/server.js";
 import { CommandRegistry } from "../../dist/transport/commands/registry.js";
-import { setup, token } from "../support/helpers.mjs";
+import { setup, token, waitFor } from "../support/helpers.mjs";
 
 async function fixture(t) {
   const root = await realpath(await mkdtemp(join(tmpdir(), "mewvis-files-")));
@@ -137,10 +147,467 @@ async function fixture(t) {
     registered,
     data,
     events,
+    packages,
   };
 }
 const denied = (promise) =>
   assert.rejects(promise, (error) => error.code === "PERMISSION_DENIED");
+
+test(
+  "agent application tools use the real scoped host for image, video and speech registration",
+  { timeout: 60_000 },
+  async (t) => {
+    const f = await fixture(t);
+    const runtimeRoot = fileURLToPath(
+      new URL("../../../agent-runtime/", import.meta.url),
+    );
+    const require = createRequire(join(runtimeRoot, "package.json"));
+    const { build } = require("esbuild");
+    const { dshBundleCompatibilityPlugin } = await import(
+      pathToFileURL(require.resolve("@mewvis/app-dev/dsh"))
+    );
+    const entries = JSON.parse(
+      await readFile(join(runtimeRoot, "build-entries.json"), "utf8"),
+    );
+    const runtimeDirectory = join(f.root, "runtime");
+    await mkdir(join(runtimeDirectory, "app-host"), { recursive: true });
+    await writeFile(
+      join(runtimeDirectory, "package.json"),
+      '{"type":"module"}',
+    );
+    await copyFile(
+      new URL(
+        "../../../../packages/app/host/dist/service.mjs",
+        import.meta.url,
+      ),
+      join(runtimeDirectory, "app-host/service.mjs"),
+    );
+    const common = {
+      bundle: true,
+      platform: "node",
+      format: "esm",
+      target: "node22",
+      plugins: [dshBundleCompatibilityPlugin],
+      banner: {
+        js: "import {createRequire as __testRequire} from 'node:module'; const require = __testRequire(import.meta.url);",
+      },
+    };
+    await build({
+      ...common,
+      stdin: {
+        contents: [
+          "engines/drivers/native/agent/runtimes/pi/tools/index.ts",
+          "cli/application-tools.ts",
+          "security/access/index.ts",
+          "security/execution/index.ts",
+          "security/safety/index.ts",
+        ]
+          .map(
+            (path) =>
+              `export * from ${JSON.stringify(join(runtimeRoot, "src", path))};`,
+          )
+          .join("\n"),
+        resolveDir: runtimeRoot,
+        loader: "ts",
+      },
+      outfile: join(runtimeDirectory, "tools.js"),
+    });
+    for (const entry of [entries.executionHost, entries.piToolWorker])
+      await build({
+        ...common,
+        entryPoints: [join(runtimeRoot, entry.source)],
+        outfile: join(runtimeDirectory, entry.output),
+      });
+    const api = await import(pathToFileURL(join(runtimeDirectory, "tools.js")));
+    const { fixture: film } =
+      await import("../../../applications/builtins/film-workshop/test/fixture.mjs");
+    const packageSource = fileURLToPath(
+      new URL(
+        "../../../applications/builtins/film-workshop/dist/mewvis/",
+        import.meta.url,
+      ),
+    );
+    const packageRoot = join(f.root, "film-package");
+    await cp(packageSource, packageRoot, { recursive: true });
+    const manifest = JSON.parse(
+      await readFile(join(packageRoot, "package.json"), "utf8"),
+    );
+    Object.assign(f.registered.get("a"), {
+      path: packageRoot,
+      entry: join(packageRoot, "index.js"),
+      runtimeKind: "mewvis",
+      name: "Film",
+      version: "1.0.0",
+      description: "",
+      source: "builtin",
+      permissionStatus: "declared",
+    });
+    f.registered.get("a").permissions.push("chat");
+    f.registered.get("b").enabled = false;
+    f.packages.list = async () => [...f.registered.values()];
+    const config = runtimeConfig({
+      cliPath: join(runtimeDirectory, "cli.js"),
+      dataDir: join(f.root, "server-data"),
+    });
+    const supervisor = new AgentRuntimeSupervisor(config);
+    const host = new ApplicationHost(
+      config,
+      f.packages,
+      f.data,
+      f.events,
+      f.files,
+    );
+    supervisor.setApplicationToolHandler((call) =>
+      host.invoke("execute", call),
+    );
+    t.after(async () => {
+      await supervisor.close();
+      await host.close();
+    });
+    const dataConnection = await f.data.connect("a");
+    const data = createApplicationDataClient({
+      version: 1,
+      request: (request) => f.data.request(dataConnection, request),
+    });
+    const project = film.exampleProject();
+    const workspace = f.bindings.get("a");
+    project.workspace = {
+      id: workspace.id,
+      root: workspace.path,
+      directory: join(workspace.path, "film-projects", project.id),
+    };
+    await f.clients.get("a").mkdir(project.workspace.directory);
+    const episode = project.episodes[0],
+      shot = episode.shots[2];
+    const source = await film
+      .createAssistantStore(data.storage, f.clients.get("a"))
+      .prepare(
+        project,
+        episode.id,
+        "real-agent-chat",
+        film.assistantContext(project, episode, "dubbing", shot.id)
+          .requestContext,
+      );
+    const taskId = "real-application-tools";
+    const declarations = await host.invoke("runtimeResources", {
+      applicationId: "a",
+      cwd: workspace.path,
+    });
+    assert.equal(declarations.id, "a");
+    assert(declarations.skills.length > 0);
+    assert(!("entry" in declarations) && !("packageRoot" in declarations));
+    // Host already loaded the implementation. Agent must work even when the module entry no longer exists.
+    await rename(
+      join(packageRoot, "index.js"),
+      join(packageRoot, "loaded-by-host.js"),
+    );
+    const resources = {
+      applications: {
+        items: [declarations],
+      },
+      tools: { allowed: ["film_prepare_media"] },
+    };
+    const task = {
+      taskId,
+      applicationId: "a",
+      sessionKey: "film",
+      workspacePath: workspace.path,
+      command: supervisor.protocol.command(
+        "agent/run",
+        {
+          taskId,
+          workspacePath: workspace.path,
+          userMessage: "test",
+          resources,
+        },
+        taskId,
+      ),
+    };
+    const channel = new api.ApplicationToolChannel((message) => {
+      const decoded = supervisor.protocol.decode(JSON.stringify(message));
+      assert.equal(decoded.kind, "application-tool");
+      void supervisor.executeApplicationTool(task, decoded.value).then(
+        (result) =>
+          channel.receive(
+            JSON.stringify({ jsonrpc: "2.0", id: decoded.id, result }),
+          ),
+        (error) =>
+          channel.receive(
+            JSON.stringify({
+              jsonrpc: "2.0",
+              id: decoded.id,
+              error: { code: -32000, message: error.message },
+            }),
+          ),
+      );
+    });
+    t.after(() => channel.close());
+    let captured;
+    const isolated = new api.ApplicationToolChannel((message) => {
+      captured = message;
+    });
+    t.after(() => isolated.close());
+    const channelCall = {
+      taskId,
+      applicationId: "a",
+      callId: "channel",
+      toolName: "film_prepare_media",
+      arguments: {},
+    };
+    const malformed = isolated.execute(channelCall);
+    isolated.receive(
+      JSON.stringify({ jsonrpc: "2.0", id: captured.id, result: {} }),
+    );
+    await assert.rejects(malformed, /响应无效/);
+    const controller = new AbortController();
+    const cancelled = isolated.execute(channelCall, controller.signal);
+    const cancelledId = captured.id;
+    controller.abort();
+    await assert.rejects(cancelled, /已取消/);
+    assert.equal(
+      isolated.receive(
+        JSON.stringify({
+          jsonrpc: "2.0",
+          id: cancelledId,
+          result: { value: {}, content: [] },
+        }),
+      ),
+      true,
+    );
+    const access = api.resolveAgentAccess(manifest.mewvis.agentAccess, {
+      workspacePath: workspace.path,
+    });
+    const execution = api.resolveExecutionPolicy(
+      "auto",
+      workspace.path,
+      { ...api.EXECUTION_CONFIG, enabled: false },
+      runtimeDirectory,
+      { access },
+    );
+    // The agent worker cannot read the application data root; only the scoped host can.
+    const appData = (await f.clients.get("a").roots()).dataPath;
+    assert.equal(api.accessAllowsPath(access.filesystem.read, appData), false);
+    const toolSet = await api.createPiToolSet(
+      {
+        taskId,
+        workspacePath: workspace.path,
+        userMessage: "test",
+        agentTaskPrompt: "test",
+        runtimeMode: "agent",
+        resources,
+      },
+      {
+        requestUserInput: async () => null,
+        executeApplicationTool: (call, signal) => channel.execute(call, signal),
+      },
+      {
+        policies: {
+          access,
+          execution,
+          safety: api.resolveSafetyPolicy("auto", workspace.path),
+        },
+      },
+    );
+    t.after(() => toolSet.dispose());
+    const tool = toolSet.tools.find(
+      (item) => item.name === "film_prepare_media",
+    );
+    assert(tool);
+    for (const purpose of ["image-generation", "video-generation", "speech"]) {
+      const result = await tool.execute(purpose, {
+        contextId: source.id,
+        chatId: source.chatId,
+        purpose,
+      });
+      assert.match(result.details.value.instruction, /generated\//);
+      assert.match(result.content[0].text, /requestId/);
+    }
+    const jobs = await film
+      .createMediaRequestStore(data.storage)
+      .unread(project, new Set());
+    assert.equal(jobs.length, 3);
+    assert(
+      jobs.every(
+        ({ job }) => job.shotId === shot.id && job.chatId === source.chatId,
+      ),
+    );
+    // Exercise the production CLI callback wiring as well as the direct tool adapter.
+    const modelRequests = [],
+      events = [];
+    const model = createServer(async (request, response) => {
+      let body = "";
+      for await (const chunk of request) body += chunk;
+      const input = JSON.parse(body);
+      modelRequests.push(input);
+      const replied = input.messages.at(-1).role === "tool";
+      const delta = replied
+        ? { content: "registered" }
+        : {
+            tool_calls: [
+              {
+                index: 0,
+                id: "film-prepare",
+                type: "function",
+                function: {
+                  name: "film_prepare_media",
+                  arguments: JSON.stringify({
+                    contextId: source.id,
+                    chatId: source.chatId,
+                    purpose: "speech",
+                  }),
+                },
+              },
+            ],
+          };
+      response.writeHead(200, { "Content-Type": "text/event-stream" });
+      response.write(
+        `data: ${JSON.stringify({ id: "film", object: "chat.completion.chunk", created: 1, model: "local", choices: [{ index: 0, delta, finish_reason: replied ? "stop" : "tool_calls" }] })}\n\n`,
+      );
+      response.end("data: [DONE]\n\n");
+    });
+    model.listen(0, "127.0.0.1");
+    await once(model, "listening");
+    t.after(() => new Promise((resolve) => model.close(resolve)));
+    const cliConfig = runtimeConfig({
+      cliPath: join(runtimeRoot, "dist/cli.js"),
+      dataDir: join(f.root, "cli-data"),
+    });
+    await mkdir(cliConfig.dataDir);
+    await writeFile(
+      join(cliConfig.dataDir, "sandbox.json"),
+      '{"enabled":false}',
+    );
+    const cli = new AgentRuntimeSupervisor(cliConfig);
+    t.after(() => cli.close());
+    cli.events.subscribe((event) => events.push(event));
+    cli.setApplicationToolHandler((call) => host.invoke("execute", call));
+    const cliTaskId = "cli-application-tool";
+    cli.submit({
+      taskId: cliTaskId,
+      applicationId: "a",
+      sessionKey: "cli-film",
+      workspacePath: workspace.path,
+      command: cli.protocol.command(
+        "agent/run",
+        {
+          taskId: cliTaskId,
+          workspacePath: workspace.path,
+          sessionRootDir: join(workspace.path, ".mewvis/sessions/film-test"),
+          agentRoleId: "main",
+          userMessage: "prepare speech",
+          resources,
+          permissions: { mode: "auto" },
+          agentAccess: manifest.mewvis.agentAccess,
+          runtimeModel: {
+            provider: "openai",
+            modelId: "local",
+            catalogModelId: "local",
+            apiFormat: "openai-completions",
+            apiKey: "test",
+            apiEndpoint: `http://127.0.0.1:${model.address().port}/v1`,
+            reasoning: false,
+          },
+        },
+        cliTaskId,
+      ),
+    });
+    await waitFor(
+      () => ["done", "failed"].includes(cli.snapshot(cliTaskId)?.taskState),
+      "CLI application tool",
+      30_000,
+    );
+    assert.equal(
+      cli.snapshot(cliTaskId).taskState,
+      "done",
+      JSON.stringify(events),
+    );
+    const toolEvent = events.find(
+      (e) => e.payload.event.type === "tool_execution_end",
+    );
+    assert.equal(
+      toolEvent.payload.event.isError,
+      false,
+      JSON.stringify(toolEvent),
+    );
+    assert.match(JSON.stringify(toolEvent.payload.event.result), /requestId/);
+    assert.equal(modelRequests.length, 2);
+    assert.match(JSON.stringify(modelRequests[0].messages), /已加载应用技能/);
+    await cli.close();
+
+    const call = {
+      taskId,
+      applicationId: "a",
+      callId: "denied",
+      toolName: "film_prepare_media",
+      arguments: {},
+    };
+    await denied(
+      supervisor.executeApplicationTool(task, { ...call, applicationId: "b" }),
+    );
+    await denied(
+      supervisor.executeApplicationTool(task, {
+        ...call,
+        toolName: "film_propose_changes",
+      }),
+    );
+    await denied(
+      supervisor.executeApplicationTool(
+        { ...task, applicationId: undefined },
+        call,
+      ),
+    );
+    await assert.rejects(
+      api.createPiToolSet(
+        {
+          taskId,
+          workspacePath: workspace.path,
+          resources,
+          runtimeMode: "agent",
+        },
+        {
+          requestUserInput: async () => null,
+        },
+        {
+          policies: {
+            access,
+            execution,
+            safety: api.resolveSafetyPolicy("auto", workspace.path),
+          },
+        },
+      ),
+      /未连接应用宿主/,
+    );
+    await host.invoke("toolPolicy.set", {
+      applicationId: "a",
+      policy: { allowedToolNames: [] },
+    });
+    assert.deepEqual(
+      (await host.invoke("runtimeResources", { applicationId: "a" })).tools,
+      [],
+    );
+    await assert.rejects(
+      tool.execute("disabled", {
+        contextId: source.id,
+        chatId: source.chatId,
+        purpose: "speech",
+      }),
+      /已禁用/,
+    );
+    await host.invoke("toolPolicy.set", {
+      applicationId: "a",
+      policy: { allowedToolNames: declarations.tools.map((tool) => tool.name) },
+    });
+    f.registered.get("a").permissions = [];
+    await assert.rejects(
+      tool.execute("revoked", {
+        contextId: source.id,
+        chatId: source.chatId,
+        purpose: "speech",
+      }),
+      /denied|权限|文件操作失败/,
+    );
+  },
+);
 
 test("real per-application SQLite registration resolves only the caller's roots", async (t) => {
   const f = await fixture(t),

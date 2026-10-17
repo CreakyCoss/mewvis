@@ -54,6 +54,9 @@ export function createAssistantStore(
         project: validateProject(project),
         scriptComplete:
           requestContext === undefined || shownScript === episode?.script,
+        ...(visible?.selectedShotId
+          ? { selectedShotId: identifier(visible.selectedShotId) }
+          : {}),
       };
       if (!context.project.episodes.some((episode) => episode.id === episodeId))
         throw new Error("当前分集已不存在");
@@ -86,6 +89,9 @@ export function createAssistantStore(
         episodeId: identifier(value.episodeId),
         project: validateProject(value.project),
         scriptComplete: value.scriptComplete,
+        ...(value.selectedShotId
+          ? { selectedShotId: identifier(value.selectedShotId) }
+          : {}),
       };
     },
     async publish(proposal: FilmProposal) {

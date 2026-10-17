@@ -43,11 +43,23 @@ async function fixture(t) {
       },
       async openSession(input) {
         if (!sessions.has(input.identity.id)) {
-          const snapshot = { identity: input.identity, phase: "idle" };
+          let snapshot = {
+            identity: input.identity,
+            phase: "idle",
+            config: {},
+            resources: { models: [{ value: "my-media-model" }] },
+          };
           sessions.set(input.identity.id, {
             identity: input.identity,
             getSnapshot: () => snapshot,
             flush: async () => ({ ok: true }),
+            updateConfig: async (patch) => {
+              snapshot = {
+                ...snapshot,
+                config: { ...snapshot.config, ...patch },
+              };
+              return { ok: true };
+            },
             send: async () => ({
               status: "dispatched",
               taskId: `task-${++sent}`,
@@ -116,7 +128,17 @@ test("saved profile metadata stays local when restoring through the real chat ho
   const f = await fixture(t);
   const created = await f.api.createSession(f.key, "workspace");
   const index = structuredClone(f.values.get(f.key));
-  assert.equal(index.profileVersion, 4);
+  assert.equal(index.profileVersion, 5);
+  assert.ok(
+    f.records
+      .get(created.identity.id)
+      .profile.allowedToolNames.includes("ask_user"),
+  );
+  assert.ok(
+    f.records
+      .get(created.identity.id)
+      .profile.allowedToolNames.includes("film_prepare_media"),
+  );
   await assert.rejects(
     f.api.getApplicationChatClient().openSession(index),
     /包含不支持的聊天参数/,
@@ -154,4 +176,33 @@ test("restoring a conversation still rejects a different workspace", async (t) =
     /工作区不一致/,
   );
   assert.equal(f.records.size, 1);
+});
+
+test("upgraded tool profiles preserve the selected model while retaining the old conversation", async (t) => {
+  const f = await fixture(t);
+  const old = await f.api.createSession(f.key, "workspace");
+  assert.equal(
+    (
+      await old.updateConfig({
+        selectedModelId: "my-media-model",
+        thinkingLevel: "high",
+        permissionMode: "ask",
+      })
+    ).ok,
+    true,
+  );
+  f.values.set(f.key, {
+    workspaceId: "workspace",
+    chatId: old.identity.id,
+    profileVersion: 4,
+  });
+  const upgraded = await f.api.connect(f.key, "workspace");
+  assert.notEqual(upgraded.identity.id, old.identity.id);
+  assert.equal(upgraded.getSnapshot().config.selectedModelId, "my-media-model");
+  assert.equal(f.records.size, 2);
+  assert.ok(
+    f.records
+      .get(upgraded.identity.id)
+      .profile.allowedToolNames.includes("ask_user"),
+  );
 });

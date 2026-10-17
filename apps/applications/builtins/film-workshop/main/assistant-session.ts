@@ -2,16 +2,18 @@ import {
   getApplicationChatClient,
   type ApplicationChatSession,
   type ChatContext,
+  type ChatRunConfig,
 } from "@mewvis/app-sdk/chat";
 import { getApplicationDataClient } from "@mewvis/app-sdk/data";
 import type { FilmProject } from "./model";
+import { FILM_ASSISTANT_INSTRUCTIONS } from "./assistant/instructions";
 
 export type SessionRef = {
   workspaceId: string;
   chatId: string;
   profileVersion?: number;
 };
-const profileVersion = 4;
+const profileVersion = 5;
 export const assistantProfileKey = (chatId: string) =>
   `film:assistant-profile:${chatId}`;
 export const connections = new Map<string, Promise<ApplicationChatSession>>();
@@ -34,6 +36,7 @@ export async function createSession(
   key: string,
   workspaceId?: string,
   context?: ChatContext,
+  config?: Partial<ChatRunConfig>,
 ) {
   const data = getApplicationDataClient();
   if (!workspaceId) {
@@ -47,20 +50,25 @@ export async function createSession(
     workspaceId,
     sceneId: key,
     profile: {
-      id: "film-assistant-v4",
+      id: "film-assistant-v5",
       introduction:
         "一起把故事变成画面。可以打磨剧本、整理素材、设计分镜，预览建议后按项采用，也可以生成分镜图片、镜头视频和角色配音。",
-      systemPrompt:
-        "你是影视工坊的创作助手。依据当前项目、分集和镜头创作，保持角色和视觉风格一致。编写剧本、整理素材、设计或修改分镜时，使用本轮 runtimeInstruction 的 contextId 和 chatId 调用 film_propose_changes，提交结构化建议供用户预览采用。只填写要修改的字段，不伪造已有实体 ID，不删除内容，不直接写项目 JSON。工具成功只代表建议已提交，用户采用后才会写入；普通讨论和检查不必提交建议。用户明确要求生成媒体时，先查询 generate_media 的用途和参数，再按当前选中模型的配置执行。文件必须保存到请求指定的项目目录。以工具返回的文件和状态为准，不虚构生成成功。带影视生成标识的请求会由应用按用途自动关联图片、视频或配音，普通聊天结果不会自动关联。配音原样朗读台词，视频可使用所选分镜图作为首帧。背景音乐、音画同步合成和成片导出尚未接入。失败或停止后不得自行重新提交付费请求。",
+      systemPrompt: FILM_ASSISTANT_INSTRUCTIONS,
       allowedToolNames: [
         "film_check_delivery",
         "film_propose_changes",
+        "film_prepare_media",
         "generate_media",
+        "ask_user",
       ],
       context,
     },
   });
   try {
+    if (config) {
+      const updated = await session.updateConfig(config);
+      if (!updated.ok) throw new Error(updated.error);
+    }
     const saved = await session.flush();
     if (!saved.ok) throw new Error(saved.error);
     await data.storage.setItem(
@@ -88,8 +96,32 @@ export async function connect(
       throw new Error("助手会话与项目工作区不一致");
     // Profiles are immutable host records. Keep the old conversation in history
     // and start the updated tool profile under the same project/episode scene.
-    if (previous.profileVersion !== profileVersion)
-      return createSession(key, workspaceId ?? previous.workspaceId);
+    if (previous.profileVersion !== profileVersion) {
+      let config: Partial<ChatRunConfig> | undefined;
+      try {
+        const saved = (
+          await getApplicationChatClient().openSession({
+            workspaceId: previous.workspaceId,
+            chatId: previous.chatId,
+          })
+        ).getSnapshot().config;
+        if (saved?.selectedModelId)
+          config = {
+            selectedModelId: saved.selectedModelId,
+            thinkingLevel: saved.thinkingLevel,
+            permissionMode: saved.permissionMode,
+          };
+      } catch (error) {
+        if (!(error instanceof Error) || error.message !== "未找到聊天记录")
+          throw error;
+      }
+      return createSession(
+        key,
+        workspaceId ?? previous.workspaceId,
+        undefined,
+        config,
+      );
+    }
     try {
       return await getApplicationChatClient().openSession({
         workspaceId: previous.workspaceId,

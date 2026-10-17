@@ -36,6 +36,7 @@ import {
 import { assistantContext } from "./assistant-context";
 import { FilmComposer } from "./FilmComposer";
 import { createAssistantStore } from "./assistant/store";
+import { assistantInstruction } from "./assistant/instructions";
 import { applyProposal, type FilmProposal } from "./assistant/proposals";
 import { ProposalTray } from "./assistant/ProposalReview";
 import type { useEditor } from "./useEditor";
@@ -74,6 +75,8 @@ export function Assistant({
   selectedShotId,
   generationError,
   onReconnectGeneration,
+  mediaStarting = false,
+  onQuestion,
 }: {
   editor: ReturnType<typeof useEditor>;
   project: FilmProject;
@@ -82,6 +85,8 @@ export function Assistant({
   selectedShotId?: string;
   generationError?: string;
   onReconnectGeneration?: () => void;
+  mediaStarting?: boolean;
+  onQuestion?: () => void;
 }) {
   const key = assistantKey(project, episode.id);
   const store = useMemo(
@@ -115,6 +120,9 @@ export function Assistant({
       [session],
     ),
   );
+  useEffect(() => {
+    if (phase === "waiting") onQuestion?.();
+  }, [phase, onQuestion]);
   const latest = useRef({ project, episode, step, selectedShotId });
   latest.current = { project, episode, step, selectedShotId };
   useEffect(() => {
@@ -259,7 +267,7 @@ export function Assistant({
     }
   };
   useEffect(() => {
-    if (!session || opening || phase !== "idle") return;
+    if (!session || opening || mediaStarting || phase !== "idle") return;
     const next = assistantContext(project, episode, step, selectedShotId);
     if (next.requestContext === appliedContext.current) return;
     let active = true;
@@ -283,11 +291,28 @@ export function Assistant({
       active = false;
       clearTimeout(timer);
     };
-  }, [session, opening, phase, project, episode, step, selectedShotId]);
+  }, [
+    session,
+    opening,
+    mediaStarting,
+    phase,
+    project,
+    episode,
+    step,
+    selectedShotId,
+  ]);
   const conversationDisabled =
-    opening || submitting || (!!session && !["idle", "closed"].includes(phase));
+    opening ||
+    submitting ||
+    mediaStarting ||
+    (!!session && !["idle", "closed"].includes(phase));
   const beforeSubmit = async () => {
-    if (!session || switching.current || session.getSnapshot().phase !== "idle")
+    if (
+      !session ||
+      switching.current ||
+      mediaStarting ||
+      session.getSnapshot().phase !== "idle"
+    )
       throw new Error("请等待助手会话就绪");
     const version = generation.current;
     await editor.flush();
@@ -310,7 +335,7 @@ export function Assistant({
     );
     const result = await session.setContext({
       ...context,
-      runtimeInstruction: `影视工坊结构化建议：写作、整理素材或设计分镜时，调用 film_propose_changes 提交建议，等待用户在页面预览和采用；不要声称已经修改项目。本轮上下文：${JSON.stringify({ contextId: source.id, chatId: source.chatId })}。仅填写要修改的字段；新素材使用唯一 key，镜头可引用此 key。已有素材／镜头使用上下文中的 id，保留未修改的文字及媒体。不支持删除或跨分集修改。`,
+      runtimeInstruction: assistantInstruction(source.id, source.chatId),
     });
     if (!result.ok) throw new Error(result.error);
     if (version !== generation.current)
@@ -460,7 +485,7 @@ export function Assistant({
               onApply={adopt}
               session={session}
               step={step}
-              opening={opening || submitting}
+              opening={opening || submitting || mediaStarting}
               onSubmitting={(value) => {
                 submittingRef.current = value;
                 setSubmitting(value);
