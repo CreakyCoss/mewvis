@@ -450,3 +450,43 @@ test("writeback pins the submitted shot, deduplicates files and preserves a manu
   assert.equal(deletedTarget.episodes[0].shots[0].imageMediaId, undefined);
   f.validateProject(deletedTarget);
 });
+
+test("successive image, video and speech generations append all versions without changing the current choice", async () => {
+  for (const purpose of ["image-generation", "video-generation", "speech"]) {
+    const { project, repository } = await projectWithWorkspace();
+    const firstJob = { ...job(project), purpose };
+    const { kind, field } = f.generationType(firstJob);
+    const media = (request, suffix) => ({
+      ...image(project, suffix),
+      kind,
+      path: `generated/${request.id}/${suffix}.${kind === "image" ? "png" : kind === "video" ? "mp4" : "wav"}`,
+    });
+    const first = media(firstJob, "first");
+    project.generations = [firstJob];
+    let current = f.applyGeneration(project, firstJob.id, "completed", [first]);
+    assert.equal(current.episodes[0].shots[0][field], first.id);
+
+    const nextJob = { ...job(project), purpose, previousMediaId: first.id };
+    const outputs = [media(nextJob, "second"), media(nextJob, "third")];
+    current = f.applyGeneration(
+      { ...current, generations: [...current.generations, nextJob] },
+      nextJob.id,
+      "completed",
+      outputs,
+    );
+    const shot = current.episodes[0].shots[0];
+    assert.equal(shot[field], first.id);
+    assert.deepEqual(shot.mediaIds, [first.id, ...outputs.map((item) => item.id)]);
+    assert.deepEqual(current.media, [first, ...outputs]);
+    assert.deepEqual(
+      current.generations[1].outputIds,
+      outputs.map((item) => item.id),
+    );
+    assert.equal(
+      f.applyGeneration(current, nextJob.id, "completed", outputs),
+      current,
+    );
+    await repository.save(current);
+    assert.deepEqual(await repository.list(), [f.validateProject(current)]);
+  }
+});

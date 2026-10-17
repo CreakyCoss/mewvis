@@ -751,7 +751,7 @@ function GenerationControls(
           ? props.generationStopping
             ? "停止中…"
             : "停止生成"
-          : `${shot[type.field] || job?.status === "failed" ? "重新生成" : "生成"}${label}`}
+          : `生成${label}`}
       </button>
       <div className="film-generation-feedback">
         <span

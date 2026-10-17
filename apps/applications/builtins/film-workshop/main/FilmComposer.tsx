@@ -118,7 +118,10 @@ export function FilmComposer({
           value={binding.draft.text}
           disabled={disabled || !binding.initialized}
           onChange={(e) =>
-            binding.setDraft({ text: e.target.value, blocks: [] })
+            binding.setDraft({
+              text: e.target.value,
+              blocks: [{ type: "text", content: e.target.value }],
+            })
           }
           onKeyDown={(e) => {
             if (

@@ -52,6 +52,7 @@ export interface FilmGeneration {
   taskId?: string;
   status: "preparing" | "running" | "completed" | "failed" | "stopped";
   prompt: string;
+  /** Selection at submission; prevents auto-selecting a result after the user clears it. */
   previousMediaId?: string;
   outputIds: string[];
   error?: string;

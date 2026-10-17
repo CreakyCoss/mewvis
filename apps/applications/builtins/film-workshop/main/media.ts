@@ -111,7 +111,7 @@ export function generationMessage(
         content: `为「${shot.title}」生成${type.label}。\n${job.prompt}\n${generationMarker(job.id)}`,
       },
     ],
-    text: `为镜头「${shot.title}」生成${type.label}。\n${generationMarker(job.id)}\n先查询 generate_media 的 ${job.purpose} 用途，${prepared ? "本轮任务已登记，不要再次登记，直接" : "调用 film_prepare_media 登记本轮任务，再"}严格按 Schema 组合输入和可覆盖参数，只调用一次生成，必须使用下面的 outputDirectory。不要用文字建议代替实际生成，不切换模型或用途；需要选择音色、调整参数或配置不支持时，调用 ask_user 等待用户选择后继续。下面的台词或提示词为空时必须先 ask_user 确认内容，不能编造。用户明确确认的本次输入与覆盖参数优先于下面的镜头原计划，不修改全局模型配置。失败或停止后不要自动重试，需要重试时先 ask_user 获得明确授权。${instruction}\n${JSON.stringify(details, null, 2)}`,
+    text: `为镜头「${shot.title}」生成${type.label}。\n${generationMarker(job.id)}\n先查询 generate_media 的 ${job.purpose} 用途，${prepared ? "本轮任务已登记，不要再次登记，直接" : "调用 film_prepare_media 登记本轮任务，再"}严格按 Schema 组合输入和可覆盖参数，只调用一次生成，必须使用下面的 outputDirectory。每次生成都追加为新素材，保留已有素材和当前使用的版本，不覆盖或删除旧文件；不需要的素材由用户手动移除。不要用文字建议代替实际生成，不切换模型或用途；需要选择音色、调整参数或配置不支持时，调用 ask_user 等待用户选择后继续。下面的台词或提示词为空时必须先 ask_user 确认内容，不能编造。用户明确确认的本次输入与覆盖参数优先于下面的镜头原计划，不修改全局模型配置。失败或停止后不要自动重试，需要重试时先 ask_user 获得明确授权。${instruction}\n${JSON.stringify(details, null, 2)}`,
   };
 }
 
@@ -377,7 +377,7 @@ export function applyGeneration(
                     ...shot,
                     mediaIds: [...new Set([...(shot.mediaIds ?? []), ...ids])],
                     [type.field]:
-                      shot[type.field] === job.previousMediaId && ids.length
+                      !shot[type.field] && !job.previousMediaId && ids.length
                         ? ids[0]
                         : shot[type.field],
                   },

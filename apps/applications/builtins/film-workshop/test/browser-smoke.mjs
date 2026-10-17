@@ -517,6 +517,11 @@ try {
       .getByRole("heading", { name: "调试台已连接", exact: true })
       .waitFor();
     assert.equal(
+      await frame.locator('.film-chat-message article[data-role="user"]').last().innerText(),
+      text,
+      "directly typed text is visible in the user message",
+    );
+    assert.equal(
       await frame
         .getByRole("button", { name: "会话历史", exact: true })
         .isDisabled(),
