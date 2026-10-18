@@ -179,19 +179,11 @@ const ApplicationCatalog = ({
         {isLoading && applications.length === 0 ? (
           <LoadingState />
         ) : applications.length > 0 ? (
-          <>
-            <div className="mb-4 flex items-center gap-2">
-              <h2 className="text-sm font-medium">已启用应用</h2>
-              <span className="rounded-md bg-muted px-1.5 py-0.5 text-xs tabular-nums text-muted-foreground">
-                {applications.length}
-              </span>
-            </div>
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {applications.map((application) => (
-                <ApplicationCard key={application.id} application={application} />
-              ))}
-            </div>
-          </>
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {applications.map((application) => (
+              <ApplicationCard key={application.id} application={application} />
+            ))}
+          </div>
         ) : (
           <div className="flex min-h-72 flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-border/80 bg-card/30 p-8 text-center">
             <span className="flex size-12 items-center justify-center rounded-xl bg-accent text-primary">
