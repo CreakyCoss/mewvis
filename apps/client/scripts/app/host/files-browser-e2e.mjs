@@ -62,9 +62,25 @@ const roots=await files.roots();const path=roots.dataPath+'/files';
 const sdkContainer=document.createElement('div');sdkContainer.id='sdk-preview';sdkContainer.style.cssText='height:360px;margin-top:16px;border:1px solid #ccc';document.body.append(sdkContainer);
 const sdkRoot=createRoot(sdkContainer);
 let nativePreview;
+let burstViews=[];
 const sdkPreview=filePath=>sdkRoot.render(createElement(SDKFilePreview,{filePath,style:{height:360}}));
 const sdkDialog=filePath=>sdkRoot.render(createElement(SDKFilePreviewDialog,{filePath,open:true,onOpenChange:open=>{if(!open)sdkRoot.render(null);}}));
 const actions={
+ '并发文件与媒体请求':async()=>{
+   await Promise.all(burstViews.map(view=>view.close()));burstViews=[];
+   document.getElementById('concurrent-previews')?.remove();
+   const image=path+'/concurrent.png';
+   await files.writeBinary(image,Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAACXBIWXMAAAABAAAAAQBPJcTWAAAAFUlEQVR4nGNgYPhLIhrVMKph2GoAAISu/QH+5zsIAAAAAElFTkSuQmCC'),c=>c.charCodeAt(0)),{overwrite:true});
+   const group=document.createElement('section');group.id='concurrent-previews';group.setAttribute('aria-label','并发缩略图');group.style.cssText='display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px';document.body.insertBefore(group,sdkContainer);
+   const previews=Array.from({length:12},()=>{const cell=document.createElement('div');cell.style.cssText='height:72px;border:1px solid #ccc';group.append(cell);return cell;});
+   const result=await Promise.allSettled([
+     ...previews.map(async cell=>{const view=await files.preview.open(cell,{filePath:image});burstViews.push(view);await view.ready;}),
+     ...Array.from({length:12},()=>files.stat(image)),
+     getApplicationMediaClient().capabilities(),
+   ]);
+   const errors=result.filter(item=>item.status==='rejected').map(item=>item.reason.message);
+   show({message:errors.length?'并发检查失败':'并发请求全部完成',completed:result.length-errors.length,total:result.length,errors});
+ },
  '合成媒体示例':async()=>{
    const media=getApplicationMediaClient();const capability=await media.capabilities();if(!capability.available)throw new Error(capability.reason);
    const png=Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAACXBIWXMAAAABAAAAAQBPJcTWAAAAFUlEQVR4nGNgYPhLIhrVMKph2GoAAISu/QH+5zsIAAAAAElFTkSuQmCC'),c=>c.charCodeAt(0));
@@ -190,7 +206,7 @@ await writeFile(
 );
 const server = await startServer({
   token: "isolated-file-browser-token-000000",
-  port: process.argv.includes("--preview") ? 5190 : 0,
+  port: process.argv.includes("--preview") ? Number(process.env.MEWVIS_FILE_PREVIEW_PORT ?? 5190) : 0,
   webRoot,
   runtime: {
     cliPath: fileURLToPath(new URL("../../../../server/test/support/fixtures/runtime.mjs", import.meta.url)),
@@ -200,6 +216,12 @@ const server = await startServer({
 });
 if (process.argv.includes("--preview")) {
   console.log(`File preview: ${server.url} (isolated data)`);
+  process.once("SIGINT", () => {
+    void server.close().finally(async () => {
+      await rm(root, { recursive: true, force: true });
+      process.exit(0);
+    });
+  });
   await new Promise(() => {});
 }
 const playwright = await import(process.env.MEWVIS_PLAYWRIGHT_MODULE ?? "playwright");
@@ -305,13 +327,25 @@ try {
       page.on("pageerror", (error) => errors.push(error.message));
       await page.goto(server.url);
       const frame = page.frameLocator("iframe");
+      if (!playground) {
+        await frame.getByRole("button", { name: "并发文件与媒体请求", exact: true }).click();
+        await frame.locator("pre").filter({ hasText: "并发请求全部完成" }).waitFor();
+        const burst = JSON.parse(await frame.locator("pre").innerText());
+        assert.equal(burst.completed, 25);
+        assert.deepEqual(burst.errors, []);
+        assert.equal(await frame.getByRole("region", { name: "并发缩略图" }).locator("img").count(), 12);
+      }
       if (process.argv.includes("--media")) {
         await frame.getByRole("button", { name: "合成媒体示例", exact: true }).click();
         const video = frame.locator("#sdk-preview video");
         await video.waitFor();
-        await video.evaluate(node => node.readyState >= 1 ? true : new Promise(resolve => node.addEventListener('loadedmetadata', resolve, {once:true})));
-        assert.equal(await video.evaluate(node => node.videoWidth), 320);
-        assert.equal(await video.evaluate(node => node.videoHeight), 180);
+        await video.evaluate((node) =>
+          node.readyState >= 1
+            ? true
+            : new Promise((resolve) => node.addEventListener("loadedmetadata", resolve, { once: true })),
+        );
+        assert.equal(await video.evaluate((node) => node.videoWidth), 320);
+        assert.equal(await video.evaluate((node) => node.videoHeight), 180);
         assert.deepEqual(errors, []);
         console.log(`${engine}: sandbox media SDK -> authenticated host -> real FFmpeg -> shared file preview passed`);
         continue;

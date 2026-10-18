@@ -107,10 +107,13 @@ await files.preview.close(dialog.id);
 
 ## 错误和验证
 
+应用页面的文件与媒体请求共用宿主队列：最多同时执行 4 个请求，其余按先后顺序等待，最多等待 64 个；等待超过 20 秒的请求返回 `TIMEOUT` 且不再执行。队列满返回 `LIMIT_EXCEEDED`，重复 ID 返回 `INVALID_ARGUMENT`。应用关闭时取消尚未派发的请求并返回 `CONNECTION_CLOSED`；已经派发的操作仍按原有文件服务生命周期处理。排队不跳过路径、权限或请求大小检查。
+
 错误通过 `ApplicationFileError.code` 表达，包括 `PERMISSION_DENIED`、`INVALID_ARGUMENT`、`FILE_NOT_FOUND`、`FILE_EXISTS`、`FILE_CHANGED`、`LIMIT_EXCEEDED`、`INVALID_ENCODING`、`CAPABILITY_UNAVAILABLE` 和 `PREVIEW_EXPIRED`。传输失败不自动重试写入，应重新读取确认提交结果。
 
 ```sh
 pnpm --filter @mewvis/app-sdk test
+node --test apps/client/scripts/app/host/file-request-queue.test.mjs
 pnpm --filter @mewvis/app-host build
 pnpm --filter @mewvis/server build
 node --test apps/server/test/modules/application-files.test.mjs

@@ -18,6 +18,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "design-system/components/ui/alert";
 import { useWorkspaceHeader } from "@/workbench/shell/layout/workspace";
 import { readApplicationTheme, sandboxDocument } from "./sandbox-document";
+import { createFileRequestQueue } from "./file-request-queue";
 export { sandboxDocument } from "./sandbox-document";
 
 const CHANNEL = productId("-app-ui-v1");
@@ -117,7 +118,7 @@ export const ApplicationFrame = ({
     );
     const chatRequests = new Set<string>();
     const dataRequests = new Set<string>();
-    const fileRequests = new Set<string>();
+    const fileRequests = createFileRequestQueue();
     const files = createBackendApplicationFileTransport(application.id);
     const data = createBackendApplicationDataTransport(application.id);
     const unlistenPreview = files.subscribe?.((event) => post({ type: "files:preview-close", event }));
@@ -290,10 +291,6 @@ export const ApplicationFrame = ({
         if (typeof id !== "string" || !id || id.length > 128 || !request) return;
         const reject = (message: string) =>
           post({ type: "host:result", id, result: { ok: false, error: { code: "INVALID_ARGUMENT", message } } });
-        if (fileRequests.has(id) || fileRequests.size >= MAX_CONCURRENT_CALLS) {
-          reject("文件请求重复或并发过多");
-          return;
-        }
         try {
           if (new TextEncoder().encode(JSON.stringify(request)).byteLength > MAX_ARGUMENT_BYTES) {
             reject("文件请求超过 256 KiB");
@@ -303,12 +300,12 @@ export const ApplicationFrame = ({
           reject("文件请求必须是 JSON");
           return;
         }
-        fileRequests.add(id);
-        void (
-          message.type === "media:request"
-            ? files.media.request(request as unknown as ApplicationMediaRequest)
-            : files.request(request as unknown as ApplicationFileRequest)
-        )
+        void fileRequests
+          .request(id, () =>
+            message.type === "media:request"
+              ? files.media.request(request as unknown as ApplicationMediaRequest)
+              : files.request(request as unknown as ApplicationFileRequest),
+          )
           .then(
             (result) => {
               if (connected) post({ type: "host:result", id, result });
@@ -324,8 +321,7 @@ export const ApplicationFrame = ({
                   },
                 });
             },
-          )
-          .finally(() => fileRequests.delete(id));
+          );
         return;
       }
       if (message.type === "data:request") {
@@ -406,6 +402,7 @@ export const ApplicationFrame = ({
     window.addEventListener("message", onMessage);
     return () => {
       connected = false;
+      fileRequests.dispose();
       unlistenPreview?.();
       files.dispose();
       data.dispose();
