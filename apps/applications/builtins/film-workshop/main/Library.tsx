@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import {
   ArrowRight,
   Clapperboard,
@@ -10,15 +10,11 @@ import {
   Trash2,
   Upload,
 } from "lucide-react";
-import {
-  FLOW_STEPS,
-  PROJECT_KINDS,
-  stageStatus,
-  type FilmProject,
-} from "./model";
+import { FLOW_STEPS, PROJECT_KINDS, type FilmProject } from "./model";
 import { resumeView, type FilmView } from "./view-state";
 import { ProjectCover } from "./artwork";
-import { StepRail } from "./components/StepRail";
+import { ProjectProgress } from "./components/ProjectProgress";
+import { projectProgress } from "./progress";
 import creativeDesk from "./assets/creative-desk.jpg";
 
 type Props = {
@@ -26,7 +22,7 @@ type Props = {
   views: Record<string, FilmView>;
   loading: boolean;
   busy: boolean;
-  onOpen: (id: string) => void;
+  onOpen: (id: string, view?: FilmView) => void;
   onCreate: () => void;
   onImport: () => void;
   onExample: () => void;
@@ -65,6 +61,13 @@ function updatedDate(timestamp: number) {
 
 export function Library(props: Props) {
   const [query, setQuery] = useState("");
+  const summaries = useMemo(
+    () =>
+      new Map(
+        props.projects.map((project) => [project.id, projectProgress(project)]),
+      ),
+    [props.projects],
+  );
   const recent = props.projects[0];
   const recentView = recent
     ? resumeView(recent, props.views[recent.id])
@@ -75,6 +78,20 @@ export function Library(props: Props) {
   const stepIndex = recentView
     ? FLOW_STEPS.findIndex((step) => step.id === recentView.step)
     : 0;
+  const episodeIndex =
+    recent?.episodes.findIndex(
+      (episode) => episode.id === recentView?.episodeId,
+    ) ?? 0;
+  const episodeLabel =
+    recentEpisode &&
+    (/^第\s*\d+\s*集$/.test(recentEpisode.title)
+      ? `第 ${episodeIndex + 1} 集`
+      : `第 ${episodeIndex + 1} 集 · ${recentEpisode.title}`);
+  const shotIndex =
+    recentEpisode?.shots.findIndex((shot) => shot.id === recentView?.shotId) ??
+    -1;
+  const sharedStep =
+    recentView?.step === "settings" || recentView?.step === "assets";
   const other = props.projects.slice(1);
   const matches = props.projects.filter((project) =>
     `${project.title} ${project.synopsis}`
@@ -133,7 +150,7 @@ export function Library(props: Props) {
                 </button>
                 <div className="film-recent-details">
                   <div className="film-recent-label">
-                    <span>上次编辑</span>
+                    <span>最近创作</span>
                     <button
                       className="film-icon-button film-danger"
                       aria-label={`删除项目 ${recent.title}`}
@@ -150,7 +167,19 @@ export function Library(props: Props) {
                   <Metadata project={recent} />
                   <div className="film-resume-line">
                     <span>
-                      {recentEpisode.title} · {FLOW_STEPS[stepIndex].title}
+                      上次编辑：
+                      {!sharedStep && (
+                        <>
+                          {episodeLabel} ·{" "}
+                          {recentView?.step !== "script" && shotIndex >= 0 && (
+                            <>
+                              镜头 {String(shotIndex + 1).padStart(2, "0")}{" "}
+                              ·{" "}
+                            </>
+                          )}
+                        </>
+                      )}
+                      {FLOW_STEPS[stepIndex].title}
                     </span>
                     <button
                       className="film-primary film-project-open"
@@ -166,26 +195,28 @@ export function Library(props: Props) {
                   </div>
                 </div>
               </div>
-              <div className="film-recent-flow">
-                <span>当前：第 {stepIndex + 1} 步 / 共 7 步</span>
-                <StepRail
-                  as="ol"
-                  id="film-recent-steps"
-                  className="film-recent-steps"
-                  label="最近项目的七步流程"
-                  activeKey={`${recent.id}:${stepIndex}`}
-                >
-                  {FLOW_STEPS.map((step, index) => (
-                    <li
-                      key={step.id}
-                      className={`${index === stepIndex ? "is-current" : ""} ${stageStatus(recent, recentEpisode, step.id) === "ready" ? "is-ready" : ""}`}
-                    >
-                      <span>{String(index + 1).padStart(2, "0")}</span>
-                      <strong>{step.title}</strong>
-                    </li>
-                  ))}
-                </StepRail>
-              </div>
+              <ProjectProgress
+                summary={summaries.get(recent.id)!}
+                comic={recent.kind === "comic"}
+                busy={props.busy}
+                onOpenEpisode={(episodeId, step) => {
+                  const episode = recent.episodes.find(
+                    (item) => item.id === episodeId,
+                  )!;
+                  const shot =
+                    step === "dubbing"
+                      ? episode.shots.find((item) => item.dialogue.trim())
+                      : episode.shots[0];
+                  props.onOpen(
+                    recent.id,
+                    resumeView(recent, {
+                      episodeId,
+                      step,
+                      shotId: shot?.id,
+                    }),
+                  );
+                }}
+              />
             </article>
             <section className="film-library-projects" aria-label="作品库">
               <div className="film-library-toolbar">
@@ -203,7 +234,7 @@ export function Library(props: Props) {
               {rows.length ? (
                 <div className="film-project-rows">
                   {rows.map((project) => {
-                    const view = resumeView(project, props.views[project.id]);
+                    const summary = summaries.get(project.id)!;
                     return (
                       <article
                         key={project.id}
@@ -223,11 +254,10 @@ export function Library(props: Props) {
                             </p>
                             <Metadata project={project} />
                           </div>
-                          <span className="film-row-step">
-                            {
-                              FLOW_STEPS.find((step) => step.id === view.step)
-                                ?.title
-                            }
+                          <span className="film-row-status">
+                            {summary.exports
+                              ? `${project.kind === "comic" ? "已有导出" : "有成片"} ${summary.exports} / ${summary.episodes.length} 集`
+                              : summary.state}
                           </span>
                           <span className="film-row-date">
                             更新于 {updatedDate(project.updatedAt)}

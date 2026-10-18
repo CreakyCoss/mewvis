@@ -130,7 +130,10 @@ export default function App() {
         views={views}
         loading={loading}
         busy={busy}
-        onOpen={setSelectedId}
+        onOpen={(id, view) => {
+          if (view) setViews((current) => ({ ...current, [id]: view }));
+          setSelectedId(id);
+        }}
         onCreate={() => {
           setTitle("");
           setKind("comicDrama");

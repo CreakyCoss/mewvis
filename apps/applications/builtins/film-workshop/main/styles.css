@@ -1431,65 +1431,154 @@
   font-weight: 600;
   min-height: 36px;
 }
-.film-recent-flow {
+.film-project-progress {
   margin: 0 20px;
-  padding: 12px 0 16px;
+  padding: 16px 0 0;
   border-top: 1px solid var(--border);
+}
+.film-project-progress > header {
   display: flex;
   align-items: center;
-  gap: 24px;
+  justify-content: space-between;
+  gap: 12px;
 }
-.film-recent-flow > span {
-  font-size: 12px;
-  flex-shrink: 0;
-  color: var(--muted-foreground);
-}
-.film-recent-flow ol {
-  display: flex;
-  align-items: start;
-  gap: 8px;
-  list-style: none;
-  padding: 3px 0;
+.film-project-progress h4 {
   margin: 0;
-  width: 100%;
-  min-width: 0;
-  overflow-x: auto;
-  overscroll-behavior-x: contain;
-  scrollbar-width: none;
-}
-.film-recent-flow li {
-  flex: 1 0 80px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 5px;
-  color: var(--muted-foreground);
-}
-.film-recent-flow li > span {
-  display: grid;
-  place-items: center;
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  background: var(--muted);
-  font-size: 12px;
-}
-.film-recent-flow li > strong {
   font-size: 12px;
   font-weight: 500;
+}
+.film-project-progress > header > span {
+  color: var(--muted-foreground);
+  font-size: 11px;
+}
+.film-project-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 14px 0 16px;
+  gap: 20px;
+}
+.film-project-metrics.is-comic {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.film-project-metrics > div + div {
+  padding-left: 20px;
+  border-left: 1px solid var(--border);
+}
+.film-project-metrics dt {
+  color: var(--muted-foreground);
+  font-size: 11px;
+  margin-bottom: 5px;
+}
+.film-project-metrics dd {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  min-height: 28px;
+}
+.film-project-metrics dd strong {
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.3;
+  font-variant-numeric: tabular-nums;
+}
+.film-project-metrics dd > span {
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+.film-project-metrics dd .film-metric-empty {
+  font-size: 12px;
+  line-height: 28px;
+}
+.film-episode-progress > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+  color: var(--muted-foreground);
+  font-size: 12px;
+  list-style: none;
+  cursor: pointer;
+}
+.film-episode-progress > summary::-webkit-details-marker {
+  display: none;
+}
+.film-episode-progress > summary:hover {
+  color: var(--foreground);
+}
+.film-episode-progress[open] > summary {
+  color: var(--foreground);
+}
+.film-episode-progress[open] > summary svg {
+  transform: rotate(180deg);
+}
+.film-episode-progress-list > article {
+  display: grid;
+  grid-template-columns: minmax(140px, 1fr) minmax(0, 3fr) 28px;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 0;
+  border-top: 1px solid var(--border);
+}
+.film-episode-progress-list > article > header {
+  display: flex;
+  align-items: baseline;
+  min-width: 0;
+  gap: 10px;
+}
+.film-episode-progress-list > article > header > span {
+  font-size: 11px;
+  color: var(--muted-foreground);
+  font-variant-numeric: tabular-nums;
+}
+.film-episode-progress-list h5 {
+  margin: 0 0 3px;
+  font-size: 12px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.film-episode-progress-list small {
+  font-size: 11px;
+  color: var(--muted-foreground);
+}
+.film-episode-progress-list dl {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+}
+.film-episode-progress-list dl.is-comic {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.film-episode-progress-list dl dt {
+  color: var(--muted-foreground);
+  font-size: 10px;
+}
+.film-episode-progress-list dl dd {
+  margin: 0;
+}
+.film-episode-progress-list dl button {
+  border: 0;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 400;
+  padding: 0;
+  min-height: 26px;
+  color: var(--foreground);
   white-space: nowrap;
 }
-.film-recent-flow li.is-ready > span {
-  background: var(--success);
-  color: var(--success-foreground);
-}
-.film-recent-flow li.is-current {
+.film-episode-progress-list dl button:hover {
   color: var(--primary);
 }
-.film-recent-flow li.is-current > span {
-  background: var(--primary);
-  color: var(--primary-foreground);
-  outline: 3px solid var(--primary-subtle);
+.film-episode-progress-list > article > .film-icon-button {
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  min-height: 28px;
+  padding: 4px;
 }
 .film-library .film-library-projects {
   margin-top: 24px;
@@ -1541,13 +1630,13 @@
   font-size: 12px;
   gap: 8px;
 }
-.film-row-step,
+.film-row-status,
 .film-row-date {
   color: var(--muted-foreground);
   font-size: 13px;
   white-space: nowrap;
 }
-.film-row-step {
+.film-row-status {
   border-left: 1px solid var(--border);
   padding-left: 22px;
 }
@@ -2207,10 +2296,13 @@
   .film-recent-main {
     gap: 20px;
   }
-  .film-recent-flow {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 15px;
+  .film-episode-progress-list > article {
+    grid-template-columns: minmax(0, 1fr) 28px;
+    gap: 10px;
+  }
+  .film-episode-progress-list dl {
+    grid-column: 1 / -1;
+    grid-row: 2;
   }
   .film-recent-details h3 {
     font-size: 23px;
@@ -2261,15 +2353,27 @@
   .film-app .film-resume-line .film-project-open {
     width: 100%;
   }
-  .film-recent-flow {
+  .film-project-progress {
     margin: 0 16px;
-    padding-bottom: 18px;
   }
-  .film-recent-flow ol {
-    gap: 8px;
+  .film-project-metrics,
+  .film-project-metrics.is-comic {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px 18px;
   }
-  .film-recent-flow li > strong {
-    font-size: 11px;
+  .film-project-metrics > div + div {
+    padding-left: 0;
+    border: 0;
+  }
+  .film-project-metrics dd strong {
+    font-size: 20px;
+  }
+  .film-episode-progress-list dl {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px 18px;
+  }
+  .film-episode-progress-list dl button {
+    min-height: 30px;
   }
   .film-library .film-library-toolbar {
     flex-direction: column;
@@ -2290,10 +2394,29 @@
   .film-project-row h3 {
     font-size: 15px;
   }
-  .film-project-row .film-project-synopsis,
-  .film-project-row .film-row-step {
+  .film-project-row .film-project-synopsis {
     display: none;
   }
+  .film-app .film-project-row .film-project-open > .film-cover-art {
+    grid-column: 1;
+    grid-row: 1 / 3;
+  }
+  .film-app .film-project-row .film-project-open > div {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .film-project-row .film-row-status {
+    grid-column: 2;
+    grid-row: 2;
+    border: 0;
+    padding: 0;
+    font-size: 11px;
+  }
+  .film-app .film-project-row .film-project-open > svg {
+    grid-column: 3;
+    grid-row: 1 / 3;
+  }
+
   .film-project-row .film-project-metadata {
     gap: 5px;
     font-size: 10px;

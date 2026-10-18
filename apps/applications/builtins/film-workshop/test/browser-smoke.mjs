@@ -16,6 +16,7 @@ const root = fileURLToPath(new URL("../../../../../", import.meta.url));
 const app = fileURLToPath(new URL("../", import.meta.url));
 const previewOnly = process.argv.includes("--preview");
 const mediaTest = process.argv.includes("--media");
+const progressPreview = previewOnly && process.argv.includes("--progress");
 const output = process.env.MEWVIS_FILM_QA_DIR ?? "/tmp/mewvis-film-workshop-qa";
 await mkdir(output, { recursive: true });
 const compiled = await build({
@@ -133,6 +134,20 @@ if (composition) {
     shot.imageMediaId = sample.media[0].id;
     if (index === 1) shot.videoMediaId = sample.media[1].id;
     if (index !== 1) shot.audioMediaId = sample.media[2].id;
+  }
+  if (progressPreview) {
+    const second = f.blankEpisode("磁带另一面");
+    second.script = "林夏听见熟悉的呼号，录音中的两个人开始对话。磁带最后留下了一段空白。";
+    second.shots = ["陌生的呼号", "录音中的对白", "空白的一段"].map((title, index) => ({ ...f.blankShot(index + 1), title }));
+    second.shots[0].description = "录音机播放一段来自过去的声音。";
+    second.shots[0].dialogue = "你还记得这段声音吗？";
+    second.shots[0].mediaIds = [sample.media[0].id];
+    second.shots[0].imageMediaId = sample.media[0].id;
+    second.shots[1].dialogue = "我一直记得。";
+    sample.episodes.push(second, f.blankEpisode("雨停之后"));
+    const empty = f.createProject("海边来信", "shortDrama");
+    empty.createdAt = empty.updatedAt = sample.createdAt - 86400000;
+    values.set(f.projectKey(empty.id), empty);
   }
   registeredWorkspaces.push({
     id: sample.workspace.id,
