@@ -384,19 +384,19 @@
   align-items: center;
   font-size: 11px;
 }
-.film-delivery .film-timeline-wave {
+.film-delivery .film-waveform {
   height: 16px;
   width: 100%;
   position: relative;
   color: var(--primary);
   opacity: 0.65;
 }
-.film-delivery .film-timeline-wave canvas {
+.film-delivery .film-waveform canvas {
   display: block;
   width: 100%;
   height: 100%;
 }
-.film-delivery .film-timeline-wave > small {
+.film-delivery .film-waveform > small {
   position: absolute;
   inset: 0;
   font-size: 10px;

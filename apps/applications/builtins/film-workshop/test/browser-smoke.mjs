@@ -118,6 +118,15 @@ if (composition) {
     sample.media.push(entry);
     fileHost.put(f.mediaPath(sample, entry), data);
   }
+  for (const [kind, name, data] of [
+    ["image", "备选磁带.jpg", await readFile(join(app, "main/assets/rain-cassette.jpg"))],
+    ["image", "备选播音.jpg", await readFile(join(app, "main/assets/rain-host.jpg"))],
+    ["video", "视频备选.mp4", bytes.video],
+    ["audio", "配音备选.wav", bytes.audio],
+  ]) {
+    const media = { id: f.newId(), kind, name, path: `media/${name}`, size: data.length, source: "imported", createdAt: Date.now(), mimeType: "" };
+    sample.media.push(media); fileHost.put(f.mediaPath(sample, media), data);
+  }
   for (const [index, shot] of sample.episodes[0].shots.entries()) {
     shot.duration = [4, 5, 6][index];
     shot.mediaIds = sample.media.map((m) => m.id);
@@ -494,11 +503,6 @@ try {
     frame.locator(".film-step-button").filter({ hasText: title }).click();
   const saved = async () =>
     frame.locator(".film-save-status").filter({ hasText: "已保存" }).waitFor();
-  const expandDetails = async (title) => {
-    const summary = frame.locator("summary").filter({ hasText: title });
-    if (!(await summary.evaluate((node) => node.parentElement.open)))
-      await summary.click();
-  };
   if (mediaTest) {
     await frame
       .getByRole("button", { name: "打开项目 合成验证", exact: true })
@@ -588,7 +592,7 @@ try {
       .count(),
     2,
   );
-  assert.equal(await frame.locator(".film-focused-shot").count(), 1);
+  assert.equal(await frame.locator(".film-shot-editor").count(), 1);
   const episodeSummary = frame.locator(".film-directory-list summary");
   await episodeSummary.click();
   assert.equal(
@@ -799,14 +803,16 @@ try {
     .fill("空荡的旧站台，晨雾与远处列车");
   await stage("分镜设计");
   await frame.getByRole("button", { name: "添加镜头", exact: true }).click();
-  await expandDetails("名称、场景与角色");
+  await frame.getByRole("tab", { name: "镜头信息", exact: true }).click();
   await frame.getByLabel("镜头名称", { exact: true }).fill("旅人回头");
+  await frame.getByRole("tab", { name: "创作参数", exact: true }).click();
   await frame
     .getByLabel("画面内容", { exact: true })
     .fill("旅人转过身，望向站台尽头");
   await frame
     .getByLabel("分镜图片提示词", { exact: true })
     .fill("电影中景，清晨车站，灰色风衣旅人回头");
+  await frame.getByRole("tab", { name: "镜头信息", exact: true }).click();
   const sceneId = await frame
     .getByLabel("场景", { exact: true })
     .locator("option")
@@ -814,23 +820,26 @@ try {
     .getAttribute("value");
   await frame.getByLabel("场景", { exact: true }).selectOption(sceneId);
   await frame.getByRole("checkbox", { name: "旅人", exact: true }).check();
+  await frame.getByRole("tab", { name: "创作参数", exact: true }).click();
   await frame.getByLabel("台词", { exact: true }).fill("我们会再见。");
   await frame.getByRole("button", { name: "添加镜头", exact: true }).click();
-  await expandDetails("名称、场景与角色");
+  await frame.getByRole("tab", { name: "镜头信息", exact: true }).click();
   await frame.getByLabel("镜头名称", { exact: true }).fill("空站台");
+  await frame.getByRole("tab", { name: "创作参数", exact: true }).click();
   await frame
     .getByLabel("画面内容", { exact: true })
     .fill("列车驶离，空站台浮出晨雾");
   await frame
     .getByLabel("分镜图片提示词", { exact: true })
     .fill("电影远景，晨雾，空荡的旧站台");
+  await frame.getByRole("tab", { name: "镜头信息", exact: true }).click();
   await frame.getByLabel("时长（秒）", { exact: true }).fill("3");
   await frame.getByRole("button", { name: "镜头操作", exact: true }).click();
   await frame
     .getByRole("menuitem", { name: "上移镜头 2", exact: true })
     .click();
   assert.match(
-    await frame.locator(".film-shot-select").first().textContent(),
+    await frame.locator(".film-directory-shot").first().textContent(),
     /空站台/,
   );
   await page.screenshot({ path: join(output, "storyboard-light.png") });
@@ -975,9 +984,9 @@ try {
   await frame
     .getByLabel("当前分集", { exact: true })
     .selectOption(exported.episodes[0].id);
-  assert.equal(await frame.locator(".film-shot-select").count(), 2);
+  assert.equal(await frame.locator(".film-directory-shot").count(), 2);
   assert.match(
-    await frame.locator(".film-shot-select").first().textContent(),
+    await frame.locator(".film-directory-shot").first().textContent(),
     /空站台/,
   );
 
@@ -989,7 +998,7 @@ try {
   await frame
     .getByRole("heading", { name: "调试台已连接", exact: true })
     .waitFor();
-  await frame.locator(".film-shot-select").first().click();
+  await frame.locator(".film-directory-shot").first().click();
   await frame
     .getByLabel("画面内容", { exact: true })
     .fill("列车驶离，晨雾里留下旅人的倒影");

@@ -10,73 +10,47 @@ import {
   DropdownMenuTrigger,
 } from "design-system/components/ui/dropdown-menu";
 import {
-  ArrowDown,
-  ArrowUp,
   Box,
-  CircleAlert,
-  CircleCheck,
   Image,
   ImagePlus,
-  LoaderCircle,
   Plus,
   MoreHorizontal,
   MapPin,
-  Square,
   Trash2,
   Upload,
   UserRound,
-  Video,
-  Volume2,
 } from "lucide-react";
 import {
   ASSET_KINDS,
   PROJECT_KINDS,
   blankAsset,
-  blankShot,
-  moveShot,
   removeAsset,
   type AssetKind,
   type FilmAsset,
   type FilmEpisode,
   type FilmProject,
-  type FilmGeneration,
-  type FilmShot,
   type FlowStep,
 } from "./model";
 import { EmptyState, Field } from "./components/Fields";
 import { Delivery } from "./delivery";
 import type { DeliveryController } from "./delivery/useDelivery";
 import { Dialog } from "./components/Dialog";
-import { ShotArtwork } from "./artwork";
 import { LocalPreview, MediaPanel } from "./components/MediaPanel";
-import { GENERATION_TYPES, mediaPath } from "./media";
+import { mediaPath } from "./media";
+import { ShotEditor, type ShotEditorProps } from "./shot-editor";
 
-type Props = {
-  project: FilmProject;
-  episode: FilmEpisode;
-  step: FlowStep;
-  selectedShotId?: string;
-  onSelectShot?: (id: string) => void;
-  onOpenStep?: (step: FlowStep) => void;
-  edit: (update: (project: FilmProject) => FilmProject) => void;
-  delivery: DeliveryController;
-  generate?: (
-    episodeId: string,
-    shotId: string,
-    purpose?: FilmGeneration["purpose"],
-  ) => Promise<void>;
-  generationBusy?: boolean;
-  stopGeneration?: (jobId?: string) => Promise<void>;
-  generationStarting?: boolean;
-  generationStopping?: boolean;
-};
+type Props = ShotEditorProps & { step: FlowStep; delivery: DeliveryController };
 export function StageEditor(props: Props) {
   if (props.step === "settings") return <Settings {...props} />;
   if (props.step === "script") return <Script {...props} />;
   if (props.step === "assets") return <Assets {...props} />;
-  if (props.step === "storyboard") return <Storyboard {...props} />;
-  if (props.step === "video") return <MediaPlan {...props} mode="video" />;
-  if (props.step === "dubbing") return <MediaPlan {...props} mode="dubbing" />;
+  if (["storyboard", "video", "dubbing"].includes(props.step))
+    return (
+      <ShotEditor
+        {...props}
+        mode={props.step as "storyboard" | "video" | "dubbing"}
+      />
+    );
   return <Delivery {...props} controller={props.delivery} />;
 }
 function updateEpisode(
@@ -88,12 +62,6 @@ function updateEpisode(
     episodes: p.episodes.map((e) =>
       e.id === props.episode.id ? update(e) : e,
     ),
-  }));
-}
-function updateShot(props: Props, id: string, patch: Partial<FilmShot>) {
-  updateEpisode(props, (e) => ({
-    ...e,
-    shots: e.shots.map((s) => (s.id === id ? { ...s, ...patch } : s)),
   }));
 }
 function Settings({ project, edit }: Props) {
@@ -390,7 +358,9 @@ function Assets(props: Props) {
                 >
                   <span className="film-asset-thumbnail" aria-hidden>
                     {cover && props.project.workspace ? (
-                      <LocalPreview filePath={mediaPath(props.project, cover)} />
+                      <LocalPreview
+                        filePath={mediaPath(props.project, cover)}
+                      />
                     ) : (
                       <Icon size={20} />
                     )}
@@ -486,7 +456,9 @@ function Assets(props: Props) {
                   }
                   onDetach={(id) =>
                     update({
-                      mediaIds: selected.mediaIds?.filter((value) => value !== id),
+                      mediaIds: selected.mediaIds?.filter(
+                        (value) => value !== id,
+                      ),
                     })
                   }
                 />
@@ -537,548 +509,6 @@ function Assets(props: Props) {
             </button>
           </footer>
         </Dialog>
-      )}
-    </div>
-  );
-}
-function Storyboard(props: Props) {
-  const [removing, setRemoving] = useState(false);
-  const shot =
-    props.episode.shots.find((s) => s.id === props.selectedShotId) ??
-    props.episode.shots.at(-1);
-  const index = shot
-    ? props.episode.shots.findIndex((s) => s.id === shot.id)
-    : -1;
-  const scenes = props.project.assets.filter((a) => a.kind === "scene");
-  const characters = props.project.assets.filter((a) => a.kind === "character");
-  const patch = (value: Partial<FilmShot>) => {
-    if (shot) updateShot(props, shot.id, value);
-  };
-  if (!shot)
-    return (
-      <EmptyState
-        title="把剧本拆成镜头"
-        text="从左侧目录添加镜头，记录画面、时长、景别和素材引用。"
-      />
-    );
-  const references = props.project.assets.filter(
-    (a) => a.id === shot.sceneId || shot.characterIds.includes(a.id),
-  );
-  return (
-    <article className="film-focused-shot">
-      <header className="film-focused-heading">
-        <div>
-          <span>镜头 {String(index + 1).padStart(2, "0")}</span>
-          <h3>{shot.title || "未命名镜头"}</h3>
-          <p>
-            {references.map((a) => a.name).join(" · ") || "尚未关联角色与场景"}
-          </p>
-        </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button className="film-icon-button" aria-label="镜头操作">
-              <MoreHorizontal size={18} />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="film-popup">
-            <DropdownMenuItem
-              aria-label={`上移镜头 ${index + 1}`}
-              disabled={index === 0}
-              onSelect={() =>
-                updateEpisode(props, (e) => moveShot(e, shot.id, -1))
-              }
-            >
-              <ArrowUp size={16} />
-              上移镜头
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              aria-label={`下移镜头 ${index + 1}`}
-              disabled={index === props.episode.shots.length - 1}
-              onSelect={() =>
-                updateEpisode(props, (e) => moveShot(e, shot.id, 1))
-              }
-            >
-              <ArrowDown size={16} />
-              下移镜头
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              variant="destructive"
-              onSelect={() => setRemoving(true)}
-            >
-              <Trash2 size={16} />
-              删除镜头
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </header>
-      <div
-        className="film-shot-preview"
-        style={{ aspectRatio: props.project.aspectRatio.replace(":", " / ") }}
-      >
-        <ShotArtwork project={props.project} shot={shot} />
-      </div>
-      <div className="film-focused-fields">
-        <Field label="画面内容">
-          <textarea
-            rows={2}
-            maxLength={12000}
-            value={shot.description}
-            onChange={(e) => patch({ description: e.target.value })}
-          />
-        </Field>
-        <div className="film-focused-camera">
-          <Field label="景别">
-            <NativeSelect
-              className="w-full"
-              value={shot.framing}
-              onChange={(e) => patch({ framing: e.target.value })}
-            >
-              {["远景", "全景", "中景", "近景", "特写"].map((v) => (
-                <NativeSelectOption key={v}>{v}</NativeSelectOption>
-              ))}
-            </NativeSelect>
-          </Field>
-          <Field label="运镜">
-            <input
-              value={shot.camera}
-              maxLength={120}
-              onChange={(e) => patch({ camera: e.target.value })}
-            />
-          </Field>
-          <Field label="时长（秒）">
-            <input
-              type="number"
-              min={0.5}
-              max={120}
-              step={0.5}
-              value={shot.duration}
-              onChange={(e) => {
-                const value = Number(e.target.value);
-                if (Number.isFinite(value) && value >= 0.5 && value <= 120)
-                  patch({ duration: value });
-              }}
-            />
-          </Field>
-        </div>
-        <Field label="台词">
-          <textarea
-            rows={2}
-            maxLength={12000}
-            value={shot.dialogue}
-            placeholder="这个镜头中角色说了什么？"
-            onChange={(e) => patch({ dialogue: e.target.value })}
-          />
-        </Field>
-        <details className="film-focused-options">
-          <summary>名称、场景与角色</summary>
-          <div className="film-field-grid">
-            <Field label="镜头名称">
-              <input
-                maxLength={120}
-                value={shot.title}
-                onChange={(e) => patch({ title: e.target.value })}
-              />
-            </Field>
-            <Field label="场景">
-              <NativeSelect
-                className="w-full"
-                value={shot.sceneId}
-                onChange={(e) => patch({ sceneId: e.target.value })}
-              >
-                <NativeSelectOption value="">未指定场景</NativeSelectOption>
-                {scenes.map((a) => (
-                  <NativeSelectOption key={a.id} value={a.id}>
-                    {a.name}
-                  </NativeSelectOption>
-                ))}
-              </NativeSelect>
-            </Field>
-          </div>
-          <fieldset className="film-character-options">
-            <legend>出镜角色</legend>
-            {characters.length ? (
-              characters.map((a) => (
-                <label key={a.id}>
-                  <input
-                    type="checkbox"
-                    checked={shot.characterIds.includes(a.id)}
-                    onChange={(e) =>
-                      patch({
-                        characterIds: e.target.checked
-                          ? [...shot.characterIds, a.id]
-                          : shot.characterIds.filter((id) => id !== a.id),
-                      })
-                    }
-                  />
-                  {a.name}
-                </label>
-              ))
-            ) : (
-              <p>先到素材准备添加角色。</p>
-            )}
-          </fieldset>
-        </details>
-        <section className="film-image-generation">
-          <Field label="分镜图片提示词">
-            <textarea
-              rows={3}
-              maxLength={12000}
-              value={shot.imagePrompt}
-              onChange={(e) => patch({ imagePrompt: e.target.value })}
-            />
-          </Field>
-          <Field label="分镜图片文件备注">
-            <input
-              maxLength={1000}
-              value={shot.imageReference}
-              onChange={(e) => patch({ imageReference: e.target.value })}
-            />
-          </Field>
-          <GenerationControls
-            {...props}
-            shot={shot}
-            purpose="image-generation"
-          />
-          <ShotMediaPanel {...props} shot={shot} purpose="image-generation" />
-        </section>
-      </div>
-      {removing && (
-        <Dialog title="删除镜头" onClose={() => setRemoving(false)}>
-          <p>删除「{shot.title}」及其提示词、配音计划和文件备注？</p>
-          <footer>
-            <button onClick={() => setRemoving(false)}>取消</button>
-            <button
-              className="film-danger"
-              onClick={() => {
-                updateEpisode(props, (e) => ({
-                  ...e,
-                  shots: e.shots.filter((s) => s.id !== shot.id),
-                }));
-                setRemoving(false);
-              }}
-            >
-              确认删除
-            </button>
-          </footer>
-        </Dialog>
-      )}
-    </article>
-  );
-}
-function GenerationControls(
-  props: Props & { shot: FilmShot; purpose: FilmGeneration["purpose"] },
-) {
-  const { shot, purpose } = props;
-  const type = GENERATION_TYPES[purpose];
-  const job = props.project.generations
-    ?.filter(
-      (job) =>
-        job.episodeId === props.episode.id &&
-        job.shotId === shot.id &&
-        (job.purpose ?? "image-generation") === purpose,
-    )
-    .at(-1);
-  const running = !!job && ["preparing", "running"].includes(job.status);
-  const status = running
-    ? props.generationStopping
-      ? "正在停止…"
-      : job.status === "preparing"
-        ? "准备中…"
-        : "生成中…"
-    : props.generationBusy
-      ? "其他任务进行中"
-      : job?.status === "completed"
-        ? "已保存"
-        : job?.status === "failed"
-          ? "生成失败"
-          : job?.status === "stopped"
-            ? "已停止"
-            : "";
-  const tone = running || props.generationBusy ? "running" : job?.status;
-  const StatusIcon =
-    tone === "running"
-      ? LoaderCircle
-      : tone === "completed"
-        ? CircleCheck
-        : tone === "failed"
-          ? CircleAlert
-          : Square;
-  const GenerateIcon =
-    purpose === "video-generation"
-      ? Video
-      : purpose === "speech"
-        ? Volume2
-        : Image;
-  const label = purpose === "video-generation" ? "视频片段" : type.label;
-  const canStop = running && !!props.stopGeneration;
-  return (
-    <div
-      className="film-generation-controls"
-      role="group"
-      aria-label={`${type.label}生成操作`}
-    >
-      <button
-        type="button"
-        className={`film-generation-trigger${canStop ? " film-generation-stop" : " film-primary"}`}
-        disabled={
-          canStop
-            ? props.generationStarting || props.generationStopping
-            : !props.generate ||
-              !props.project.workspace ||
-              props.generationBusy
-        }
-        onClick={() => {
-          if (canStop) void props.stopGeneration?.(job?.id);
-          else void props.generate?.(props.episode.id, shot.id, purpose);
-        }}
-      >
-        {canStop ? (
-          <Square size={13} aria-hidden />
-        ) : (
-          <GenerateIcon size={15} aria-hidden />
-        )}
-        {canStop
-          ? props.generationStopping
-            ? "停止中…"
-            : "停止生成"
-          : `生成${label}`}
-      </button>
-      <div className="film-generation-feedback">
-        <span
-          className="film-generation-status"
-          data-state={tone}
-          role="status"
-        >
-          {status && (
-            <>
-              <StatusIcon size={14} aria-hidden />
-              {status}
-            </>
-          )}
-        </span>
-      </div>
-    </div>
-  );
-}
-function ShotMediaPanel(
-  props: Props & { shot: FilmShot; purpose: FilmGeneration["purpose"] },
-) {
-  const { shot } = props;
-  const type = GENERATION_TYPES[props.purpose];
-  return (
-    <MediaPanel
-      project={props.project}
-      kind={type.kind}
-      ids={shot.mediaIds ?? []}
-      activeId={shot[type.field]}
-      onImport={(media) =>
-        props.edit((project) => ({
-          ...project,
-          media: [...(project.media ?? []), media],
-          episodes: project.episodes.map((episode) =>
-            episode.id !== props.episode.id
-              ? episode
-              : {
-                  ...episode,
-                  shots: episode.shots.map((item) =>
-                    item.id !== shot.id
-                      ? item
-                      : {
-                          ...item,
-                          mediaIds: [...(item.mediaIds ?? []), media.id],
-                          [type.field]: media.id,
-                        },
-                  ),
-                },
-          ),
-        }))
-      }
-      onSelect={(id) => updateShot(props, shot.id, { [type.field]: id })}
-      onDetach={(id) =>
-        updateShot(props, shot.id, {
-          mediaIds: shot.mediaIds?.filter((value) => value !== id),
-          ...(shot[type.field] === id ? { [type.field]: undefined } : {}),
-        })
-      }
-    />
-  );
-}
-function MediaPlan(props: Props & { mode: "video" | "dubbing" }) {
-  const video = props.mode === "video",
-    characters = props.project.assets.filter((a) => a.kind === "character");
-  return (
-    <div className="film-media-plan">
-      {props.project.kind === "comic" && (
-        <p className="film-muted">
-          静态漫画可以跳过视频与配音，直接整理制作清单。
-        </p>
-      )}
-      {props.episode.shots.length ? (
-        props.episode.shots
-          .filter(
-            (shot) =>
-              shot.id ===
-              (props.selectedShotId || props.episode.shots.at(-1)?.id),
-          )
-          .map((shot) => {
-            const index = props.episode.shots.findIndex(
-              (s) => s.id === shot.id,
-            );
-            return (
-              <article className="film-plan-card" key={shot.id}>
-                <header>
-                  <span className="film-shot-number">
-                    {String(index + 1).padStart(2, "0")}
-                  </span>
-                  <div>
-                    <h3>{shot.title}</h3>
-                    <p>
-                      {shot.framing} · {shot.duration} 秒
-                    </p>
-                  </div>
-                  <span className="film-tag">
-                    {video ? "镜头视频" : "角色配音"}
-                  </span>
-                </header>
-                {video ? (
-                  <>
-                    <p className="film-shot-description">
-                      {shot.description || "画面内容待补充"}
-                    </p>
-                    <Field label={`镜头 ${index + 1} 视频提示词`}>
-                      <textarea
-                        rows={3}
-                        value={shot.videoPrompt}
-                        maxLength={12000}
-                        onChange={(e) =>
-                          updateShot(props, shot.id, {
-                            videoPrompt: e.target.value,
-                          })
-                        }
-                      />
-                    </Field>
-                    <Field label={`镜头 ${index + 1} 视频文件备注`}>
-                      <input
-                        value={shot.videoReference}
-                        maxLength={1000}
-                        onChange={(e) =>
-                          updateShot(props, shot.id, {
-                            videoReference: e.target.value,
-                          })
-                        }
-                      />
-                    </Field>
-                    <p className="film-muted">
-                      {shot.imageMediaId
-                        ? "使用当前分镜图片作为首帧生成视频。"
-                        : "未选择分镜图片，将使用文字生成视频。"}
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <div className="film-field-grid">
-                      <Field label={`镜头 ${index + 1} 说话角色`}>
-                        <NativeSelect
-                          className="w-full"
-                          value={shot.speakerId}
-                          onChange={(e) =>
-                            updateShot(props, shot.id, {
-                              speakerId: e.target.value,
-                            })
-                          }
-                        >
-                          <NativeSelectOption value="">
-                            未指定角色
-                          </NativeSelectOption>
-                          {characters.map((a) => (
-                            <NativeSelectOption key={a.id} value={a.id}>
-                              {a.name}
-                            </NativeSelectOption>
-                          ))}
-                        </NativeSelect>
-                      </Field>
-                      <Field label={`镜头 ${index + 1} 音色备注`}>
-                        <input
-                          value={shot.voice}
-                          maxLength={1000}
-                          onChange={(e) =>
-                            updateShot(props, shot.id, {
-                              voice: e.target.value,
-                            })
-                          }
-                        />
-                      </Field>
-                    </div>
-                    <Field label={`镜头 ${index + 1} 台词`}>
-                      <textarea
-                        rows={3}
-                        value={shot.dialogue}
-                        maxLength={12000}
-                        readOnly
-                        placeholder="此镜头暂无台词"
-                        aria-describedby={`dialogue-source-${shot.id}`}
-                      />
-                    </Field>
-                    <p
-                      className="film-dialogue-source"
-                      id={`dialogue-source-${shot.id}`}
-                    >
-                      {shot.dialogue.trim()
-                        ? "台词沿用分镜设计。"
-                        : "当前镜头没有台词，可填写台词，或点击生成由助手询问。"}
-                      {props.onOpenStep && (
-                        <button
-                          type="button"
-                          className="film-text-button"
-                          onClick={() => props.onOpenStep?.("storyboard")}
-                        >
-                          {shot.dialogue.trim() ? "编辑台词" : "填写台词"}
-                        </button>
-                      )}
-                    </p>
-                    <Field label={`镜头 ${index + 1} 声音设计`}>
-                      <input
-                        value={shot.sound}
-                        maxLength={12000}
-                        onChange={(e) =>
-                          updateShot(props, shot.id, { sound: e.target.value })
-                        }
-                      />
-                    </Field>
-                    <Field label={`镜头 ${index + 1} 音频文件备注`}>
-                      <input
-                        value={shot.audioReference}
-                        maxLength={1000}
-                        onChange={(e) =>
-                          updateShot(props, shot.id, {
-                            audioReference: e.target.value,
-                          })
-                        }
-                      />
-                    </Field>
-                    <p className="film-muted">
-                      台词原样朗读；音色备注用于选择模型支持的音色。背景音乐和音画合成后续接入。
-                    </p>
-                  </>
-                )}
-                <GenerationControls
-                  {...props}
-                  shot={shot}
-                  purpose={video ? "video-generation" : "speech"}
-                />
-                <ShotMediaPanel
-                  {...props}
-                  shot={shot}
-                  purpose={video ? "video-generation" : "speech"}
-                />
-              </article>
-            );
-          })
-      ) : (
-        <EmptyState
-          title="先准备分镜"
-          text="分镜创建后，可以在这里逐镜头编辑生成提示词与配音计划。"
-        />
       )}
     </div>
   );

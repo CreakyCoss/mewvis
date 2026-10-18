@@ -121,7 +121,7 @@ export function Waveform({
     return () => observer.disconnect();
   }, [wave, duration]);
   return (
-    <div className="film-timeline-wave">
+    <div className="film-waveform">
       <canvas ref={canvas} aria-label={wave ? "配音波形" : state} />
       {state && <small>{state}</small>}
     </div>

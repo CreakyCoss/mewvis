@@ -12,7 +12,7 @@ import type { FilmEpisode, FilmMedia, FilmProject } from "../model";
 import { FilePreview } from "@mewvis/app-sdk/files/react";
 import { mediaPath } from "../media";
 import { shotSelection, type RenderSelection } from "./plan";
-import { Waveform } from "./waveform";
+import { Waveform } from "../components/Waveform";
 
 export const timecode = (seconds: number) => {
   const value = Math.max(0, seconds);
