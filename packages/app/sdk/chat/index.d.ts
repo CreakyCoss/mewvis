@@ -4,6 +4,8 @@ import type {
   ChatSnapshot,
   ChatContext,
   OperationResult,
+  RuntimeModelCapabilities,
+  ModelMediaPurpose,
 } from "@mewvis/chat-contracts";
 
 /** Serializable scene data. Identity, credentials and filesystem paths belong to the host. */
@@ -12,6 +14,10 @@ export type ApplicationModelOption = {
   provider: { id: string; name: string };
   modelId: string;
   modelName: string;
+  /** Actual conversation capabilities; media inputs and outputs are described separately. */
+  capabilities?: RuntimeModelCapabilities;
+  /** Configured media purposes supported by the runtime, before application tool grants. */
+  mediaPurposes?: ModelMediaPurpose[];
 };
 export type ApplicationChatProfile = {
   /** Assistant introduction shown for a newly created empty conversation. */

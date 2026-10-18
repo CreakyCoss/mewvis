@@ -32,6 +32,7 @@ import { createApplicationChatHost } from "../../src/chat/desktop/application";
 import { createApplicationChatClient, type ApplicationChatEvent } from "@mewvis/app-sdk/chat";
 import { createApplicationToolClient } from "@mewvis/app-sdk/tools";
 import { createAgentDraft } from "../../src/workbench/pages/agents/draft";
+import { createModelPurpose } from "@mewvis/chat-contracts/model-configuration";
 import type { AgentTemplate } from "../../src/workbench/pages/agents/types";
 
 test("custom suppliers survive settings reload and remain selectable with their own connection and thinking", () => {
@@ -319,6 +320,34 @@ test("resource loading tolerates tools failure; UI descriptors contain no runtim
     JSON.stringify(data),
     /apiKey|runtimeModel|secret-must-not-reach-ui|private skill body|\/skills\/private/,
   );
+});
+test("chat resources preserve media metadata from the model list and refresh it after configuration changes", async () => {
+  const previous = structuredClone(fake.llmSettings);
+  try {
+    const chat = createModelPurpose("chat");
+    const image = createModelPurpose("image-editing");
+    image.connection = { apiEndpoint: "https://media.example", apiKey: "media-secret" };
+    fake.llmSettings.providers[0].models[0].configuration = { version: 1, purposes: [chat, image] };
+    const catalog = createDesktopCatalog(
+      {
+        capabilities: { listAgentTools: async () => ({ tools: [], defaultToolNames: [], permissionOptions: [] }) },
+      } as any,
+      () => ({ id: "workspace", systemPrompt: () => "" }),
+    );
+    const data = await catalog.load({ refresh: true });
+    const [model] = await getLlmModelOptions();
+    assert.deepEqual(data.models?.[0].capabilities, model.capabilities);
+    assert.deepEqual(data.models?.[0].capabilities?.input, ["text"]);
+    assert.deepEqual(data.models?.[0].mediaPurposes, [
+      { type: "image-editing", input: ["text", "image"], output: ["image"] },
+    ]);
+    assert.doesNotMatch(JSON.stringify(data), /apiKey|media-secret|media\.example|inputSchema|request/);
+    fake.llmSettings.providers[0].models[0].configuration.purposes = [chat];
+    assert.deepEqual((await catalog.load({ refresh: true })).models?.[0].mediaPurposes, []);
+  } finally {
+    fake.llmSettings = previous;
+    await getLlmSettings({ refresh: true });
+  }
 });
 test("application selection, restoration and dispatch use the same permission modes as the host", async () => {
   fake.record = null;

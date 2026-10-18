@@ -1,5 +1,5 @@
-import type { ModelConfiguration } from "@mewvis/chat-contracts";
-import { resolveModelConnection } from "@mewvis/chat-contracts/model-configuration";
+import type { ModelConfiguration, ModelMediaPurpose } from "@mewvis/chat-contracts";
+import { getModelConfigurationError, resolveModelConnection } from "@mewvis/chat-contracts/model-configuration";
 import type {
   RuntimeApiFormat,
   RuntimeModelInput,
@@ -61,6 +61,7 @@ export type RuntimeModelOption = {
   modelName: string;
   thinking?: RuntimeModelThinking;
   capabilities: RuntimeModelCapabilities;
+  mediaPurposes: ModelMediaPurpose[];
 };
 
 export type RuntimeModelInputMap = Record<string, RuntimeModelInput>;
@@ -152,6 +153,36 @@ export const getModelConnection = (
     },
   );
 
+export const getModelMediaPurposes = (
+  provider: Pick<LlmProvider, "provider" | "apiFormat" | "apiKey" | "apiEndpoint">,
+  model: Pick<ProviderModel, "modelId" | "capabilities" | "configuration">,
+): ModelMediaPurpose[] => {
+  const configuration = model.configuration;
+  if (
+    !configuration ||
+    !getModelCapabilities(provider, model).available.toolCalling ||
+    getModelConfigurationError(configuration)
+  )
+    return [];
+  // Match generate_media's configured catalog without widening conversation capabilities.
+  const mediaPurposes: ModelMediaPurpose[] = [];
+  for (const purpose of configuration.purposes) {
+    if (
+      (purpose.type === "image-generation" ||
+        purpose.type === "image-editing" ||
+        purpose.type === "video-generation" ||
+        purpose.type === "speech") &&
+      purpose.adapter === "http-json" &&
+      purpose.request &&
+      purpose.response &&
+      purpose.output.some((type) => type === "image" || type === "video" || type === "audio") &&
+      (getModelConnection(provider, model, purpose.type).apiEndpoint || /^https?:\/\//i.test(purpose.request.path))
+    )
+      mediaPurposes.push({ type: purpose.type, input: [...purpose.input], output: [...purpose.output] });
+  }
+  return mediaPurposes;
+};
+
 export const getModelLimits = (
   _provider: Pick<LlmProvider, "provider">,
   model: Pick<ProviderModel, "modelId" | "limits">,
@@ -238,6 +269,7 @@ const buildRuntimeModelOption = (provider: LlmProvider, model: ProviderModel): R
     modelName,
     thinking: getModelThinking(provider, model),
     capabilities: getModelCapabilities(provider, model).available,
+    mediaPurposes: getModelMediaPurposes(provider, model),
   };
 };
 

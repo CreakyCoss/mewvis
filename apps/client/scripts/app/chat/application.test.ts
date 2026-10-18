@@ -119,7 +119,14 @@ function fixture() {
   } as unknown as DesktopChatService;
   const host = createApplicationChatHost(service, {
     models: async () => [
-      { id: "model", provider: { id: "provider", name: "Provider" }, modelId: "safe-model", modelName: "Model" },
+      {
+        id: "model",
+        provider: { id: "provider", name: "Provider" },
+        modelId: "safe-model",
+        modelName: "Model",
+        capabilities: { operations: ["chat"], input: ["text"], output: ["text"], reasoning: false, toolCalling: true },
+        mediaPurposes: [{ type: "speech", input: ["text"], output: ["audio"] }],
+      },
     ],
     deleteRecord: async (_path, id) => {
       deleted.push(id);
@@ -538,7 +545,12 @@ test("application scene profiles preserve intro and skill choices; model listing
   assert.equal(f.profiles[0].initialMessages?.[0].blocks[0].type, "text");
   assert.equal(f.profiles[0].skills?.[0].content, "场景指令");
   assert.equal(f.profiles[0].skillGroup?.label, "场景技能");
-  assert.equal((await own.client.listModels())[0].modelId, "safe-model");
+  const [model] = await own.client.listModels();
+  assert.equal(model.modelId, "safe-model");
+  assert.deepEqual(model.capabilities?.input, ["text"]);
+  assert.deepEqual(model.mediaPurposes, [{ type: "speech", input: ["text"], output: ["audio"] }]);
+  model.mediaPurposes![0].input.push("image");
+  assert.deepEqual((await own.client.listModels())[0].mediaPurposes?.[0].input, ["text"]);
   const ref = { workspaceId: input.workspaceId, chatId: session.identity.id };
   await assert.rejects(f.connect("other").client.deleteSession(ref), /当前应用和工作区/);
   assert.deepEqual(f.deleted, []);

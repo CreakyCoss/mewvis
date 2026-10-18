@@ -44,11 +44,13 @@ async function requireApplication(applicationId: string) {
 export const applicationChatHost = createApplicationChatHost(chatService, {
   async models(applicationId) {
     await requireApplication(applicationId);
-    return (await getLlmModelOptions()).map(({ id, provider, modelId, modelName }) => ({
+    return (await getLlmModelOptions()).map(({ id, provider, modelId, modelName, capabilities, mediaPurposes }) => ({
       id,
       provider,
       modelId,
       modelName,
+      capabilities,
+      mediaPurposes,
     }));
   },
   deleteRecord: deleteChat,

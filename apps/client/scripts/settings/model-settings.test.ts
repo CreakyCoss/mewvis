@@ -212,6 +212,81 @@ test("runtime IDs and capabilities are independent of any editor model catalog",
 const imagePurpose = () => editorPresets.instantiateTemplate("minimax-image-01", "image-generation");
 const configuration = (purposes: ModelPurpose[]): ModelConfiguration => ({ version: 1, purposes });
 
+test("model choices summarize configured media purposes without mixing their modalities into conversation capabilities", () => {
+  const purposes = [
+    createModelPurpose("chat"),
+    createModelPurpose("image-generation"),
+    createModelPurpose("image-editing"),
+    createModelPurpose("video-generation"),
+    createModelPurpose("speech"),
+    createModelPurpose("transcription"),
+    createModelPurpose("realtime"),
+  ];
+  purposes[3].input.push("image");
+  purposes[1].connection = { apiEndpoint: "https://media.example", apiKey: "media-secret", apiFormat: "http-json" };
+  const p = provider({
+    apiEndpoint: "https://chat.example",
+    models: [model({ configuration: configuration(purposes) })],
+  });
+  const before = structuredClone(p);
+  const runtimeBefore = buildRuntimeModelInputs({ providers: [p] });
+  const [option] = buildRuntimeModelOptions({ providers: [p] });
+  assert.deepEqual(option.capabilities.input, ["text"]);
+  assert.deepEqual(option.capabilities.output, ["text"]);
+  assert.deepEqual(option.capabilities.operations, ["chat"]);
+  assert.deepEqual(option.mediaPurposes, [
+    { type: "image-generation", input: ["text"], output: ["image"] },
+    { type: "image-editing", input: ["text", "image"], output: ["image"] },
+    { type: "video-generation", input: ["text", "image"], output: ["video"] },
+    { type: "speech", input: ["text"], output: ["audio"] },
+  ]);
+  assert.doesNotMatch(JSON.stringify(option), /media-secret|chat\.example|media\.example|request|inputSchema/);
+  assert.deepEqual(p, before);
+  option.mediaPurposes[0].input.push("image");
+  assert.deepEqual(buildRuntimeModelOptions({ providers: [p] })[0].mediaPurposes[0].input, ["text"]);
+  assert.deepEqual(buildRuntimeModelInputs({ providers: [p] }), runtimeBefore);
+});
+
+test("media summaries respect configured connections, tool calling and the runtime's supported purposes", () => {
+  const chat = createModelPurpose("chat");
+  const image = createModelPurpose("image-generation");
+  const options = (purposes: ModelPurpose[], apiEndpoint = "") =>
+    buildRuntimeModelOptions({
+      providers: [provider({ apiEndpoint, models: [model({ configuration: configuration(purposes) })] })],
+    });
+  assert.deepEqual(options([chat, image])[0].mediaPurposes, []);
+  assert.equal(options([chat, image], "https://provider.example")[0].mediaPurposes[0].type, "image-generation");
+  assert.equal(
+    options([chat, { ...image, connection: { apiEndpoint: "" } }], "https://provider.example")[0].mediaPurposes.length,
+    1,
+    "Clearing a purpose endpoint restores provider inheritance",
+  );
+  assert.equal(
+    options([chat, { ...image, request: { ...image.request!, path: "https://media.example/generate" } }])[0]
+      .mediaPurposes.length,
+    1,
+  );
+  assert.deepEqual(options([{ ...chat, toolCalling: false }, image], "https://provider.example")[0].mediaPurposes, []);
+  assert.deepEqual(options([chat, { ...image, response: undefined }], "https://provider.example")[0].mediaPurposes, []);
+  assert.deepEqual(
+    options([chat, createModelPurpose("transcription")], "https://provider.example")[0].mediaPurposes,
+    [],
+  );
+  const declaredOnly = model({
+    capabilities: {
+      operations: ["chat", "image-generation"],
+      input: ["text"],
+      output: ["text", "image"],
+      reasoning: false,
+      toolCalling: true,
+    },
+  });
+  assert.deepEqual(
+    buildRuntimeModelOptions({ providers: [provider({ models: [declaredOnly] })] })[0].mediaPurposes,
+    [],
+  );
+});
+
 test("speech templates configure independent audio generation and preserve it through settings and runtime snapshots", () => {
   const p = applyProviderDefaults(createProviderConfig(true), "deepseek");
   p.apiKey = "chat-key";

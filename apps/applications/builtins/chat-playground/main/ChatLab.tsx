@@ -39,6 +39,7 @@ import {
 import { CodeExample } from "./components/Example";
 import { LabDialog } from "./components/LabDialog";
 import { SessionManager } from "./components/SessionManager";
+import { ModelCapabilities } from "./components/ModelCapabilities";
 
 export type ChatPreset = {
   label: string;
@@ -408,6 +409,12 @@ function Workbench({
           </button>
         </div>
       </div>
+      <ModelCapabilities
+        model={state.resources.models?.find(
+          (model) => model.value === state.config.selectedModelId,
+        )}
+        error={state.resources.errors?.models}
+      />
       {state.pendingApproval && (
         <p className="lab-approval-notice" role="status">
           此操作正在等待宿主审批，请在 {APP_DISPLAY_NAME} 宿主窗口确认或拒绝。

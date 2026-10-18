@@ -6,6 +6,7 @@ import type { RuntimeModelThinking } from "./model-thinking.js";
 import type {
   RuntimeModelCapabilities,
   RuntimeModelLimits,
+  RuntimeModelModality,
 } from "./model-capabilities.js";
 
 /** Only metadata explicitly reported by the discovery endpoint; omitted fields are unknown. */
@@ -81,6 +82,13 @@ export type ChatMediaResult = {
   message?: string;
   error?: string;
   outputs: ChatMediaArtifact[];
+};
+
+/** Configured media purposes supported by the runtime, before application tool grants. No connection or request data. */
+export type ModelMediaPurpose = {
+  type: NonNullable<ChatMediaResult["purpose"]>;
+  input: RuntimeModelModality[];
+  output: RuntimeModelModality[];
 };
 
 export type ChatAssistantMessageBlock =
@@ -209,6 +217,8 @@ export type ChatResources = {
   models?: (ResourceOption & {
     selectedLabel: string;
     thinking?: RuntimeModelThinking;
+    capabilities?: RuntimeModelCapabilities;
+    mediaPurposes?: ModelMediaPurpose[];
   })[];
   agents?: (ResourceOption & {
     category?: string;
