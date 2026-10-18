@@ -4,6 +4,8 @@ Mewvis 在 `tools/worker.ts` 装配工具实现，构建为 `pi-tool-worker.js`�
 
 `model/index.ts` 使用内存凭据和 Mewvis 提供的模型／端点创建异步 `ModelRuntime`，Agent 会话与普通聊天共用模型／认证适配器。升级后的 API 保留 Anthropic 缺失 usage 的修复，并有 SSE 回归测试。运行时打包显式使用 Mewvis tsconfig，避免 Pi 开发别名混用源码与 `dist` 包导出。
 
+图片读取沿用 Pi 的解码、缩放及图像附件。Runtime 构建通过 `scripts/photon-assets.mjs` 将 Photon 保留为 `dist/vendor/photon/photon_rs.cjs`，并带入同目录的 WASM 和许可证；各 ESM 入口引用这份模块，不把依赖的 `__dirname` 折叠进 bundle。文件读取仍使用原有执行策略。Pi 对依赖不可用、解码及缩放失败可能返回同一省略提示，工具 Worker 将其转为明确的图片处理错误，避免据此认定图片体积超限。
+
 `tools/shell.ts` 使用 Pi Bash 或 PowerShell 工厂。POSIX 保留 Bash；Windows 优先原生 Bash，其后 PowerShell 7、Windows PowerShell。检测属于 `security/platforms/*/process.ts`。模型收到实际工具名与语言。两者均为默认能力，但只注册选中 shell；显式白名单和子 Agent 能力上限仍适用。
 
 ## 执行安全与工具分配
@@ -77,6 +79,9 @@ pnpm test:agent-runtime:pi-extensions
 pnpm test:agent-runtime:pi-chat
 pnpm test:agent-runtime:permissions
 pnpm test:agent-runtime:shell
+pnpm test:agent-runtime:images
 ```
 
 测试使用真实 OS 沙箱允许／拒绝检查、真实 Pi SDK 与本地流式模型桩，验证注册、上下文隔离、工具权限、文件执行、结果、进度、并发、链式、取消、超时和失败清理，不使用外部模型账号。任何平台缺少沙箱依赖都会失败，不跳过隔离检查。
+
+图片回归先运行 `pnpm build:runtime`，再用 `test:agent-runtime:images` 将实际发行产物复制到仓库外执行，检查应用进程权限、OS 沙箱中的 PNG／JPEG 附件与大图缩放、未授权路径拒绝，以及损坏图片／缺失 WASM 的错误和普通文本读取。可在命令后附一张 PNG 的绝对路径，额外校验该图片在无需缩放时返回的字节与原文件一致；测试只在临时目录操作副本，不调用供应商。

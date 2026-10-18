@@ -67,13 +67,30 @@ serveWorker({
       };
       const tool = tools.find((tool) => tool.name === call.name);
       if (!tool) throw new Error("工具不在执行目录中。");
-      return tool.execute(
+      const result = await tool.execute(
         call.callId,
         call.arguments,
         context.signal,
         context.progress,
         {} as never,
       );
+      // Pi uses the same omission note for missing image dependencies, invalid
+      // image bytes and resize failures. It is not evidence of a size violation.
+      if (
+        call.name === "read" &&
+        result.content.some(
+          (part) =>
+            part.type === "text" &&
+            part.text.startsWith("Read image file [") &&
+            part.text.includes(
+              "[Image omitted: could not be resized below the inline image size limit.]",
+            ),
+        )
+      )
+        throw new Error(
+          "图片处理失败：图片解码或缩放未成功，未向模型附加图像数据。请检查图片内容及 Runtime 图像处理组件；此错误不代表图片体积超限。",
+        );
+      return result;
     }
     throw new Error("未知工具进程请求。");
   },

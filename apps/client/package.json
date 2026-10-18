@@ -63,6 +63,7 @@
     "test:agent-runtime:permissions": "node scripts/agent-runtime/permissions-e2e.mjs",
     "test:agent-runtime:access": "pnpm build:agent-runtime && node scripts/agent-runtime/access-e2e.mjs",
     "test:agent-runtime:shell": "node scripts/agent-runtime/shell-e2e.mjs",
+    "test:agent-runtime:images": "node scripts/agent-runtime/image-read-e2e.mjs",
     "test:agent-runtime:sandbox": "pnpm build:agent-runtime && node scripts/agent-runtime/sandbox-platform-e2e.mjs && node scripts/agent-runtime/application-no-sandbox-e2e.mjs && node scripts/agent-runtime/sandbox-execution-e2e.mjs",
     "test:agent-runtime:application-no-sandbox": "node scripts/agent-runtime/application-no-sandbox-e2e.mjs",
     "test:agent-runtime:sandbox-platform": "node scripts/agent-runtime/sandbox-platform-e2e.mjs",

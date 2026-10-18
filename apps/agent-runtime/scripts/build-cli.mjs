@@ -5,6 +5,7 @@ import { cp, mkdir, rm } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { dshBundleCompatibilityPlugin } from "@mewvis/app-dev/dsh";
 import entries from "../build-entries.json" with { type: "json" };
+import { copyPhotonAssets, photonBundlePlugin } from "./photon-assets.mjs";
 
 const runtimeRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 // Runtime modules and SRT assets resolve siblings, so all entries share dist's root.
@@ -26,8 +27,9 @@ await build({
   banner: {
     js: "import { createRequire as __runtimeCreateRequire } from 'node:module'; const require = __runtimeCreateRequire(import.meta.url);",
   },
-  plugins: [dshBundleCompatibilityPlugin],
+  plugins: [dshBundleCompatibilityPlugin, photonBundlePlugin],
 });
+await copyPhotonAssets(join(runtimeRoot, "dist"));
 
 // Keep SRT's runtime assets next to the launcher; include both target architectures.
 const require = createRequire(import.meta.url);
