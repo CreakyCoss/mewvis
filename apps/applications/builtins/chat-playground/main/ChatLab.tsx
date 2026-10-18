@@ -15,7 +15,6 @@ import {
   type ApplicationChatSummary,
   type ApplicationChatSession,
   type OperationResult,
-  type ChatPermissionMode,
 } from "@mewvis/app-sdk/chat";
 import {
   Chat,
@@ -40,12 +39,16 @@ import { CodeExample } from "./components/Example";
 import { LabDialog } from "./components/LabDialog";
 import { SessionManager } from "./components/SessionManager";
 import { ModelCapabilities } from "./components/ModelCapabilities";
+import { MediaExamples } from "./components/MediaExamples";
+import { mediaExampleUnavailableReason, type ChatPreset } from "./examples";
+import { getApplicationFileClient } from "@mewvis/app-sdk/files";
+import {
+  imageInputDraft,
+  MAX_IMAGE_BYTES,
+  type WorkspaceImage,
+} from "./image-inputs";
 
-export type ChatPreset = {
-  label: string;
-  text: string;
-  permissionMode?: ChatPermissionMode;
-};
+export type { ChatPreset } from "./examples";
 
 const profile = {
   id: "chat-playground-v1",
@@ -95,74 +98,174 @@ function QuickPrompts({
   open,
   onClose,
   onApplied,
+  workspaceId,
 }: {
   preset?: ChatPreset;
   session: ApplicationChatSession;
   open: boolean;
   onClose(): void;
   onApplied(): void;
+  workspaceId: string;
 }) {
   const binding = useChatComposer();
+  const state = useChatSnapshot();
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
-  const apply = async (example: ChatPreset) => {
+  const applyVersion = useRef(0);
+  const [group, setGroup] = useState<"chat" | "media">("chat");
+  useEffect(() => {
+    setPending(false);
+    return () => {
+      applyVersion.current++;
+    };
+  }, [open, workspaceId]);
+  useEffect(() => {
+    if (!open) return;
+    setError("");
+    if (preset)
+      setGroup(preset.mediaPurpose || preset.imageInput ? "media" : "chat");
+  }, [open, preset]);
+  const apply = async (example: ChatPreset, image?: WorkspaceImage) => {
     if (pending || binding.disabled) return;
+    const version = ++applyVersion.current;
     setPending(true);
     setError("");
     try {
+      if (example.imageInput) {
+        if (!image) throw new Error("请先导入参考图片。");
+        const workspace =
+          await getApplicationDataClient().workspaces.get(workspaceId);
+        if (workspace.path !== image.workspacePath)
+          throw new Error("图片不属于当前聊天工作区，请重新导入。");
+        const file = await getApplicationFileClient().stat(image.file.filePath);
+        if (file.type !== "file" || !file.size || file.size > MAX_IMAGE_BYTES)
+          throw new Error("参考图片已不可用，请重新导入。");
+      }
+      const current = session.getSnapshot();
+      const reason = mediaExampleUnavailableReason(current, example);
+      if (reason) throw new Error(reason);
+      if (version !== applyVersion.current) return;
+      if (
+        !current.initialized ||
+        current.activeTaskId ||
+        current.phase === "closed" ||
+        current.phase === "closing"
+      )
+        throw new Error("请等待当前会话就绪后再填入示例。");
       if (example.permissionMode) {
         const result = await session.updateConfig({
           permissionMode: example.permissionMode,
         });
         if (!result.ok) throw new Error(result.error);
       }
-      binding.setDraft({
-        text: example.text,
-        blocks: [{ type: "text", content: example.text }],
-      });
+      if (version !== applyVersion.current) return;
+      binding.setDraft(
+        example.imageInput && image
+          ? imageInputDraft(example, image.file.filePath)
+          : {
+              text: example.text,
+              blocks: [{ type: "text", content: example.text }],
+            },
+      );
       onApplied();
     } catch (error) {
-      setError(errorText(error));
+      if (version === applyVersion.current) setError(errorText(error));
     } finally {
-      setPending(false);
+      if (version === applyVersion.current) setPending(false);
     }
   };
   return (
     <LabDialog open={open} title="体验示例" onClose={onClose}>
       <p className="lab-panel-intro">选择一个示例填入输入框，确认后发送。</p>
-      {preset && (
-        <section className="lab-selected-example">
-          <span>当前选择</span>
-          <h3>{preset.label}</h3>
-          <p>{preset.text}</p>
-          {preset.permissionMode && (
-            <p className="lab-help">
-              填入时将切换到 {preset.permissionMode} 权限档位。
+      {preset &&
+        (preset.mediaPurpose || preset.imageInput
+          ? group === "media"
+          : group === "chat") && (
+          <section className="lab-selected-example">
+            <span>当前选择</span>
+            <h3>{preset.label}</h3>
+            <p>
+              {preset.mediaPurpose || preset.imageInput
+                ? preset.text.split("\n\n")[0]
+                : preset.text}
             </p>
-          )}
-          <button
-            type="button"
-            className="lab-button lab-primary"
-            disabled={binding.disabled || pending}
-            onClick={() => void apply(preset)}
-          >
-            {pending ? "准备中…" : "填入此示例"}
-          </button>
-        </section>
-      )}
-      <div className="lab-example-list">
-        {prompts.map((example) => (
-          <button
-            type="button"
-            key={example.label}
-            disabled={binding.disabled || pending}
-            onClick={() => void apply(example)}
-          >
-            <strong>{example.label}</strong>
-            <span>{example.text}</span>
-          </button>
-        ))}
+            {preset.permissionMode && (
+              <p className="lab-help">
+                填入时将切换到 {preset.permissionMode} 权限档位。
+              </p>
+            )}
+            {preset.mediaPurpose && (
+              <p className="lab-help">
+                {mediaExampleUnavailableReason(state, preset) ||
+                  "当前模型已配置该用途。"}
+              </p>
+            )}
+            {preset.imageInput ? (
+              <p className="lab-help">
+                先在下方导入参考图片，再选择“填入{preset.label}示例”。
+              </p>
+            ) : (
+              <button
+                type="button"
+                className="lab-button lab-primary"
+                disabled={
+                  binding.disabled ||
+                  pending ||
+                  !!mediaExampleUnavailableReason(state, preset)
+                }
+                onClick={() => void apply(preset)}
+              >
+                {pending ? "准备中…" : "填入此示例"}
+              </button>
+            )}
+          </section>
+        )}
+      <div
+        className="lab-tabs lab-example-tabs"
+        role="group"
+        aria-label="示例分类"
+      >
+        <button
+          type="button"
+          aria-pressed={group === "chat"}
+          disabled={pending}
+          onClick={() => setGroup("chat")}
+        >
+          对话与工具
+        </button>
+        <button
+          type="button"
+          aria-pressed={group === "media"}
+          disabled={pending}
+          onClick={() => setGroup("media")}
+        >
+          多模态
+        </button>
       </div>
+      {group === "media" ? (
+        <MediaExamples
+          state={state}
+          disabled={binding.disabled || pending}
+          onApply={(example, image) => void apply(example, image)}
+          onRefresh={() => session.refreshResources()}
+          workspaceId={workspaceId}
+          active={open}
+        />
+      ) : (
+        <div className="lab-example-list">
+          {prompts.map((example) => (
+            <button
+              type="button"
+              key={example.label}
+              disabled={binding.disabled || pending}
+              onClick={() => void apply(example)}
+            >
+              <strong>{example.label}</strong>
+              <span>{example.text}</span>
+            </button>
+          ))}
+        </div>
+      )}
       {error && (
         <p className="lab-error" role="alert">
           {error}
@@ -353,12 +456,14 @@ function Workbench({
   showPreset,
   onPresetShown,
   reconnect,
+  workspaceId,
 }: {
   session: ApplicationChatSession;
   preset?: ChatPreset;
   showPreset: boolean;
   onPresetShown(): void;
   reconnect(): void;
+  workspaceId: string;
 }) {
   const state = useChatSnapshot();
   const [mode, setMode] = useState<"custom" | "default">("custom");
@@ -543,6 +648,7 @@ function Workbench({
         </div>
       </div>
       <QuickPrompts
+        workspaceId={workspaceId}
         preset={preset}
         session={session}
         open={examples}
@@ -655,6 +761,7 @@ function Connection({
   return (
     <Chat.Provider session={session} viewId="playground">
       <Workbench
+        workspaceId={input.workspaceId}
         session={session}
         preset={preset}
         showPreset={showPreset}

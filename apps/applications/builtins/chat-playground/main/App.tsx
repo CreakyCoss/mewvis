@@ -13,6 +13,7 @@ import {
   FileImage,
   Grid2X2,
   House,
+  Image,
   Link2,
   Menu,
   MessageCircle,
@@ -20,6 +21,8 @@ import {
   ShieldCheck,
   Sparkles,
   Wrench,
+  Video,
+  Volume2,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -36,6 +39,8 @@ import { FileExamples, filesCode } from "./components/FileExamples";
 import { ViewExample, viewCode } from "./components/ViewExample";
 import { HostExamples, hostCode } from "./components/HostExamples";
 import { Permissions } from "./components/Permissions";
+import { imageInputExamples, mediaExamples, mediaCode } from "./examples";
+import { imageInputCode } from "./image-inputs";
 
 type Page =
   | "overview"
@@ -56,6 +61,11 @@ const navigation: { id: Page; label: string; icon: LucideIcon }[] = [
   { id: "views", label: "内嵌视图", icon: PanelTop },
   { id: "host", label: "宿主集成", icon: Link2 },
 ];
+const mediaIcons = {
+  "image-generation": Image,
+  "video-generation": Video,
+  speech: Volume2,
+};
 const chatCode = [
   'import { getApplicationDataClient } from "@mewvis/app-sdk/data";',
   'import { getApplicationChatClient } from "@mewvis/app-sdk/chat";',
@@ -242,6 +252,33 @@ export default function App() {
               />
               <ToolExample />
               <Section
+                title="体验多模态"
+                description="导入图片进行理解、编辑或生成视频，也可从文字生成媒体。示例填入草稿后由你发送。"
+              >
+                <div className="showcase-example-list">
+                  {imageInputExamples.map((example) => (
+                    <ExampleRow
+                      key={example.imageInput}
+                      icon={example.imageInput === "video" ? Video : FileImage}
+                      title={example.label}
+                      description={example.description}
+                      tag="Image"
+                      onClick={() => openChat({ ...example })}
+                    />
+                  ))}
+                  {mediaExamples.map((example) => (
+                    <ExampleRow
+                      key={example.mediaPurpose}
+                      icon={mediaIcons[example.mediaPurpose]}
+                      title={example.label}
+                      description={example.description}
+                      tag="Media"
+                      onClick={() => openChat({ ...example })}
+                    />
+                  ))}
+                </div>
+              </Section>
+              <Section
                 title="接下来，试试这些能力"
                 description="选择一个主题，体验更多真实场景示例。"
               >
@@ -357,6 +394,11 @@ export default function App() {
                 <div className="showcase-doc-list">
                   <CodeExample title="调用宿主工具" code={inspectCode} />
                   <CodeExample title="创建应用对话" code={chatCode} />
+                  <CodeExample title="在对话中生成媒体" code={mediaCode} />
+                  <CodeExample
+                    title="导入图片并引用素材"
+                    code={imageInputCode}
+                  />
                   <CodeExample title="保存和读取业务数据" code={dataCode} />
                   <CodeExample title="保存文件与预览内容" code={filesCode} />
                   <CodeExample title="挂载内嵌视图" code={viewCode} />

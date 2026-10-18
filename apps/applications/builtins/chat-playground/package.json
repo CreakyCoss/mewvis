@@ -13,6 +13,7 @@
   },
   "private": true,
   "scripts": {
+    "test:media": "node --test test/*.test.mjs",
     "prepare:view": "node scripts/build-view.mjs",
     "dev": "pnpm prepare:view && mewvis-app dev",
     "build": "pnpm prepare:view && mewvis-app build",

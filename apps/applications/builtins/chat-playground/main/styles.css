@@ -74,7 +74,9 @@ body {
   outline: 2px solid var(--ring);
   outline-offset: 3px;
 }
-.showcase-app :is(input, textarea) {
+/* Shared SDK controls and choice inputs own their sizing and appearance. */
+.showcase-app
+  :is(input, textarea):not([type="checkbox"], [type="radio"], [data-slot]) {
   width: 100%;
   min-width: 0;
   border: 1px solid var(--input);
@@ -83,10 +85,10 @@ body {
   padding: 7px 10px;
   line-height: 1.5;
 }
-.showcase-app input {
+.showcase-app input:not([type="checkbox"], [type="radio"], [data-slot]) {
   min-height: var(--showcase-control-height);
 }
-.showcase-app textarea {
+.showcase-app textarea:not([data-slot]) {
   resize: vertical;
 }
 .showcase-app svg {

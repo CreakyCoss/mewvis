@@ -415,7 +415,13 @@
   padding-top: 18px;
   border-top: 1px solid var(--border);
 }
-.lab-app .lab-dialog :is(input:not([type="checkbox"]), select, textarea) {
+.lab-app
+  .lab-dialog
+  :is(input, select, textarea):not(
+    [type="checkbox"],
+    [type="radio"],
+    [data-slot]
+  ) {
   width: 100%;
   min-width: 0;
   min-height: 36px;
@@ -574,6 +580,75 @@
 .lab-example-list {
   display: grid;
   gap: 6px;
+}
+.lab-example-tabs {
+  margin-bottom: 16px;
+}
+.lab-media-example-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.lab-media-example-heading .lab-help {
+  margin: 0;
+}
+.lab-media-example-list {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.lab-image-inputs {
+  margin-block: 18px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.lab-media-path {
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.lab-image-reference {
+  margin-bottom: 12px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.lab-media-example {
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.lab-media-example h3 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.lab-media-example h3 svg {
+  width: 16px;
+  height: 16px;
+  color: var(--primary);
+}
+.lab-media-example p,
+.lab-media-example blockquote {
+  font-size: 12px;
+  line-height: 1.6;
+}
+.lab-media-example blockquote {
+  margin: 10px 0;
+  padding: 8px 10px;
+  border-left: 2px solid var(--primary-border);
+  background: var(--background);
+  color: var(--muted-foreground);
+}
+.lab-media-unavailable {
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+.lab-dialog .lab-media-example-list + .showcase-code {
+  margin-top: 16px;
 }
 .lab-example-list button {
   display: block;
