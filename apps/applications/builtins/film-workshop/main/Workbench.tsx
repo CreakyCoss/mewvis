@@ -79,7 +79,7 @@ export function Workbench({
   const [step, setStep] = useState<FlowStep>(initialView.step),
     [shotId, setShotId] = useState(initialView.shotId);
   const [panel, setPanel] = useState<"assistant" | "reference" | null>(
-    "assistant",
+    initialView.step === "delivery" ? null : "assistant",
   );
   const [mobilePanel, setMobilePanel] = useState(false);
   const [assistantWidth, setAssistantWidth] = useState<number | null>(null);
@@ -146,6 +146,10 @@ export function Workbench({
     return () => clearTimeout(timer);
   }, [episode.id, step, shot?.id, project.id, repository]);
   const openStep = (value: FlowStep) => {
+    if (value === "delivery" && step !== "delivery") {
+      setPanel(null);
+      setMobilePanel(false);
+    }
     setStep(value);
     setDirectoryOpen(false);
   };
@@ -217,13 +221,15 @@ export function Workbench({
     setShotId(generation.question.shotId);
     showAssistant();
   }, [generation.question, showAssistant]);
-  const scopedShot = ["storyboard", "video", "dubbing"].includes(step);
+  const scopedShot = ["storyboard", "video", "dubbing", "delivery"].includes(
+    step,
+  );
   const selectedNumber = shot
     ? episode.shots.findIndex((s) => s.id === shot.id) + 1
     : 0;
   return (
     <main
-      className={`film-app film-workbench film-studio ${panel ? "has-panel" : ""} ${panel === "assistant" ? "has-assistant" : ""} ${mobilePanel ? "panel-mobile-open" : ""} ${directoryOpen ? "directory-mobile-open" : ""} ${focused ? "is-focused" : ""}`}
+      className={`film-app film-workbench film-studio ${step === "delivery" ? "is-delivery" : ""} ${panel ? "has-panel" : ""} ${panel === "assistant" ? "has-assistant" : ""} ${mobilePanel ? "panel-mobile-open" : ""} ${directoryOpen ? "directory-mobile-open" : ""} ${focused ? "is-focused" : ""}`}
       style={
         assistantWidth === null
           ? undefined
@@ -459,16 +465,18 @@ export function Workbench({
             className="film-stage-area"
             aria-label={FLOW_STEPS[stepIndex].title}
           >
-            <h2
-              className={
-                step === "storyboard"
-                  ? "film-visually-hidden"
-                  : "film-stage-title"
-              }
-            >
-              {FLOW_STEPS[stepIndex].title}
-            </h2>
-            {step !== "storyboard" && (
+            {step !== "delivery" && (
+              <h2
+                className={
+                  ["storyboard", "delivery"].includes(step)
+                    ? "film-visually-hidden"
+                    : "film-stage-title"
+                }
+              >
+                {FLOW_STEPS[stepIndex].title}
+              </h2>
+            )}
+            {!["storyboard", "delivery"].includes(step) && (
               <p className="film-stage-intro">
                 {FLOW_STEPS[stepIndex].description}
                 <span>

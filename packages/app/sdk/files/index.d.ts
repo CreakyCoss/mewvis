@@ -18,6 +18,24 @@ export type ApplicationFilePreview = Readonly<{
   expiresAt: number;
 }>;
 export type FilePreviewInput = Readonly<{ filePath: string }>;
+export type FilePreviewMediaState = Readonly<{
+  currentTime: number;
+  duration: number;
+  paused: boolean;
+  ended: boolean;
+}>;
+/** Local playback controls; no file URLs or DOM elements are exposed. */
+export interface FilePreviewMediaControls {
+  play(): Promise<void>;
+  pause(): void;
+  seek(seconds: number): void;
+}
+export interface FilePreviewOptions {
+  /** Hide native playback controls for a silent video thumbnail. */
+  mediaControls?: boolean;
+  onMediaReady?(controls: FilePreviewMediaControls | null): void;
+  onMediaStateChange?(state: FilePreviewMediaState): void;
+}
 export type ApplicationFilePreviewResource = ApplicationFilePreview &
   Readonly<{
     resourcePath: string;
@@ -84,6 +102,7 @@ export interface ApplicationFileClient {
     open(
       container: FilePreviewContainer,
       input: FilePreviewInput,
+      options?: FilePreviewOptions,
     ): Promise<FilePreviewView>;
     openDialog(
       input: FilePreviewInput,

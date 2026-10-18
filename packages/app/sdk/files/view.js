@@ -57,7 +57,7 @@ export function renderFilePreview(container, resource, options = {}) {
     cleanup = await (renderers[resource.kind] ?? renderUnsupported)(
       root,
       resource,
-      { signal: controller.signal, onError: showError },
+      { ...options, signal: controller.signal, onError: showError },
     );
     if (controller.signal.aborted) cleanup?.();
     else options.onReady?.(resource);
@@ -78,7 +78,7 @@ export function renderFilePreview(container, resource, options = {}) {
 }
 
 /** Owns a scoped lease and closes it on explicit close, expiry, revocation or DOM removal. */
-export function mountFilePreview(container, input, files) {
+export function mountFilePreview(container, input, files, options = {}) {
   const document = container?.ownerDocument;
   if (
     !document?.defaultView ||
@@ -113,8 +113,7 @@ export function mountFilePreview(container, input, files) {
     if (resource?.id === event.id) stop("预览已关闭或过期，请重新打开。");
   });
   function releaseResource() {
-    if (resource)
-      release ??= files.preview.close(resource.id).catch(() => {});
+    if (resource) release ??= files.preview.close(resource.id).catch(() => {});
     return release;
   }
   function stop(message) {
@@ -150,6 +149,7 @@ export function mountFilePreview(container, input, files) {
       Math.max(0, resource.expiresAt - Date.now()),
     );
     renderer = renderFilePreview(container, resource, {
+      ...options,
       onError: (error) => stop(error.message),
     });
     rendererRoot = container.firstElementChild;

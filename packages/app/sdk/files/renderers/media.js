@@ -1,9 +1,34 @@
-export function renderMedia(root, resource, { signal, onError }) {
+export function renderMedia(
+  root,
+  resource,
+  { signal, onError, mediaControls = true, onMediaReady, onMediaStateChange },
+) {
   const media = root.ownerDocument.createElement(
     resource.kind === "audio" ? "audio" : "video",
   );
-  media.controls = true;
+  media.controls = mediaControls;
+  media.muted = !mediaControls;
   media.preload = "metadata";
+  let closed = false;
+  const publish = () => {
+    if (!closed && !signal.aborted)
+      onMediaStateChange?.({
+        currentTime: media.currentTime,
+        duration: Number.isFinite(media.duration) ? media.duration : 0,
+        paused: media.paused,
+        ended: media.ended,
+      });
+  };
+  const events = [
+    "loadedmetadata",
+    "durationchange",
+    "timeupdate",
+    "play",
+    "pause",
+    "ended",
+    "seeked",
+  ];
+  for (const event of events) media.addEventListener(event, publish);
   Object.assign(
     media.style,
     resource.kind === "audio"
@@ -18,10 +43,33 @@ export function renderMedia(root, resource, { signal, onError }) {
   };
   media.src = resource.resourceUrl;
   root.append(media);
+  onMediaReady?.({
+    async play() {
+      if (!closed && !signal.aborted) await media.play();
+    },
+    pause() {
+      if (!closed) media.pause();
+    },
+    seek(seconds) {
+      if (
+        closed ||
+        signal.aborted ||
+        !Number.isFinite(seconds) ||
+        !Number.isFinite(media.duration)
+      )
+        return;
+      media.currentTime = Math.max(0, Math.min(media.duration, seconds));
+      publish();
+    },
+  });
   return () => {
+    if (closed) return;
+    closed = true;
+    for (const event of events) media.removeEventListener(event, publish);
     media.onerror = null;
     media.pause();
     media.removeAttribute("src");
     media.load();
+    onMediaReady?.(null);
   };
 }

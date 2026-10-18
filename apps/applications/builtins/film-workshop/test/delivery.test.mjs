@@ -180,3 +180,73 @@ test("job results append versions without replacing current edits; records survi
   });
   assert.equal(cancelled.renders[0].status, "cancelled");
 });
+
+test("timeline playback stops following stale snapshots and original sound is selected per clip", () => {
+  const { project, episode } = setup();
+  const options = f.defaultRenderOptions;
+  const selection = {
+    [episode.shots[1].id]: { audioId: "", keepAudio: false },
+  };
+  const render = f.createRender(
+    project,
+    episode,
+    "preview",
+    options,
+    selection,
+  );
+  assert.equal(render.input.clips[0].sourceAudio, "keep");
+  assert.equal(render.input.clips[1].sourceAudio, "mute");
+  assert.equal(
+    f.renderMatches(project, episode, render, options, selection),
+    true,
+  );
+  project.renders = [render];
+  assert.equal(
+    f.renderMatches(
+      project,
+      episode,
+      f.validateProject(project).renders[0],
+      options,
+      selection,
+    ),
+    true,
+  );
+  assert.equal(
+    f.renderMatches(
+      project,
+      episode,
+      render,
+      { ...options, resolution: 1080 },
+      selection,
+    ),
+    true,
+  );
+  assert.equal(
+    f.renderMatches(
+      project,
+      episode,
+      render,
+      { ...options, fps: 30 },
+      selection,
+    ),
+    false,
+  );
+  assert.equal(f.renderMatches(project, episode, render, options, {}), false);
+  episode.shots[0].duration += 1;
+  assert.equal(
+    f.renderMatches(project, episode, render, options, selection),
+    false,
+  );
+  episode.shots[0].duration -= 1;
+  project.aspectRatio = "9:16";
+  assert.equal(
+    f.renderMatches(project, episode, render, options, selection),
+    false,
+  );
+  project.aspectRatio = "16:9";
+  episode.shots.reverse();
+  assert.equal(
+    f.renderMatches(project, episode, render, options, selection),
+    false,
+  );
+});

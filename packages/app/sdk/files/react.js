@@ -9,18 +9,41 @@ const errorNotice = (container, reason) => {
   container.replaceChildren(node);
 };
 /** Renders inside the application DOM; no position or visibility bridge. */
-export function FilePreview({ filePath, className, style }) {
+export function FilePreview({
+  filePath,
+  className,
+  style,
+  mediaControls = true,
+  onMediaReady,
+  onMediaStateChange,
+}) {
   const container = useRef(null);
+  const callbacks = useRef({ onMediaReady, onMediaStateChange });
+  callbacks.current = { onMediaReady, onMediaStateChange };
   useEffect(() => {
     let disposed = false,
       view;
     void Promise.resolve()
-      .then(() =>
-        getApplicationFileClient().preview.open(container.current, {
-          filePath,
-        }),
-      )
+      .then(() => {
+        if (disposed) return;
+        return getApplicationFileClient().preview.open(
+          container.current,
+          {
+            filePath,
+          },
+          {
+            mediaControls,
+            onMediaReady: (controls) => {
+              if (!disposed) callbacks.current.onMediaReady?.(controls);
+            },
+            onMediaStateChange: (state) => {
+              if (!disposed) callbacks.current.onMediaStateChange?.(state);
+            },
+          },
+        );
+      })
       .then((result) => {
+        if (!result) return;
         view = result;
         if (disposed) void view.close();
       })
@@ -29,9 +52,10 @@ export function FilePreview({ filePath, className, style }) {
       });
     return () => {
       disposed = true;
+      callbacks.current.onMediaReady?.(null);
       void view?.close();
     };
-  }, [filePath]);
+  }, [filePath, mediaControls]);
   return createElement("div", {
     ref: container,
     className,

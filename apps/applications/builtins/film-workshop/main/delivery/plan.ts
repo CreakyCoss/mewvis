@@ -18,7 +18,7 @@ export type RenderOptions = {
 };
 export type RenderSelection = Record<
   string,
-  { visualId?: string; audioId?: string }
+  { visualId?: string; audioId?: string; keepAudio?: boolean }
 >;
 export const defaultRenderOptions: RenderOptions = {
   resolution: 720,
@@ -62,7 +62,32 @@ export function createRender(
   if ((project.renders?.length ?? 0) >= 2000)
     throw new Error("合成记录已达上限，请先移除不需要的记录");
   const id = newId();
-  const clips = episode.shots.map((shot, index) => {
+  const clips = renderClips(project, episode, options, selection);
+  return {
+    id,
+    episodeId: episode.id,
+    episodeTitle: episode.title,
+    mode,
+    status: "preparing",
+    createdAt: Date.now(),
+    input: {
+      clips,
+      ...renderDimensions(
+        project.aspectRatio,
+        mode === "preview" ? 360 : options.resolution,
+      ),
+      fps: options.fps,
+      outputFilePath: `${mode === "preview" ? "previews" : "exports"}/${id}.mp4`,
+    },
+  };
+}
+function renderClips(
+  project: FilmProject,
+  episode: FilmEpisode,
+  options: RenderOptions,
+  selection: RenderSelection,
+) {
+  return episode.shots.map((shot, index) => {
     const selected = shotSelection(shot, selection);
     const visual = project.media?.find(
       (m) =>
@@ -87,29 +112,52 @@ export function createRender(
       duration: shot.duration,
       fit: options.fit,
       shortVideo: options.freeze ? ("freeze" as const) : ("error" as const),
-      sourceAudio: options.keepAudio ? ("keep" as const) : ("mute" as const),
+      sourceAudio:
+        (selection[shot.id]?.keepAudio ?? options.keepAudio)
+          ? ("keep" as const)
+          : ("mute" as const),
       ...(audio
         ? { audio: { filePath: audio.path, trim: options.trimAudio } }
         : {}),
     };
   });
-  return {
-    id,
-    episodeId: episode.id,
-    episodeTitle: episode.title,
-    mode,
-    status: "preparing",
-    createdAt: Date.now(),
-    input: {
-      clips,
-      ...renderDimensions(
-        project.aspectRatio,
-        mode === "preview" ? 360 : options.resolution,
-      ),
-      fps: options.fps,
-      outputFilePath: `${mode === "preview" ? "previews" : "exports"}/${id}.mp4`,
-    },
-  };
+}
+/** Playback may follow the editable timeline only while the selected composition still matches. */
+export function renderMatches(
+  project: FilmProject,
+  episode: FilmEpisode,
+  render: FilmRender,
+  options: RenderOptions,
+  selection: RenderSelection,
+) {
+  try {
+    const clips = renderClips(project, episode, options, selection);
+    return (
+      render.episodeId === episode.id &&
+      render.input.fps === options.fps &&
+      Math.abs(
+        render.input.width / render.input.height -
+          renderDimensions(project.aspectRatio, 720).width /
+            renderDimensions(project.aspectRatio, 720).height,
+      ) < 0.001 &&
+      render.input.clips.length === clips.length &&
+      clips.every((clip, index) => {
+        const saved = render.input.clips[index];
+        return (
+          saved.duration === clip.duration &&
+          saved.visual.kind === clip.visual.kind &&
+          saved.visual.filePath === clip.visual.filePath &&
+          saved.fit === clip.fit &&
+          saved.shortVideo === clip.shortVideo &&
+          saved.sourceAudio === clip.sourceAudio &&
+          saved.audio?.filePath === clip.audio?.filePath &&
+          saved.audio?.trim === clip.audio?.trim
+        );
+      })
+    );
+  } catch {
+    return false;
+  }
 }
 export function renderRequest(
   project: FilmProject,

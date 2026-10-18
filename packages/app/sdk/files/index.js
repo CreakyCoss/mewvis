@@ -252,9 +252,9 @@ export function createApplicationFileClient(transport) {
       async describe(id) {
         return previewInfo(await request("preview.describe", { id }));
       },
-      async open(container, input) {
+      async open(container, input, options) {
         const { mountFilePreview } = await import("./view.js");
-        return mountFilePreview(container, input, client);
+        return mountFilePreview(container, input, client, options);
       },
       async openDialog({ filePath }) {
         return previewInfo(

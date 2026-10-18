@@ -91,6 +91,8 @@ await files.preview.close(dialog.id);
 
 只需声明 `workspace-files`。组件及 `open` 接口在应用自己的 DOM 中显示内容，自然参与布局、滚动、裁剪和遮挡，不再同步坐标或由宿主覆盖绘制。路径切换、卸载、容器移除、预览过期或撤销时停止读取并释放对应资源。`FilePreviewDialog` 的 `open` 控制弹窗生命周期，用户关闭时通知 `onOpenChange(false)`。
 
+音视频内联预览支持可选的本地播放接口：`onMediaReady(controls)` 提供 `play()`、`pause()`、`seek(seconds)`，关闭时回调 `null`；`onMediaStateChange(state)` 同步 `currentTime`、`duration`、`paused` 和 `ended`。元数据加载前 `duration` 为 0，不执行定位。`mediaControls={false}` 隐藏原生控件并静音，适合时间轴缩略图。React 组件直接接收这些属性；普通 JS 使用 `files.preview.open(container, input, options)` 的第三个参数。它们不经过 Server，不扩大文件权限。
+
 宿主界面也可使用 `@/workbench/shell/files` 中的 `FilePreview`，完整路径模式创建自己的连接，`applicationId` 由可信宿主指定；通过 `previewId` 则复用已存在的只读预览，由原创建者负责关闭。
 
 应用获得的是宿主检查后创建的、单文件的短期只读 URL。每次 GET/HEAD/Range 仍检查原连接、权限、工作区范围、文件身份和有效期，URL 不接受用户路径，也不携带通用宿主凭据。只在这个能力资源路由开放无凭据 CORS；普通命令和事件接口仍保持原来源与认证限制。

@@ -1,6 +1,6 @@
 import type { CSSProperties, ReactElement } from "react";
-import type { FilePreviewInput } from "./index.js";
-export interface FilePreviewProps extends FilePreviewInput {
+import type { FilePreviewInput, FilePreviewOptions } from "./index.js";
+export interface FilePreviewProps extends FilePreviewInput, FilePreviewOptions {
   className?: string;
   style?: CSSProperties;
 }

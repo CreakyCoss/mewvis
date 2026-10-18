@@ -90,22 +90,52 @@ const composition = mediaTest ? await (await import("./composition-host.mjs")).c
 if (composition) {
   const sample = f.exampleProject();
   sample.title = "合成验证";
-  sample.workspace = {id: "film-render-workspace", root: "/memory/film-render", directory: `/memory/film-render/film-projects/${sample.id}`};
-  sample.episodes[0].shots = sample.episodes[0].shots.slice(0, 2);
-  const bytes = await composition.sampleFiles();
+  sample.workspace = {
+    id: "film-render-workspace",
+    root: "/memory/film-render",
+    directory: `/memory/film-render/film-projects/${sample.id}`,
+  };
+  sample.episodes[0].shots = sample.episodes[0].shots.slice(0, 3);
+  const bytes = await composition.sampleFiles(
+    join(app, "main/assets/rain-cassette.jpg"),
+  );
   sample.media = [];
-  for (const [kind, extension, data] of [["image", "jpg", await readFile(join(app, "main/assets/rain-window.jpg"))], ["video", "mp4", bytes.video], ["audio", "wav", bytes.audio]]) {
-    const entry = {id: f.newId(), path: `media/sample.${extension}`, name: `测试素材.${extension}`, kind, size: data.length, source: "imported", createdAt: Date.now(), mimeType: ""};
-    sample.media.push(entry); fileHost.put(f.mediaPath(sample, entry), data);
+  for (const [kind, extension, data] of [
+    ["image", "jpg", await readFile(join(app, "main/assets/rain-window.jpg"))],
+    ["video", "mp4", bytes.video],
+    ["audio", "wav", bytes.audio],
+  ]) {
+    const entry = {
+      id: f.newId(),
+      path: `media/sample.${extension}`,
+      name: `测试素材.${extension}`,
+      kind,
+      size: data.length,
+      source: "imported",
+      createdAt: Date.now(),
+      mimeType: "",
+    };
+    sample.media.push(entry);
+    fileHost.put(f.mediaPath(sample, entry), data);
   }
   for (const [index, shot] of sample.episodes[0].shots.entries()) {
-    shot.duration = 1; shot.mediaIds = sample.media.map((m) => m.id); shot.imageMediaId = sample.media[0].id;
+    shot.duration = [4, 5, 6][index];
+    shot.mediaIds = sample.media.map((m) => m.id);
+    shot.imageMediaId = sample.media[0].id;
     if (index === 1) shot.videoMediaId = sample.media[1].id;
-    if (index === 0) shot.audioMediaId = sample.media[2].id;
+    if (index !== 1) shot.audioMediaId = sample.media[2].id;
   }
-  registeredWorkspaces.push({id: sample.workspace.id, name: sample.title, path: sample.workspace.root, isDefault: false});
+  registeredWorkspaces.push({
+    id: sample.workspace.id,
+    name: sample.title,
+    path: sample.workspace.root,
+    isDefault: false,
+  });
   values.set(f.projectKey(sample.id), sample);
-  await files.writeText(`${sample.workspace.directory}/project.json`, JSON.stringify(sample));
+  await files.writeText(
+    `${sample.workspace.directory}/project.json`,
+    JSON.stringify(sample),
+  );
 }
 const tools = [],
   skills = [];
@@ -259,11 +289,33 @@ const server = createServer(async (req, res) => {
         res.end();
         return;
       }
-      res.writeHead(200, {
+      const range = /^bytes=(\d+)-(\d*)$/.exec(req.headers.range ?? "");
+      const start = range ? Number(range[1]) : 0;
+      const end = range
+        ? Math.min(
+            Number(range[2] || resource.bytes.length - 1),
+            resource.bytes.length - 1,
+          )
+        : resource.bytes.length - 1;
+      if (start > end) {
+        res.writeHead(416, {
+          "content-range": `bytes */${resource.bytes.length}`,
+        });
+        res.end();
+        return;
+      }
+      res.writeHead(range ? 206 : 200, {
         "content-type": resource.mimeType,
         "access-control-allow-origin": "*",
+        "accept-ranges": "bytes",
+        "content-length": end - start + 1,
+        ...(range
+          ? {
+              "content-range": `bytes ${start}-${end}/${resource.bytes.length}`,
+            }
+          : {}),
       });
-      res.end(resource.bytes);
+      res.end(resource.bytes.subarray(start, end + 1));
       return;
     }
     let body = "";
@@ -448,25 +500,64 @@ try {
       await summary.click();
   };
   if (mediaTest) {
-    await frame.getByRole("button", {name: "打开项目 合成验证", exact: true}).click();
+    await frame
+      .getByRole("button", { name: "打开项目 合成验证", exact: true })
+      .click();
     await stage("预览导出");
-    await frame.getByRole("button", {name: "生成预览", exact: true}).click();
-    await frame.getByLabel("合成记录", {exact:true}).getByText("已完成", {exact:true}).waitFor();
-    const video = frame.getByLabel("成片预览", {exact:true}).locator("video");
+    await frame.getByRole("button", { name: "生成预览", exact: true }).click();
+    await frame.getByRole("button", { name: "合成记录", exact: true }).click();
+    await frame
+      .locator(".film-render-history")
+      .getByText("已完成", { exact: true })
+      .waitFor();
+    await frame.getByRole("button", { name: "合成记录", exact: true }).click();
+    const video = frame
+      .getByLabel("成片预览", { exact: true })
+      .locator("video");
     await video.waitFor();
-    await video.evaluate(node => node.readyState >= 1 ? true : new Promise(resolve => node.addEventListener("loadedmetadata", resolve, {once:true})));
-    assert.equal(await video.evaluate(node => node.videoWidth), 640);
-    await frame.getByRole("button", {name: "导出成片", exact: true}).click();
-    await frame.getByLabel("合成记录", {exact:true}).getByText("已完成", {exact:true}).nth(1).waitFor();
+    await video.evaluate((node) =>
+      node.readyState >= 1
+        ? true
+        : new Promise((resolve) =>
+            node.addEventListener("loadedmetadata", resolve, { once: true }),
+          ),
+    );
+    assert.equal(await video.evaluate((node) => node.videoWidth), 640);
+    await frame.getByRole("button", { name: "导出成片", exact: true }).click();
+    await frame.getByRole("button", { name: "合成记录", exact: true }).click();
+    await frame
+      .locator(".film-render-history")
+      .getByText("已完成", { exact: true })
+      .nth(1)
+      .waitFor();
+    await frame.getByRole("button", { name: "合成记录", exact: true }).click();
     await saved();
     frame = await open();
-    await frame.getByRole("button", {name: "打开项目 合成验证", exact: true}).click();
+    await frame
+      .getByRole("button", { name: "打开项目 合成验证", exact: true })
+      .click();
     await stage("预览导出");
-    assert.equal(await frame.getByLabel("合成记录", {exact:true}).getByText("已完成", {exact:true}).count(), 2);
-    assert.equal(await frame.getByLabel("成片预览", {exact:true}).locator("video").count(), 1);
-    await page.screenshot({path: join(output, "composition.png")});
+    await frame.getByRole("button", { name: "合成记录", exact: true }).click();
+    assert.equal(
+      await frame
+        .locator(".film-render-history")
+        .getByText("已完成", { exact: true })
+        .count(),
+      2,
+    );
+    await frame.getByRole("button", { name: "合成记录", exact: true }).click();
+    assert.equal(
+      await frame
+        .getByLabel("成片预览", { exact: true })
+        .locator("video")
+        .count(),
+      1,
+    );
+    await page.screenshot({ path: join(output, "composition.png") });
     assert.deepEqual(errors, []);
-    console.log("Film delivery: real FFmpeg preview, MP4 export, shared player and persisted version history passed");
+    console.log(
+      "Film delivery: real FFmpeg preview, MP4 export, shared player and persisted version history passed",
+    );
   } else {
   await page.screenshot({ path: join(output, "library-light.png") });
   await frame
@@ -781,7 +872,8 @@ try {
     .getByLabel("镜头 2 声音设计", { exact: true })
     .fill("远处火车汽笛与脚步声");
   await stage("预览导出");
-  await expandDetails("制作清单与项目数据");
+  await frame.getByRole("button", { name: "更多交付操作", exact: true }).click();
+  await frame.getByRole("button", { name: "制作清单与项目数据", exact: true }).click();
   await frame
     .getByRole("button", { name: "检查制作计划", exact: true })
     .click();
@@ -807,6 +899,7 @@ try {
   );
   assert.equal(f.deliveryReport(exported, exported.episodes[0]).duration, 8);
   await saved();
+  await frame.getByRole("button", { name: "关闭对话框", exact: true }).click();
   await page.screenshot({ path: join(output, "delivery-light.png") });
 
   // Failed writes and synchronous validation errors preserve the draft and remain retryable.

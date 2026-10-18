@@ -4,11 +4,12 @@ import type {
   FilePreviewContainer,
   FilePreviewInput,
   FilePreviewView,
+  FilePreviewOptions,
 } from "./index.js";
 export declare function renderFilePreview(
   container: FilePreviewContainer,
   resource: ApplicationFilePreviewResource,
-  options?: {
+  options?: FilePreviewOptions & {
     onReady?(resource: ApplicationFilePreviewResource): void;
     onError?(error: Error): void;
   },
@@ -17,4 +18,5 @@ export declare function mountFilePreview(
   container: FilePreviewContainer,
   input: FilePreviewInput,
   files: ApplicationFileClient,
+  options?: FilePreviewOptions,
 ): FilePreviewView;

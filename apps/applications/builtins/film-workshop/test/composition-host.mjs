@@ -34,7 +34,7 @@ export async function createCompositionHost(fileHost) {
     return local;
   };
   return {
-    async sampleFiles() {
+    async sampleFiles(imagePath) {
       const run = (args) =>
         execFileSync(
           process.env.MEWVIS_FFMPEG_PATH || "ffmpeg",
@@ -44,17 +44,29 @@ export async function createCompositionHost(fileHost) {
       const video = join(root, "sample.mp4"),
         audio = join(root, "sample.wav");
       run([
-        "-f",
-        "lavfi",
+        "-loop",
+        "1",
         "-i",
-        "color=c=0x293b5d:s=160x90:d=2",
+        imagePath,
+        "-t",
+        "6",
+        "-vf",
+        "scale=640:360",
         "-c:v",
         "libx264",
         "-pix_fmt",
         "yuv420p",
         video,
       ]);
-      run(["-f", "lavfi", "-i", "sine=frequency=440:duration=0.7", audio]);
+      run([
+        "-f",
+        "lavfi",
+        "-i",
+        "sine=frequency=440:duration=4",
+        "-af",
+        "afade=t=in:d=1,afade=t=out:st=2:d=2",
+        audio,
+      ]);
       return {
         video: await fs.readFile(video),
         audio: await fs.readFile(audio),
@@ -63,6 +75,12 @@ export async function createCompositionHost(fileHost) {
     async request(request) {
       try {
         let input = request;
+        if (request.method === "probe") {
+          input = {
+            ...request,
+            params: { filePath: await mapInput(request.params.filePath) },
+          };
+        }
         if (request.method === "compose") {
           const p = request.params;
           const output = join(root, `result-${p.requestId}.mp4`);
