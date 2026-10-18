@@ -53,6 +53,7 @@ import { StageEditor } from "./StageEditors";
 import { Assistant } from "./Assistant";
 import { ReferencePanel } from "./ReferencePanel";
 import { useGeneration } from "./useGeneration";
+import { useDelivery } from "./delivery/useDelivery";
 
 export function Workbench({
   initial,
@@ -72,6 +73,7 @@ export function Workbench({
   const editor = useEditor(initial, repository, onSaved),
     { project, edit } = editor;
   const generation = useGeneration(editor);
+  const delivery = useDelivery(editor);
   const [attaching, setAttaching] = useState(false);
   const [episodeId, setEpisodeId] = useState(initialView.episodeId);
   const [step, setStep] = useState<FlowStep>(initialView.step),
@@ -482,6 +484,7 @@ export function Workbench({
               episode={episode}
               step={step}
               edit={edit}
+              delivery={delivery}
               selectedShotId={shot?.id}
               onSelectShot={setShotId}
               onOpenStep={openStep}

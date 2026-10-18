@@ -15,8 +15,6 @@ import {
   Box,
   CircleAlert,
   CircleCheck,
-  Copy,
-  FileText,
   Image,
   ImagePlus,
   LoaderCircle,
@@ -31,17 +29,11 @@ import {
   Volume2,
 } from "lucide-react";
 import {
-  getApplicationHost,
-  writeClipboardText,
-} from "@mewvis/app-sdk/browser";
-import {
   ASSET_KINDS,
   PROJECT_KINDS,
   blankAsset,
   blankShot,
-  deliveryReport,
   moveShot,
-  productionManifest,
   removeAsset,
   type AssetKind,
   type FilmAsset,
@@ -51,8 +43,9 @@ import {
   type FilmShot,
   type FlowStep,
 } from "./model";
-import { MEDIA_CAPABILITIES } from "./capabilities";
-import { CapabilityNotice, EmptyState, Field } from "./components/Fields";
+import { EmptyState, Field } from "./components/Fields";
+import { Delivery } from "./delivery";
+import type { DeliveryController } from "./delivery/useDelivery";
 import { Dialog } from "./components/Dialog";
 import { ShotArtwork } from "./artwork";
 import { LocalPreview, MediaPanel } from "./components/MediaPanel";
@@ -66,6 +59,7 @@ type Props = {
   onSelectShot?: (id: string) => void;
   onOpenStep?: (step: FlowStep) => void;
   edit: (update: (project: FilmProject) => FilmProject) => void;
+  delivery: DeliveryController;
   generate?: (
     episodeId: string,
     shotId: string,
@@ -83,7 +77,7 @@ export function StageEditor(props: Props) {
   if (props.step === "storyboard") return <Storyboard {...props} />;
   if (props.step === "video") return <MediaPlan {...props} mode="video" />;
   if (props.step === "dubbing") return <MediaPlan {...props} mode="dubbing" />;
-  return <Delivery {...props} />;
+  return <Delivery {...props} controller={props.delivery} />;
 }
 function updateEpisode(
   props: Props,
@@ -1086,142 +1080,6 @@ function MediaPlan(props: Props & { mode: "video" | "dubbing" }) {
           text="分镜创建后，可以在这里逐镜头编辑生成提示词与配音计划。"
         />
       )}
-    </div>
-  );
-}
-function Delivery({ project, episode }: Props) {
-  const [message, setMessage] = useState(""),
-    [error, setError] = useState(""),
-    [busy, setBusy] = useState(false);
-  const report = deliveryReport(project, episode),
-    manifest = productionManifest(project, episode);
-  const copy = async (text: string, label: string) => {
-    setError("");
-    setMessage("");
-    try {
-      await writeClipboardText(text);
-      setMessage(`${label}已复制`);
-    } catch (error) {
-      setError(error instanceof Error ? error.message : String(error));
-    }
-  };
-  let time = 0;
-  return (
-    <div className="film-delivery">
-      <div className="film-delivery-summary">
-        <div>
-          <span>预计时长</span>
-          <strong>
-            {report.duration}
-            <small> 秒</small>
-          </strong>
-        </div>
-        <div>
-          <span>镜头总数</span>
-          <strong>{report.shots}</strong>
-        </div>
-        <div>
-          <span>制作计划</span>
-          <strong className="film-summary-label">
-            {report.ready ? "已准备" : "待完善"}
-          </strong>
-        </div>
-      </div>
-      <CapabilityNotice text={MEDIA_CAPABILITIES.preview.reason} />
-      <div className="film-timeline" aria-label="制作时间轴">
-        {episode.shots.map((shot, index) => {
-          const start = time;
-          time += shot.duration;
-          return (
-            <div className="film-timeline-shot" key={shot.id}>
-              <span>
-                {start}–{time}s
-              </span>
-              <div>
-                <span className="film-shot-number">
-                  {String(index + 1).padStart(2, "0")}
-                </span>
-                <h3>{shot.title}</h3>
-                <p>{shot.description || "画面内容待补充"}</p>
-                <small>{shot.dialogue || "无台词"}</small>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-      {!episode.shots.length && (
-        <EmptyState
-          title="时间轴等待第一个镜头"
-          text="添加分镜后，按镜头顺序展示画面、台词和预计时长。"
-        />
-      )}
-      {report.issues.length > 0 && (
-        <section className="film-note">
-          <h3>待完善的内容</h3>
-          <ul>
-            {report.issues.map((issue) => (
-              <li key={issue}>{issue}</li>
-            ))}
-          </ul>
-        </section>
-      )}
-      <div className="film-section-toolbar">
-        <h3>制作清单</h3>
-        <button
-          disabled={busy}
-          onClick={() => {
-            setBusy(true);
-            setError("");
-            setMessage("");
-            void getApplicationHost()
-              .executeTool<ReturnType<typeof deliveryReport>>(
-                "film_check_delivery",
-                { project, episodeId: episode.id },
-              )
-              .then(({ value }) =>
-                setMessage(
-                  value.ready
-                    ? "制作计划检查通过；此检查不校验媒体内容或成片。"
-                    : `发现 ${value.issues.length} 项待完善内容。`,
-                ),
-              )
-              .catch((error: unknown) =>
-                setError(
-                  error instanceof Error ? error.message : String(error),
-                ),
-              )
-              .finally(() => setBusy(false));
-          }}
-        >
-          <FileText size={16} />
-          {busy ? "检查中…" : "检查制作计划"}
-        </button>
-      </div>
-      <pre className="film-manifest" tabIndex={0}>
-        {manifest}
-      </pre>
-      <div className="film-actions">
-        <button onClick={() => void copy(manifest, "制作清单")}>
-          <Copy size={16} />
-          复制制作清单
-        </button>
-        <button onClick={() => void copy(JSON.stringify(project), "项目 JSON")}>
-          <Copy size={16} />
-          复制项目 JSON
-        </button>
-        <button disabled>导出成片</button>
-      </div>
-      {message && (
-        <p className="film-success" role="status">
-          {message}
-        </p>
-      )}
-      {error && (
-        <p className="film-error" role="alert">
-          {error}
-        </p>
-      )}
-      <CapabilityNotice text={MEDIA_CAPABILITIES.compose.reason} />
     </div>
   );
 }

@@ -26,6 +26,8 @@ export function createFileHost(sampleImage, samples = {}) {
     };
   };
   return {
+    bytes(path) { return files.get(path); },
+    put(path, bytes) { files.set(path, bytes); },
     resource(id) {
       const path = previews.get(id);
       return path

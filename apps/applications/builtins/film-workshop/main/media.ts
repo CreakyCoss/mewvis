@@ -115,7 +115,7 @@ export function generationMessage(
   };
 }
 
-export function mediaPath(project: FilmProject, media: FilmMedia) {
+export function mediaPath(project: FilmProject, media: Pick<FilmMedia, "path">) {
   if (!project.workspace) throw new Error("请先选择工作目录");
   return `${project.workspace.directory}/${media.path}`;
 }

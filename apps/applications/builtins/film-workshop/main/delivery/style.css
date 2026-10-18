@@ -1,0 +1,289 @@
+.film-render-player {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card);
+}
+.film-render-player > [aria-label="文件预览"] {
+  height: 320px;
+}
+.film-render-player video {
+  max-height: 320px;
+}
+.film-render-placeholder {
+  min-height: 240px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--muted-foreground);
+  background: var(--muted);
+}
+.film-render-placeholder strong {
+  color: var(--foreground);
+  font-size: 14px;
+  font-weight: 500;
+}
+.film-render-placeholder p {
+  font-size: 12px;
+}
+.film-render-player footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--muted-foreground);
+}
+.film-render-plan {
+  display: grid;
+  gap: 16px;
+}
+.film-render-plan .film-section-toolbar p {
+  margin: 5px 0 0;
+  font-size: 12px;
+}
+.film-render-timeline {
+  border-top: 1px solid var(--border);
+}
+.film-render-timeline > article {
+  display: grid;
+  grid-template-columns: minmax(100px, 1fr) minmax(110px, 1.2fr) minmax(
+      110px,
+      1fr
+    );
+  gap: 12px;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+.film-render-shot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.film-render-shot > div {
+  min-width: 0;
+}
+.film-app .film-render-shot-title {
+  display: block;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  font-weight: 500;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.film-render-shot small {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted-foreground);
+  font-size: 11px;
+}
+.film-render-timeline .film-field {
+  gap: 5px;
+  min-width: 0;
+}
+.film-render-plan [data-slot="native-select-wrapper"] {
+  width: 100%;
+}
+.film-render-timeline .film-field > label {
+  font-size: 11px;
+  color: var(--muted-foreground);
+  font-weight: 400;
+}
+.film-render-settings {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.film-render-settings .film-field > label {
+  font-size: 12px;
+}
+.film-render-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 20px;
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+.film-render-options label {
+  display: inline-flex;
+  gap: 7px;
+  align-items: center;
+  cursor: pointer;
+}
+.film-app .film-render-options input {
+  width: 14px;
+  height: 14px;
+  min-height: 0;
+  margin: 0;
+  accent-color: var(--primary);
+}
+.film-render-submit {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 4px;
+}
+.film-render-submit p {
+  font-size: 12px;
+}
+.film-render-submit small {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--muted-foreground);
+}
+.film-render-submit > div {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.film-render-path {
+  overflow-wrap: anywhere;
+  color: var(--muted-foreground);
+  font-size: 11px;
+}
+.film-render-plan > .film-muted {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.film-render-progress {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px 16px;
+  padding: 12px;
+  background: var(--muted);
+  border-radius: 8px;
+}
+.film-render-progress > div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+}
+.film-render-progress strong {
+  font-weight: 500;
+}
+.film-render-progress span {
+  color: var(--muted-foreground);
+}
+.film-render-progress progress {
+  grid-column: 1;
+  grid-row: 2;
+  width: 100%;
+  height: 5px;
+  accent-color: var(--primary);
+}
+.film-render-progress > button {
+  grid-column: 2;
+  grid-row: 1 / 3;
+}
+.film-render-progress .film-error {
+  grid-column: 1 / -1;
+  overflow-wrap: anywhere;
+}
+.film-render-history {
+  border-top: 1px solid var(--border);
+  padding-top: 20px;
+}
+.film-render-history h3 {
+  margin-bottom: 8px;
+}
+.film-render-history h3 small {
+  color: var(--muted-foreground);
+  font-size: 11px;
+  font-weight: 400;
+}
+.film-render-history article {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+  padding: 12px 0;
+}
+.film-render-history article > div {
+  flex: 1;
+  min-width: 0;
+}
+.film-render-history strong {
+  font-weight: 500;
+  font-size: 13px;
+}
+.film-render-history article small {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted-foreground);
+  font-size: 11px;
+}
+.film-render-history .film-error {
+  margin-top: 6px;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.film-render-status {
+  font-size: 11px;
+  white-space: nowrap;
+  color: var(--muted-foreground);
+}
+.film-render-status.is-completed {
+  color: var(--primary);
+}
+.film-render-status.is-failed {
+  color: var(--destructive);
+}
+.film-render-manifest {
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+}
+.film-render-manifest > summary {
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+.film-render-manifest .film-section-toolbar {
+  margin-top: 16px;
+}
+@media (max-width: 1000px) {
+  .film-render-timeline > article {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .film-render-shot {
+    grid-column: 1 / -1;
+  }
+  .film-render-submit {
+    flex-wrap: wrap;
+  }
+  .film-render-player > [aria-label="文件预览"] {
+    height: 260px;
+  }
+}
+@media (max-width: 480px) {
+  .film-render-settings {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .film-render-settings .film-field:last-child {
+    grid-column: 1 / -1;
+  }
+  .film-render-player footer {
+    flex-wrap: wrap;
+  }
+  .film-render-history article {
+    flex-wrap: wrap;
+  }
+}

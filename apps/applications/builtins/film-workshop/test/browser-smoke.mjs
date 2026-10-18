@@ -15,6 +15,7 @@ import { createFileHost } from "./file-host.mjs";
 const root = fileURLToPath(new URL("../../../../../", import.meta.url));
 const app = fileURLToPath(new URL("../", import.meta.url));
 const previewOnly = process.argv.includes("--preview");
+const mediaTest = process.argv.includes("--media");
 const output = process.env.MEWVIS_FILM_QA_DIR ?? "/tmp/mewvis-film-workshop-qa";
 await mkdir(output, { recursive: true });
 const compiled = await build({
@@ -85,6 +86,27 @@ const files = createApplicationFileClient({
   version: 1,
   request: async (request) => fileHost.request(request),
 });
+const composition = mediaTest ? await (await import("./composition-host.mjs")).createCompositionHost(fileHost) : undefined;
+if (composition) {
+  const sample = f.exampleProject();
+  sample.title = "合成验证";
+  sample.workspace = {id: "film-render-workspace", root: "/memory/film-render", directory: `/memory/film-render/film-projects/${sample.id}`};
+  sample.episodes[0].shots = sample.episodes[0].shots.slice(0, 2);
+  const bytes = await composition.sampleFiles();
+  sample.media = [];
+  for (const [kind, extension, data] of [["image", "jpg", await readFile(join(app, "main/assets/rain-window.jpg"))], ["video", "mp4", bytes.video], ["audio", "wav", bytes.audio]]) {
+    const entry = {id: f.newId(), path: `media/sample.${extension}`, name: `测试素材.${extension}`, kind, size: data.length, source: "imported", createdAt: Date.now(), mimeType: ""};
+    sample.media.push(entry); fileHost.put(f.mediaPath(sample, entry), data);
+  }
+  for (const [index, shot] of sample.episodes[0].shots.entries()) {
+    shot.duration = 1; shot.mediaIds = sample.media.map((m) => m.id); shot.imageMediaId = sample.media[0].id;
+    if (index === 1) shot.videoMediaId = sample.media[1].id;
+    if (index === 0) shot.audioMediaId = sample.media[2].id;
+  }
+  registeredWorkspaces.push({id: sample.workspace.id, name: sample.title, path: sample.workspace.root, isDefault: false});
+  values.set(f.projectKey(sample.id), sample);
+  await files.writeText(`${sample.workspace.directory}/project.json`, JSON.stringify(sample));
+}
 const tools = [],
   skills = [];
 packed.apply({
@@ -137,6 +159,8 @@ addEventListener("message", async event => {
       const result = await preview.transport.request(message.request);
       if (message.request.method === "setContext" && result.result?.ok) test.contexts.push(message.request.input);
       reply(result);
+    } else if (message.type === "media:request") {
+      reply(await (await fetch("/media", {method:"POST",body:JSON.stringify(message.request)})).json());
     } else if (message.type === "files:request") {
       const result = await (await fetch("/files", { method: "POST", body: JSON.stringify(message.request) })).json();
       reply(result);
@@ -251,6 +275,8 @@ const server = createServer(async (req, res) => {
       result = {};
     } else if (req.url === "/files") {
       result = fileHost.request(input);
+    } else if (req.url === "/media") {
+      result = composition ? await composition.request(input) : {ok: false, error: {code: "CAPABILITY_UNAVAILABLE", message: "此模拟预览未提供媒体合成，请使用 --media 启动真实合成夹具"}};
     } else if (req.url === "/generate") {
       result = fileHost.generate(input.text);
     } else if (req.url === "/data") {
@@ -344,7 +370,7 @@ const server = createServer(async (req, res) => {
     res.end(JSON.stringify({ error: error.message }));
   }
 });
-if (previewOnly) {
+if (previewOnly && !mediaTest) {
   const samples = [
     f.exampleProject(),
     f.createProject("夏日回声", "shortDrama"),
@@ -376,6 +402,7 @@ if (previewOnly) {
   console.log(
     `Film sandbox preview: http://127.0.0.1:${server.address().port}/ (isolated sample data)`,
   );
+  process.once("SIGINT", () => {server.close(); void composition?.close().finally(() => process.exit(0)); if (!composition) process.exit(0);});
   await new Promise(() => {});
 }
 const playwright = await import(
@@ -420,6 +447,27 @@ try {
     if (!(await summary.evaluate((node) => node.parentElement.open)))
       await summary.click();
   };
+  if (mediaTest) {
+    await frame.getByRole("button", {name: "打开项目 合成验证", exact: true}).click();
+    await stage("预览导出");
+    await frame.getByRole("button", {name: "生成预览", exact: true}).click();
+    await frame.getByLabel("合成记录", {exact:true}).getByText("已完成", {exact:true}).waitFor();
+    const video = frame.getByLabel("成片预览", {exact:true}).locator("video");
+    await video.waitFor();
+    await video.evaluate(node => node.readyState >= 1 ? true : new Promise(resolve => node.addEventListener("loadedmetadata", resolve, {once:true})));
+    assert.equal(await video.evaluate(node => node.videoWidth), 640);
+    await frame.getByRole("button", {name: "导出成片", exact: true}).click();
+    await frame.getByLabel("合成记录", {exact:true}).getByText("已完成", {exact:true}).nth(1).waitFor();
+    await saved();
+    frame = await open();
+    await frame.getByRole("button", {name: "打开项目 合成验证", exact: true}).click();
+    await stage("预览导出");
+    assert.equal(await frame.getByLabel("合成记录", {exact:true}).getByText("已完成", {exact:true}).count(), 2);
+    assert.equal(await frame.getByLabel("成片预览", {exact:true}).locator("video").count(), 1);
+    await page.screenshot({path: join(output, "composition.png")});
+    assert.deepEqual(errors, []);
+    console.log("Film delivery: real FFmpeg preview, MP4 export, shared player and persisted version history passed");
+  } else {
   await page.screenshot({ path: join(output, "library-light.png") });
   await frame
     .getByRole("button", { name: "打开示例项目", exact: true })
@@ -733,11 +781,12 @@ try {
     .getByLabel("镜头 2 声音设计", { exact: true })
     .fill("远处火车汽笛与脚步声");
   await stage("预览导出");
+  await expandDetails("制作清单与项目数据");
   await frame
     .getByRole("button", { name: "检查制作计划", exact: true })
     .click();
   await frame
-    .getByText("制作计划检查通过；此检查不校验媒体内容或成片。", { exact: true })
+    .getByText("制作计划检查通过。", { exact: true })
     .waitFor();
   assert.equal(
     await frame
@@ -1049,6 +1098,7 @@ try {
   console.log(
     `Browser smoke passed: seven stages, persistence, recovery, Chat connection, imports, light/dark/mobile. Screenshots: ${output}`,
   );
+  }
 } catch (error) {
   await page?.screenshot({ path: join(output, "failure.png") });
   console.error(
@@ -1063,4 +1113,5 @@ try {
   await browser.close();
   server.close();
   await once(server, "close");
+  await composition?.close();
 }

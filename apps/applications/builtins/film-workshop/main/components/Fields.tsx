@@ -42,11 +42,3 @@ export function EmptyState({
     </div>
   );
 }
-export function CapabilityNotice({ text }: { text: string }) {
-  return (
-    <div className="film-capability">
-      <span className="film-tag">待接入</span>
-      <p>{text}</p>
-    </div>
-  );
-}

@@ -1,5 +1,6 @@
 // Flow names adapted from AID Studio's StudioFlowLeftPanel (MIT).
 // See THIRD_PARTY_NOTICES.md for the upstream revision and license.
+import type { MediaComposeInput, MediaJob } from "@mewvis/app-sdk/media";
 export const FLOW_STEPS = [
   { id: "settings", title: "项目设定", description: "方向、风格与画面比例" },
   { id: "script", title: "剧本创作", description: "故事、分集与台词" },
@@ -7,7 +8,11 @@ export const FLOW_STEPS = [
   { id: "storyboard", title: "分镜设计", description: "镜头、画面与提示词" },
   { id: "video", title: "视频生成", description: "镜头片段与生成计划" },
   { id: "dubbing", title: "音画同步", description: "配音、声音与节奏" },
-  { id: "delivery", title: "预览导出", description: "时间轴与制作清单" },
+  {
+    id: "delivery",
+    title: "预览导出",
+    description: "合成预览、成片与导出记录",
+  },
 ] as const;
 export type FlowStep = (typeof FLOW_STEPS)[number]["id"];
 export const PROJECT_KINDS = {
@@ -97,6 +102,19 @@ export interface FilmEpisode {
   script: string;
   shots: FilmShot[];
 }
+export interface FilmRender {
+  id: string;
+  episodeId: string;
+  episodeTitle: string;
+  mode: "preview" | "export";
+  status: "preparing" | MediaJob["status"];
+  jobId?: string;
+  createdAt: number;
+  /** Frozen composition snapshot. All paths are relative to the project directory. */
+  input: Omit<MediaComposeInput, "requestId">;
+  size?: number;
+  error?: string;
+}
 export interface FilmProject {
   format: "mewvis-film-project";
   version: 1;
@@ -113,6 +131,7 @@ export interface FilmProject {
   workspace?: FilmWorkspace;
   media?: FilmMedia[];
   generations?: FilmGeneration[];
+  renders?: FilmRender[];
   appliedAssistantChangeIds?: string[];
 }
 export const MAX_PROJECT_BYTES = 16 * 1024 * 1024;
@@ -202,6 +221,19 @@ function timestamp(value: unknown): number {
     throw new Error("项目时间无效");
   return value;
 }
+function relativePath(value: unknown): string {
+  const path = text(value, "媒体路径", 4096);
+  if (
+    !path ||
+    path.startsWith("/") ||
+    /^[a-z]:/i.test(path) ||
+    path.includes("\\") ||
+    path.split("/").some((part) => !part || part === "." || part === "..") ||
+    /[\0\r\n]/.test(path)
+  )
+    throw new Error("媒体路径必须位于项目目录中");
+  return path;
+}
 export function checkProjectSize(project: FilmProject): void {
   if (
     new TextEncoder().encode(JSON.stringify(project)).byteLength >
@@ -229,18 +261,7 @@ export function validateProject(value: unknown): FilmProject {
       ? undefined
       : array(p.media, "媒体文件", 10000).map((item): FilmMedia => {
           const m = object(item, "媒体文件");
-          const path = text(m.path, "媒体路径", 4096);
-          if (
-            !path ||
-            path.startsWith("/") ||
-            /^[a-z]:/i.test(path) ||
-            path.includes("\\") ||
-            path
-              .split("/")
-              .some((part) => !part || part === "." || part === "..") ||
-            /[\0\r\n]/.test(path)
-          )
-            throw new Error("媒体路径必须位于项目目录中");
+          const path = relativePath(m.path);
           return {
             id: id(m.id),
             name: name(m.name, "文件名称"),
@@ -419,6 +440,104 @@ export function validateProject(value: unknown): FilmProject {
     )
   )
     throw new Error("生成记录与项目工作区不一致");
+  const renders =
+    p.renders === undefined
+      ? undefined
+      : array(p.renders, "合成记录", 2000).map((value): FilmRender => {
+          const r = object(value, "合成记录"),
+            input = object(r.input, "合成快照");
+          const renderId = id(r.id),
+            mode = choice(r.mode, ["preview", "export"], "合成用途");
+          const width = timestamp(input.width),
+            height = timestamp(input.height),
+            fps = timestamp(input.fps);
+          if (
+            width < 16 ||
+            height < 16 ||
+            width > 3840 ||
+            height > 3840 ||
+            width % 2 ||
+            height % 2 ||
+            width * height > 3840 * 2160 ||
+            fps < 1 ||
+            fps > 60
+          )
+            throw new Error("合成画面规格无效");
+          const clips = array(input.clips, "合成片段", 200).map((value) => {
+            const c = object(value, "合成片段"),
+              v = object(c.visual, "画面素材");
+            if (
+              typeof c.duration !== "number" ||
+              !Number.isFinite(c.duration) ||
+              c.duration < 0.5 ||
+              c.duration > 120
+            )
+              throw new Error("合成片段时长无效");
+            let audio;
+            if (c.audio !== undefined) {
+              const a = object(c.audio, "配音素材");
+              if (typeof a.trim !== "boolean")
+                throw new Error("配音裁剪配置无效");
+              audio = { filePath: relativePath(a.filePath), trim: a.trim };
+            }
+            return {
+              visual: {
+                filePath: relativePath(v.filePath),
+                kind: choice(v.kind, ["image", "video"], "画面类型"),
+              },
+              duration: c.duration,
+              fit: choice(c.fit, ["contain", "cover"], "画面适配"),
+              shortVideo: choice(c.shortVideo, ["error", "freeze"], "视频补足"),
+              sourceAudio: choice(c.sourceAudio, ["mute", "keep"], "原声设置"),
+              ...(audio ? { audio } : {}),
+            };
+          });
+          if (
+            !clips.length ||
+            clips.reduce((sum, c) => sum + c.duration, 0) > 7200
+          )
+            throw new Error("合成总时长无效");
+          const outputFilePath = relativePath(input.outputFilePath);
+          if (
+            outputFilePath !==
+            `${mode === "preview" ? "previews" : "exports"}/${renderId}.mp4`
+          )
+            throw new Error("合成输出路径无效");
+          const status = choice(
+            r.status,
+            [
+              "preparing",
+              "queued",
+              "running",
+              "cancelling",
+              "completed",
+              "failed",
+              "cancelled",
+            ],
+            "合成状态",
+          );
+          const jobId =
+            r.jobId === undefined ? undefined : name(r.jobId, "宿主任务标识");
+          if (
+            (!["preparing", "failed"].includes(status) && !jobId) ||
+            (status === "completed" && (!r.size || typeof r.size !== "number"))
+          )
+            throw new Error("合成结果记录不完整");
+          return {
+            id: renderId,
+            episodeId: text(r.episodeId, "分集标识", 80),
+            episodeTitle: name(r.episodeTitle, "分集名称"),
+            mode,
+            status,
+            createdAt: timestamp(r.createdAt),
+            input: { clips, width, height, fps, outputFilePath },
+            ...(jobId ? { jobId } : {}),
+            ...(r.size !== undefined ? { size: timestamp(r.size) } : {}),
+            ...(r.error ? { error: text(r.error, "合成错误", 4000) } : {}),
+          };
+        });
+  if (renders?.length && !workspace)
+    throw new Error("合成记录需要项目工作目录");
   const result: FilmProject = {
     format: "mewvis-film-project",
     version: 1,
@@ -439,6 +558,7 @@ export function validateProject(value: unknown): FilmProject {
     ...(workspace ? { workspace } : {}),
     ...(media ? { media } : {}),
     ...(generations ? { generations } : {}),
+    ...(renders ? { renders } : {}),
     ...(p.appliedAssistantChangeIds !== undefined
       ? {
           appliedAssistantChangeIds: array(
@@ -509,6 +629,7 @@ export function copyProject(source: FilmProject): FilmProject {
   delete copy.workspace;
   delete copy.media;
   delete copy.generations;
+  delete copy.renders;
   delete copy.appliedAssistantChangeIds;
   return copy;
 }
