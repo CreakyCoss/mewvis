@@ -129,13 +129,28 @@ test(
       server.supervisor.snapshot("summary-source").taskState,
       "done",
     );
-    const summaryAction = (await call("list_extension_ui_contributions")).find(
+    const contributions = await call("list_extension_ui_contributions");
+    const ledgerAction = contributions.find(
       (item) =>
         item.extensionId === "mewvis.session-ledger" &&
-        item.id === "open-summary",
+        item.id === "open-ledger",
     );
-    assert.equal(summaryAction?.slot, "session.header-actions");
-    assert.deepEqual(summaryAction?.trigger, { kind: "dialog", id: "summary" });
+    assert.equal(ledgerAction?.slot, "session.header-actions");
+    assert.equal(ledgerAction?.title, "运行链路");
+    assert.deepEqual(ledgerAction?.trigger, { kind: "dialog", id: "ledger" });
+    const ledgerDialog = contributions.find(
+      (item) =>
+        item.extensionId === "mewvis.session-ledger" && item.id === "ledger",
+    );
+    assert.equal(ledgerDialog?.slot, "session.dialog");
+    assert.equal(ledgerDialog?.size, "lg");
+    assert.ok(
+      !contributions.some(
+        (item) =>
+          item.extensionId === "mewvis.session-ledger" &&
+          item.slot === "session.sidebar",
+      ),
+    );
     const view = await call("open_extension_view", {
       ...target,
       id: "mewvis.session-ledger",

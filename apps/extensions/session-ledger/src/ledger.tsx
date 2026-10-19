@@ -1,16 +1,26 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ReactNode,
 } from "react";
-import { Activity, ChevronRight, Eye, RefreshCw } from "lucide-react";
+import {
+  Activity,
+  Bot,
+  ChevronRight,
+  Clock3,
+  MessageSquare,
+  RefreshCw,
+  Settings2,
+  UserRound,
+  Wrench,
+} from "lucide-react";
 import type { ExtensionUIContext } from "@mewvis/extension-host/ui";
 import type {
   ExtensionLedgerSnapshot,
   ExtensionSummaryResult,
-  ExtensionSummaryScope,
 } from "@mewvis/extension-host/services";
 
 type Run = ExtensionLedgerSnapshot["runs"][number];
@@ -21,6 +31,12 @@ const roles: Record<string, string> = {
   assistant: "助手",
   system: "系统",
   tool: "工具",
+};
+const roleIcons: Record<string, typeof Activity> = {
+  user: UserRound,
+  assistant: Bot,
+  system: Settings2,
+  tool: Wrench,
 };
 const time = (value: number | null, full = false) =>
   value === null
@@ -43,10 +59,6 @@ const preview = (text = "", limit = 68) => {
 };
 const shortId = (id: string) =>
   id.length > 18 ? `${id.slice(0, 8)}…${id.slice(-6)}` : id;
-const runMessages = (ledger: ExtensionLedgerSnapshot, run: Run) => {
-  const ids = new Set(run.messageIds);
-  return ledger.messages.filter((message) => ids.has(message.id));
-};
 const errorText = (error: unknown) =>
   error instanceof Error ? error.message : String(error);
 
@@ -75,36 +87,32 @@ function Section({
 const Empty = ({ children }: { children: ReactNode }) => (
   <div className="empty">{children}</div>
 );
-function Messages({
-  title,
-  messages,
-  open = true,
-}: {
-  title: string;
-  messages: Message[];
-  open?: boolean;
-}) {
+function Messages({ messages }: { messages: Message[] }) {
   return (
-    <Section title={title} count={messages.length} open={open}>
+    <section className="messages" aria-label="消息记录">
       {messages.length ? (
-        messages.map((message) => (
-          <article className="card" key={message.id}>
-            <div className="meta">
-              <span className="badge">
-                {roles[message.role] ?? message.role}
-              </span>
-              <span>{time(message.timestamp, true)}</span>
-              <span className="identifier" title={message.id}>
-                {shortId(message.id)}
-              </span>
-            </div>
-            <div className="message-text">{message.text || "（空）"}</div>
-          </article>
-        ))
+        messages.map((message) => {
+          const Icon = roleIcons[message.role] ?? MessageSquare;
+          return (
+            <article className="message" key={message.id}>
+              <header className="message-meta">
+                <span className="message-role">
+                  <Icon aria-hidden="true" />
+                  {roles[message.role] ?? message.role}
+                </span>
+                <span>{time(message.timestamp, true)}</span>
+                <span className="identifier" title={message.id}>
+                  {shortId(message.id)}
+                </span>
+              </header>
+              <div className="message-text">{message.text || "（空）"}</div>
+            </article>
+          );
+        })
       ) : (
-        <Empty>没有记录{title}</Empty>
+        <Empty>本次运行没有记录消息。</Empty>
       )}
-    </Section>
+    </section>
   );
 }
 function Blocks({
@@ -115,10 +123,11 @@ function Blocks({
   entries: Array<{ id: string; text: string; timestamp?: number }>;
 }) {
   return (
-    <Section title={title} count={entries.length} open={entries.length > 0}>
+    <section className="records" aria-label={title}>
+      <h3 className="records-heading">{title}</h3>
       {entries.length ? (
         entries.map((entry, index) => (
-          <article key={entry.id} className="card">
+          <article key={entry.id} className="record">
             <div className="meta">
               <span className="badge">#{index + 1}</span>
               {entry.timestamp !== undefined && (
@@ -134,32 +143,38 @@ function Blocks({
       ) : (
         <Empty>当前链路没有记录{title}。</Empty>
       )}
-    </Section>
+    </section>
   );
 }
 function Summary({
   context,
-  scope,
-  existing,
+  runId,
+  onBusyChange,
+  disabled = false,
 }: {
   context: ExtensionUIContext;
-  scope: ExtensionSummaryScope;
-  existing?: string | null;
+  runId: string;
+  onBusyChange(busy: boolean): void;
+  disabled?: boolean;
 }) {
   const [result, setResult] = useState<ExtensionSummaryResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const abort = useRef<AbortController | null>(null);
+  useEffect(() => {
+    onBusyChange(busy);
+    return () => onBusyChange(false);
+  }, [busy, onBusyChange]);
   useEffect(() => () => abort.current?.abort(), []);
   const generate = async () => {
-    if (abort.current) return;
+    if (abort.current || disabled) return;
     const controller = new AbortController();
     abort.current = controller;
     setBusy(true);
     setError("");
     try {
       const value = await context.services.session.summarize(
-        { scope },
+        { scope: { kind: "run", runId } },
         { signal: controller.signal },
       );
       if (!controller.signal.aborted && !context.signal.aborted)
@@ -169,40 +184,48 @@ function Summary({
         setError(errorText(caught));
     } finally {
       if (abort.current === controller) abort.current = null;
-      if (!context.signal.aborted) setBusy(false);
+      if (!controller.signal.aborted && !context.signal.aborted) setBusy(false);
     }
   };
   return (
     <section className="summary-view">
       <p className="muted">
-        {scope.kind === "run" ? "本次运行" : "会话"}
-        的临时摘要仅用于查看，不写入账本，也不参与后续聊天上下文。
+        本次运行的摘要仅用于本次查看，关闭后不保留，也不会影响后续聊天。
       </p>
       {error && (
-        <p className="error" role="alert">
+        <p className="error-banner" role="alert">
           {error}
         </p>
       )}
       <div className="summary-text" aria-live="polite">
-        {result?.text || existing || (busy ? "正在生成摘要…" : "尚未生成摘要")}
+        {result?.text || (busy ? "正在生成摘要…" : "尚未生成摘要")}
       </div>
       <div className="summary-footer">
         <span className="muted">
           {result
             ? `生成于 ${time(result.generatedAt, true)}${result.truncated ? " · 基于截断后的记录" : ""} · 关闭后不保留`
-            : existing
-              ? "当前显示已有摘要"
-              : ""}
+            : ""}
         </span>
         <div className="actions">
           {busy && (
-            <button className="button" onClick={() => abort.current?.abort()}>
+            <button
+              className="button"
+              onClick={() => {
+                abort.current?.abort();
+                abort.current = null;
+                setBusy(false);
+              }}
+            >
               取消生成
             </button>
           )}
           <button
             className="button primary"
-            disabled={busy || !context.services.supports("session.summarize")}
+            disabled={
+              disabled ||
+              busy ||
+              !context.services.supports("session.summarize")
+            }
             title={
               context.services.supports("session.summarize")
                 ? undefined
@@ -218,102 +241,144 @@ function Summary({
     </section>
   );
 }
+type RunView = Run & { messages: Message[]; number: number };
+function Status({ run }: { run: Run }) {
+  return (
+    <span className={`status ${run.status ?? "unknown"}`}>
+      <span className={`dot ${run.status ?? "unknown"}`} aria-hidden="true" />
+      {run.status ? statuses[run.status] : "状态未记录"}
+    </span>
+  );
+}
 function Details({
   ledger,
   run,
   context,
+  onSummaryBusy,
+  loading,
 }: {
   ledger: ExtensionLedgerSnapshot;
-  run: Run;
+  run: RunView;
   context: ExtensionUIContext;
+  onSummaryBusy(busy: boolean): void;
+  loading: boolean;
 }) {
-  const messages = runMessages(ledger, run);
-  const assistants = messages.filter((message) => message.role === "assistant");
+  const [category, setCategory] = useState("messages");
+  const messages = run.messages;
   const thoughts = messages
     .filter((message) => message.thinking)
     .map((message) => ({ id: message.id, text: message.thinking! }));
   const tools = messages.flatMap((message) => [
     ...(message.tools
-      ? [{ id: `${message.id}:calls`, text: message.tools }]
+      ? [
+          {
+            id: `${message.id}:calls`,
+            text: message.tools,
+            timestamp: message.timestamp,
+          },
+        ]
       : []),
     ...(message.role === "tool"
-      ? [{ id: `${message.id}:result`, text: message.text }]
+      ? [
+          {
+            id: `${message.id}:result`,
+            text: message.text,
+            timestamp: message.timestamp,
+          },
+        ]
       : []),
   ]);
+  const instructions = ledger.instructions.filter((entry) =>
+    run.instructionIds.includes(entry.id),
+  );
+  const contexts = ledger.contexts.filter((entry) =>
+    run.contextIds.includes(entry.id),
+  );
+  const categories = [
+    { id: "messages", title: "消息", count: messages.length },
+    { id: "instructions", title: "指令", count: instructions.length },
+    { id: "contexts", title: "上下文", count: contexts.length },
+    { id: "tools", title: "工具", count: tools.length },
+    { id: "thoughts", title: "思考", count: thoughts.length },
+    { id: "summary", title: "运行摘要" },
+  ];
   return (
-    <div className="detail-scroll">
-      <div className="run-heading">
-        <span className={`dot ${run.status ?? "unknown"}`} />
-        <span className="badge">
-          {run.status ? statuses[run.status] : "状态未记录"}
-        </span>
-        <p>
-          {preview(messages.find((item) => item.role === "user")?.text, 96) ||
+    <section className="run-detail" aria-label={`第 ${run.number} 次运行详情`}>
+      <header className="detail-heading">
+        <div className="detail-eyebrow">
+          <span>第 {run.number} 次运行</span>
+          <Status run={run} />
+        </div>
+        <h2>
+          {messages.find((message) => message.role === "user")?.text ||
             "本次运行没有记录用户消息"}
-        </p>
-      </div>
-      <div className="metrics">
-        {[
-          ["开始时间", time(run.startedAt, true)],
-          ["结束时间", time(run.endedAt, true)],
-          ["耗时", duration(run) || "未记录"],
-          ["关联消息", messages.length],
-          ["助手回复", assistants.length],
-          ["思考", thoughts.length],
-          ["工具记录", tools.length],
-          ["状态", run.status ? statuses[run.status] : "未记录"],
-        ].map(([label, value]) => (
-          <div className="metric" key={label}>
-            <span>{label}</span>
-            <strong title={String(value)}>{value}</strong>
-          </div>
+        </h2>
+        <div className="detail-meta">
+          <span>
+            <Clock3 />
+            {time(run.startedAt, true)}
+          </span>
+          <span>
+            耗时{" "}
+            {duration(run) || (run.status === "running" ? "计时中" : "未记录")}
+          </span>
+          <span>
+            <MessageSquare />
+            {messages.length} 条消息
+          </span>
+        </div>
+      </header>
+      <nav className="categories" aria-label="运行记录分类">
+        {categories.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            aria-pressed={category === item.id}
+            onClick={() => setCategory(item.id)}
+          >
+            {item.title}
+            {item.count !== undefined && <span>{item.count}</span>}
+          </button>
         ))}
+      </nav>
+      <div className="detail-scroll" key={category}>
+        {category === "messages" && (
+          <>
+            <Messages messages={messages} />
+            <Section title="调试信息" open={false}>
+              <div className="meta">结束时间 · {time(run.endedAt, true)}</div>
+              <pre>
+                {JSON.stringify(
+                  ledger.runs.find((item) => item.id === run.id),
+                  null,
+                  2,
+                )}
+              </pre>
+            </Section>
+          </>
+        )}
+        {category === "instructions" && (
+          <Blocks title="运行指令（实际提示词）" entries={instructions} />
+        )}
+        {category === "contexts" && (
+          <Blocks title="请求上下文（包装后）" entries={contexts} />
+        )}
+        {category === "tools" && (
+          <Blocks title="工具调用与结果" entries={tools} />
+        )}
+        {category === "thoughts" && (
+          <Blocks title="思考内容" entries={thoughts} />
+        )}
+        {category === "summary" && (
+          <Summary
+            context={context}
+            runId={run.id}
+            onBusyChange={onSummaryBusy}
+            disabled={loading}
+          />
+        )}
       </div>
-      <Blocks
-        title="运行指令（实际提示词）"
-        entries={ledger.instructions.filter((entry) =>
-          run.instructionIds.includes(entry.id),
-        )}
-      />
-      <Blocks
-        title="请求上下文（包装后）"
-        entries={ledger.contexts.filter((entry) =>
-          run.contextIds.includes(entry.id),
-        )}
-      />
-      <Blocks title="思考内容" entries={thoughts} />
-      <Blocks title="工具调用" entries={tools} />
-      {messages.some((item) => item.role === "system") && (
-        <Messages
-          title="系统消息"
-          messages={messages.filter((item) => item.role === "system")}
-          open={false}
-        />
-      )}
-      <Messages
-        title="用户消息"
-        messages={messages.filter((item) => item.role === "user")}
-      />
-      <Messages title="助手回复" messages={assistants} />
-      {messages.some(
-        (item) => !["user", "assistant", "system", "tool"].includes(item.role),
-      ) && (
-        <Messages
-          title="其他消息"
-          messages={messages.filter(
-            (item) =>
-              !["user", "assistant", "system", "tool"].includes(item.role),
-          )}
-          open={false}
-        />
-      )}
-      <Section title="本次运行的临时摘要" open={false}>
-        <Summary context={context} scope={{ kind: "run", runId: run.id }} />
-      </Section>
-      <Section title="调试信息" open={false}>
-        <pre>{JSON.stringify(run, null, 2)}</pre>
-      </Section>
-    </div>
+    </section>
   );
 }
 export function Ledger({
@@ -326,7 +391,8 @@ export function Ledger({
   const [ledger, setLedger] = useState<ExtensionLedgerSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [opening, setOpening] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [summarizing, setSummarizing] = useState(false);
   const pending = useRef<AbortController | null>(null);
   const load = useCallback(async () => {
     if (pending.current) return;
@@ -345,149 +411,180 @@ export function Ledger({
         setError(errorText(caught));
     } finally {
       if (pending.current === controller) pending.current = null;
-      if (!context.signal.aborted) setLoading(false);
+      if (!controller.signal.aborted && !context.signal.aborted)
+        setLoading(false);
     }
   }, [context]);
   useEffect(() => {
     void load();
     return () => pending.current?.abort();
   }, [load]);
-  const open = async (id: string, input = {}) => {
-    if (opening || loading) return;
-    setOpening(true);
-    setError("");
-    try {
-      await context.ui.dialog.open({ id, input });
-    } catch (caught) {
-      if (!context.signal.aborted) setError(errorText(caught));
-    } finally {
-      if (!context.signal.aborted) setOpening(false);
-    }
-  };
-  const runs = [...(ledger?.runs ?? [])].sort(
-    (a, b) => (b.startedAt ?? 0) - (a.startedAt ?? 0),
-  );
-  const dialog = context.viewId !== "ledger";
-  const selected = ledger?.runs.find((run) => run.id === context.input.runId);
+  const runs = useMemo(() => {
+    if (!ledger) return [];
+    const messages = new Map(
+      ledger.messages.map((message) => [message.id, message]),
+    );
+    return [...ledger.runs]
+      .sort((a, b) => (b.startedAt ?? 0) - (a.startedAt ?? 0))
+      .map((run, index): RunView => ({
+        ...run,
+        number: ledger.runs.length - index,
+        messages: run.messageIds.flatMap((id) => {
+          const message = messages.get(id);
+          return message ? [message] : [];
+        }),
+      }));
+  }, [ledger]);
+  const selected = runs.find((run) => run.id === selectedId) ?? runs[0];
   return (
     <>
       <style>{styles}</style>
-      <main className={dialog ? "dialog-body" : "ledger"}>
-        {!dialog && (
-          <header className="header">
-            <h2>
+      <main className="ledger" aria-busy={loading}>
+        <header className="toolbar">
+          <div className="toolbar-copy">
+            <span className="ledger-symbol">
               <Activity />
-              <span>运行链路</span>
-              <span className="badge">{runs.length}</span>
-            </h2>
-            <div className="actions">
-              <button
-                className="icon-button"
-                title="查看摘要"
-                aria-label="查看摘要"
-                disabled={
-                  !ledger || loading || opening || !context.ui.dialog.available
-                }
-                onClick={() => void open("summary")}
-              >
-                <Eye />
-              </button>
-              <button
-                className="icon-button"
-                title="刷新链路"
-                aria-label="刷新链路"
-                disabled={loading || opening}
-                onClick={() => void load()}
-              >
-                <RefreshCw className={loading ? "spin" : ""} />
-              </button>
+            </span>
+            <div>
+              <strong>当前会话</strong>
+              <p>
+                {ledger
+                  ? `${runs.length} 次运行 · ${ledger.messages.length} 条消息`
+                  : "查看会话中的运行记录"}
+              </p>
             </div>
-          </header>
-        )}
+          </div>
+          <button
+            type="button"
+            className="refresh-button"
+            aria-label="刷新链路"
+            title={loading ? "正在刷新…" : "刷新运行记录"}
+            disabled={loading || summarizing}
+            onClick={() => void load()}
+          >
+            <RefreshCw className={loading ? "spin" : ""} />
+          </button>
+        </header>
         {error && (
-          <p className="error" role="alert">
-            {error}
-          </p>
-        )}
-        {ledger?.truncated && (
-          <p className="notice">记录较多，当前展示的数据已截断。</p>
-        )}
-        {loading && !ledger ? (
-          <Empty>正在读取链路…</Empty>
-        ) : dialog ? (
-          ledger &&
-          (context.viewId === "summary" ? (
-            <Summary
-              context={context}
-              scope={{ kind: "session" }}
-              existing={ledger.summary}
-            />
-          ) : selected ? (
-            <Details ledger={ledger} run={selected} context={context} />
-          ) : (
-            <Empty>此运行记录已不存在，请关闭后刷新链路。</Empty>
-          ))
-        ) : (
-          <div className="run-list">
-            {runs.length ? (
-              runs.map((run, index) => {
-                const messages = runMessages(ledger!, run);
-                const title =
-                  preview(
-                    messages.find((item) => item.role === "user")?.text,
-                    54,
-                  ) || `第 ${runs.length - index} 次运行`;
-                return (
-                  <button
-                    className="run-row"
-                    key={run.id}
-                    disabled={
-                      loading || opening || !context.ui.dialog.available
-                    }
-                    title={
-                      context.ui.dialog.available
-                        ? "查看链路详情"
-                        : "当前界面未提供弹窗插槽"
-                    }
-                    onClick={() => void open("run-detail", { runId: run.id })}
-                  >
-                    <span className={`dot ${run.status ?? "unknown"}`} />
-                    <span className="run-copy">
-                      <strong>{title}</strong>
-                      <span className="reply">
-                        {preview(
-                          messages.find((item) => item.role === "assistant")
-                            ?.text,
-                        ) ||
-                          (run.status === "running"
-                            ? "回复生成中"
-                            : "未记录回复内容")}
-                      </span>
-                      <span className="meta">
-                        <span>
-                          {run.status ? statuses[run.status] : "状态未记录"}
-                        </span>
-                        <span>{time(run.startedAt)}</span>
-                        {duration(run) && <span>{duration(run)}</span>}
-                      </span>
-                    </span>
-                    <ChevronRight />
-                  </button>
-                );
-              })
-            ) : (
-              <Empty>
-                <Activity />
-                暂无运行链路
-              </Empty>
-            )}
+          <div className="error-banner" role="alert">
+            <span>{error}</span>
+            <button
+              className="button"
+              disabled={loading || summarizing}
+              onClick={() => void load()}
+            >
+              重新加载
+            </button>
           </div>
         )}
-        {dialog && !loading && !ledger && (
-          <button className="button retry" onClick={() => void load()}>
-            重新加载
-          </button>
+        {ledger?.truncated && (
+          <p className="notice">记录较多，当前仅展示部分运行与消息。</p>
         )}
+        {loading && !ledger && (
+          <p className="loading-status" role="status">
+            正在读取运行链路…
+          </p>
+        )}
+        {ledger && runs.length > 0 ? (
+          <div className="ledger-layout">
+            <aside className="run-sidebar" aria-label="运行记录">
+              <div className="list-heading">
+                <h2>运行记录</h2>
+                <span className="badge">{runs.length}</span>
+                <span className="muted">最新在前</span>
+              </div>
+              <div className="run-list">
+                {runs.map((run) => {
+                  const title =
+                    preview(
+                      run.messages.find((message) => message.role === "user")
+                        ?.text,
+                      70,
+                    ) || `第 ${run.number} 次运行`;
+                  return (
+                    <button
+                      type="button"
+                      className="run-row"
+                      key={run.id}
+                      aria-pressed={selected?.id === run.id}
+                      onClick={() => setSelectedId(run.id)}
+                    >
+                      <div className="run-row-top">
+                        <span className="run-number">
+                          #{String(run.number).padStart(2, "0")}
+                        </span>
+                        <Status run={run} />
+                      </div>
+                      <strong
+                        title={
+                          run.messages.find(
+                            (message) => message.role === "user",
+                          )?.text || title
+                        }
+                      >
+                        {title}
+                      </strong>
+                      <span className="reply">
+                        {preview(
+                          run.messages.find(
+                            (message) =>
+                              message.role === "assistant" && message.text,
+                          )?.text,
+                        ) ||
+                          (run.status === "running"
+                            ? "回复生成中…"
+                            : "未记录回复内容")}
+                      </span>
+                      <span className="run-row-meta">
+                        <span>{time(run.startedAt)}</span>
+                        {duration(run) && <span>{duration(run)}</span>}
+                        <ChevronRight />
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </aside>
+            {runs.length > 0 && (
+              <div className="mobile-picker">
+                <label htmlFor="ledger-run">选择运行</label>
+                <select
+                  id="ledger-run"
+                  value={selected?.id}
+                  onChange={(event) => setSelectedId(event.target.value)}
+                >
+                  {runs.map((run) => (
+                    <option key={run.id} value={run.id}>
+                      第 {run.number} 次 ·{" "}
+                      {run.status ? statuses[run.status] : "状态未记录"} ·{" "}
+                      {preview(
+                        run.messages.find((message) => message.role === "user")
+                          ?.text,
+                        32,
+                      ) || "无用户消息"}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            {selected ? (
+              <Details
+                key={selected.id}
+                ledger={ledger}
+                run={selected}
+                context={context}
+                onSummaryBusy={setSummarizing}
+                loading={loading}
+              />
+            ) : null}
+          </div>
+        ) : !loading && ledger ? (
+          <div className="ledger-empty">
+            <Activity />
+            <h2>暂无运行链路</h2>
+            <p>发送一条消息后，可以在这里查看运行过程和详细记录。</p>
+          </div>
+        ) : null}
       </main>
     </>
   );

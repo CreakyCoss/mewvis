@@ -76,7 +76,7 @@ if (ctx.host.supports("session.summarize")) {
 
 错误具有协议 `code`：`HOST_UNSUPPORTED`、`HOST_DENIED`、`HOST_INVALID_REQUEST`、`HOST_UNAVAILABLE`、`HOST_CANCELLED`、`HOST_FAILED`。适配器内部异常不会原样透传到插件。服务完成后仍检查取消及租约状态，避免已撤销视图收到结果。
 
-内置 `apps/extensions/session-ledger` 是原生插件，只依赖宿主接口，展示运行链路与临时摘要。账本的持久化和会话生命周期仍由宿主管理；面板不提供删除、压缩或回写操作。
+内置 `apps/extensions/session-ledger` 是原生插件，只依赖宿主接口，在会话顶部入口打开的弹窗内展示运行链路与临时摘要。账本的持久化和会话生命周期仍由宿主管理；弹窗不提供删除、压缩或回写操作。
 
 ## 验证
 

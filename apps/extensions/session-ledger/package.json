@@ -40,43 +40,23 @@
         "contributions": [
           {
             "id": "ledger",
-            "slot": "session.sidebar",
-            "type": "sidebar",
-            "title": "链路",
-            "icon": "activity",
+            "slot": "session.dialog",
+            "type": "dialog",
+            "title": "运行链路",
+            "size": "lg",
             "view": {
               "id": "ledger"
             }
           },
           {
-            "id": "run-detail",
-            "slot": "session.dialog",
-            "type": "dialog",
-            "title": "链路详情",
-            "size": "lg",
-            "view": {
-              "id": "run-detail"
-            }
-          },
-          {
-            "id": "summary",
-            "slot": "session.dialog",
-            "type": "dialog",
-            "title": "会话摘要",
-            "size": "md",
-            "view": {
-              "id": "summary"
-            }
-          },
-          {
-            "id": "open-summary",
+            "id": "open-ledger",
             "slot": "session.header-actions",
             "type": "action",
-            "title": "会话摘要",
+            "title": "运行链路",
             "icon": "activity",
             "trigger": {
               "kind": "dialog",
-              "id": "summary"
+              "id": "ledger"
             }
           }
         ]

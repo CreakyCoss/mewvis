@@ -52,7 +52,7 @@ Client 装配 PluginUIProvider（注入目录和传输）
 
 当前支持设置、侧栏、状态、操作与弹窗插槽，完整清单见[插件包开发与管理](../extensions/development.md#ui-模块与会话插槽)。`session.sidebar` 提供标题、图标和视图引用；`session.composer-status` 展示运行活动；`session.status` 为静态结构化文本。页面可以不挂载插槽，也可以在 render 中返回 null。Slot 不接收页面提供的 contributions，不管理整个页面布局，不自动选择具体面板。发布贡献不等于执行视图；只有实际调用并渲染 renderView，才加载插件。
 
-聊天页面使用普通 `ChatPanels`/`ChatPanel`，一个面板一次声明图标、标题和内容。原生文件、版本面板之后放置一个 SidebarSlot。选择、展开和 portal 由页面组件负责，Slot 将插件贡献交给 render。原生账本面板已由 `apps/extensions/session-ledger` 插件替代。
+聊天页面使用普通 `ChatPanels`/`ChatPanel`，一个面板一次声明图标、标题和内容。原生文件、版本面板之后放置一个 SidebarSlot。选择、展开和 portal 由页面组件负责，Slot 将插件贡献交给 render。运行链路由 `apps/extensions/session-ledger` 插件提供，通过会话顶部操作打开弹窗，运行列表、详情和临时摘要在弹窗内切换，不占用侧边栏。
 
 工作区、会话或视图引用改变时旧实例卸载；关闭、切换、停用或配置变化撤销租约并取消请求。同一贡献在不同布局中具有独立视图实例。页面未使用的插槽不执行插件代码。
 
