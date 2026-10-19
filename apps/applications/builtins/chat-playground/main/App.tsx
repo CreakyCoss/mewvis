@@ -36,6 +36,8 @@ import {
 } from "./components/Example";
 import { DataExamples, dataCode } from "./components/DataExamples";
 import { FileExamples, filesCode } from "./components/FileExamples";
+import { LocalMediaExamples } from "./components/LocalMediaExamples";
+import { localMediaCode } from "./local-media";
 import { ViewExample, viewCode } from "./components/ViewExample";
 import { HostExamples, hostCode } from "./components/HostExamples";
 import { Permissions } from "./components/Permissions";
@@ -49,6 +51,7 @@ type Page =
   | "permissions"
   | "data"
   | "files"
+  | "media"
   | "views"
   | "host"
   | "docs";
@@ -58,6 +61,7 @@ const navigation: { id: Page; label: string; icon: LucideIcon }[] = [
   { id: "permissions", label: "权限与审批", icon: ShieldCheck },
   { id: "data", label: "数据与工作区", icon: Database },
   { id: "files", label: "文件与预览", icon: FileImage },
+  { id: "media", label: "本地媒体", icon: Video },
   { id: "views", label: "内嵌视图", icon: PanelTop },
   { id: "host", label: "宿主集成", icon: Link2 },
 ];
@@ -305,6 +309,13 @@ export default function App() {
                     onClick={() => navigate("files")}
                   />
                   <ExampleRow
+                    icon={Video}
+                    title="本地探测与合成媒体"
+                    description="查看媒体信息，用图片和配音合成视频，观察进度和成片"
+                    tag="Local Media"
+                    onClick={() => navigate("media")}
+                  />
+                  <ExampleRow
                     icon={PanelTop}
                     title="嵌入一个独立视图"
                     description="挂载界面、发送消息、释放实例"
@@ -363,6 +374,7 @@ export default function App() {
           {page === "permissions" && <Permissions openChat={openChat} />}
           {page === "data" && <DataExamples />}
           {page === "files" && <FileExamples />}
+          {page === "media" && <LocalMediaExamples />}
           {page === "views" && <ViewExample />}
           {page === "host" && <HostExamples onBack={returnOverview} />}
           {page === "docs" && (
@@ -401,6 +413,10 @@ export default function App() {
                   />
                   <CodeExample title="保存和读取业务数据" code={dataCode} />
                   <CodeExample title="保存文件与预览内容" code={filesCode} />
+                  <CodeExample
+                    title="本地探测与合成媒体"
+                    code={localMediaCode}
+                  />
                   <CodeExample title="挂载内嵌视图" code={viewCode} />
                   <CodeExample title="复制与打开外部链接" code={hostCode} />
                 </div>
