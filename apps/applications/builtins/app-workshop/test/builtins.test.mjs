@@ -75,7 +75,7 @@ test("an empty catalog initializes without projects or a journal", async (t) => 
   assert.equal(f.tools.get("workshop_create_from_builtin").risk, "medium");
 });
 
-test("the shipped cat mini-app initializes as a runnable saved version without duplicate installation", async (t) => {
+test("the shipped mini-apps initialize as runnable saved versions without duplicate installation", async (t) => {
   const f = await fixture(t);
   const catalog = (await f.run("workshop_list_builtins")).builtins;
   assert.ok(
@@ -93,6 +93,14 @@ test("the shipped cat mini-app initializes as a runnable saved version without d
   });
   assert.match(artifact.script, /cat-packing-v1/);
   assert.match(artifact.script, /data:image\/webp;base64/);
+  const gravity = first.find((item) => item.name === "引力游乐场");
+  assert.ok(gravity?.savedVersionId);
+  const gravityBuild = await f.run("workshop_read_build", {
+    workspaceId: gravity.id,
+    mode: "saved",
+  });
+  assert.match(gravityBuild.artifact.script, /gravity-playground-v1/);
+  assert.match(gravityBuild.artifact.style, /\.gravity-app/);
   await f.run("workshop_initialize_builtins");
   assert.deepEqual(
     (await f.run("workshop_list_projects")).projects.map((item) => item.id),

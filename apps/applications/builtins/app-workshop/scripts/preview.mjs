@@ -1,4 +1,3 @@
-import { PRODUCT_KEYS } from "@mewvis/product-config";
 import {
   PRODUCT_KEYS,
   PRODUCT_NAMESPACE,

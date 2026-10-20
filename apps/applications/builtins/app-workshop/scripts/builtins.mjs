@@ -100,6 +100,6 @@ export async function prepareBuiltins(root = applicationRoot) {
   const definitions = await loadBuiltins(join(root, "mini-apps"));
   await writeFile(
     join(root, "main/host/generated/builtins.ts"),
-    `// Generated from mini-apps/registry.json.\nimport type { BuiltinDefinition } from '../../contracts.js';\nexport default ${JSON.stringify(definitions)} satisfies BuiltinDefinition[];\n`,
+    `// Generated from mini-apps/registry.json.\nimport type { BuiltinDefinition } from '../../contracts.js';\nconst builtins: BuiltinDefinition[] = ${JSON.stringify(definitions)};\nexport default builtins;\n`,
   );
 }
