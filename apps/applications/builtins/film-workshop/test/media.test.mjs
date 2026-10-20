@@ -1,57 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { File } from "node:buffer";
-import { fixture as f, memoryStorage } from "./fixture.mjs";
-
-function services(root = "/projects") {
-  const contents = new Map(),
-    chunks = [],
-    aborted = [];
-  const workspace = { id: "workspace-film", name: "影视", path: root };
-  let cancel = false;
-  return {
-    contents,
-    chunks,
-    aborted,
-    workspace,
-    cancel: () => {
-      cancel = true;
-    },
-    workspaces: {
-      async create() {
-        return cancel ? null : workspace;
-      },
-      async get() {
-        return workspace;
-      },
-    },
-    files: {
-      async mkdir() {},
-      async writeText(path, text) {
-        contents.set(path, text);
-      },
-      async readText(path) {
-        if (!contents.has(path)) throw new Error("项目文件不存在");
-        return contents.get(path);
-      },
-      async beginWrite(path) {
-        return path;
-      },
-      async writeChunk(id, offset, bytes) {
-        chunks.push({ id, offset, bytes: bytes.slice() });
-      },
-      async commitWrite(id) {
-        contents.set(
-          id,
-          Buffer.concat(chunks.filter((c) => c.id === id).map((c) => c.bytes)),
-        );
-      },
-      async abortWrite(id) {
-        aborted.push(id);
-      },
-    },
-  };
-}
+import {
+  fixture as f,
+  memoryStorage,
+  fileServices as services,
+} from "./fixture.mjs";
 async function projectWithWorkspace() {
   const host = services(),
     storage = memoryStorage(),
@@ -401,11 +355,16 @@ test("generation requests use the selected frame and exact dialogue with a pinne
   assert.equal(speech.firstFrame, undefined);
   assert.match(audio.text, /台词必须原样朗读/);
   assert.match(audio.text, /不得直接当作 voice_id/);
-  project.generations = [{ ...record, purpose: undefined }];
-  assert.equal(
-    f.validateProject(project).generations[0].purpose,
-    "image-generation",
-  );
+});
+
+test("generation records require an explicit supported purpose", async () => {
+  const { project } = await projectWithWorkspace();
+  for (const purpose of [undefined, null, "image", ""]) {
+    project.generations = [{ ...job(project), purpose }];
+    const before = structuredClone(project);
+    assert.throws(() => f.validateProject(project), /生成用途/);
+    assert.deepEqual(project, before);
+  }
 });
 
 test("writeback pins the submitted shot, deduplicates files and preserves a manual image choice", async () => {
@@ -476,7 +435,10 @@ test("successive image, video and speech generations append all versions without
     );
     const shot = current.episodes[0].shots[0];
     assert.equal(shot[field], first.id);
-    assert.deepEqual(shot.mediaIds, [first.id, ...outputs.map((item) => item.id)]);
+    assert.deepEqual(shot.mediaIds, [
+      first.id,
+      ...outputs.map((item) => item.id),
+    ]);
     assert.deepEqual(current.media, [first, ...outputs]);
     assert.deepEqual(
       current.generations[1].outputIds,

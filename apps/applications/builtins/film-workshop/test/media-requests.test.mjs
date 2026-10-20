@@ -293,6 +293,15 @@ test("ask_user keeps the registered task alive and the answer continues the same
     },
   ];
   assert.equal(f.generationResult(job, cancelled).status, "stopped");
+  cancelled.messages[1].blocks[1].events[0].content = JSON.stringify({
+    cancelled: true,
+    answer: null,
+  });
+  assert.equal(
+    f.generationResult(job, cancelled).status,
+    "failed",
+    "cancellation must use the host's structured details field",
+  );
 });
 
 test("retry requests are explicit, ordered and idempotent, with a fresh output directory", async () => {

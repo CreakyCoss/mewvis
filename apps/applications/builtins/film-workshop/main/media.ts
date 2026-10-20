@@ -30,7 +30,7 @@ export const GENERATION_TYPES = {
   },
 } as const;
 export const generationType = (job: Pick<FilmGeneration, "purpose">) =>
-  GENERATION_TYPES[job.purpose ?? "image-generation"];
+  GENERATION_TYPES[job.purpose];
 export function generationPrompt(
   shot: FilmShot,
   purpose: FilmGeneration["purpose"],
@@ -115,7 +115,10 @@ export function generationMessage(
   };
 }
 
-export function mediaPath(project: FilmProject, media: Pick<FilmMedia, "path">) {
+export function mediaPath(
+  project: FilmProject,
+  media: Pick<FilmMedia, "path">,
+) {
   if (!project.workspace) throw new Error("请先选择工作目录");
   return `${project.workspace.directory}/${media.path}`;
 }
@@ -230,7 +233,7 @@ export function generationResult(
   const results = blocks.flatMap((block) =>
     block.type === "tool" &&
     block.name === "generate_media" &&
-    block.media?.purpose === (job.purpose ?? "image-generation") &&
+    block.media?.purpose === job.purpose &&
     (!job.contextId ||
       block.media.outputs.some((output) => belongs(output.filePath)) ||
       block.events?.some(
@@ -284,9 +287,7 @@ export function generationResult(
         if (event.kind !== "output" || event.isError) return false;
         try {
           const value = JSON.parse(event.content);
-          return (
-            value?.details?.cancelled === true || value?.cancelled === true
-          );
+          return value?.details?.cancelled === true;
         } catch {
           return false;
         }

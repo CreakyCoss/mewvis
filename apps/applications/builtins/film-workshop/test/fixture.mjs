@@ -41,3 +41,53 @@ export function memoryStorage() {
     },
   };
 }
+
+export function fileServices(root = "/projects") {
+  const contents = new Map(),
+    chunks = [],
+    aborted = [];
+  const workspace = { id: "workspace-film", name: "影视", path: root };
+  let cancel = false;
+  return {
+    contents,
+    chunks,
+    aborted,
+    workspace,
+    cancel: () => {
+      cancel = true;
+    },
+    workspaces: {
+      async create() {
+        return cancel ? null : workspace;
+      },
+      async get() {
+        return workspace;
+      },
+    },
+    files: {
+      async mkdir() {},
+      async writeText(path, text) {
+        contents.set(path, text);
+      },
+      async readText(path) {
+        if (!contents.has(path)) throw new Error("项目文件不存在");
+        return contents.get(path);
+      },
+      async beginWrite(path) {
+        return path;
+      },
+      async writeChunk(id, offset, bytes) {
+        chunks.push({ id, offset, bytes: bytes.slice() });
+      },
+      async commitWrite(id) {
+        contents.set(
+          id,
+          Buffer.concat(chunks.filter((c) => c.id === id).map((c) => c.bytes)),
+        );
+      },
+      async abortWrite(id) {
+        aborted.push(id);
+      },
+    },
+  };
+}

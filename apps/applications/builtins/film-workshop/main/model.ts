@@ -404,9 +404,8 @@ export function validateProject(value: unknown): FilmProject {
           const g = object(item, "生成记录");
           return {
             id: id(g.id),
-            // Existing project files contain image jobs without an explicit purpose.
             purpose: choice(
-              g.purpose === undefined ? "image-generation" : g.purpose,
+              g.purpose,
               ["image-generation", "video-generation", "speech"],
               "生成用途",
             ),

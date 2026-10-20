@@ -178,7 +178,7 @@ test("restoring a conversation still rejects a different workspace", async (t) =
   assert.equal(f.records.size, 1);
 });
 
-test("upgraded tool profiles preserve the selected model while retaining the old conversation", async (t) => {
+test("unsupported profile versions are rejected without upgrading or replacing the conversation", async (t) => {
   const f = await fixture(t);
   const old = await f.api.createSession(f.key, "workspace");
   assert.equal(
@@ -191,18 +191,59 @@ test("upgraded tool profiles preserve the selected model while retaining the old
     ).ok,
     true,
   );
-  f.values.set(f.key, {
-    workspaceId: "workspace",
-    chatId: old.identity.id,
-    profileVersion: 4,
-  });
-  const upgraded = await f.api.connect(f.key, "workspace");
-  assert.notEqual(upgraded.identity.id, old.identity.id);
-  assert.equal(upgraded.getSnapshot().config.selectedModelId, "my-media-model");
+  for (const profileVersion of [undefined, 4, 6]) {
+    const index = {
+      workspaceId: "workspace",
+      chatId: old.identity.id,
+      ...(profileVersion === undefined ? {} : { profileVersion }),
+    };
+    f.values.set(f.key, index);
+    f.values.set(f.api.assistantProfileKey(old.identity.id), profileVersion);
+    await assert.rejects(
+      f.api.connect(f.key, "workspace"),
+      /不支持的助手配置版本/,
+    );
+    await assert.rejects(
+      f.api.sessionProfileVersion(old.identity.id),
+      /不支持的助手配置版本/,
+    );
+    assert.deepEqual(f.values.get(f.key), index);
+    assert.equal(f.records.size, 1);
+    assert.equal(old.getSnapshot().config.selectedModelId, "my-media-model");
+  }
+  const created = await f.api.createSession(f.key, "workspace");
+  assert.notEqual(created.identity.id, old.identity.id);
   assert.equal(f.records.size, 2);
-  assert.ok(
-    f.records
-      .get(upgraded.identity.id)
-      .profile.allowedToolNames.includes("ask_user"),
+  assert.equal(f.values.get(f.key).profileVersion, 5);
+});
+
+test("assistant sessions require the project workspace even with a saved reference", async (t) => {
+  const f = await fixture(t);
+  assert.throws(
+    () => f.api.assistantKey({ id: "project" }, "episode"),
+    /项目工作目录/,
   );
+  await assert.rejects(f.api.createSession(f.key, undefined), /项目工作目录/);
+  assert.equal(f.records.size, 0);
+  const created = await f.api.createSession(f.key, "workspace");
+  const index = structuredClone(f.values.get(f.key));
+  await assert.rejects(f.api.connect(f.key, undefined), /项目工作目录/);
+  assert.deepEqual(f.values.get(f.key), index);
+  assert.equal(f.records.size, 1);
+  assert.equal(
+    (await f.api.connect(f.key, "workspace")).identity.id,
+    created.identity.id,
+  );
+});
+
+test("project sessions only use the workspace-bound assistant index", async (t) => {
+  const f = await fixture(t);
+  const oldKey = "film:assistant:project:episode";
+  const oldIndex = { workspaceId: "default", chatId: "old-chat" };
+  f.values.set(oldKey, oldIndex);
+  assert.equal(f.key, "film:assistant:v2:project:episode:workspace");
+  const created = await f.api.projectSession(f.project, "episode");
+  assert.notEqual(created.identity.id, oldIndex.chatId);
+  assert.deepEqual(f.values.get(oldKey), oldIndex);
+  assert.equal(f.values.get(f.key).workspaceId, "workspace");
 });

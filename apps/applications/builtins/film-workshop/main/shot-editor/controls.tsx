@@ -25,7 +25,7 @@ export function GenerationControls(
       (job) =>
         job.episodeId === props.episode.id &&
         job.shotId === shot.id &&
-        (job.purpose ?? "image-generation") === purpose,
+        job.purpose === purpose,
     )
     .at(-1);
   const running = !!job && ["preparing", "running"].includes(job.status);

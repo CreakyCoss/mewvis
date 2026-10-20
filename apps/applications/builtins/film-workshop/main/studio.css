@@ -1441,16 +1441,6 @@
 }
 
 /* Workspace-backed files and generated storyboard versions. */
-.film-workspace-notice {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 18px;
-  border-bottom: 1px solid var(--border);
-  background: var(--muted);
-  font-size: 12px;
-}
 .film-directory-field {
   display: flex;
   gap: 8px;
@@ -1687,10 +1677,6 @@
   margin-left: auto;
 }
 @media (max-width: 760px) {
-  .film-workspace-notice {
-    padding: 8px 12px;
-    font-size: 11px;
-  }
   .film-directory-field {
     flex-wrap: wrap;
   }

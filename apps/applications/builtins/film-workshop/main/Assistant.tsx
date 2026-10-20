@@ -43,9 +43,8 @@ import type { useEditor } from "./useEditor";
 
 import {
   assistantKey,
-  assistantProfileKey,
+  sessionProfileVersion,
   connections,
-  reference,
   createSession,
   connect,
 } from "./assistant-session";
@@ -178,9 +177,7 @@ export function Assistant({
     setHistoryLoading(true);
     setHistoryError("");
     try {
-      const workspaceId =
-        latest.current.project.workspace?.id ??
-        (await reference(key))?.workspaceId;
+      const workspaceId = latest.current.project.workspace?.id;
       if (!workspaceId) throw new Error("当前会话尚未连接");
       const chats = await getApplicationChatClient().listSessions({
         workspaceId,
@@ -214,8 +211,7 @@ export function Assistant({
     setHistoryLoading(false);
     const pending = (async () => {
       const value = latest.current;
-      const workspaceId =
-        value.project.workspace?.id ?? (await reference(key))?.workspaceId;
+      const workspaceId = value.project.workspace?.id;
       const context = assistantContext(
         value.project,
         value.episode,
@@ -224,6 +220,7 @@ export function Assistant({
       );
       if (!chatId) return createSession(key, workspaceId, context);
       if (!workspaceId) throw new Error("当前会话尚未连接");
+      const profileVersion = await sessionProfileVersion(chatId);
       const opened = await getApplicationChatClient().openSession({
         workspaceId,
         chatId,
@@ -235,10 +232,7 @@ export function Assistant({
       await getApplicationDataClient().storage.setItem(key, {
         workspaceId,
         chatId,
-        profileVersion:
-          (await getApplicationDataClient().storage.getItem<number>(
-            assistantProfileKey(chatId),
-          )) ?? 0,
+        profileVersion,
       });
       return opened;
     })();

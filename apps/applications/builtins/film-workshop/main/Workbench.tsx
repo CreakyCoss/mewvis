@@ -74,7 +74,6 @@ export function Workbench({
     { project, edit } = editor;
   const generation = useGeneration(editor);
   const delivery = useDelivery(editor);
-  const [attaching, setAttaching] = useState(false);
   const [episodeId, setEpisodeId] = useState(initialView.episodeId);
   const [step, setStep] = useState<FlowStep>(initialView.step),
     [shotId, setShotId] = useState(initialView.shotId);
@@ -98,23 +97,6 @@ export function Workbench({
   const [episodeTitle, setEpisodeTitle] = useState(""),
     [leaving, setLeaving] = useState(false),
     [viewError, setViewError] = useState("");
-  const chooseWorkspace = async () => {
-    if (attaching) return;
-    setAttaching(true);
-    setViewError("");
-    try {
-      await editor.flush();
-      const attached = await repository.attach(editor.current.current);
-      if (attached) {
-        edit(() => attached);
-        await editor.flush();
-      }
-    } catch (reason) {
-      setViewError(reason instanceof Error ? reason.message : String(reason));
-    } finally {
-      setAttaching(false);
-    }
-  };
   const episode =
     project.episodes.find((e) => e.id === episodeId) ?? project.episodes[0];
   useEffect(() => setExpandedEpisodeId(episode.id), [episode.id]);
@@ -345,14 +327,6 @@ export function Workbench({
         <div className="film-save-error" role="alert">
           {editor.error || viewError}{" "}
           {editor.error && "更改仍在当前页面，请修正后重新保存。"}
-        </div>
-      )}
-      {!project.workspace && (
-        <div className="film-workspace-notice">
-          <span>选择工作目录，开始导入素材和生成媒体。</span>
-          <button disabled={attaching} onClick={() => void chooseWorkspace()}>
-            {attaching ? "准备中…" : "选择工作目录"}
-          </button>
         </div>
       )}
       <div className="film-workbench-body" ref={bodyRef}>

@@ -26,8 +26,12 @@ export function createFileHost(sampleImage, samples = {}) {
     };
   };
   return {
-    bytes(path) { return files.get(path); },
-    put(path, bytes) { files.set(path, bytes); },
+    bytes(path) {
+      return files.get(path);
+    },
+    put(path, bytes) {
+      files.set(path, bytes);
+    },
     resource(id) {
       const path = previews.get(id);
       return path
@@ -39,7 +43,7 @@ export function createFileHost(sampleImage, samples = {}) {
     },
     generate(text) {
       const input = JSON.parse(text.slice(text.indexOf("{\n")));
-      const purpose = input.purpose ?? "image-generation";
+      const purpose = input.purpose;
       const kind = {
         "image-generation": "image",
         "video-generation": "video",

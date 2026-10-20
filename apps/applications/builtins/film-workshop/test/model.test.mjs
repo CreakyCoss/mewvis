@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createRequire } from "node:module";
 import { pathToFileURL } from "node:url";
-import { fixture as f, memoryStorage } from "./fixture.mjs";
+import { fixture as f, memoryStorage, fileServices } from "./fixture.mjs";
 
 // Use the actual host compiler: SDK defineTool and the preview fixture do not
 // validate the host's supported JSON Schema subset at registration time.
@@ -66,21 +66,34 @@ test("import validation rejects incompatible formats, duplicate identities, inva
   mutate((p) => (p.assets = {}), /素材/);
 });
 
-test("large projects require a file-backed workspace; validated records do not alias imported objects", async () => {
+test("validated records do not alias imported objects and project size stays bounded", () => {
   const project = f.exampleProject();
   const validated = f.validateProject(project);
   validated.episodes[0].shots[0].characterIds.push("changed");
   assert.deepEqual(project.episodes[0].shots[0].characterIds, []);
   project.episodes[0].script = "中".repeat(78000);
   f.validateProject(project);
-  await assert.rejects(
-    f.createRepository(memoryStorage()).save(project),
-    /工作目录/,
-  );
   assert.throws(
     () => f.checkProjectSize({ script: "中".repeat(6 * 1024 * 1024) }),
     /16 MiB/,
   );
+});
+
+test("storage-only projects are rejected without converting or overwriting their data", async () => {
+  const storage = memoryStorage(),
+    host = fileServices(),
+    repository = f.createRepository(storage, host);
+  const project = f.exampleProject();
+  for (const script of [project.episodes[0].script, "中".repeat(78000)]) {
+    project.episodes[0].script = script;
+    await assert.rejects(repository.save(project), /工作目录/);
+    assert.equal(storage.values.size, 0);
+    assert.equal(host.contents.size, 0);
+  }
+  await storage.setItem(f.projectKey(project.id), project);
+  await assert.rejects(repository.list(), /索引无效/);
+  assert.deepEqual(await storage.getItem(f.projectKey(project.id)), project);
+  assert.equal(host.contents.size, 0);
 });
 
 test("asset removal clears references in all episodes while retaining authored text", () => {
@@ -195,47 +208,60 @@ test("assistant context respects character and escaped JSON byte limits and mark
 
 test("repository persists isolated records across instances and snapshots queued writes", async () => {
   const storage = memoryStorage();
-  await storage.setItem("film:assistant:keep", { chatId: "keep" });
-  const repository = f.createRepository(storage),
-    project = f.exampleProject();
+  const host = fileServices();
+  await storage.setItem("film:assistant:v2:keep", { chatId: "keep" });
+  const repository = f.createRepository(storage, host),
+    project = await repository.attach(f.exampleProject());
   const first = repository.save(project);
   project.title = "后续编辑";
   await first;
-  assert.equal((await f.createRepository(storage).list())[0].title, "雨夜电台");
+  assert.equal(
+    (await f.createRepository(storage, host).list())[0].title,
+    "雨夜电台",
+  );
   await repository.save(project);
-  assert.equal((await f.createRepository(storage).list())[0].title, "后续编辑");
+  assert.equal(
+    (await f.createRepository(storage, host).list())[0].title,
+    "后续编辑",
+  );
   await repository.remove(project.id);
-  assert.deepEqual(await storage.keys(), ["film:assistant:keep"]);
+  assert.deepEqual(await storage.keys(), ["film:assistant:v2:keep"]);
 });
 
 test("failed queued write can be retried; corrupt data stays intact", async () => {
   const storage = memoryStorage();
+  const host = fileServices();
   let fail = true;
-  const repository = f.createRepository({
-    ...storage,
-    async setItem(key, value) {
-      if (fail) {
-        fail = false;
-        throw new Error("测试写入失败");
-      }
-      await storage.setItem(key, value);
+  const repository = f.createRepository(
+    {
+      ...storage,
+      async setItem(key, value) {
+        if (fail) {
+          fail = false;
+          throw new Error("测试写入失败");
+        }
+        await storage.setItem(key, value);
+      },
     },
-  });
-  const project = f.exampleProject();
+    host,
+  );
+  const project = await repository.attach(f.exampleProject());
   await assert.rejects(repository.save(project), /写入失败/);
   await repository.save(project);
   assert.equal((await repository.list()).length, 1);
   await storage.setItem("film:project:bad", { version: 9 });
-  await assert.rejects(repository.list(), /版本/);
+  await assert.rejects(repository.list(), /索引无效/);
   assert.deepEqual(await storage.getItem("film:project:bad"), { version: 9 });
   assert.equal(
-    (await storage.getItem(f.projectKey(project.id))).title,
+    JSON.parse(host.contents.get(`${project.workspace.directory}/project.json`))
+      .title,
     project.title,
   );
 });
 
 test("later snapshots wait for an earlier slow write and win in storage", async () => {
   const storage = memoryStorage();
+  const host = fileServices();
   let release, entered;
   const waiting = new Promise((resolve) => {
     release = resolve;
@@ -244,18 +270,21 @@ test("later snapshots wait for an earlier slow write and win in storage", async 
     entered = resolve;
   });
   let writes = 0;
-  const repository = f.createRepository({
-    ...storage,
-    async setItem(key, value) {
-      writes++;
-      if (writes === 1) {
-        entered();
-        await waiting;
-      }
-      await storage.setItem(key, value);
+  const repository = f.createRepository(
+    {
+      ...storage,
+      async setItem(key, value) {
+        writes++;
+        if (writes === 1) {
+          entered();
+          await waiting;
+        }
+        await storage.setItem(key, value);
+      },
     },
-  });
-  const project = f.exampleProject();
+    host,
+  );
+  const project = await repository.attach(f.exampleProject());
   const first = repository.save(project);
   const second = repository.save({ ...project, title: "最新草稿" });
   await started;
@@ -267,8 +296,9 @@ test("later snapshots wait for an earlier slow write and win in storage", async 
 
 test("resume restores the saved episode, stage and shot without mutating the portable project", async () => {
   const storage = memoryStorage(),
-    repository = f.createRepository(storage);
-  const project = f.exampleProject();
+    host = fileServices(),
+    repository = f.createRepository(storage, host);
+  const project = await repository.attach(f.exampleProject());
   await repository.save(project);
   const episode = project.episodes[0];
   const view = {
@@ -277,7 +307,7 @@ test("resume restores the saved episode, stage and shot without mutating the por
     shotId: episode.shots[1].id,
   };
   await repository.saveView(project.id, view);
-  assert.deepEqual(await f.createRepository(storage).view(project), view);
+  assert.deepEqual(await f.createRepository(storage, host).view(project), view);
   assert.deepEqual((await repository.list())[0], project);
   assert.deepEqual(
     f.resumeView(project, {
@@ -291,7 +321,7 @@ test("resume restores the saved episode, stage and shot without mutating the por
       shotId: episode.shots.at(-1).id,
     },
   );
-  const other = f.createProject("另一个项目", "movie");
+  const other = await repository.attach(f.createProject("另一个项目", "movie"));
   await repository.save(other);
   await repository.saveView(other.id, f.resumeView(other));
   await repository.remove(project.id);
