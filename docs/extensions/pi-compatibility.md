@@ -52,14 +52,14 @@ Mewvis 插件 API、Agent 适配协议和外部生态基准分别版本化。目
 
 实例生命周期由宿主提供，Pi 和 Mock 的适配器无需复制实例管理。`ExtensionBindings` 只在借用的操作期间有效，适配器不得缓存它供后续运行使用。当前仍未提供插件可读的会话对象、session_start/shutdown 事件、分叉或会话切换钩子。
 
-## 后续扩展点的准入规则
+## 扩展点设计规则
 
 观察事件与中间件分别定义。每个新扩展点的规格必须包含输入输出、触发时机、插件间顺序、多个返回值的合并方式、短路、异常、取消和权限检查位置。数据使用 Mewvis 自有类型，不把 Pi 的 SDK 类型放入公共契约。
 
-输入、系统提示、上下文与工具中间件已按注册顺序串行执行，每个处理器接收前一个结果的副本；使用显式 continue、replace 和 block，不接受 undefined。上下文目前采用文本/原生消息引用模型，完整多模态消息编辑与其他返回值语义仍需逐项扩展。
+输入、系统提示、上下文与工具中间件按注册顺序串行执行，每个处理器接收前一个结果的副本；使用显式 continue、replace 和 block，不接受 undefined。上下文采用文本/原生消息引用模型，不支持完整多模态消息编辑。
 
 适配器声明 `direct/simulate/ignore/noop/error`，缺失映射默认报错。声明为直接或模拟的能力必须具有跨 Pi/Mock 的行为测试；忽略或空实现必须给出理由和约定结果，报告降级。仅添加名称或返回空对象不算语义支持。涉及工具输入修改时，最后一份参数必须重新校验并审批。
 
-保持原有含义的新增可选字段可扩展同一版本；删除字段、改变事件时序或返回值含义需要新的协议版本及明确迁移。外部导入器将来单独声明源生态版本，不因目标 Agent 能注册工具就宣称兼容所有 Pi 插件。
+保持原有含义的新增可选字段可扩展同一版本；删除字段、改变事件时序或返回值含义需要新的协议版本及明确迁移。目标 Agent 的工具注册能力不代表对所有 Pi 插件的兼容性。
 
 现有自动验证位于 `extensions-adapter-test.mjs`、`extensions-session-test.mjs`、`extensions-middleware-test.mjs`、`extensions-events-test.mjs` 和 `extensions-compaction-test.mjs`，由 `pnpm --filter @mewvis/agent-runtime test:extensions` 统一运行。

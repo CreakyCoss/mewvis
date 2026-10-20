@@ -79,4 +79,4 @@ ctx.on("session_compact_finished", (event) => {
 
 Mock 脚本使用 `{ type: "compact", summary: "摘要" }`、`{ type: "compact", fail: "失败原因" }` 或 `{ type: "compact" }` 验证完成、失败和跳过；可通过 reason 指定触发原因。它运行真实插件钩子，不生成模型摘要或修改 Pi 会话。
 
-`extensions-compaction-test.mjs` 使用真实 Pi 会话、本地摘要模型服务和隔离 worker，覆盖手动压缩与阈值自动压缩、允许/阻止、非法结果、原生失败、跳过、观察器异常、实例复用、同会话排队与执行中取消；Mock 验证相同插件契约。完整 overflow 重试流程、自定义压缩摘要、完整 preparation/branchEntries 数据、会话切换与分叉留待后续验证或扩展。
+`extensions-compaction-test.mjs` 使用真实 Pi 会话、本地摘要模型服务和隔离 worker，覆盖手动压缩与阈值自动压缩、允许/阻止、非法结果、原生失败、跳过、观察器异常、实例复用、同会话排队与执行中取消；Mock 验证相同插件契约。该测试不覆盖完整 overflow 重试流程。当前接口不提供自定义压缩摘要、完整 preparation/branchEntries 数据、会话切换或分叉能力。

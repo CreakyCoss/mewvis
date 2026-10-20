@@ -89,7 +89,7 @@ const dialog = await files.preview.openDialog({ filePath: assetPath });
 await files.preview.close(dialog.id);
 ```
 
-只需声明 `workspace-files`。组件及 `open` 接口在应用自己的 DOM 中显示内容，自然参与布局、滚动、裁剪和遮挡，不再同步坐标或由宿主覆盖绘制。路径切换、卸载、容器移除、预览过期或撤销时停止读取并释放对应资源。`FilePreviewDialog` 的 `open` 控制弹窗生命周期，用户关闭时通知 `onOpenChange(false)`。
+只需声明 `workspace-files`。组件及 `open` 接口在应用自己的 DOM 中显示内容，参与应用的布局、滚动、裁剪和遮挡。路径切换、卸载、容器移除、预览过期或撤销时停止读取并释放对应资源。`FilePreviewDialog` 的 `open` 控制弹窗生命周期，用户关闭时通知 `onOpenChange(false)`。
 
 音视频内联预览支持可选的本地播放接口：`onMediaReady(controls)` 提供 `play()`、`pause()`、`seek(seconds)`，关闭时回调 `null`；`onMediaStateChange(state)` 同步 `currentTime`、`duration`、`paused` 和 `ended`。元数据加载前 `duration` 为 0，不执行定位。`mediaControls={false}` 隐藏原生控件并静音，适合时间轴缩略图。React 组件直接接收这些属性；普通 JS 使用 `files.preview.open(container, input, options)` 的第三个参数。它们不经过 Server，不扩大文件权限。
 
@@ -99,7 +99,7 @@ await files.preview.close(dialog.id);
 
 声明 `workspace-files` 的应用 CSP 仅允许图片、媒体和读取访问宿主的 `/api/file-previews/` 路径前缀，以及本地 Blob PDF 运行时；不开放通用后端请求或任意外部网络。PDF.js 模块与 Worker 由可信宿主提供，在应用本地创建 Blob，关闭时回收。缺少文件服务的旧宿主和独立开发预览返回能力不可用。
 
-首版支持常见图片、音频、视频、PDF 和 UTF-8 文本。音视频使用当前浏览器支持的编码；PDF 使用宿主打包的 PDF.js，在 Canvas 中分页显示，不执行文档脚本、表单或链接动作；PDF 预览上限为 64 MiB。文本只展示前 2 MiB，并标记截断。HTML/XML/代码按纯文本显示，不执行文档内容。PPT/PPTX 等尚未接入内容渲染的格式明确显示不可预览，仍可打开/下载原文件；不会伪造预览成功。
+文件预览支持常见图片、音频、视频、PDF 和 UTF-8 文本。音视频使用当前浏览器支持的编码；PDF 使用宿主打包的 PDF.js，在 Canvas 中分页显示，不执行文档脚本、表单或链接动作；PDF 预览上限为 64 MiB。文本只展示前 2 MiB，并标记截断。HTML/XML/代码按纯文本显示，不执行文档内容。PPT/PPTX 等不支持内容渲染的格式显示不可预览，仍可打开/下载原文件。
 
 资源地址只授予单个文件的临时只读访问，不携带通用宿主凭据，也不接受路径参数。视频支持 GET/HEAD 和单段 Range 请求，可定位播放。预览固定已打开的文件句柄；文件变更、权限/工作区登记撤销、连接关闭、应用停用或者 10 分钟到期后失效。关闭面板结束对应流，释放句柄。最多同时保留 64 个预览。
 

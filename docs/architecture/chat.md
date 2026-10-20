@@ -1,6 +1,6 @@
 # Mewvis Chat
 
-应用内的可复用 Chat 库。当前使用 `@/chat/core`、`@/chat/react`、`@/chat/desktop` 三个独立入口，没有 `chat` 根入口把 UI 带进核心；会话与消息契约由无运行时依赖的工作区类型包 `@mewvis/chat-contracts` 统一提供。`desktop` 目录保留宿主适配层的历史命名，当前由桌面与 Web 共用。
+应用内的可复用 Chat 库。`@/chat/core`、`@/chat/react`、`@/chat/desktop` 三个独立入口分别提供核心逻辑、React 界面和宿主适配；会话与消息契约由无运行时依赖的工作区类型包 `@mewvis/chat-contracts` 统一提供。`desktop` 适配层由桌面与 Web 共用。
 
 ## 文件和依赖
 
@@ -36,21 +36,21 @@ src/chat/
 
 依赖方向：`react → core`；`desktop → core + 现有 AgentClient/API`；`desktop/react → desktop + react`。核心只依赖现有纯 TypeScript 事件契约，不导入宿主 AgentClient 工厂。React 层可以使用现有设计系统、样式和 Lexical，不导入桌面 API 或普通聊天页面。
 
-消息、会话和运行配置类型只在 `packages/chat-contracts/index.d.ts` 定义。核心内部直接从定义文件或共享包导入；`core/index.ts` 集中对外导出共享类型与核心 API，业务和其他层继续使用 `@/chat/core`。内部文件不再重复转导出共享类型，也不通过本层公共入口反向导入。
+消息、会话和运行配置类型只在 `packages/chat-contracts/index.d.ts` 定义。核心内部直接从定义文件或共享包导入；`core/index.ts` 集中对外导出共享类型与核心 API，业务和其他层使用 `@/chat/core`。内部文件不通过本层公共入口反向导入。
 
 `workbench/shell/chat-service.ts` 一次性创建应用级 service 和应用宿主、配置场景恢复器；`chat-integration.tsx` 一次性连接文件目录、聊天列表与未读状态、资源刷新、窗口明确关闭。业务页面不访问核心或输入区内部 Store。
 
-业务创建会话使用 `useDesktopChatSession`；侧栏等历史入口使用 `useDesktopChatRecord`，由 `service.openRecord` 按磁盘记录查找原拥有者。应用记录通过启动时配置的 `resolveRecord` 校验权限并返回场景配置，service 统一复用或创建拥有者；恢复器不再调用 `openSession`。删除记录使用 `closeRecord(workspacePath, chatId)` 关闭实际拥有者，不根据侧栏入口猜测 scope。
+业务创建会话使用 `useDesktopChatSession`；侧栏等历史入口使用 `useDesktopChatRecord`，由 `service.openRecord` 按磁盘记录查找原拥有者。应用记录通过启动时配置的 `resolveRecord` 校验权限并返回场景配置，service 统一复用或创建拥有者。删除记录使用 `closeRecord(workspacePath, chatId)` 关闭实际拥有者，不根据侧栏入口猜测 scope。
 
 ## 从操作查找实现
 
 - `core/session.ts`：一轮任务的初始化、授权准备、发送、事件归并、停止、追问和关闭。内部状态与保存队列不向调用方开放；`ChatRuntime.authorize` 在同一轮可取消的 preparing 阶段执行，授权完成前不改消息或持久化记录，派发前仍由宿主复核权限。
-- `desktop/service.ts`：会话创建、并发打开合并、磁盘归属、来源恢复、关闭和上下文保存。每个会话条目聚合配置、来源、存储、打开／关闭 Promise 和订阅；失败打开会清理预留归属。桌面不再叠加核心 manager 与应用的打开缓存。
+- `desktop/service.ts`：会话创建、并发打开合并、磁盘归属、来源恢复、关闭和上下文保存。每个会话条目聚合配置、来源、存储、打开／关闭 Promise 和订阅；失败打开会清理预留归属。
 - `react/view-state.ts`：草稿、偏好及提交事务；内部处理重复提交、失败保留和版本匹配后的草稿清空。Provider 中的 hook 订阅状态并提供现有组件绑定。
 
 历史打开的顺序是 `openRecord → 读取来源 → resolveRecord 校验并返回配置 → openSession`，失败返回只读历史。React 通过 `subscribeRecord` 观察指定记录的可用性，不从全局会话流推测原拥有者；明确关闭不会触发观察者自动重开。手动重连的最短 loading 展示仍在 React 绑定中。
 
-`react/messages` 与 `react/composer` 的代码、目录及组件契约保持不变。`core/manager.ts` 继续作为独立无 UI 接入的可选管理器，不在桌面调用链中重复管理生命周期。
+`core/manager.ts` 是独立无 UI 接入的可选管理器；桌面调用链由 service 统一管理生命周期。
 
 ## 三种接入
 
@@ -113,7 +113,7 @@ function Conversation({ workspace, chatId }) {
 }
 ```
 
-默认界面包括消息、输入、模型／角色／技能／工具／知识库选择、思考与工具展示偏好、停止、追问和可重试错误。当前聊天页面已经使用此入口；首页发送成功后仅负责导航，不通过挂载 effect 重发首条消息。
+默认界面包括消息、输入、模型／角色／技能／工具／知识库选择、思考与工具展示偏好、停止、追问和可重试错误。普通聊天页面使用此入口；首页发送成功后仅负责导航，不通过挂载 effect 重发首条消息。
 
 输入 `/` 或点击输入栏左侧的 `+`，会打开同一个引用选择器，可按插件名称和当前可用的技能组浏览命令与技能，并筛选名称、说明和标识。插件命令仅在消息开头可选；从 `/` 呼出的选择器中选中选项时替换掉 `/关键词`，从 `+` 呼出时直接在光标处插入引用。两种方式插入的引用都只显示名称。`@` 文件引用保持独立。
 
@@ -184,19 +184,19 @@ Pi 继续使用 `chats/<chatId>/session` 下的原执行上下文和账本。核
 
 首次请求写入应用历史后才派发 Runtime。流式保存按节点防抖和持续流节流执行，结束／停止／关闭立即 flush；失败保留最新待写版本。桌面偏好与未读更新同样串行并可重试。Node 先完整创建新记录临时目录再发布，已有文件采用临时文件替换；已有记录的多个 JSON 文件尚不构成跨文件事务。
 
-读取、列举和正常保存不再删除旧格式文件。未知或损坏记录报错且保留原文件，不用空记录覆盖。这里没有执行迁移或用户数据清理。显式删除会话仍保留原产品的删除行为，删除前先关闭拥有者。
+读取和保存不会自动转换旧聊天来源信息。消息或选项文件存在但元数据缺失、或聊天 ID 与目录不一致时，后端报错并保留原文件；能读取消息但缺少有效来源或场景恢复入口的记录只能作为只读历史查看。保留文件不代表旧会话可以继续运行。显式删除会话前先关闭拥有者。
 
 模型目录、发送和账本摘要共用 `api/llm.ts` 的宿主配置缓存；目录读取安全的 `getLlmModelOptions`，执行和摘要通过 `resolveLlmModel` 按 ID 解析。首次读取和显式刷新才查询 Node 配置，并发读取合并为一次。`saveLlmSettings` 串行保存并用后端成功结果更新缓存；读取等待正在保存的配置，迟到的旧读取或错误不会覆盖新配置。返回副本避免调用方修改缓存。缓存仅在当前宿主实例的内存中，不写入浏览器存储。
 
 `session.refreshResources()` 向目录传入 `{ refresh: true }`，强制重新读取模型配置；模型设置页的显式加载也会刷新。刷新失败会暴露错误、保留当前选择，下次读取可以重试；删除模型后不会继续返回旧的可执行配置。
 
-凭据在宿主准备请求时解析并留在 dispatch 闭包，快照和 UI props 只包含安全的选项描述。工具选择不等于授予应用权限。应用 SDK、iframe／Node 宿主桥和共享 UI 已接入；用法与边界见 [应用聊天说明](../apps/chat.md)。未迁移酒馆、RSS 或其他具体应用。
+凭据在宿主准备请求时解析并留在 dispatch 闭包，快照和 UI props 只包含安全的选项描述。工具选择不等于授予应用权限。应用通过 SDK、iframe／Node 宿主桥和共享 UI 接入，具体用法与边界见 [应用聊天说明](../apps/chat.md)。
 
 ## 应用接入
 
-`@mewvis/app-sdk/chat` 提供无 UI 客户端，`@mewvis/app-sdk/chat/react` 提供同一套 Chat 和绑定。`desktop/application.ts` 将经过身份绑定的连接映射到应用级 service，校验配置和授权，隔离会话句柄，并转发带修订号的快照。它不再管理会话打开缓存或发送准备状态；`resolveSession` 只返回配置。动态上下文交给 `service.updateContext` 更新和保存，`viewPersistence` 只暴露展示偏好接口。应用与 SDK 共同引用 `@mewvis/chat-contracts`，核心不依赖应用实现。
+`@mewvis/app-sdk/chat` 提供无 UI 客户端，`@mewvis/app-sdk/chat/react` 提供同一套 Chat 和绑定。`desktop/application.ts` 将经过身份绑定的连接映射到应用级 service，校验配置和授权，隔离会话句柄，并转发带修订号的快照。会话打开缓存由 service 管理，发送准备状态由核心 session 管理；`resolveSession` 只返回配置。动态上下文交给 `service.updateContext` 更新和保存，`viewPersistence` 只暴露展示偏好接口。应用与 SDK 共同引用 `@mewvis/chat-contracts`，核心不依赖应用实现。
 
-`workbench/shell/chat-service.ts` 连接实际应用权限、工作区和 service；`chat-integration.tsx` 内的局部方法 `connectBackendApplicationChat` 统一接入后端应用聊天事件，StrictMode 共用后端事件监听。`ApplicationFrame` 连接 iframe 消息。应用 UI 按需加载由 `build:chat-ui` 从应用源码生成的共享脚本和样式；脚本和样式产物不提交。同一构建还生成 `packages/app/sdk/chat/react.d.ts`，该声明随 SDK 保留在仓库中；组件、hook 和 UI 类型不再手写第二份字段结构。生成器读取 SDK 的实际运行导出，保留公开类型名，并将核心契约和应用协议保留为包导入。
+`workbench/shell/chat-service.ts` 连接实际应用权限、工作区和 service；`chat-integration.tsx` 内的局部方法 `connectBackendApplicationChat` 统一接入后端应用聊天事件，StrictMode 共用后端事件监听。`ApplicationFrame` 连接 iframe 消息。应用 UI 按需加载由 `build:chat-ui` 从应用源码生成的共享脚本和样式；脚本和样式产物不提交。同一构建还生成 `packages/app/sdk/chat/react.d.ts`，该声明随 SDK 保留在仓库中。生成器读取 SDK 的实际运行导出，保留公开类型名，并将核心契约和应用协议保留为包导入。
 
 在 `apps/client` 执行 `pnpm check:chat-ui-types`，检查声明是否与源码同步，不改写声明。生成和检查均验证声明只引用公共依赖，并在不使用应用别名、不跳过声明检查的环境下进行 TypeScript 检查；应用契约测试另双向对照实际组件签名。
 
@@ -226,7 +226,7 @@ node scripts/agent-runtime/user-input-e2e.mjs
 
 `test:chat` 包含不带 DOM lib 的核心类型检查、Node bundle 依赖边界检查、核心竞态测试、桌面宿主测试及 DSH patchPath 严格 Schema 回归。stdio 测试使用临时数据，需要已有 `agent-runtime/dist/cli.js`。
 
-Node 存储回归测试覆盖元数据来源不可变、配置不覆盖归属、目录 ID 校验与历史文件保护；冻结的旧 Rust 存储快照继续用于验证历史数据兼容性。
+Node 存储回归测试覆盖元数据来源不可变、配置不覆盖归属、目录 ID 校验与历史文件保护。
 
 已有 1420 服务提供 `/scripts/chat/browser.html`（StrictMode、多视图、默认／组合 UI、只读历史）、`/scripts/chat/page.html`（真实首页和聊天路由）以及 `/scripts/app/chat/application-browser.html`（真实沙箱与测试应用）。这些测试使用内存 Runtime 和存储，不连接真实模型或用户历史；应用测试页需点击「创建会话」。
 

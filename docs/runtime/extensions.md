@@ -105,7 +105,7 @@ await runtime.agent.run({
 
 自定义 Agent 实现 `AgentRuntime` 并提供 `extensionAdapter`。适配器通过 SDK 的 `defineExtensionAdapter<TNativePlugin>()` 声明协议版本、逐项能力映射和 `adapt(bindings, context)`，返回该 Agent 可直接注册的原生插件或插件工厂。`context.extensions` 只依赖 SDK 的 `ExtensionBindings`，不暴露 worker、状态文件或运行时宿主内部类型。
 
-原型中的 `supportsExtensions` 和 `extensionCapabilities` 已由 `extensionAdapter` 替代。插件包仍通过清单声明所需能力；宿主在启动 worker 前检查适配器映射，缺少映射或显式 `error` 时失败。`simulate`、`ignore`、`noop` 必须填写原因；后两者在报告中标为降级。映射描述声明行为，具体模拟、忽略或空实现由适配器的原生插件工厂兑现，SDK 不凭一个字符串自动模拟底层 Agent。可通过 `callbacks.onExtensionAdaptation` 获取每轮报告，当前桌面没有单独的适配报告面板。
+插件包通过清单声明所需能力；宿主在启动 worker 前检查 `extensionAdapter` 的能力映射，缺少映射或显式 `error` 时失败。`simulate`、`ignore`、`noop` 必须填写原因；后两者在报告中标为降级。映射描述声明行为，具体模拟、忽略或空实现由适配器的原生插件工厂兑现，SDK 不凭一个字符串自动模拟底层 Agent。可通过 `callbacks.onExtensionAdaptation` 获取每轮报告，当前桌面没有单独的适配报告面板。
 
 低层引擎统一使用 `createAgentEngine({ registry, getExtensionSources: () => sources })`，每次 Agent 运行获取并快照插件列表；公共 SDK 的固定列表由宿主入口转换成 provider。低层引擎同样接受 `runAgent(command, { signal, emit, callbacks })` 取消信号；它的注册表由 `createRuntimeAgentRegistry()` 创建。用完后调用 `engine.dispose()`，公共 SDK 则调用 `runtime.shutdown()` 释放会话插件进程。
 
