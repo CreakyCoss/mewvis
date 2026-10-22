@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import type { AgentAccess, AgentAccessBase, AgentAccessPaths } from "@mewvis/chat-contracts";
 import type { ApplicationPermission, ApplicationPermissionStatus } from "@/api/applications";
+import type { ReactNode } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "design-system/components/ui/popover";
 import { useIsMobile } from "design-system/hooks/use-mobile";
 import { cn } from "design-system/lib/utils";
@@ -26,6 +27,8 @@ type PermissionSummaryProps = {
   status: ApplicationPermissionStatus;
   agentAccess?: AgentAccess | null;
   compact?: boolean;
+  trigger?: "summary" | "link";
+  triggerLabel?: string;
   className?: string;
 };
 
@@ -147,9 +150,50 @@ function PermissionDetails({ permissions, status, agentAccess: access, className
   );
 }
 
-export function ApplicationPermissionSummary(props: PermissionSummaryProps) {
+function PermissionPopover({ children, ...props }: PermissionSummaryProps & { children: ReactNode }) {
   const isMobile = useIsMobile();
+  return (
+    <Popover>
+      <PopoverTrigger asChild>{children}</PopoverTrigger>
+      <PopoverContent
+        side={isMobile ? "bottom" : "right"}
+        align={isMobile ? "start" : "center"}
+        sideOffset={8}
+        collisionPadding={16}
+        aria-label="权限声明详情"
+        className="max-h-[min(36rem,var(--radix-popover-content-available-height))] w-[26rem] max-w-[calc(100vw-2rem)] gap-4 overflow-y-auto p-4"
+      >
+        <div className="flex items-center gap-2 border-b border-border/70 pb-3">
+          <Shield className="size-4 text-primary" aria-hidden="true" />
+          <h3 className="text-sm font-semibold">权限声明</h3>
+        </div>
+        <PermissionDetails permissions={props.permissions} status={props.status} agentAccess={props.agentAccess} />
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+export function ApplicationPermissionSummary(props: PermissionSummaryProps) {
   if (!props.compact) return <PermissionDetails {...props} />;
+  if (props.trigger === "link") {
+    const Icon = props.status === "declared" ? Shield : ShieldAlert;
+    return (
+      <PermissionPopover {...props}>
+        <button
+          type="button"
+          aria-label={props.triggerLabel ?? "查看权限声明"}
+          className={cn(
+            "-ml-0.5 inline-flex min-h-7 cursor-pointer items-center gap-1.5 rounded-md px-0.5 text-[13px] leading-5 text-muted-foreground transition-colors hover:bg-accent/40 hover:text-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none motion-reduce:transition-none",
+            props.status !== "declared" && "text-warning",
+            props.className,
+          )}
+        >
+          <Icon className="size-4 shrink-0" aria-hidden="true" />
+          权限
+        </button>
+      </PermissionPopover>
+    );
+  }
   const { permissions, status, agentAccess: access } = props;
   const pathSummary = (label: string, scope: AgentAccessPaths | undefined) =>
     scope === "all" ? [`${label}全部文件`] : scope?.length ? [`${label} ${scope.length} 处`] : [];
@@ -172,80 +216,61 @@ export function ApplicationPermissionSummary(props: PermissionSummaryProps) {
       : "未申请 Agent 调用";
   const hasRequests = permissions.length > 0 || accessLabels.length > 0;
   return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <button
-          type="button"
-          aria-label="查看权限声明"
-          className={cn(
-            "group/permissions flex w-full cursor-pointer flex-col rounded-lg border border-border/60 bg-muted/25 p-3 text-left transition-colors duration-150 hover:border-primary/25 hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none motion-reduce:transition-none",
-            props.className,
-          )}
-        >
-          <span className="mb-2 flex items-center gap-1.5 text-xs font-medium text-foreground/80">
-            <Shield className="size-3.5" aria-hidden="true" />
-            权限声明
-            <ChevronRight className="ml-auto size-3.5 group-hover/permissions:text-primary" aria-hidden="true" />
-          </span>
-          {status !== "declared" ? (
-            <span className="flex flex-1 items-center gap-2.5">
-              <ShieldAlert
-                className={cn(
-                  "size-5 shrink-0",
-                  status === productId("-upgrade-required") ? "text-destructive" : "text-warning",
-                )}
-                aria-hidden="true"
-              />
-              <span className="space-y-1 text-xs leading-4">
-                <span className="block">
-                  {status === productId("-upgrade-required") ? "缺少权限声明" : "DSH 未提供权限声明"}
-                </span>
-                <span className="block text-muted-foreground">
-                  {status === productId("-upgrade-required") ? "升级清单后才能启用" : "以受信任模式运行"}
-                </span>
-              </span>
-            </span>
-          ) : !hasRequests ? (
-            <span className="flex flex-1 items-center gap-2.5">
-              <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted/70 text-muted-foreground">
-                <CircleMinus className="size-4" aria-hidden="true" />
-              </span>
-              <span className="space-y-1 text-xs leading-4">
-                <span className="block text-foreground/85">未申请额外权限</span>
-                <span className="block text-muted-foreground">点击查看完整声明</span>
-              </span>
-            </span>
-          ) : (
-            <span className="grid min-w-0 grid-cols-[2rem_minmax(0,1fr)] items-center gap-x-2 gap-y-2 text-xs leading-5">
-              <span className="text-muted-foreground">宿主</span>
-              <span
-                className={cn("truncate", !hostSummary && "text-muted-foreground")}
-                title={hostSummary || undefined}
-              >
-                {hostSummary || "无需额外能力"}
-              </span>
-              <span className="text-muted-foreground">Agent</span>
-              <span className={cn("truncate", !accessLabels.length && "text-muted-foreground")} title={agentSummary}>
-                {agentSummary}
-              </span>
-            </span>
-          )}
-        </button>
-      </PopoverTrigger>
-      <PopoverContent
-        side={isMobile ? "bottom" : "right"}
-        align={isMobile ? "start" : "center"}
-        sideOffset={8}
-        collisionPadding={16}
-        aria-label="权限声明详情"
-        className="max-h-[min(36rem,var(--radix-popover-content-available-height))] w-[26rem] max-w-[calc(100vw-2rem)] gap-4 overflow-y-auto p-4"
+    <PermissionPopover {...props}>
+      <button
+        type="button"
+        aria-label={props.triggerLabel ?? "查看权限声明"}
+        className={cn(
+          "group/permissions flex w-full cursor-pointer flex-col rounded-lg border border-border/60 bg-muted/25 p-3 text-left transition-colors duration-150 hover:border-primary/25 hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none motion-reduce:transition-none",
+          props.className,
+        )}
       >
-        <div className="flex items-center gap-2 border-b border-border/70 pb-3">
-          <Shield className="size-4 text-primary" aria-hidden="true" />
-          <h3 className="text-sm font-semibold">权限声明</h3>
-        </div>
-        <PermissionDetails permissions={permissions} status={status} agentAccess={access} />
-      </PopoverContent>
-    </Popover>
+        <span className="mb-2 flex items-center gap-1.5 text-xs font-medium text-foreground/80">
+          <Shield className="size-3.5" aria-hidden="true" />
+          权限声明
+          <ChevronRight className="ml-auto size-3.5 group-hover/permissions:text-primary" aria-hidden="true" />
+        </span>
+        {status !== "declared" ? (
+          <span className="flex flex-1 items-center gap-2.5">
+            <ShieldAlert
+              className={cn(
+                "size-5 shrink-0",
+                status === productId("-upgrade-required") ? "text-destructive" : "text-warning",
+              )}
+              aria-hidden="true"
+            />
+            <span className="space-y-1 text-xs leading-4">
+              <span className="block">
+                {status === productId("-upgrade-required") ? "缺少权限声明" : "DSH 未提供权限声明"}
+              </span>
+              <span className="block text-muted-foreground">
+                {status === productId("-upgrade-required") ? "升级清单后才能启用" : "以受信任模式运行"}
+              </span>
+            </span>
+          </span>
+        ) : !hasRequests ? (
+          <span className="flex flex-1 items-center gap-2.5">
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted/70 text-muted-foreground">
+              <CircleMinus className="size-4" aria-hidden="true" />
+            </span>
+            <span className="space-y-1 text-xs leading-4">
+              <span className="block text-foreground/85">未申请额外权限</span>
+              <span className="block text-muted-foreground">点击查看完整声明</span>
+            </span>
+          </span>
+        ) : (
+          <span className="grid min-w-0 grid-cols-[2rem_minmax(0,1fr)] items-center gap-x-2 gap-y-2 text-xs leading-5">
+            <span className="text-muted-foreground">宿主</span>
+            <span className={cn("truncate", !hostSummary && "text-muted-foreground")} title={hostSummary || undefined}>
+              {hostSummary || "无需额外能力"}
+            </span>
+            <span className="text-muted-foreground">Agent</span>
+            <span className={cn("truncate", !accessLabels.length && "text-muted-foreground")} title={agentSummary}>
+              {agentSummary}
+            </span>
+          </span>
+        )}
+      </button>
+    </PermissionPopover>
   );
 }

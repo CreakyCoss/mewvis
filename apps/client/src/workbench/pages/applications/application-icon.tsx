@@ -6,9 +6,10 @@ import { cn } from "design-system/lib/utils";
 type ApplicationIconProps = {
   application: { id: string; icon?: string | null; version: string };
   className?: string;
+  iconClassName?: string;
 };
 
-export const ApplicationIcon = ({ application, className }: ApplicationIconProps) => {
+export const ApplicationIcon = ({ application, className, iconClassName }: ApplicationIconProps) => {
   const { id, icon, version } = application;
   const key = JSON.stringify([id, icon, version]);
   const [image, setImage] = useState<{ key: string; src: string | null } | null>(null);
@@ -48,7 +49,7 @@ export const ApplicationIcon = ({ application, className }: ApplicationIconProps
           onError={() => setImage({ key, src: null })}
         />
       ) : (
-        <Blocks className="size-5" />
+        <Blocks className={cn("size-5", iconClassName)} />
       )}
     </span>
   );

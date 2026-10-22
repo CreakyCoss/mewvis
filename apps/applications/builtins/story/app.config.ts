@@ -2,6 +2,7 @@ import { defineConfig } from "@mewvis/app-dev";
 
 export default defineConfig({
   displayName: "故事工坊",
+  icon: "./assets/icon.png",
   defaultEnabled: true,
   permissions: ["application-workspaces", "application-data", "chat", "chat-knowledge"],
   agentAccess: {

@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "学习工坊：主题与文本资料生成课程、逐课学习、测验和 AI 导师。",
+  "description": "生成课程，与 AI 一起学习。",
   "scripts": {
     "dev": "mewvis-app dev",
     "check": "mewvis-app check",

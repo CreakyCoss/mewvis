@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "应用工坊：创建小应用，通过 AI 编辑代码，在工坊内预览和使用。",
+  "description": "用 AI 创建、预览和修改小应用。",
   "scripts": {
     "prepare:runtime": "node scripts/runtime.mjs",
     "dev": "node scripts/preview.mjs",

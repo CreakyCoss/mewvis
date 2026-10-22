@@ -1,21 +1,12 @@
 import { APP_DISPLAY_NAME, PRODUCT_NAMESPACE } from "@mewvis/product-config";
-import {
-  AlertCircle,
-  ArrowRight,
-  Blocks,
-  CheckCircle2,
-  Loader2,
-  RefreshCw,
-  Settings2,
-  TriangleAlert,
-  Wrench,
-} from "lucide-react";
-import { useEffect, useMemo, useRef } from "react";
+import { AlertCircle, ArrowRight, Blocks, Loader2, RefreshCw, Settings2, TriangleAlert } from "lucide-react";
+import { useEffect, useId, useMemo, useRef } from "react";
 import { NavLink, useParams } from "react-router";
 import type { ApplicationUiApplication } from "@/api/applications";
 import { Alert, AlertDescription, AlertTitle } from "design-system/components/ui/alert";
 import { Button } from "design-system/components/ui/button";
 import { cn } from "design-system/lib/utils";
+import { PageHeader } from "../page-header";
 import { useApplicationCatalogStore } from "./catalog-store";
 import { ApplicationFrame } from "./application-frame";
 import { ApplicationIcon } from "./application-icon";
@@ -37,17 +28,7 @@ const applicationStatus = (application: ApplicationUiApplication) => {
       className: "text-warning",
     };
   }
-  return {
-    label: "运行正常",
-    icon: CheckCircle2,
-    className: "text-muted-foreground",
-    iconClassName: "text-success",
-  };
-};
-
-const applicationSurfaceLabel = (application: ApplicationUiApplication) => {
-  if (application.ui?.kind === "sandbox") return "独立界面";
-  return "工具面板";
+  return null;
 };
 
 const LoadingState = () => (
@@ -57,62 +38,78 @@ const LoadingState = () => (
   </div>
 );
 
-const ApplicationCard = ({ application }: { application: ApplicationUiApplication }) => {
+const ApplicationCard = ({
+  application,
+  isLastItem,
+  isLastRow,
+}: {
+  application: ApplicationUiApplication;
+  isLastItem: boolean;
+  isLastRow: boolean;
+}) => {
+  const titleId = useId();
   const status = applicationStatus(application);
-  const StatusIcon = status.icon;
+  const StatusIcon = status?.icon;
   return (
-    <article className="flex min-w-0 flex-col rounded-xl border border-border/80 bg-card p-4 transition-[border-color,box-shadow] duration-150 hover:border-primary/25 hover:shadow-sm motion-reduce:transition-none">
-      <div className="flex min-w-0 items-center gap-3">
-        <ApplicationIcon application={application} />
-        <div className="min-w-0">
-          <h3 className="truncate text-sm font-semibold" title={application.name}>
+    <article
+      aria-labelledby={titleId}
+      className={cn(
+        "grid min-h-28 min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-4 border-b border-border/70 py-4 lg:odd:border-r lg:odd:pr-6 lg:even:pl-6",
+        isLastItem && "border-b-0",
+        isLastRow ? "lg:border-b-0" : "lg:border-b",
+      )}
+    >
+      <ApplicationIcon
+        application={application}
+        className="size-14 rounded-xl"
+        iconClassName="size-7"
+      />
+      <div className="min-w-0">
+        <div className="flex min-w-0 items-center gap-2">
+          <h2
+            id={titleId}
+            className="truncate text-base font-semibold tracking-[-0.01em]"
+            title={application.name}
+          >
             {application.name}
-          </h3>
-          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-            <span className="tabular-nums">v{application.version || "0.0.0"}</span>
-            <span aria-hidden="true">·</span>
-            <span>{application.source === "bundled" ? "内置" : "外部"}</span>
-            {application.runtimeKind === "dsh" && (
-              <span className="rounded bg-muted px-1.5 py-0.5 text-[11px] leading-4">DSH 兼容</span>
-            )}
-          </div>
+          </h2>
+          <span className="shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-[11px] leading-4 text-muted-foreground">
+            {application.source === "bundled" ? "内置" : "外部"}
+          </span>
         </div>
-      </div>
-      <p
-        className="mt-3 min-h-10 line-clamp-2 text-sm leading-5 text-muted-foreground"
-        title={application.description || undefined}
-      >
-        {application.description || "该应用没有提供描述。"}
-      </p>
-      <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
-        <span className="inline-flex items-center gap-1.5">
-          <Wrench className="size-3.5" aria-hidden="true" />
-          {application.tools.length} 个工具
-        </span>
-        <span aria-hidden="true">·</span>
-        <span>{applicationSurfaceLabel(application)}</span>
-      </div>
-      <div className="mt-auto pt-4">
+        <p
+          className="mt-1 line-clamp-2 text-sm leading-5 text-muted-foreground"
+          title={application.description || undefined}
+        >
+          {application.description || "该应用没有提供描述。"}
+        </p>
         <ApplicationPermissionSummary
           permissions={application.permissions}
           agentAccess={application.agentAccess}
           status={application.permissionStatus}
           compact
-          className="h-26"
+          trigger="link"
+          triggerLabel={`查看 ${application.name} 的权限声明`}
+          className="mt-0.5 min-h-6 text-xs"
         />
+        {status && StatusIcon ? (
+          <span className={cn("mt-1 flex items-center gap-1.5 text-xs", status.className)}>
+            <StatusIcon className="size-3.5 shrink-0" aria-hidden="true" />
+            {status.label}
+          </span>
+        ) : null}
       </div>
-      <div className="mt-3 flex items-center justify-between gap-3">
-        <span className={cn("inline-flex items-center gap-1.5 text-xs", status.className)}>
-          <StatusIcon className={cn("size-3.5 shrink-0", status.iconClassName)} aria-hidden="true" />
-          {status.label}
-        </span>
-        <Button asChild variant="outline" size="sm" className="min-h-9 px-3 text-xs shadow-none">
-          <NavLink to={`/apps/${encodeURIComponent(application.id)}`} aria-label={`打开应用 ${application.name}`}>
-            打开应用
-            <ArrowRight className="size-3.5" />
-          </NavLink>
-        </Button>
-      </div>
+      <Button
+        asChild
+        variant="ghost"
+        size="sm"
+        className="min-w-18 gap-1.5 bg-accent px-3 text-primary hover:bg-primary/15"
+      >
+        <NavLink to={`/apps/${encodeURIComponent(application.id)}`} aria-label={`打开应用 ${application.name}`}>
+          打开
+          <ArrowRight className="size-3.5" />
+        </NavLink>
+      </Button>
     </article>
   );
 };
@@ -128,45 +125,43 @@ const ApplicationCatalog = ({
   error: string;
   refresh: () => Promise<void>;
 }) => (
-  <section className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-surface/45">
-    <header className="flex min-h-20 flex-wrap items-center justify-between gap-4 border-b border-border/70 bg-card/50 px-6 py-4 max-sm:px-4">
-      <div className="min-w-0">
+  <section className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-background text-foreground">
+    <PageHeader
+      title="应用"
+      description="为你的创作，选一件顺手的工具。"
+      className="max-sm:flex-wrap"
+      action={
         <div className="flex items-center gap-2">
-          <Blocks className="size-5 text-primary" />
-          <h1 className="truncate text-lg font-semibold tracking-[-0.02em]">应用</h1>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="text-muted-foreground"
+            disabled={isLoading}
+            onClick={() => void refresh()}
+            aria-label="刷新应用列表"
+            title="刷新应用列表"
+          >
+            <RefreshCw className={cn("size-4", isLoading && "animate-spin motion-reduce:animate-none")} />
+          </Button>
+          <Button asChild type="button" variant="outline">
+            <NavLink to="/apps/manage">
+              <Settings2 className="size-4" />
+              管理应用
+            </NavLink>
+          </Button>
         </div>
-        <p className="mt-1 text-sm text-muted-foreground">浏览已启用应用，打开后使用完整功能</p>
-      </div>
-      <div className="flex items-center gap-2">
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="text-muted-foreground"
-          disabled={isLoading}
-          onClick={() => void refresh()}
-          aria-label="刷新应用列表"
-          title="刷新应用列表"
-        >
-          <RefreshCw className={cn("size-3.5", isLoading && "animate-spin motion-reduce:animate-none")} />
-        </Button>
-        <Button asChild type="button" variant="ghost" size="sm" className="min-h-11">
-          <NavLink to="/apps/manage">
-            <Settings2 className="size-3.5" />
-            管理
-          </NavLink>
-        </Button>
-      </div>
-    </header>
+      }
+    />
 
     <main
       id="application-main"
-      className="min-h-0 flex-1 overflow-y-auto p-6 focus:outline-none max-sm:p-4"
+      className="min-h-0 flex-1 overflow-y-auto px-6 pb-6 focus:outline-none lg:px-8"
       tabIndex={-1}
     >
-      <div className="mx-auto w-full max-w-7xl">
+      <div className="w-full">
         {error ? (
-          <Alert variant="destructive" className="mb-5" role="alert">
+          <Alert variant="destructive" className="mt-6 mb-2" role="alert">
             <AlertCircle />
             <AlertTitle>Application UI Host 不可用</AlertTitle>
             <AlertDescription className="break-words">{error}</AlertDescription>
@@ -176,13 +171,18 @@ const ApplicationCatalog = ({
         {isLoading && applications.length === 0 ? (
           <LoadingState />
         ) : applications.length > 0 ? (
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {applications.map((application) => (
-              <ApplicationCard key={application.id} application={application} />
+          <div className="grid lg:grid-cols-2">
+            {applications.map((application, index) => (
+              <ApplicationCard
+                key={application.id}
+                application={application}
+                isLastItem={index === applications.length - 1}
+                isLastRow={index >= applications.length - (applications.length % 2 || 2)}
+              />
             ))}
           </div>
         ) : (
-          <div className="flex min-h-72 flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-border/80 bg-card/30 p-8 text-center">
+          <div className="flex min-h-80 flex-col items-center justify-center gap-4 p-8 text-center">
             <span className="flex size-12 items-center justify-center rounded-xl bg-accent text-primary">
               <Blocks className="size-6" />
             </span>

@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "设计画布：在独立工作区中管理设计、图片素材与高清导出。",
+  "description": "管理设计、图片与高清导出。",
   "scripts": {
     "dev": "pnpm build && node test/browser-smoke.mjs --preview",
     "check": "mewvis-app check",

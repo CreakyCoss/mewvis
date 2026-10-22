@@ -1,7 +1,7 @@
 {
   "name": "@mewvis/docs-reader",
   "version": "0.1.0",
-  "description": "离线中文文档中心，提供章节目录、全文搜索和 Markdown 阅读。",
+  "description": "离线文档、搜索与阅读。",
   "type": "module",
   "main": "./index.js",
   "exports": "./index.js",
@@ -21,6 +21,7 @@
       "entry": "./index.js"
     },
     "displayName": "文档中心",
+    "icon": "./assets/icon.png",
     "defaultEnabled": true,
     "permissions": [
       "open-external"

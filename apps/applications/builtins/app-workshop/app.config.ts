@@ -2,6 +2,7 @@ import { defineConfig } from "@mewvis/app-dev";
 
 export default defineConfig({
   displayName: "应用工坊",
+  icon: "./assets/icon.png",
   defaultEnabled: true,
   permissions: [
     "application-workspaces",

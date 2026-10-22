@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "影视工坊：围绕项目、剧本、角色场景、分镜与制作清单组织影视创作。",
+  "description": "整理剧本、角色与分镜。",
   "scripts": {
     "dev": "mewvis-app dev",
     "check": "mewvis-app check",

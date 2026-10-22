@@ -1,7 +1,7 @@
 {
   "name": "@mewvis/rss-reader",
   "version": "0.1.0",
-  "description": "RSS 今日阅读：聚合订阅、未读与稍后读、收藏搜索、舒适正文和 OPML 管理。",
+  "description": "订阅、收藏，安静地阅读。",
   "type": "module",
   "main": "./index.js",
   "exports": "./index.js",
@@ -38,6 +38,7 @@
       ]
     },
     "displayName": "RSS 阅读器",
+    "icon": "./assets/icon.png",
     "defaultEnabled": true,
     "permissions": [
       "network",

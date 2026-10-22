@@ -1,7 +1,7 @@
 {
   "name": "@mewvis/chat-playground",
   "version": "0.1.0",
-  "description": "Mewvis 应用能力实验室：体验聊天、工具与技能、审批、数据工作区、内嵌视图和宿主集成。",
+  "description": "体验和调试应用能力。",
   "type": "module",
   "dependencies": {
     "@mewvis/app-sdk": "workspace:*",
