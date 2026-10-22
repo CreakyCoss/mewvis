@@ -23,6 +23,7 @@ type RuntimeApplication = Readonly<{
   kind: ApplicationRuntimeKind;
   id: string;
   name: string;
+  icon?: string | null;
   version: string;
   description: string;
   source: string;
@@ -52,6 +53,7 @@ type UiApplication = Readonly<{
   runtimeKind: ApplicationRuntimeKind;
   id: string;
   name: string;
+  icon: string | null;
   version: string;
   description: string;
   source: string;
@@ -186,6 +188,7 @@ const configure = async (value: unknown) => {
         runtimeKind: application.kind,
         id: application.id,
         name: application.name,
+        icon: application.icon ?? null,
         version: application.version,
         description: application.description,
         source: application.source,

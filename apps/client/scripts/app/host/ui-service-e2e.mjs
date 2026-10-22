@@ -63,6 +63,7 @@ try {
         kind: "dsh",
         id: "@mewvis/fixture-dsh-portable-application",
         name: "Portable DSH fixture",
+        icon: "./assets/icon.svg",
         version: "0.0.0",
         description: "Application UI service fixture",
         source: "installed",
@@ -77,6 +78,7 @@ try {
   const configured = await request("configure", configuration);
   assert.equal(configured.applications.length, 1);
   assert.equal(configured.applications[0].error, null);
+  assert.equal(configured.applications[0].icon, "./assets/icon.svg");
   assert.deepEqual(
     configured.applications[0].tools.map((tool) => tool.name),
     ["mewvis_dsh_echo"],

@@ -18,6 +18,7 @@ import { Button } from "design-system/components/ui/button";
 import { cn } from "design-system/lib/utils";
 import { useApplicationCatalogStore } from "./catalog-store";
 import { ApplicationFrame } from "./application-frame";
+import { ApplicationIcon } from "./application-icon";
 import { ApplicationPermissionSummary } from "./permission-summary";
 import { ApplicationToolWorkbench } from "./tool-workbench";
 
@@ -49,8 +50,6 @@ const applicationSurfaceLabel = (application: ApplicationUiApplication) => {
   return "工具面板";
 };
 
-const ApplicationIcon = ({ className }: { className?: string }) => <Blocks className={className} />;
-
 const LoadingState = () => (
   <div className="flex min-h-72 items-center justify-center gap-2 text-sm text-muted-foreground">
     <Loader2 className="size-4 animate-spin motion-reduce:animate-none" />
@@ -64,9 +63,7 @@ const ApplicationCard = ({ application }: { application: ApplicationUiApplicatio
   return (
     <article className="flex min-w-0 flex-col rounded-xl border border-border/80 bg-card p-4 transition-[border-color,box-shadow] duration-150 hover:border-primary/25 hover:shadow-sm motion-reduce:transition-none">
       <div className="flex min-w-0 items-center gap-3">
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-accent text-primary">
-          <ApplicationIcon className="size-5" />
-        </span>
+        <ApplicationIcon application={application} />
         <div className="min-w-0">
           <h3 className="truncate text-sm font-semibold" title={application.name}>
             {application.name}

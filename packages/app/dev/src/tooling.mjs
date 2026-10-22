@@ -15,11 +15,13 @@ import {
   realpath,
   rename,
   rm,
+  stat,
   writeFile,
 } from "node:fs/promises";
 import { createRequire } from "node:module";
 import {
   dirname,
+  extname,
   isAbsolute,
   join,
   parse,
@@ -196,6 +198,7 @@ export const validateApplication = async (source) => {
     manifest[PRODUCT_KEYS.applicationManifest] = {
       app: { version: 1, entry: "./index.js" },
       displayName: config.displayName,
+      ...(config.icon === undefined ? {} : { icon: config.icon }),
       defaultEnabled: config.defaultEnabled ?? false,
       permissions: config.permissions,
       ...(config.agentAccess === undefined
@@ -277,6 +280,32 @@ export const validateApplication = async (source) => {
 
   const assets = new Set(["./README.md", "./LICENSE"]);
   const requiredAssets = new Set();
+  if (mewvis?.icon !== undefined) {
+    try {
+      const label = productId(".icon");
+      const path = containedPath(root, mewvis.icon, label);
+      if (mewvis.icon.includes("\\") || mewvis.icon.split("/").includes(".."))
+        throw new Error(`${label} 必须使用正斜杠，且不能包含 .. 路径段。`);
+      if (
+        ![".svg", ".png", ".webp", ".jpg", ".jpeg"].includes(
+          extname(path).toLowerCase(),
+        )
+      )
+        throw new Error(`${label} 只支持 SVG、PNG、WebP 或 JPEG 图片。`);
+      await assertRealContained(root, path, label);
+      const metadata = await stat(path);
+      if (
+        !metadata.isFile() ||
+        metadata.size === 0 ||
+        metadata.size > 256 * 1024
+      )
+        throw new Error(`${label} 必须是非空图片文件，且不能超过 256 KiB。`);
+      assets.add(mewvis.icon);
+      requiredAssets.add(mewvis.icon);
+    } catch (error) {
+      problems.push(error instanceof Error ? error.message : String(error));
+    }
+  }
   if (application && Array.isArray(application.assets)) {
     for (const [index, asset] of application.assets.entries()) {
       pushAsset(assets, asset, `${PRODUCT_NAMESPACE}.app.assets[${index}]`);

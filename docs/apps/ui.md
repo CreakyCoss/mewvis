@@ -14,6 +14,7 @@ React 项目可使用 [应用工程工具链](development.md)：页面从 `main/
 {
   "mewvis": {
     "app": { "version": 1, "entry": "./index.js" },
+    "icon": "./assets/icon.png",
     "ui": {
       "version": 1,
       "kind": "sandbox",
@@ -28,6 +29,8 @@ React 项目可使用 [应用工程工具链](development.md)：页面从 `main/
 源码只维护 `mewvis` 声明。在 `apps/client` 运行 `pnpm app:pack -- <package> --target dsh`，会保留 UI 元数据，并在分发包增加 `dsh.bundle` 和 `cordis.patch.yml`。
 
 路径必须以 `./` 开头，解析后位于包内，不得经符号链接越界。
+
+`mewvis.icon` 是可选的应用图标，与自带 UI 独立；支持包内 SVG、PNG、WebP、JPEG，大小不超过 256 KiB。未提供或加载失败时，应用列表与管理页显示默认图标。React 项目可在 `app.config.ts` 声明 `icon`，打包时自动带上图片，详见[应用图标](development.md#应用图标)。
 
 内置与外部应用的自带界面统一铺满常驻导航栏之外的应用工作区，无需声明布局。宿主不显示应用详情栏或沙箱卡片边框，窗口顶部保留 40 px 拖动区域，应用可通过公共顶栏接口复用这一区域显示标题与返回入口，通过常驻导航栏切换页面。应用加载失败时，宿主显示错误信息；UI 声明无效或未提供自带界面时，使用通用工具页面。
 

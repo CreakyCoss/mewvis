@@ -30,6 +30,7 @@ import { ImportApplicationDialog } from "./import-dialog";
 import { MarketplaceInstallDialog } from "./market-install-dialog";
 import { MarketplacePanel } from "./marketplace-panel";
 import { ApplicationPermissionSummary } from "../permission-summary";
+import { ApplicationIcon } from "../application-icon";
 import { ApplicationToolPermissions } from "./tool-permissions";
 
 type ApplicationRowProps = {
@@ -41,9 +42,7 @@ type ApplicationRowProps = {
 
 const ApplicationRow = ({ application, isUpdating, onEnabledChange, onRemove }: ApplicationRowProps) => (
   <div className="grid min-h-24 grid-cols-[2.75rem_minmax(0,1fr)_auto] items-center gap-4 border-b border-border/70 px-4 py-4 last:border-b-0 max-sm:grid-cols-[2.5rem_minmax(0,1fr)] max-sm:gap-x-3">
-    <span className="flex size-10 items-center justify-center rounded-xl bg-accent/75 text-primary">
-      <Plug className="size-5 stroke-[1.8]" />
-    </span>
+    <ApplicationIcon application={application} />
 
     <div className="min-w-0">
       <div className="flex min-w-0 flex-wrap items-center gap-2">

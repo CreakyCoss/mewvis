@@ -61,6 +61,7 @@ export async function readProject(root) {
     throw new Error(`${PRODUCT_CONFIG.files.appConfig} 必须默认导出应用配置`);
   const allowed = [
     "displayName",
+    "icon",
     "permissions",
     "agentAccess",
     "defaultEnabled",

@@ -21,6 +21,7 @@ export type ApplicationPermissionStatus = "declared" | ProductId<"-upgrade-requi
 export type ApplicationDescriptor = {
   id: string;
   name: string;
+  icon?: string | null;
   version: string;
   description: string;
   source: "bundled" | "installed";
@@ -98,6 +99,7 @@ export type ApplicationUiApplication = {
   runtimeKind: ApplicationRuntimeKind;
   id: string;
   name: string;
+  icon?: string | null;
   version: string;
   description: string;
   source: "bundled" | "installed";
@@ -182,6 +184,10 @@ export async function removeApplication(id: string) {
 
 export async function listApplicationUi() {
   return invoke<ApplicationUiCatalog>("list_application_ui");
+}
+
+export async function getApplicationIcon(applicationId: string) {
+  return invoke<string | null>("get_application_icon", { input: { applicationId } });
 }
 
 export async function executeApplicationUiTool(applicationId: string, toolName: string, args: unknown = {}) {

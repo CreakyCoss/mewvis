@@ -36,6 +36,26 @@ my-application/
 纯 UI 应用可删除 host 配置及目录；纯工具或技能应用设置 `ui: false`；`host.tools` 和 `host.skills` 可以单独使用。
 package.json 不再维护一份重复的 `mewvis` 清单，构建时从 `app.config.ts` 生成。
 
+## 应用图标
+
+应用可以在 `app.config.ts` 中声明自己的图标：
+
+```ts
+import { defineConfig } from "@mewvis/app-dev";
+
+export default defineConfig({
+  displayName: "我的应用",
+  icon: "./assets/icon.png",
+  permissions: [],
+});
+```
+
+`icon` 可省略。文件必须位于应用目录内，以 `./` 开头，支持 SVG、PNG、WebP 和 JPEG，大小不超过 256 KiB；建议使用正方形图片。图标不接受远程 URL 或包外路径。
+
+工具链校验该文件，自动将它复制到安装包，并生成 `package.json` 中的 `mewvis.icon`，无需重复加入 `app.assets`。直接维护包清单的应用也可以声明 `"mewvis": { "icon": "./assets/icon.png", ... }`。
+
+应用列表和应用管理优先显示应用自带图标；未声明、文件不可读或图片加载失败时，使用宿主的默认图标。图标按需读取，不会把图片数据塞进整个应用目录响应。
+
 ## 页面与宿主工具
 
 ```tsx

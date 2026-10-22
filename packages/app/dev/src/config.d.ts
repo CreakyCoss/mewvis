@@ -17,6 +17,8 @@ export type ApplicationPermission =
   | "embedded-views";
 export interface ApplicationConfig {
   displayName: string;
+  /** Optional package-local SVG, PNG, WebP or JPEG icon (./ path, at most 256 KiB). */
+  icon?: string;
   permissions: ApplicationPermission[];
   /** Hard ceiling for Agent operations. Omitted capabilities are denied, including in full mode. */
   agentAccess?: AgentAccess;

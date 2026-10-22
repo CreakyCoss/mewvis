@@ -18,6 +18,7 @@ import {
   jsonWrite,
 } from "../../infrastructure/filesystem/json.js";
 import { invalid, nonempty, ServiceError } from "../../shared/validation.js";
+import { applicationIconEntry } from "./icon.js";
 
 export function applicationDirectory(root: string, id: string) {
   const component = (s: string) =>
@@ -131,6 +132,7 @@ export async function readPackage(
   return {
     id,
     name: mewvis.displayName ?? id,
+    icon: applicationIconEntry(mewvis.icon),
     version: manifest.version ?? "",
     description: manifest.description ?? "",
     source,

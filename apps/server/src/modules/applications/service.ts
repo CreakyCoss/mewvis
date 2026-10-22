@@ -18,6 +18,7 @@ import {
 } from "./packages.js";
 import { ApplicationData } from "./data.js";
 import { ApplicationHost } from "./host.js";
+import { readApplicationIcon } from "./icon.js";
 import { ApplicationMedia } from "../media/service.js";
 
 import { Serial } from "../../shared/serial.js";
@@ -287,6 +288,10 @@ export class Applications {
           return this.packages.remove(i.id);
         }),
       list_application_ui: () => this.host.invoke("catalog"),
+      get_application_icon: async (i: JsonObject) => {
+        const application = await this.packages.get(i.applicationId);
+        return readApplicationIcon(application.path, application.icon);
+      },
       execute_application_ui_tool: (i: JsonObject) =>
         this.host.invoke("execute", i),
       get_application_ui_document: (i: JsonObject) =>
