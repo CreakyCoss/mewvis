@@ -12,15 +12,15 @@ import {
   hitTest,
   sizes,
   fitSize,
-  MAX_BYTES,
   type Design,
   type Layer,
   type Kind,
 } from "./model";
 import { renderDesign, htmlDocument } from "./render";
-import { readImage, exportFile } from "./files";
+import { createAssets, readImage } from "./files";
 import { useDesign } from "./useDesign";
-import platform from "./art/platform";
+import type { DesignRepository, Project } from "./repository";
+import platform from "./assets/platform.webp";
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -67,7 +67,7 @@ function Numeric({
     </Field>
   );
 }
-function Modal({
+export function Modal({
   title,
   children,
   close,
@@ -105,9 +105,17 @@ function Modal({
   );
 }
 
-export default function App() {
-  const { design, setDesign, ready, loadError, status, retryLoad, retrySave } =
-    useDesign();
+export default function Editor({
+  project,
+  repository,
+  onBack,
+}: {
+  project: Project;
+  repository: DesignRepository;
+  onBack(): void;
+}) {
+  const { design, setDesign, status, save } = useDesign(project, repository);
+  const assets = useRef<ReturnType<typeof createAssets> | null>(null);
   const current = useRef(design);
   current.current = design;
   const history = useRef<{ past: Design[]; future: Design[] }>({
@@ -133,7 +141,6 @@ export default function App() {
   const viewport = useRef<HTMLDivElement>(null);
   const stage = useRef<HTMLDivElement>(null);
   const imageInput = useRef<HTMLInputElement>(null);
-  const designInput = useRef<HTMLInputElement>(null);
   const textInput = useRef<HTMLTextAreaElement>(null);
   const drag = useRef<{
     startX: number;
@@ -145,6 +152,15 @@ export default function App() {
   } | null>(null);
   const report = (error: unknown) =>
     setError(error instanceof Error ? error.message : String(error));
+
+  useEffect(() => {
+    const value = createAssets(repository, project);
+    assets.current = value;
+    return () => {
+      value.dispose();
+      if (assets.current === value) assets.current = null;
+    };
+  }, [repository, project]);
 
   function remember(before: Design) {
     history.current.past = [...history.current.past.slice(-49), before];
@@ -300,7 +316,7 @@ export default function App() {
       event.currentTarget.releasePointerCapture(event.pointerId);
   }
   useEffect(() => {
-    if (!ready || !viewport.current) return;
+    if (!viewport.current) return;
     const resize = new ResizeObserver(([entry]) => {
       const fit = Math.min(
         (entry.contentRect.width - 70) / design.width,
@@ -311,13 +327,17 @@ export default function App() {
     });
     resize.observe(viewport.current);
     return () => resize.disconnect();
-  }, [ready, design.width, design.height, zoom]);
+  }, [design.width, design.height, zoom]);
   useEffect(() => {
-    if (!ready || !canvas.current) return;
+    if (!canvas.current) return;
     let active = true;
     const target = canvas.current,
       buffer = document.createElement("canvas");
-    renderDesign(buffer, design)
+    assets
+      .current!.sources(design)
+      .then((sources) =>
+        renderDesign(buffer, design, design.width, design.height, sources),
+      )
       .then(() => {
         if (!active) return;
         target.width = buffer.width;
@@ -330,7 +350,7 @@ export default function App() {
     return () => {
       active = false;
     };
-  }, [design, ready]);
+  }, [design, assets]);
   useEffect(
     () => () => {
       if (result?.url) URL.revokeObjectURL(result.url);
@@ -339,43 +359,69 @@ export default function App() {
   );
 
   async function importImage(file?: File) {
-    if (!file) return;
+    if (!file || busy) return;
+    if (current.current.layers.length >= 50) {
+      setError("每张设计最多添加 50 个图层。");
+      return;
+    }
+    setBusy(true);
     try {
       const image = await readImage(file);
+      const src = await repository.importAsset(project, image.bytes, file.type);
       const width = Math.min(design.width * 0.6, image.width),
         height = (width * image.height) / image.width;
       add("image", {
-        src: image.src,
+        src,
         width,
         height,
         name: file.name.slice(0, 80),
       });
     } catch (error) {
       report(error);
+    } finally {
+      setBusy(false);
     }
   }
-  async function importDesign(file?: File) {
-    if (!file) return;
+  async function applyTemplate(kind: "blank" | "intro" | "event" | "mewvis") {
+    if (busy) return;
+    setBusy(true);
     try {
-      if (file.size > MAX_BYTES) throw new Error("设计文件最多 200 KiB。");
-      commit(restore(JSON.parse(await file.text())));
+      let art = "";
+      if (kind === "mewvis") {
+        const bytes = Uint8Array.from(atob(platform.split(",")[1]), (char) =>
+          char.charCodeAt(0),
+        );
+        art = await repository.importAsset(project, bytes, "image/webp");
+      }
+      commit(template(kind, art));
       select(null);
+      setTemplatesOpen(false);
+      setZoom("fit");
     } catch (error) {
       report(error);
+    } finally {
+      setBusy(false);
     }
   }
-  async function output(kind: "png" | "json" | "html") {
+  async function output(kind: "png" | "html") {
     if (busy) return;
     setBusy(true);
     setError("");
     try {
       const snapshot = current.current;
+      await save();
       let blob: Blob;
       let label = "设计文件";
       if (kind === "png") {
         const size = fitSize(snapshot.width, snapshot.height);
         const buffer = document.createElement("canvas");
-        await renderDesign(buffer, snapshot, size.width, size.height);
+        await renderDesign(
+          buffer,
+          snapshot,
+          size.width,
+          size.height,
+          await assets.current!.sources(snapshot),
+        );
         blob = await new Promise<Blob>((resolve, reject) =>
           buffer.toBlob(
             (blob) =>
@@ -384,18 +430,26 @@ export default function App() {
           ),
         );
         label = `${size.width} × ${size.height} PNG`;
-      } else if (kind === "json")
-        blob = new Blob([JSON.stringify(snapshot, null, 2)], {
-          type: "application/json",
-        });
-      else
-        blob = new Blob([htmlDocument(snapshot)], {
-          type: "text/html;charset=utf-8",
-        });
+      } else
+        blob = new Blob(
+          [
+            htmlDocument(
+              snapshot,
+              await assets.current!.sources(snapshot, true),
+            ),
+          ],
+          {
+            type: "text/html;charset=utf-8",
+          },
+        );
       let path = "",
         error = "";
       try {
-        path = await exportFile(blob, `design-${Date.now()}.${kind}`);
+        path = await repository.exportFile(
+          project,
+          new Uint8Array(await blob.arrayBuffer()),
+          kind,
+        );
       } catch (value) {
         error = value instanceof Error ? value.message : String(value);
       }
@@ -414,20 +468,6 @@ export default function App() {
     }
   }
 
-  if (loadError)
-    return (
-      <main className="ds-loading" role="alert">
-        <h1>暂时无法载入设计</h1>
-        <p>{loadError}</p>
-        <button onClick={retryLoad}>重新加载</button>
-      </main>
-    );
-  if (!ready)
-    return (
-      <main className="ds-loading" role="status">
-        正在打开设计画布…
-      </main>
-    );
   const selectedStyle = item
     ? {
         left: item.x * scale,
@@ -492,6 +532,19 @@ export default function App() {
       }}
     >
       <header className="ds-toolbar">
+        <button
+          aria-label="返回工作区列表"
+          disabled={busy}
+          onClick={() => {
+            setBusy(true);
+            void save()
+              .then(onBack)
+              .catch(report)
+              .finally(() => setBusy(false));
+          }}
+        >
+          ←
+        </button>
         <div className="ds-brand">
           <span className="ds-brand-mark" aria-hidden="true">
             ◧
@@ -523,14 +576,18 @@ export default function App() {
             ↷
           </button>
         </div>
-        <span className="ds-status" role="status">
+        <span
+          className="ds-status"
+          role="status"
+          title={project.workspace.path}
+        >
           {status}
         </span>
         {status.startsWith("保存失败") && (
-          <button onClick={retrySave}>重试保存</button>
+          <button onClick={() => void save().catch(report)}>重试保存</button>
         )}
         <div className="ds-export">
-          <button disabled={busy} onClick={() => void output("json")}>
+          <button disabled={busy} onClick={() => void save().catch(report)}>
             保存设计
           </button>
           <button disabled={busy} onClick={() => void output("html")}>
@@ -569,7 +626,7 @@ export default function App() {
             <button onClick={() => add("ellipse")}>
               <b>○</b>圆形
             </button>
-            <button onClick={() => imageInput.current?.click()}>
+            <button disabled={busy} onClick={() => imageInput.current?.click()}>
               <b>▧</b>图片
             </button>
           </div>
@@ -579,12 +636,9 @@ export default function App() {
           >
             选择起始模板 <span>↗</span>
           </button>
-          <button
-            className="ds-import-button"
-            onClick={() => designInput.current?.click()}
-          >
-            导入设计文件
-          </button>
+          <p className="ds-workspace-hint" title={project.workspace.path}>
+            素材保存在当前工作区
+          </p>
           <input
             ref={imageInput}
             type="file"
@@ -592,16 +646,6 @@ export default function App() {
             accept="image/png,image/jpeg,image/webp"
             onChange={(e) => {
               void importImage(e.target.files?.[0]);
-              e.target.value = "";
-            }}
-          />
-          <input
-            ref={designInput}
-            type="file"
-            hidden
-            accept=".json,application/json"
-            onChange={(e) => {
-              void importDesign(e.target.files?.[0]);
               e.target.value = "";
             }}
           />
@@ -828,7 +872,10 @@ export default function App() {
                 <p>
                   介绍图、活动海报、课程封面、社交配图……从模板开始，也可以自由组合。
                 </p>
-                <p>保存设计文件后，可再次导入编辑。HTML 可独立打开查看。</p>
+                <p>
+                  设计会自动保存到工作区，下次打开即可继续编辑。HTML
+                  可独立打开查看。
+                </p>
               </div>
             </>
           ) : (
@@ -1027,12 +1074,8 @@ export default function App() {
               <button
                 key={kind}
                 className={`ds-template ds-template-${kind}`}
-                onClick={() => {
-                  commit(template(kind, platform));
-                  select(null);
-                  setTemplatesOpen(false);
-                  setZoom("fit");
-                }}
+                disabled={busy}
+                onClick={() => void applyTemplate(kind)}
               >
                 <div className="ds-template-art" aria-hidden="true">
                   <i />

@@ -101,14 +101,10 @@ test("the shipped mini-apps initialize as runnable saved versions without duplic
   });
   assert.match(gravityBuild.artifact.script, /gravity-playground-v1/);
   assert.match(gravityBuild.artifact.style, /\.gravity-app/);
-  const design = first.find((item) => item.name === "设计画布");
-  assert.ok(design?.savedVersionId);
-  const designBuild = await f.run("workshop_read_build", {
-    workspaceId: design.id,
-    mode: "saved",
-  });
-  assert.match(designBuild.artifact.script, /design-studio-v1/);
-  assert.match(designBuild.artifact.style, /\.ds-app/);
+  assert.deepEqual(
+    catalog.map((item) => item.id),
+    ["cat-packing", "gravity-playground"],
+  );
   await f.run("workshop_initialize_builtins");
   assert.deepEqual(
     (await f.run("workshop_list_projects")).projects.map((item) => item.id),

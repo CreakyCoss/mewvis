@@ -9,6 +9,7 @@ packages:
   - "apps/applications/builtins/chat-playground"
   - "apps/applications/builtins/story"
   - "apps/applications/builtins/film-workshop"
+  - "apps/applications/builtins/design-studio"
   - "apps/applications/builtins/learning"
   - "apps/applications/builtins/app-workshop"
   - "apps/applications/builtins/rss-reader"

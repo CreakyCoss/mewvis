@@ -22,14 +22,18 @@ export interface Layer {
   src: string;
 }
 export interface Design {
-  format: 1;
+  format: "mewvis-design";
+  version: 1;
   title: string;
   width: number;
   height: number;
   background: string;
   layers: Layer[];
 }
-export const MAX_BYTES = 200 * 1024;
+export const MAX_BYTES = 1024 * 1024;
+export const isAssetPath = (value: unknown): value is string =>
+  typeof value === "string" &&
+  /^assets\/[a-zA-Z0-9-]{1,80}\.(png|webp|jpeg)$/.test(value);
 export const families = {
   sans: '-apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif',
   serif: '"Songti SC", "Noto Serif CJK SC", Georgia, serif',
@@ -79,7 +83,8 @@ export function restore(value: unknown): Design {
     throw new Error("设计文件内容无效。");
   const data = value as Partial<Design>;
   if (
-    data.format !== 1 ||
+    data.format !== "mewvis-design" ||
+    data.version !== 1 ||
     !Array.isArray(data.layers) ||
     data.layers.length > 50
   )
@@ -95,12 +100,9 @@ export function restore(value: unknown): Design {
     )
       throw new Error("图层标识重复或无效。");
     ids.add(item.id);
-    const src = text(item.src, "", 100000);
-    if (
-      item.kind === "image" &&
-      !/^data:image\/(png|webp|jpeg);base64,[a-zA-Z0-9+/]+={0,2}$/.test(src)
-    )
-      throw new Error("图片必须是内嵌的 PNG、WebP 或 JPEG。");
+    const src = item.src;
+    if (item.kind === "image" && !isAssetPath(src))
+      throw new Error("图片必须引用当前工作区 assets 目录中的素材文件。");
     return layer(item.kind, {
       id: item.id,
       name: text(item.name, "图层", 80),
@@ -128,7 +130,8 @@ export function restore(value: unknown): Design {
     });
   });
   const design: Design = {
-    format: 1,
+    format: "mewvis-design",
+    version: 1,
     title: text(data.title, "未命名设计", 80),
     width: number(data.width, 1920, 320, 2400),
     height: number(data.height, 1080, 320, 2400),
@@ -136,7 +139,7 @@ export function restore(value: unknown): Design {
     layers,
   };
   if (new TextEncoder().encode(JSON.stringify(design)).length > MAX_BYTES)
-    throw new Error("设计内容超过 200 KiB，请减少图片或图层后重试。");
+    throw new Error("设计内容超过 1 MiB，请减少文字或图层后重试。");
   return design;
 }
 export function hitTest(
@@ -167,7 +170,8 @@ export function template(
   art = "",
 ): Design {
   const design: Design = {
-    format: 1,
+    format: "mewvis-design",
+    version: 1,
     title: "未命名设计",
     width: 1920,
     height: 1080,

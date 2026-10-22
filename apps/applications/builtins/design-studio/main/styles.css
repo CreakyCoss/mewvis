@@ -78,6 +78,171 @@ textarea {
   flex-direction: column;
   overflow: hidden;
 }
+.ds-library {
+  height: 100%;
+  overflow: auto;
+}
+.ds-library-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 32px;
+  border-bottom: 1px solid #dce1dc;
+  background: #fcfdfb;
+}
+.ds-library-actions,
+.ds-project-actions,
+.ds-form-actions {
+  display: flex;
+  gap: 10px;
+}
+.ds-library-content {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 48px 32px;
+}
+.ds-library-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 36px;
+}
+.ds-library-heading h1 {
+  margin: 8px 0;
+  font-size: 30px;
+  font-weight: 600;
+  letter-spacing: 1px;
+}
+.ds-library-heading p {
+  color: #77847c;
+}
+.ds-eyebrow {
+  font-size: 10px;
+  letter-spacing: 2px;
+}
+.ds-library-empty {
+  text-align: center;
+  padding: 70px 20px;
+  background: #fcfdfb;
+  border: 1px dashed #cdd8cd;
+  border-radius: 14px;
+}
+.ds-library-empty > span {
+  display: inline-block;
+  color: #53735c;
+  font-size: 54px;
+}
+.ds-library-empty h2 {
+  font-size: 18px;
+  font-weight: 500;
+}
+.ds-library-empty p {
+  color: #77847c;
+  margin-bottom: 24px;
+}
+.ds-projects {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+  gap: 24px;
+}
+.ds-project {
+  border: 1px solid #dce1dc;
+  border-radius: 12px;
+  padding: 16px;
+  background: #fcfdfb;
+  min-width: 0;
+}
+.ds-project h2 {
+  font-size: 16px;
+  margin: 18px 0 6px;
+  overflow-wrap: anywhere;
+}
+.ds-project-art {
+  position: relative;
+  overflow: hidden;
+  height: 150px;
+  border-radius: 7px;
+  background: #e8ede3;
+  display: grid;
+  place-items: center;
+}
+.ds-project-art span {
+  font-size: 64px;
+  color: #56745c;
+  z-index: 1;
+}
+.ds-project-art i {
+  position: absolute;
+  right: -30px;
+  bottom: -50px;
+  width: 160px;
+  height: 160px;
+  background: #e7a880;
+  border-radius: 50%;
+}
+.ds-project-path {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 11px;
+  color: #77847c;
+}
+.ds-project-date,
+.ds-project-error {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.ds-project-date {
+  color: #77847c;
+}
+.ds-project-error {
+  color: #9b4336;
+}
+.ds-project-actions {
+  margin-top: 22px;
+}
+.ds-project-actions > :first-child {
+  flex: 1;
+}
+.ds-workspace-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding-top: 12px;
+}
+.ds-directory-picker {
+  display: flex;
+  gap: 8px;
+}
+.ds-directory-picker button {
+  flex-shrink: 0;
+}
+.ds-form-actions {
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+.ds-workspace-hint {
+  color: #77847c;
+  font-size: 11px;
+  margin: 12px 0 20px;
+}
+@media (max-width: 600px) {
+  .ds-library-header {
+    padding: 14px;
+    flex-wrap: wrap;
+  }
+  .ds-library-content {
+    padding: 28px 16px;
+  }
+  .ds-library-heading h1 {
+    font-size: 24px;
+  }
+  .ds-library-heading {
+    align-items: flex-start;
+  }
+}
 .ds-toolbar {
   flex: none;
   display: flex;

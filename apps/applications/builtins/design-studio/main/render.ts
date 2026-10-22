@@ -6,6 +6,7 @@ export async function renderDesign(
   design: Design,
   width = design.width,
   height = design.height,
+  sources: Record<string, string> = {},
 ) {
   canvas.width = width;
   canvas.height = height;
@@ -52,7 +53,9 @@ export async function renderDesign(
         ctx.fill();
       } else if (item.kind === "image") {
         const image = new Image();
-        image.src = item.src;
+        const src = sources[item.src];
+        if (!src) throw new Error(`图片素材无法载入：${item.name}`);
+        image.src = src;
         await image.decode();
         const scale = Math.min(
           item.width / image.width,
@@ -95,7 +98,10 @@ export async function renderDesign(
   }
 }
 
-export function htmlDocument(design: Design) {
+export function htmlDocument(
+  design: Design,
+  sources: Record<string, string> = {},
+) {
   const title = design.title.replace(
     /[&<>"']/g,
     (char) =>
@@ -103,6 +109,6 @@ export function htmlDocument(design: Design) {
         char
       ]!,
   );
-  const json = JSON.stringify(design).replace(/</g, "\\u003c");
-  return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title><style>body{margin:0;background:#ecece8;min-height:100vh;display:grid;place-items:center}canvas{display:block;max-width:100vw;max-height:100vh;object-fit:contain}</style></head><body><canvas aria-label="${title}"></canvas><script id="design-data" type="application/json">${json}</script><script>const render=${renderDesign.toString()};render(document.querySelector('canvas'),JSON.parse(document.getElementById('design-data').textContent)).catch(error=>{document.body.textContent=error.message});</script></body></html>`;
+  const json = JSON.stringify({ design, sources }).replace(/</g, "\\u003c");
+  return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title><style>body{margin:0;background:#ecece8;min-height:100vh;display:grid;place-items:center}canvas{display:block;max-width:100vw;max-height:100vh;object-fit:contain}</style></head><body><canvas aria-label="${title}"></canvas><script id="design-data" type="application/json">${json}</script><script>const render=${renderDesign.toString()};const {design,sources}=JSON.parse(document.getElementById('design-data').textContent);render(document.querySelector('canvas'),design,design.width,design.height,sources).catch(error=>{document.body.textContent=error.message});</script></body></html>`;
 }

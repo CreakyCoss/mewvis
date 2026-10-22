@@ -64,6 +64,7 @@
 - [应用工坊](apps/builtins/app-workshop.md)
 - [故事工坊](apps/builtins/story.md)
 - [影视工坊](apps/builtins/film-workshop.md)
+- [设计画布](apps/builtins/design-studio.md)
 - [学习工坊](apps/builtins/learning.md)
 - [文档中心](apps/builtins/docs-reader.md)
 - [RSS 阅读器](apps/builtins/rss-reader.md)
