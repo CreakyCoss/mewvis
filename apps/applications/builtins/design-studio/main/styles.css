@@ -100,47 +100,117 @@ textarea {
 .ds-library-content {
   max-width: 1280px;
   margin: 0 auto;
-  padding: 48px 32px;
+  padding: 20px 32px;
 }
-.ds-library-heading {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 20px;
-  margin-bottom: 36px;
-}
-.ds-library-heading h1 {
-  margin: 8px 0;
-  font-size: 30px;
+.ds-library-header h1 {
+  margin: 0;
+  font: inherit;
   font-weight: 600;
-  letter-spacing: 1px;
 }
-.ds-library-heading p {
-  color: #77847c;
+.ds-library-content.is-empty {
+  display: grid;
+  place-items: center;
+  min-height: min(640px, calc(100dvh - 80px));
+  padding-block: 48px;
 }
-.ds-eyebrow {
-  font-size: 10px;
-  letter-spacing: 2px;
-}
-.ds-library-empty {
+.ds-empty-workspace {
+  width: 100%;
+  max-width: 400px;
   text-align: center;
-  padding: 70px 20px;
+}
+.ds-empty-art {
+  position: relative;
+  width: 140px;
+  height: 120px;
+  margin: 0 auto 24px;
+}
+.ds-empty-art-back,
+.ds-empty-art-canvas {
+  position: absolute;
+  width: 100px;
+  height: 78px;
+  border: 1px solid #d6dfd3;
+  border-radius: 10px;
+}
+.ds-empty-art-back {
+  top: 11px;
+  left: 10px;
+  transform: rotate(-10deg);
+  background: #e7eee3;
+}
+.ds-empty-art-canvas {
+  top: 22px;
+  left: 25px;
+  overflow: hidden;
+  transform: rotate(5deg);
   background: #fcfdfb;
-  border: 1px dashed #cdd8cd;
-  border-radius: 14px;
+  box-shadow: 0 6px 14px #294c3e0a;
 }
-.ds-library-empty > span {
-  display: inline-block;
-  color: #53735c;
-  font-size: 54px;
+.ds-empty-art-canvas i {
+  position: absolute;
+  width: 42px;
+  height: 42px;
+  right: -7px;
+  bottom: -6px;
+  border-radius: 50%;
+  background: #e9a37b;
 }
-.ds-library-empty h2 {
-  font-size: 18px;
-  font-weight: 500;
+.ds-empty-art-canvas b,
+.ds-empty-art-canvas span {
+  position: absolute;
+  left: 15px;
+  height: 5px;
+  border-radius: 2px;
+  background: #c6d6c1;
 }
-.ds-library-empty p {
-  color: #77847c;
-  margin-bottom: 24px;
+.ds-empty-art-canvas b {
+  top: 22px;
+  width: 45px;
+}
+.ds-empty-art-canvas span {
+  top: 34px;
+  width: 30px;
+  background: #e1e8dd;
+}
+.ds-empty-art-badge {
+  position: absolute;
+  right: 4px;
+  bottom: 3px;
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border: 4px solid #f8f9f7;
+  border-radius: 13px;
+  background: #294c3e;
+  color: #fff;
+}
+.ds-empty-workspace h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+.ds-empty-workspace > p {
+  margin: 8px 0 24px;
+  color: #657367;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.ds-empty-actions {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.ds-empty-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 44px;
+  padding: 10px 16px;
+  border-radius: 8px;
 }
 .ds-projects {
   display: grid;
@@ -223,24 +293,13 @@ textarea {
   justify-content: flex-end;
   margin-top: 16px;
 }
-.ds-workspace-hint {
-  color: #77847c;
-  font-size: 11px;
-  margin: 12px 0 20px;
-}
 @media (max-width: 600px) {
   .ds-library-header {
     padding: 14px;
     flex-wrap: wrap;
   }
   .ds-library-content {
-    padding: 28px 16px;
-  }
-  .ds-library-heading h1 {
-    font-size: 24px;
-  }
-  .ds-library-heading {
-    align-items: flex-start;
+    padding: 16px;
   }
 }
 .ds-toolbar {
@@ -283,15 +342,52 @@ textarea {
 }
 .ds-history {
   display: flex;
-  gap: 5px;
-  padding-left: 12px;
-  border-left: 1px solid #dce1dc;
+  align-items: center;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid #e1e7df;
+  border-radius: 9px;
+  background: #f0f3ee;
+  flex-shrink: 0;
 }
 .ds-history button {
-  font-size: 22px;
-  line-height: 1;
-  min-width: 32px;
-  padding: 0 5px;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  min-height: 36px;
+  padding: 0;
+  color: #365343;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  transition:
+    background 150ms,
+    border-color 150ms,
+    box-shadow 150ms;
+}
+.ds-history button:hover:not(:disabled) {
+  background: #fff;
+  border-color: #d9e2d5;
+  box-shadow: 0 1px 2px #294c3e0a;
+}
+.ds-history button:active:not(:disabled) {
+  background: #e4ebe0;
+  box-shadow: none;
+}
+.ds-history button:disabled {
+  opacity: 0.32;
+}
+@media (pointer: coarse) {
+  .ds-history button {
+    width: 44px;
+    height: 44px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ds-history button {
+    transition: none;
+  }
 }
 .ds-status {
   font-size: 11px;
@@ -335,15 +431,11 @@ textarea {
 .ds-sidebar-heading strong {
   font-size: 13px;
 }
-.ds-sidebar-heading > span {
-  font-size: 11px;
-  color: #8a958d;
-}
 .ds-add-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
-  margin: 20px 0 14px;
+  margin: 12px 0 14px;
 }
 .ds-add-grid button {
   height: 65px;
@@ -361,6 +453,7 @@ textarea {
   color: #496859;
 }
 .ds-template-button {
+  margin-bottom: 16px;
   width: 100%;
   display: flex;
   justify-content: space-between;
@@ -617,21 +710,6 @@ textarea {
   line-height: 1.8;
   margin: 2px 0 20px;
 }
-.ds-property-note {
-  border-top: 1px solid #e2e7df;
-  padding-top: 22px;
-  margin-top: 26px;
-}
-.ds-property-note strong {
-  font-weight: 500;
-  color: #5b7162;
-  font-size: 12px;
-}
-.ds-property-note p {
-  font-size: 11px;
-  color: #94a08f;
-  line-height: 1.9;
-}
 .ds-layer-properties {
   padding: 0;
   margin: 0;
@@ -730,11 +808,6 @@ textarea {
   min-height: 28px;
   line-height: 1;
   padding: 0 5px;
-}
-.ds-modal-description {
-  font-size: 12px;
-  color: #8d9c8b;
-  margin-bottom: 22px;
 }
 .ds-template-grid {
   display: grid;
@@ -905,7 +978,6 @@ textarea {
     width: 130px;
     padding: 16px 8px;
   }
-  .ds-sidebar-heading > span,
   .ds-shortcuts {
     display: none;
   }

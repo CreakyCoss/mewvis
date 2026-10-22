@@ -5,6 +5,7 @@ import {
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from "react";
+import { Redo2, Undo2 } from "lucide-react";
 import {
   layer,
   template,
@@ -558,22 +559,24 @@ export default function Editor({
           maxLength={80}
           onChange={(e) => commit({ ...design, title: e.target.value })}
         />
-        <div className="ds-history">
+        <div className="ds-history" role="group" aria-label="编辑历史">
           <button
-            title="撤销 · Ctrl/Cmd Z"
+            title="撤销（⌘Z / Ctrl+Z）"
             aria-label="撤销"
+            aria-keyshortcuts="Meta+Z Control+Z"
             disabled={!history.current.past.length}
             onClick={() => undo()}
           >
-            ↶
+            <Undo2 size={18} strokeWidth={1.8} aria-hidden="true" />
           </button>
           <button
-            title="重做 · Ctrl/Cmd Shift Z"
+            title="重做（⇧⌘Z / Ctrl+Shift+Z）"
             aria-label="重做"
+            aria-keyshortcuts="Meta+Shift+Z Control+Shift+Z"
             disabled={!history.current.future.length}
             onClick={() => undo(true)}
           >
-            ↷
+            <Redo2 size={18} strokeWidth={1.8} aria-hidden="true" />
           </button>
         </div>
         <span
@@ -613,8 +616,7 @@ export default function Editor({
       <div className="ds-body">
         <aside className="ds-sidebar" aria-label="素材和图层">
           <div className="ds-sidebar-heading">
-            <strong>从这里开始</strong>
-            <span>自由组合你的画面</span>
+            <strong>添加元素</strong>
           </div>
           <div className="ds-add-grid">
             <button onClick={() => add("text")}>
@@ -636,9 +638,6 @@ export default function Editor({
           >
             选择起始模板 <span>↗</span>
           </button>
-          <p className="ds-workspace-hint" title={project.workspace.path}>
-            素材保存在当前工作区
-          </p>
           <input
             ref={imageInput}
             type="file"
@@ -867,16 +866,6 @@ export default function Editor({
               <p className="ds-help">
                 改变画布尺寸后，图层仍保留原有位置和大小。
               </p>
-              <div className="ds-property-note">
-                <strong>一张画布，多种用途</strong>
-                <p>
-                  介绍图、活动海报、课程封面、社交配图……从模板开始，也可以自由组合。
-                </p>
-                <p>
-                  设计会自动保存到工作区，下次打开即可继续编辑。HTML
-                  可独立打开查看。
-                </p>
-              </div>
             </>
           ) : (
             <fieldset disabled={item.locked} className="ds-layer-properties">
@@ -1058,10 +1047,7 @@ export default function Editor({
         </aside>
       </div>
       {templatesOpen && (
-        <Modal title="从一个想法开始" close={() => setTemplatesOpen(false)}>
-          <p className="ds-modal-description">
-            每个模板都由可自由修改的图层组成。
-          </p>
+        <Modal title="选择模板" close={() => setTemplatesOpen(false)}>
           <div className="ds-template-grid">
             {(
               [

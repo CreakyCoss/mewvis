@@ -133,12 +133,25 @@ try {
   await mkdir(output, { recursive: true });
   await page.goto(origin);
   const frame = page.frameLocator('iframe[name="app"]');
-  await frame.getByRole("heading", { name: "从一个想法开始" }).waitFor();
+  await wait(() =>
+    frame.getByRole("button", { name: "刷新列表", exact: true }).isEnabled(),
+  );
   assert.equal(await frame.locator("canvas").count(), 0);
+  const emptyWorkspace = frame.getByRole("region", {
+    name: "还没有设计工作区",
+  });
+  await emptyWorkspace.waitFor();
   await page.screenshot({ path: join(output, "workspaces.png") });
-  await frame
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.screenshot({ path: join(output, "workspaces-compact.png") });
+  assert.ok(
+    await frame
+      .locator("html")
+      .evaluate((root) => root.scrollWidth <= root.clientWidth),
+  );
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await emptyWorkspace
     .getByRole("button", { name: "新增工作区", exact: true })
-    .first()
     .click();
   await frame
     .getByRole("textbox", { name: "设计名称", exact: true })
@@ -205,6 +218,17 @@ try {
   await wait(imageDrawn);
   await page.screenshot({ path: join(output, "editor.png") });
   await frame.getByRole("button", { name: "复制图层", exact: true }).click();
+  await wait(
+    async () => (await readDesign()).layers.length === saved.layers.length + 1,
+  );
+  await frame.getByRole("button", { name: "撤销", exact: true }).click();
+  await wait(
+    async () => (await readDesign()).layers.length === saved.layers.length,
+  );
+  await frame
+    .getByRole("group", { name: "编辑历史" })
+    .screenshot({ path: join(output, "history-controls.png") });
+  await frame.getByRole("button", { name: "重做", exact: true }).click();
   await wait(
     async () => (await readDesign()).layers.length === saved.layers.length + 1,
   );
@@ -284,11 +308,16 @@ try {
   await frame.getByRole("button", { name: "移除", exact: true }).click();
   await frame.getByRole("button", { name: "移除工作区", exact: true }).click();
   await frame
-    .getByRole("heading", { name: "你的第一张设计，从这里开始" })
-    .waitFor();
+    .getByRole("dialog", { name: "移除工作区" })
+    .waitFor({ state: "hidden" });
+  await wait(() =>
+    frame.getByRole("button", { name: "刷新列表", exact: true }).isEnabled(),
+  );
   assert.ok(await readFile(designPath));
   fixture.state.directory = workspace.path;
-  await frame.getByRole("button", { name: "打开工作区", exact: true }).click();
+  await emptyWorkspace
+    .getByRole("button", { name: "打开工作区", exact: true })
+    .click();
   await frame.locator("canvas").waitFor();
   await page.setViewportSize({ width: 1024, height: 768 });
   await page.screenshot({ path: join(output, "editor-compact.png") });

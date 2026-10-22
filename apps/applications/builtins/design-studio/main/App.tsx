@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { getApplicationDataClient } from "@mewvis/app-sdk/data";
 import { getApplicationFileClient } from "@mewvis/app-sdk/files";
+import { FolderOpen, FolderPlus, Plus } from "lucide-react";
 import Editor, { Modal } from "./Editor";
 import {
   createRepository,
@@ -18,6 +19,7 @@ export default function App() {
     ),
   );
   const [entries, setEntries] = useState<ProjectEntry[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [project, setProject] = useState<Project | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState("正在加载工作区…");
@@ -25,14 +27,20 @@ export default function App() {
   const [removing, setRemoving] = useState<ProjectEntry | null>(null);
   const [name, setName] = useState("");
   const [parent, setParent] = useState("");
-  const refresh = async () => setEntries(await repository.list());
+  const refresh = async () => {
+    setEntries(await repository.list());
+    setLoaded(true);
+  };
 
   useEffect(() => {
     let active = true;
     repository
       .list()
       .then((items) => {
-        if (active) setEntries(items);
+        if (active) {
+          setEntries(items);
+          setLoaded(true);
+        }
       })
       .catch((error) => {
         if (active) setError(errorText(error));
@@ -58,6 +66,21 @@ export default function App() {
     }
   }
 
+  function startCreate() {
+    setError("");
+    setName("");
+    setParent("");
+    setCreating(true);
+  }
+  const openWorkspace = () =>
+    run("正在打开工作区…", async () => {
+      const directory = await repository.selectDirectory();
+      if (!directory) return;
+      const opened = await repository.attach(directory);
+      if (opened) setProject(opened);
+    });
+  const empty = loaded && entries.length === 0;
+
   if (project)
     return (
       <Editor
@@ -78,116 +101,119 @@ export default function App() {
           <span className="ds-brand-mark" aria-hidden="true">
             ◧
           </span>
-          <strong>设计画布</strong>
+          <h1>设计画布</h1>
         </div>
         <div className="ds-library-actions">
-          <button
-            disabled={!!busy}
-            onClick={() =>
-              void run("正在打开工作区…", async () => {
-                const directory = await repository.selectDirectory();
-                if (!directory) return;
-                const opened = await repository.attach(directory);
-                if (opened) setProject(opened);
-              })
-            }
-          >
-            打开工作区
-          </button>
-          <button
-            className="ds-primary"
-            disabled={!!busy}
-            onClick={() => {
-              setError("");
-              setName("");
-              setParent("");
-              setCreating(true);
-            }}
-          >
-            新增工作区
-          </button>
-        </div>
-      </header>
-      <section className="ds-library-content">
-        <div className="ds-library-heading">
-          <div>
-            <p className="ds-eyebrow">YOUR CREATIVE SPACE</p>
-            <h1>从一个想法开始</h1>
-            <p>为设计新增工作区，把画布、图片素材和导出文件放在一起。</p>
-          </div>
           <button
             disabled={!!busy}
             onClick={() => void run("正在刷新…", refresh)}
           >
             刷新列表
           </button>
+          <button disabled={!!busy} onClick={() => void openWorkspace()}>
+            打开工作区
+          </button>
+          <button
+            className={empty ? undefined : "ds-primary"}
+            disabled={!!busy}
+            onClick={startCreate}
+          >
+            新增工作区
+          </button>
         </div>
-        {error && !creating && !removing && (
-          <p className="ds-error" role="alert">
-            {error}
-          </p>
+      </header>
+      <section
+        className={`ds-library-content${empty ? " is-empty" : ""}`}
+        aria-busy={!!busy}
+      >
+        {empty && (
+          <section
+            className="ds-empty-workspace"
+            aria-labelledby="empty-workspace-title"
+          >
+            <div className="ds-empty-art" aria-hidden="true">
+              <div className="ds-empty-art-back" />
+              <div className="ds-empty-art-canvas">
+                <i />
+                <b />
+                <span />
+              </div>
+              <div className="ds-empty-art-badge">
+                <FolderPlus size={22} strokeWidth={1.75} />
+              </div>
+            </div>
+            <h2 id="empty-workspace-title">还没有设计工作区</h2>
+            <p>新建一份设计，或打开已有工作区。</p>
+            <div className="ds-empty-actions">
+              <button
+                className="ds-primary"
+                disabled={!!busy}
+                onClick={startCreate}
+              >
+                <Plus size={17} strokeWidth={1.8} aria-hidden="true" />
+                新增工作区
+              </button>
+              <button disabled={!!busy} onClick={() => void openWorkspace()}>
+                <FolderOpen size={17} strokeWidth={1.8} aria-hidden="true" />
+                打开工作区
+              </button>
+            </div>
+          </section>
         )}
-        {busy && <p role="status">{busy}</p>}
-        {!busy && entries.length === 0 && (
-          <div className="ds-library-empty">
-            <span aria-hidden="true">◧</span>
-            <h2>你的第一张设计，从这里开始</h2>
-            <p>新增工作区后，即可添加文字、形状与本地图片。</p>
-            <button
-              className="ds-primary"
-              onClick={() => {
-                setError("");
-                setCreating(true);
-              }}
-            >
-              新增工作区
-            </button>
+        {entries.length > 0 && (
+          <div className="ds-projects">
+            {entries.map((entry) => (
+              <article className="ds-project" key={entry.workspace.id}>
+                <div className="ds-project-art" aria-hidden="true">
+                  <span>◧</span>
+                  <i />
+                </div>
+                <h2>{entry.title || "未命名设计"}</h2>
+                <p className="ds-project-path" title={entry.workspace.path}>
+                  {entry.workspace.path}
+                </p>
+                {entry.error ? (
+                  <p className="ds-project-error">{entry.error}</p>
+                ) : (
+                  <p className="ds-project-date">
+                    最近保存 {new Date(entry.modifiedAt).toLocaleString()}
+                  </p>
+                )}
+                <div className="ds-project-actions">
+                  <button
+                    className="ds-primary"
+                    disabled={!!busy}
+                    onClick={() =>
+                      void run("正在打开设计…", async () =>
+                        setProject(await repository.open(entry.workspace.id)),
+                      )
+                    }
+                  >
+                    打开设计
+                  </button>
+                  <button
+                    disabled={!!busy}
+                    onClick={() => {
+                      setError("");
+                      setRemoving(entry);
+                    }}
+                  >
+                    移除
+                  </button>
+                </div>
+              </article>
+            ))}
           </div>
         )}
-        <div className="ds-projects">
-          {entries.map((entry) => (
-            <article className="ds-project" key={entry.workspace.id}>
-              <div className="ds-project-art" aria-hidden="true">
-                <span>◧</span>
-                <i />
-              </div>
-              <h2>{entry.title || "未命名设计"}</h2>
-              <p className="ds-project-path" title={entry.workspace.path}>
-                {entry.workspace.path}
-              </p>
-              {entry.error ? (
-                <p className="ds-project-error">{entry.error}</p>
-              ) : (
-                <p className="ds-project-date">
-                  最近保存 {new Date(entry.modifiedAt).toLocaleString()}
-                </p>
-              )}
-              <div className="ds-project-actions">
-                <button
-                  className="ds-primary"
-                  disabled={!!busy}
-                  onClick={() =>
-                    void run("正在打开设计…", async () =>
-                      setProject(await repository.open(entry.workspace.id)),
-                    )
-                  }
-                >
-                  打开设计
-                </button>
-                <button
-                  disabled={!!busy}
-                  onClick={() => {
-                    setError("");
-                    setRemoving(entry);
-                  }}
-                >
-                  移除
-                </button>
-              </div>
-            </article>
-          ))}
-        </div>
       </section>
+      {error && !creating && !removing && (
+        <Modal title="操作失败" close={() => setError("")}>
+          <p role="alert">{error}</p>
+          <button className="ds-primary" onClick={() => setError("")}>
+            关闭
+          </button>
+        </Modal>
+      )}
       {creating && (
         <Modal
           title="新增工作区"
