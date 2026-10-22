@@ -13,6 +13,7 @@ import {
   X,
 } from "lucide-react";
 import { getApplicationDataClient } from "@mewvis/app-sdk/data";
+import { getApplicationFileClient } from "@mewvis/app-sdk/files";
 import {
   getApplicationHost,
   type ApplicationHeaderHost,
@@ -25,6 +26,7 @@ import type { BuildArtifact, ProjectSummary } from "./contracts";
 import { errorText } from "./api";
 import { previewInteractionGuard, previewInteractionStyle } from "./preview";
 import { useToastLayer } from "./Notifications";
+import { createFileExports, saveExportFile } from "./exports";
 
 export function ApplicationHeader({
   name = "小应用",
@@ -229,6 +231,12 @@ export function AppView({
     if (!artifact || !ref.current) return;
     const storage = getApplicationDataClient().storage;
     const viewId = `${projectId}-${scope}`;
+    const fileExports = createFileExports({
+      viewId,
+      passive,
+      save: (bytes, name, signal) =>
+        saveExportFile(getApplicationFileClient(), viewId, bytes, name, signal),
+    });
     const key = (params: Readonly<Record<string, ApplicationViewValue>>) => {
       if (
         typeof params.key !== "string" ||
@@ -249,6 +257,7 @@ export function AppView({
           ? artifact.style + "\n" + previewInteractionStyle
           : artifact.style,
         methods: {
+          ...fileExports.methods,
           "state.read": async (params, { viewId: actual, signal }) => {
             if (
               actual !== viewId ||
@@ -295,9 +304,11 @@ export function AppView({
         });
       return () => {
         active = false;
+        fileExports.dispose();
         view.dispose();
       };
     } catch (value) {
+      fileExports.dispose();
       const message = errorText(value);
       setError(message);
       setLoading(false);

@@ -7,7 +7,8 @@
   "scripts": {
     "prepare:runtime": "node scripts/runtime.mjs",
     "dev": "node scripts/preview.mjs",
-    "check": "pnpm prepare:runtime && mewvis-app check && pnpm check:cat-packing && pnpm check:gravity-playground",
+    "check": "pnpm prepare:runtime && mewvis-app check && pnpm check:cat-packing && pnpm check:gravity-playground && pnpm check:design-studio",
+    "check:design-studio": "tsc -p mini-apps/design-studio/source/tsconfig.json",
     "check:cat-packing": "tsc -p mini-apps/cat-packing/source/tsconfig.json",
     "check:gravity-playground": "tsc -p mini-apps/gravity-playground/source/tsconfig.json",
     "build": "pnpm prepare:runtime && mewvis-app build",
