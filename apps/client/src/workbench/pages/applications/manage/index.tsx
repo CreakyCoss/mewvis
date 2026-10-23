@@ -1,7 +1,8 @@
+import { PageHeader } from "design-system/components/page-header";
 import { APP_DISPLAY_NAME, PRODUCT_KEYS, productId } from "@mewvis/product-config";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Loader2, PackageOpen, PackagePlus, Plug, RefreshCw, Trash2 } from "lucide-react";
-import { NavLink } from "react-router";
+import { Loader2, PackageOpen, PackagePlus, Plug, RefreshCw, Trash2 } from "lucide-react";
+import { useNavigate } from "react-router";
 import { toast } from "sonner";
 import {
   listApplications,
@@ -168,6 +169,7 @@ const ApplicationSection = ({
 );
 
 export const ApplicationManagePage = () => {
+  const navigate = useNavigate();
   const refreshApplicationUi = useApplicationCatalogStore((state) => state.refresh);
   const [applications, setApplications] = useState<ApplicationDescriptor[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -257,25 +259,21 @@ export const ApplicationManagePage = () => {
 
   return (
     <section className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-surface/45">
-      <header className="flex min-h-20 shrink-0 items-center justify-between gap-4 border-b border-border/70 bg-card/50 px-6 py-4 max-sm:px-4">
-        <div className="flex min-w-0 items-center gap-3">
-          <Button asChild type="button" variant="ghost" size="icon" className="size-11 shrink-0 rounded-full">
-            <NavLink to="/apps" aria-label="返回应用列表">
-              <ArrowLeft className="size-4" />
-            </NavLink>
+      <PageHeader
+        title="应用管理"
+        titleAs="h1"
+        description={`安装、启停和维护 ${APP_DISPLAY_NAME} 应用与兼容应用`}
+        variant="soft"
+        showBack
+        backLabel="返回应用列表"
+        onBack={() => navigate("/apps")}
+        actions={
+          <Button type="button" onClick={() => setIsImportOpen(true)} title="导入本地应用" aria-label="导入本地应用">
+            <PackagePlus className="size-4" />
+            <span className="max-sm:hidden">导入应用</span>
           </Button>
-          <div className="min-w-0">
-            <h1 className="truncate text-lg font-semibold tracking-[-0.02em]">应用管理</h1>
-            <p className="mt-1 truncate text-sm text-muted-foreground">
-              安装、启停和维护 {APP_DISPLAY_NAME} 应用与兼容应用
-            </p>
-          </div>
-        </div>
-        <Button type="button" className="min-h-11 shrink-0" onClick={() => setIsImportOpen(true)} title="导入本地应用">
-          <PackagePlus className="size-4" />
-          <span className="max-sm:hidden">导入应用</span>
-        </Button>
-      </header>
+        }
+      />
 
       <ScrollArea className="min-h-0 flex-1 bg-transparent">
         <div className="w-full px-6 pt-4 pb-6 max-sm:px-4">

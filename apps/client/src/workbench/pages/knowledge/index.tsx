@@ -1,3 +1,4 @@
+import { PageHeader } from "design-system/components/page-header";
 import { ChevronRight, Database, Folder, Loader2, Plus, Search, Settings2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
@@ -67,28 +68,25 @@ export const KnowledgePage = () => {
 
   return (
     <section className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-surface/45">
-      <header className="app-page-header flex min-h-24 flex-wrap items-center justify-between gap-4 bg-transparent px-6 py-5">
-        <div className="flex min-w-0 items-center gap-3.5">
-          <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-accent text-primary">
-            <Database className="size-5" />
-          </span>
-          <div className="min-w-0">
-            <h2 className="text-xl font-semibold tracking-[-0.02em]">知识库</h2>
-            <p className="mt-0.5 text-sm text-muted-foreground">管理多个知识库、资料目录，以及各自使用的向量模型。</p>
-          </div>
-        </div>
-        <div className="flex w-full flex-wrap items-center gap-3 sm:w-auto">
-          <div className="relative min-w-0 flex-1 basis-full sm:w-64 sm:basis-auto">
-            <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              className="pl-9"
-              value={query}
-              placeholder="搜索知识库"
-              aria-label="搜索知识库"
-              onChange={(event) => setQuery(event.target.value)}
-            />
-          </div>
-          <div className="ml-auto flex shrink-0 items-center gap-2">
+      <PageHeader
+        title="知识库"
+        description="管理多个知识库、资料目录，以及各自使用的向量模型。"
+        icon={<Database />}
+        actions={
+          <>
+            <div className="relative min-w-0 flex-1 basis-full sm:w-64 sm:flex-none sm:basis-auto">
+              <Search
+                aria-hidden="true"
+                className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+              />
+              <Input
+                className="pl-9"
+                value={query}
+                placeholder="搜索知识库"
+                aria-label="搜索知识库"
+                onChange={(event) => setQuery(event.target.value)}
+              />
+            </div>
             <Button
               type="button"
               variant="outline"
@@ -103,9 +101,9 @@ export const KnowledgePage = () => {
               <Plus className="size-4" />
               新建知识库
             </Button>
-          </div>
-        </div>
-      </header>
+          </>
+        }
+      />
 
       <ScrollArea className="min-h-0 flex-1 bg-transparent">
         <div className="w-full px-6">

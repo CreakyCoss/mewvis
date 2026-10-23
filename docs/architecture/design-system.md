@@ -72,6 +72,48 @@ Mewvis 的宿主工作台承载应用、聊天和管理界面。界面采用“�
 
 侧栏负责全局导航和最近内容，不应与页面主标题争夺视觉权重。
 
+### 通用 PageHeader
+
+应用、智能体、知识库、插件、应用管理、模型与沙箱设置等常规宿主页统一使用 `PageHeader` 的默认布局。标题、说明、图标、返回按钮、内边距和操作区间距均由组件管理，页面只传入内容、是否显示及业务回调，不再各自编写头部样式。
+
+技能页与中枢办公室有独立完整设计，不接入 PageHeader，也不引用头部共享排版变量。
+
+视觉实现位于 `packages/design-system/components/page-header.tsx`，宿主页直接从 `design-system/components/page-header` 导入。
+
+| 参数                               | 用途                                                                   |
+| ---------------------------------- | ---------------------------------------------------------------------- |
+| `title` / `description`            | 标题、可选说明；不传的内容不占位                                       |
+| `icon`                             | 可选图标；尺寸、底座、颜色、与标题间距由组件统一提供                   |
+| `actions`                          | 可选右侧操作，传入 Button 或 Fragment；操作间距由组件管理              |
+| `showBack` / `onBack`              | 是否显示返回及返回回调，按钮与箭头由组件统一渲染；传入 onBack 默认显示 |
+| `backLabel` / `backDisabled`       | 返回按钮的可访问名称、禁用状态；缺少回调时禁用                         |
+| `titleAction`                      | 标题旁的状态、计数或信息入口                                           |
+| `toolbar`                          | 可选的页签、搜索或筛选工具区                                           |
+| `variant`                          | `plain`、`bordered`、`soft` 仅改变底色和分隔线；不改变字号、尺寸或间距 |
+| `titleAs`                          | 标题 h1/h2 语义，视觉规格相同                                          |
+| `leading` / `content` / `children` | 自定义组件扩展入口；常规宿主页不使用这些入口绕过标准排版               |
+
+```tsx
+<PageHeader title="应用" description="为你的创作，选一件顺手的工具。" actions={<ApplicationActions />} />
+
+<PageHeader title="知识库" description="管理资料目录与向量模型" icon={<Database />} actions={<KnowledgeActions />} />
+
+<PageHeader
+  title="模型设置"
+  description="管理模型服务、凭据与可用模型"
+  showBack
+  backLabel="返回设置"
+  onBack={() => navigate("/settings")}
+  actions={<AddProviderButton />}
+/>
+```
+
+统一调整入口位于 `packages/design-system/tokens.css`：标题 `--page-header-title-size`（18px）与 `--page-header-title-leading`（24px），说明 `--page-header-description-size`（13px），以及 `--page-header-description-gap`、`--page-header-gap`、`--page-header-inline-gap`、`--page-header-height`（标题行最小 88px）、`--page-header-padding-x`、`--page-header-padding-y`。使用此组件的常规页面没有独立的 density、titleSize、descriptionSize 或 padding 覆盖。
+
+空间不足时按同一规则换行；是否有图标、返回、右侧操作不改变排版规格。右侧业务按钮使用 design-system Button 的默认字体和尺寸。
+
+开发预览 `/scripts/docs/page-header.html` 提供可选内容、统一返回、自定义组件开关，以及统一字号调节，可以同时观察各示例同步变化。
+
 ## 弹窗与反馈状态
 
 - 表单弹窗使用“抬升头部 + 画布内容 + 固定操作栏”三段结构；内容过高时只滚动中段，头部和主操作保持可见。

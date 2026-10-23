@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router";
 import { useEffect, useState } from "react";
 import {
   ArrowRight,
@@ -22,7 +23,7 @@ import { Badge } from "design-system/components/ui/badge";
 import { Button } from "design-system/components/ui/button";
 import { ScrollArea } from "design-system/components/ui/scroll-area";
 import { Switch } from "design-system/components/ui/switch";
-import { PageHeader } from "../../page-header";
+import { PageHeader } from "design-system/components/page-header";
 
 type SandboxStatus = Awaited<ReturnType<typeof getAgentRuntimeSandboxStatus>>;
 type Action = "status" | "install" | "toggle";
@@ -79,6 +80,7 @@ function sandboxPresentation(status: SandboxStatus | undefined, busy: Action | n
 }
 
 export function SandboxSettingsPage() {
+  const navigate = useNavigate();
   const [status, setStatus] = useState<SandboxStatus>();
   const [busy, setBusy] = useState<Action | null>("status");
   const [error, setError] = useState("");
@@ -116,12 +118,13 @@ export function SandboxSettingsPage() {
       <PageHeader
         title="沙箱设置"
         description="管理工具的执行方式与隔离环境"
-        backLink={{ to: "/settings", label: "返回设置" }}
-        className="min-h-24 py-4"
-        action={
+        showBack
+        backLabel="返回设置"
+        onBack={() => navigate("/settings")}
+        actions={
           <Button
             variant="ghost"
-            className="gap-2 rounded-full px-3 font-normal text-muted-foreground hover:bg-primary/8 hover:text-primary"
+            className="text-muted-foreground"
             disabled={busy !== null}
             onClick={() => void run("status")}
           >

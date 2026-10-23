@@ -1,12 +1,21 @@
 import { APP_DISPLAY_NAME, PRODUCT_NAMESPACE } from "@mewvis/product-config";
-import { AlertCircle, ArrowRight, Blocks, Loader2, RefreshCw, Settings2, TriangleAlert } from "lucide-react";
+import {
+  AlertCircle,
+  ArrowRight,
+  Blocks,
+  LayoutGrid,
+  Loader2,
+  RefreshCw,
+  Settings2,
+  TriangleAlert,
+} from "lucide-react";
 import { useEffect, useId, useMemo, useRef } from "react";
 import { NavLink, useParams } from "react-router";
 import type { ApplicationUiApplication } from "@/api/applications";
 import { Alert, AlertDescription, AlertTitle } from "design-system/components/ui/alert";
 import { Button } from "design-system/components/ui/button";
 import { cn } from "design-system/lib/utils";
-import { PageHeader } from "../page-header";
+import { PageHeader } from "design-system/components/page-header";
 import { useWorkspaceFullscreen } from "@/workbench/shell/layout/workspace";
 import { useApplicationCatalogStore } from "./catalog-store";
 import { ApplicationFrame } from "./application-frame";
@@ -48,18 +57,10 @@ const ApplicationCard = ({ application }: { application: ApplicationUiApplicatio
       aria-labelledby={titleId}
       className="grid min-h-26 min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-2.5 rounded-xl border border-border/70 bg-card/50 px-3 py-3 transition-colors duration-150 hover:border-primary/20 hover:bg-card/75 focus-within:border-primary/30 focus-within:bg-card/75 motion-reduce:transition-none sm:gap-x-4 sm:px-4"
     >
-      <ApplicationIcon
-        application={application}
-        className="size-11 rounded-xl sm:size-14"
-        iconClassName="size-7"
-      />
+      <ApplicationIcon application={application} className="size-11 rounded-xl sm:size-14" iconClassName="size-7" />
       <div className="min-w-0">
         <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 sm:flex-nowrap">
-          <h2
-            id={titleId}
-            className="truncate text-base font-semibold tracking-[-0.01em]"
-            title={application.name}
-          >
+          <h2 id={titleId} className="truncate text-base font-semibold tracking-[-0.01em]" title={application.name}>
             {application.name}
           </h2>
           <span className="shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-[11px] leading-4 text-muted-foreground">
@@ -118,15 +119,15 @@ const ApplicationCatalog = ({
     <PageHeader
       title="应用"
       description="为你的创作，选一件顺手的工具。"
-      density="compact"
-      className="border-b-0 max-sm:flex-wrap max-sm:gap-3 max-sm:[&>div:first-child]:basis-full max-sm:[&>div:last-child]:ml-auto"
-      action={
-        <div className="flex items-center gap-1">
+      icon={<LayoutGrid />}
+      variant="plain"
+      actions={
+        <>
           <Button
             type="button"
             variant="ghost"
-            size="icon-sm"
-            className="rounded-md text-muted-foreground"
+            size="icon"
+            className="text-muted-foreground"
             disabled={isLoading}
             onClick={() => void refresh()}
             aria-label="刷新应用列表"
@@ -134,25 +135,19 @@ const ApplicationCatalog = ({
           >
             <RefreshCw className={cn("size-3.5", isLoading && "animate-spin motion-reduce:animate-none")} />
           </Button>
-          <Button
-            asChild
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="gap-1.5 rounded-md px-2.5 text-[13px] text-muted-foreground hover:text-foreground"
-          >
+          <Button asChild type="button" variant="ghost" className="text-muted-foreground hover:text-foreground">
             <NavLink to="/apps/manage">
               <Settings2 className="size-3.5" />
               管理应用
             </NavLink>
           </Button>
-        </div>
+        </>
       }
     />
 
     <main
       id="application-main"
-      className="min-h-0 flex-1 overflow-y-auto p-6 focus:outline-none"
+      className="min-h-0 flex-1 overflow-y-auto px-6 pt-3 pb-6 focus:outline-none"
       tabIndex={-1}
     >
       <div className="w-full">

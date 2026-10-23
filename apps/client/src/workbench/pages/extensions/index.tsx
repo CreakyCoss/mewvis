@@ -1,3 +1,4 @@
+import { PageHeader } from "design-system/components/page-header";
 import { SettingsSlot } from "@mewvis/extension-host/ui/slots/settings";
 import { useEffect, useState } from "react";
 import { AlertCircle, FolderOpen, Loader2, Plus, Puzzle, RefreshCw, Search, Settings2, Trash2 } from "lucide-react";
@@ -62,37 +63,39 @@ export function ExtensionsPage() {
     setAdding(true);
   };
   const normalizedQuery = query.trim().toLowerCase();
-  const filtered = items.filter((item) => `${item.displayName} ${item.id} ${item.description}`.toLowerCase().includes(normalizedQuery));
+  const filtered = items.filter((item) =>
+    `${item.displayName} ${item.id} ${item.description}`.toLowerCase().includes(normalizedQuery),
+  );
   const enabledCount = items.filter((item) => item.enabled).length;
 
   return (
     <section className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-surface/45">
-      <header className="flex min-h-20 shrink-0 flex-wrap items-center justify-between gap-4 border-b border-border/70 bg-card/50 px-6 py-4 max-sm:px-4">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <Puzzle className="size-5 text-primary" aria-hidden="true" />
-            <h1 className="text-lg font-semibold tracking-[-0.02em]">插件</h1>
-          </div>
-          <p className="mt-1 text-sm text-muted-foreground">按需扩展 Agent 能力与应用界面</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            disabled={busy}
-            onClick={() => void run(listExtensions)}
-            aria-label="刷新插件列表"
-            title="刷新插件列表"
-            className="text-muted-foreground"
-          >
-            <RefreshCw className={cn("size-4", busy && "animate-spin motion-reduce:animate-none")} />
-          </Button>
-          <Button disabled={busy} onClick={openAdd}>
-            <Plus className="size-4" />
-            添加插件
-          </Button>
-        </div>
-      </header>
+      <PageHeader
+        title="插件"
+        description="按需扩展 Agent 能力与应用界面"
+        icon={<Puzzle />}
+        titleAs="h1"
+        variant="soft"
+        actions={
+          <>
+            <Button
+              variant="ghost"
+              size="icon"
+              disabled={busy}
+              onClick={() => void run(listExtensions)}
+              aria-label="刷新插件列表"
+              title="刷新插件列表"
+              className="text-muted-foreground"
+            >
+              <RefreshCw className={cn("size-4", busy && "animate-spin motion-reduce:animate-none")} />
+            </Button>
+            <Button disabled={busy} onClick={openAdd}>
+              <Plus className="size-4" />
+              添加插件
+            </Button>
+          </>
+        }
+      />
       <ScrollArea className="min-h-0 flex-1">
         <div className="w-full space-y-5 p-6 max-sm:p-4">
           {error && !editing && !adding ? (
@@ -174,7 +177,9 @@ export function ExtensionsPage() {
                   </span>
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                      <h3 className="min-w-0 break-words text-sm font-semibold" title={item.id}>{item.displayName || item.id}</h3>
+                      <h3 className="min-w-0 break-words text-sm font-semibold" title={item.id}>
+                        {item.displayName || item.id}
+                      </h3>
                       <span className="rounded-md bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
                         {item.source === "bundled" ? "内置" : "本地"}
                       </span>

@@ -4,7 +4,7 @@ import { Button } from "design-system/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "design-system/components/ui/popover";
 import { ScrollArea } from "design-system/components/ui/scroll-area";
 import { APP_DATA_DIR_NAME } from "@/product-config";
-import { PageHeader } from "../page-header";
+import { PageHeader } from "design-system/components/page-header";
 
 const settingsItems = [
   {

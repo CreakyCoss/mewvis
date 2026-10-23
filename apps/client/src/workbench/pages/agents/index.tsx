@@ -13,7 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "design-system/components/ui/dialog";
-import { PageHeader } from "../page-header";
+import { PageHeader } from "design-system/components/page-header";
 import { AgentEditDialog, type AgentEditDialogHandle } from "./edit";
 import type { AgentDefinition, AgentTemplate } from "./types";
 
@@ -102,7 +102,7 @@ export const AgentsPage = () => {
       <PageHeader
         title="智能体"
         description="从配置库添加，或新建自己的智能体"
-        action={
+        actions={
           <Button aria-label="新建智能体" onClick={() => editor.current?.open({ mode: "create" })}>
             <Plus className="size-4" />
             新建

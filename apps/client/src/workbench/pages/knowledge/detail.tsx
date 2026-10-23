@@ -1,3 +1,4 @@
+import { PageHeader } from "design-system/components/page-header";
 import { openSystemDialog as open } from "@/api/native";
 import {
   ArrowLeft,
@@ -257,39 +258,17 @@ export const KnowledgeDetailPage = () => {
 
   return (
     <section className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-surface/45">
-      <header className="app-page-header bg-transparent px-6 pt-4">
-        <div className="flex min-h-16 flex-wrap items-center justify-between gap-4 pb-4">
-          <div className="flex min-w-0 items-center gap-3">
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="shrink-0 rounded-xl"
-              title="返回知识库"
-              aria-label="返回知识库"
-              onClick={() => navigate("/knowledge")}
-            >
-              <ArrowLeft className="size-5" />
-            </Button>
-            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-accent text-primary">
-              <Database className="size-5" />
-            </span>
-            <div className="min-w-0">
-              <div className="flex min-w-0 flex-wrap items-center gap-2.5">
-                <h2 className="truncate text-xl font-semibold tracking-[-0.02em]">{collection.name}</h2>
-                <KnowledgeIndexStatusBadge
-                  status={status}
-                  invalidModel={invalidModel || !collection.embeddingProfileId}
-                />
-              </div>
-              <p
-                className="mt-0.5 max-w-3xl truncate text-sm text-muted-foreground"
-                title={collection.sourceDirectory ?? ""}
-              >
-                {collection.sourceDirectory ?? "未设置目录"}
-              </p>
-            </div>
-          </div>
+      <PageHeader
+        title={collection.name}
+        description={collection.sourceDirectory ?? "未设置目录"}
+        icon={<Database />}
+        showBack
+        backLabel="返回知识库"
+        onBack={() => navigate("/knowledge")}
+        titleAction={
+          <KnowledgeIndexStatusBadge status={status} invalidModel={invalidModel || !collection.embeddingProfileId} />
+        }
+        actions={
           <Button type="button" onClick={requestIndex} disabled={isIndexing || !canBuildIndex}>
             {isIndexing ? (
               <Loader2 className="size-4 animate-spin motion-reduce:animate-none" />
@@ -298,33 +277,34 @@ export const KnowledgeDetailPage = () => {
             )}
             {isIndexing ? "正在建立" : indexButtonLabel}
           </Button>
-        </div>
-
-        <nav className="flex items-center gap-6" aria-label="知识库详情">
-          {(
-            [
-              ["overview", "概览"],
-              ["files", `文件 ${files.length}`],
-              ["settings", "设置"],
-            ] as const
-          ).map(([value, label]) => (
-            <button
-              key={value}
-              type="button"
-              className={[
-                "relative min-h-11 border-b-2 px-1 text-sm font-medium transition-colors focus-visible:ring-3 focus-visible:ring-ring/20 focus-visible:outline-none",
-                tab === value
-                  ? "border-primary text-primary"
-                  : "border-transparent text-muted-foreground hover:text-foreground",
-              ].join(" ")}
-              aria-current={tab === value ? "page" : undefined}
-              onClick={() => setTab(value)}
-            >
-              {label}
-            </button>
-          ))}
-        </nav>
-      </header>
+        }
+        toolbar={
+          <nav className="flex items-center gap-6" aria-label="知识库详情">
+            {(
+              [
+                ["overview", "概览"],
+                ["files", `文件 ${files.length}`],
+                ["settings", "设置"],
+              ] as const
+            ).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                className={[
+                  "relative min-h-11 border-b-2 px-1 text-sm font-medium transition-colors focus-visible:ring-3 focus-visible:ring-ring/20 focus-visible:outline-none",
+                  tab === value
+                    ? "border-primary text-primary"
+                    : "border-transparent text-muted-foreground hover:text-foreground",
+                ].join(" ")}
+                aria-current={tab === value ? "page" : undefined}
+                onClick={() => setTab(value)}
+              >
+                {label}
+              </button>
+            ))}
+          </nav>
+        }
+      />
 
       <ScrollArea className="min-h-0 flex-1 bg-transparent">
         <div className="mx-auto w-full max-w-7xl p-6">

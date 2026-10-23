@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router";
 import { useEffect, useRef } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { Plus, Sparkles } from "lucide-react";
@@ -8,7 +9,7 @@ import { ScrollArea } from "design-system/components/ui/scroll-area";
 import { getApiFormatLabel, getProviderWebsiteUrl } from "./options";
 import { ProviderEditDialog, type ProviderEditDialogHandle } from "./edit";
 import { useLlmSettingsStore } from "./store";
-import { PageHeader } from "../../page-header";
+import { PageHeader } from "design-system/components/page-header";
 
 const Status = ({ children }: { children: string }) => (
   <span className="inline-flex items-center gap-2 text-sm text-success">
@@ -111,6 +112,7 @@ const ProviderTableHeader = () => (
 );
 
 export const LlmSettingsPage = () => {
+  const navigate = useNavigate();
   const providerEditDialogRef = useRef<ProviderEditDialogHandle>(null);
   const { settings, error, loadSettings } = useLlmSettingsStore(
     useShallow((store) => ({
@@ -147,8 +149,10 @@ export const LlmSettingsPage = () => {
       <PageHeader
         title="模型设置"
         description="管理模型服务、凭据与可用模型"
-        backLink={{ to: "/settings", label: "返回设置" }}
-        action={
+        showBack
+        backLabel="返回设置"
+        onBack={() => navigate("/settings")}
+        actions={
           <Button type="button" onClick={openCreateProvider}>
             <Plus className="size-4" />
             <span>添加 Provider</span>

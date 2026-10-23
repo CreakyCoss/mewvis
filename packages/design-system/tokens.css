@@ -1,5 +1,14 @@
 /* Shared semantic theme tokens; usable without Tailwind or component styles. */
 :root {
+  --page-header-title-size: 1.125rem;
+  --page-header-title-leading: 1.5rem;
+  --page-header-description-size: 0.8125rem;
+  --page-header-description-gap: 0.25rem;
+  --page-header-gap: 0.75rem;
+  --page-header-inline-gap: 0.5rem;
+  --page-header-height: 5.5rem;
+  --page-header-padding-x: 1.5rem;
+  --page-header-padding-y: 1.25rem;
   color-scheme: light;
   --background: #f7f8fc;
   --foreground: #23232d;
