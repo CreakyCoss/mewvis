@@ -203,8 +203,9 @@ const ApplicationDetail = ({
   );
 
   useEffect(() => {
-    if (hasSandboxUi && application?.ui?.layout !== "workspace") return registerFullscreen?.();
-  }, [application?.id, application?.ui?.layout, hasSandboxUi, registerFullscreen]);
+    if (hasSandboxUi && application?.ui?.layout !== "workspace")
+      return registerFullscreen?.({ immersive: application?.ui?.immersive === true });
+  }, [application?.id, application?.ui?.layout, application?.ui?.immersive, hasSandboxUi, registerFullscreen]);
 
   return (
     <section className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-surface/45">

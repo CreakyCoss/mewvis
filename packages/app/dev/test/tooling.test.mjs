@@ -129,10 +129,11 @@ test("React scaffold checks and builds outside the Mewvis repository", async () 
   );
 });
 
-test("React application UI allows the host default and preserves explicit layout declarations", async () => {
+test("React application UI preserves layout and opt-in immersive declarations", async () => {
   const { manifest } = await packApplication({ source, quiet: true });
   assert.equal(manifest.mewvis.ui.kind, "sandbox");
   assert.equal(Object.hasOwn(manifest.mewvis.ui, "layout"), false);
+  assert.equal(Object.hasOwn(manifest.mewvis.ui, "immersive"), false);
   const configFile = join(source, "app.config.ts");
   const original = await readFile(configFile, "utf8");
   try {
@@ -155,6 +156,25 @@ test("React application UI allows the host default and preserves explicit layout
         /ui.layout 只支持 workspace 或 fullscreen/,
       );
     }
+    for (const immersive of [true, false]) {
+      await writeFile(
+        configFile,
+        `export default { displayName: "Immersive", permissions: ["chat"], ui: { immersive: ${immersive} } };`,
+      );
+      await checkApplication(source);
+      const packed = await packApplication({ source, quiet: true });
+      assert.equal(packed.manifest.mewvis.ui.immersive, immersive);
+    }
+    for (const immersive of ["true", 1, null, {}]) {
+      await writeFile(
+        configFile,
+        `export default { displayName: "Immersive", permissions: [], ui: { immersive: ${JSON.stringify(immersive)} } };`,
+      );
+      await assert.rejects(
+        validateApplication(source),
+        /ui.immersive 必须是布尔值/,
+      );
+    }
   } finally {
     await writeFile(configFile, original);
   }
@@ -170,7 +190,10 @@ test("package UI layouts are validated before packing", async () => {
   const path = join(directory, "package.json");
   const manifest = JSON.parse(await readFile(path, "utf8"));
   manifest.mewvis.ui = { version: 1, kind: "sandbox", entry: "./app-ui.js" };
-  await writeFile(join(directory, "app-ui.js"), "document.body.textContent = 'Layout';");
+  await writeFile(
+    join(directory, "app-ui.js"),
+    "document.body.textContent = 'Layout';",
+  );
   for (const layout of ["workspace", "fullscreen"]) {
     manifest.mewvis.ui.layout = layout;
     await writeFile(path, JSON.stringify(manifest));
@@ -183,6 +206,21 @@ test("package UI layouts are validated before packing", async () => {
     await assert.rejects(
       validateApplication(directory),
       /ui.layout 只支持 workspace 或 fullscreen/,
+    );
+  }
+  delete manifest.mewvis.ui.layout;
+  for (const immersive of [true, false]) {
+    manifest.mewvis.ui.immersive = immersive;
+    await writeFile(path, JSON.stringify(manifest));
+    const packed = await packApplication({ source: directory, quiet: true });
+    assert.equal(packed.manifest.mewvis.ui.immersive, immersive);
+  }
+  for (const immersive of ["true", 1, null, {}]) {
+    manifest.mewvis.ui.immersive = immersive;
+    await writeFile(path, JSON.stringify(manifest));
+    await assert.rejects(
+      validateApplication(directory),
+      /ui.immersive 必须是布尔值/,
     );
   }
 });

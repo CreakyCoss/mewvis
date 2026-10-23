@@ -10,6 +10,31 @@ const server = await createServer({
 const visible = (locator) => locator.waitFor({ state: "visible" });
 const hidden = (locator) => locator.waitFor({ state: "hidden" });
 const near = (actual, expected) => assert.ok(Math.abs(actual - expected) < 1, `${actual} ≈ ${expected}`);
+const checkViewport = async (frame, fullscreen, immersive, titleBar) => {
+  const expected = {
+    fullscreen,
+    immersive,
+    safeArea: immersive
+      ? { top: 40, right: 88, bottom: 0, left: titleBar === "overlay" ? 80 : 0 }
+      : { top: 0, right: 0, bottom: 0, left: 0 },
+  };
+  await frame.waitForFunction(
+    (value) => JSON.stringify(window.mewvisApplication?.getHost()?.viewport) === JSON.stringify(value),
+    expected,
+  );
+  const actual = await frame.evaluate(() =>
+    Object.fromEntries(
+      ["top", "right", "bottom", "left"].map((edge) => [
+        edge,
+        getComputedStyle(document.documentElement).getPropertyValue(`--mewvis-safe-area-${edge}`).trim(),
+      ]),
+    ),
+  );
+  assert.deepEqual(
+    actual,
+    Object.fromEntries(Object.entries(expected.safeArea).map(([key, value]) => [key, `${value}px`])),
+  );
+};
 try {
   await server.listen();
   const origin = server.resolvedUrls.local[0];
@@ -42,27 +67,52 @@ try {
         await visible(frameLocator());
         assert.equal(await controls.count(), 0, "显式 workspace 保留导航栏");
         near((await frameLocator().boundingBox()).x, 224);
+        await sidebar.getByRole("link", { name: "文档中心 bundled workspace immersive-true", exact: true }).click();
+        await visible(sidebar);
+        await visible(page.getByTitle("文档中心 bundled workspace immersive-true 应用界面", { exact: true }));
+        near((await frameLocator().boundingBox()).y, contentTop);
+        await checkViewport(await (await frameLocator().elementHandle()).contentFrame(), false, false, titleBar);
+        assert.equal(await controls.count(), 0, "workspace 忽略 immersive 配置");
 
         for (const source of ["bundled", "installed"]) {
-          for (const layout of ["default", "fullscreen"]) {
-            await sidebar.getByRole("link", { name: `文档中心 ${source} ${layout}`, exact: true }).click();
+          for (const { layout, immersive } of [
+            { layout: "default" },
+            { layout: "fullscreen" },
+            { layout: "default", immersive: true },
+            { layout: "fullscreen", immersive: true },
+            { layout: "fullscreen", immersive: false },
+          ]) {
+            const activeImmersive = immersive === true;
+            const fullscreenTop = activeImmersive ? 0 : contentTop;
+            const name = `文档中心 ${source} ${layout}${immersive === undefined ? "" : ` immersive-${immersive}`}`;
+            await sidebar.getByRole("link", { name, exact: true }).click();
             await hidden(sidebar);
             await visible(controls);
             await visible(frameLocator());
             const frame = await (await frameLocator().elementHandle()).contentFrame();
             await frame.waitForFunction(() => window.mewvisApplication?.getHost());
+            await checkViewport(frame, true, activeImmersive, titleBar);
             const marker = await frame.evaluate(() => (window.fullscreenTestMarker = Math.random()));
+            await frame.evaluate(() => {
+              window.viewportEvents = [];
+              addEventListener("mewvis:viewport", (event) => window.viewportEvents.push(event.detail));
+            });
             const bounds = await frameLocator().boundingBox();
             near(bounds.x, 0);
-            near(bounds.y, contentTop);
+            near(bounds.y, fullscreenTop);
             near(bounds.width, 1280);
-            near(bounds.height, 800 - contentTop);
+            near(bounds.height, 800 - fullscreenTop);
+            if (activeImmersive && titleBar === "overlay") {
+              await page.mouse.click(400, 20);
+              assert.ok(await page.evaluate(() => window.windowDragCount > 0), "沉浸式保留窗口拖动区域");
+            }
 
             // The transparent area around floating controls must pass clicks through to the app.
             await frame.evaluate(() => {
               const button = document.createElement("button");
               button.textContent = "顶部内容点击验证";
-              button.style.cssText = "position:fixed;top:0;left:8px;height:32px;z-index:9999";
+              button.style.cssText =
+                "position:fixed;top:var(--mewvis-safe-area-top,0px);left:8px;height:32px;z-index:9999";
               button.onclick = () => {
                 window.topContentClicked = true;
               };
@@ -76,12 +126,15 @@ try {
 
             await page.getByRole("button", { name: "退出应用全屏", exact: true }).click();
             await visible(sidebar);
+            await checkViewport(frame, false, false, titleBar);
             near((await frameLocator().boundingBox()).x, 224);
             near((await frameLocator().boundingBox()).y, contentTop);
             near((await frameLocator().boundingBox()).height, 800 - contentTop);
             assert.equal(await frame.evaluate(() => window.fullscreenTestMarker), marker, "退出全屏不重载沙箱");
             await page.getByRole("button", { name: "进入应用全屏", exact: true }).click();
             await hidden(sidebar);
+            await checkViewport(frame, true, activeImmersive, titleBar);
+            assert.equal(await frame.evaluate(() => window.viewportEvents.at(-1).fullscreen), true);
             assert.equal(await frame.evaluate(() => window.fullscreenTestMarker), marker, "重新全屏不重载沙箱");
 
             assert.deepEqual(
@@ -95,7 +148,20 @@ try {
             );
             await visible(applicationHeader);
             await visible(page.getByRole("button", { name: "返回项目列表", exact: true }));
-            near((await frameLocator().boundingBox()).y, 40);
+            near((await frameLocator().boundingBox()).y, activeImmersive ? 0 : 40);
+            if (
+              process.env.MEWVIS_LAYOUT_SCREENSHOT &&
+              titleBar === "overlay" &&
+              source === "installed" &&
+              layout === "fullscreen" &&
+              activeImmersive
+            ) {
+              await page.screenshot({ path: `${process.env.MEWVIS_LAYOUT_SCREENSHOT}-immersive-${engine}.png` });
+              await page.locator("html").evaluate((root) => root.classList.add("dark"));
+              await frame.waitForFunction(() => window.mewvisApplication.getHost().theme === "dark");
+              await page.screenshot({ path: `${process.env.MEWVIS_LAYOUT_SCREENSHOT}-immersive-dark-${engine}.png` });
+              await page.locator("html").evaluate((root) => root.classList.remove("dark"));
+            }
             await page.setViewportSize({ width: 520, height: 760 });
             const headerBounds = await applicationHeader.boundingBox();
             const controlBounds = await controls.boundingBox();
@@ -109,8 +175,8 @@ try {
             assert.equal(await frame.evaluate(() => window.fullscreenTestMarker), marker);
             await frame.evaluate(() => window.mewvisApplication.header.set(null));
             await hidden(applicationHeader);
-            near((await frameLocator().boundingBox()).y, contentTop);
-            near((await frameLocator().boundingBox()).height, 760 - contentTop);
+            near((await frameLocator().boundingBox()).y, fullscreenTop);
+            near((await frameLocator().boundingBox()).height, 760 - fullscreenTop);
             if (process.env.MEWVIS_LAYOUT_SCREENSHOT && titleBar === "native" && source === "installed") {
               await page.screenshot({ path: `${process.env.MEWVIS_LAYOUT_SCREENSHOT}-native-${engine}.png` });
             }
@@ -125,7 +191,7 @@ try {
         }
 
         // Changing routes from an exited fullscreen app must also release the registration.
-        await sidebar.getByRole("link", { name: "文档中心 bundled default", exact: true }).click();
+        await sidebar.getByRole("link", { name: "文档中心 bundled default immersive-true", exact: true }).click();
         await page.getByRole("button", { name: "退出应用全屏", exact: true }).click();
         await sidebar.getByRole("link", { name: "其他页面", exact: true }).click();
         await visible(sidebar);
@@ -133,7 +199,7 @@ try {
         await visible(page.getByText("其他应用页面", { exact: true }));
 
         // A declaration invalidated while fullscreen must restore navigation without a user toggle.
-        await sidebar.getByRole("link", { name: "文档中心 bundled default", exact: true }).click();
+        await sidebar.getByRole("link", { name: "文档中心 bundled default immersive-true", exact: true }).click();
         await hidden(sidebar);
         await page.locator('nav[aria-label="应用侧栏"] button').evaluate((button) => button.click());
         await visible(sidebar);
@@ -142,7 +208,7 @@ try {
         assert.deepEqual(errors, []);
         await page.close();
         console.log(
-          `${engine} ${titleBar}: fullscreen default, explicit layouts, state retention, header and navigation cleanup passed.`,
+          `${engine} ${titleBar}: fullscreen defaults, opt-in immersion, safe areas, state retention, header and navigation cleanup passed.`,
         );
       }
     } finally {

@@ -9,6 +9,11 @@
     "entry": { "type": "string", "pattern": "^\\./.*\\.(m?js)$" },
     "style": { "type": "string", "pattern": "^\\./.*\\.css$" },
     "title": { "type": "string", "minLength": 1, "maxLength": 100 },
+    "immersive": {
+      "type": "boolean",
+      "default": false,
+      "description": "Extend fullscreen content beneath the transparent host title bar. Applications must respect the host viewport safe area. Ignored in workspace layout."
+    },
     "layout": {
       "type": "string",
       "enum": ["workspace", "fullscreen"],

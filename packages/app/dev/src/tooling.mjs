@@ -214,6 +214,9 @@ export const validateApplication = async (source) => {
               ...(config.ui?.layout === undefined
                 ? {}
                 : { layout: config.ui.layout }),
+              ...(config.ui?.immersive === undefined
+                ? {}
+                : { immersive: config.ui.immersive }),
             },
           }
         : {}),
@@ -332,6 +335,11 @@ export const validateApplication = async (source) => {
         mewvis.ui.layout !== "fullscreen"
       )
         problems.push(productId(".ui.layout 只支持 workspace 或 fullscreen。"));
+      if (
+        mewvis.ui.immersive !== undefined &&
+        typeof mewvis.ui.immersive !== "boolean"
+      )
+        problems.push(productId(".ui.immersive 必须是布尔值。"));
       try {
         if (typeof mewvis.ui.entry !== "string")
           throw new Error(productId(".ui.entry 必须是字符串。"));

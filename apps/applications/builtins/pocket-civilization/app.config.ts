@@ -10,5 +10,5 @@ export default defineConfig({
     network: { hosts: [] },
     process: { execute: false },
   },
-  ui: { title: "口袋文明", layout: "fullscreen" },
+  ui: { title: "口袋文明", layout: "fullscreen", immersive: true },
 });

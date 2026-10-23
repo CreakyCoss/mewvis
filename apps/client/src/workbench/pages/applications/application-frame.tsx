@@ -16,7 +16,7 @@ import {
   type ApplicationUiApplication,
 } from "@/api/applications";
 import { Alert, AlertDescription, AlertTitle } from "design-system/components/ui/alert";
-import { useWorkspaceHeader } from "@/workbench/shell/layout/workspace";
+import { useWorkspaceHeader, useWorkspaceViewport } from "@/workbench/shell/layout/workspace";
 import { readApplicationTheme, sandboxDocument } from "./sandbox-document";
 import { createFileRequestQueue } from "./file-request-queue";
 export { sandboxDocument } from "./sandbox-document";
@@ -40,6 +40,9 @@ export const ApplicationFrame = ({
 }) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const registerHeader = useWorkspaceHeader();
+  const viewport = useWorkspaceViewport();
+  const viewportRef = useRef(viewport);
+  viewportRef.current = viewport;
   const releaseHeader = useRef<(() => void) | null>(null);
   const inFlight = useRef(new Set<string>());
   const externalOpenInFlight = useRef(false);
@@ -129,6 +132,7 @@ export const ApplicationFrame = ({
         host: {
           application: { id: application.id, name: application.name, version: application.version },
           ...readApplicationTheme(),
+          viewport: viewportRef.current,
           tools: application.tools,
         },
       });
@@ -415,6 +419,11 @@ export const ApplicationFrame = ({
       externalOpenInFlight.current = false;
     };
   }, [application.id, signature, toolNames, chatHost, registerHeader, filePreviewsEnabled]);
+
+  useEffect(() => {
+    if (!isFrameReady) return;
+    iframeRef.current?.contentWindow?.postMessage({ channel: CHANNEL, type: "host:viewport", viewport }, "*");
+  }, [isFrameReady, viewport]);
 
   useEffect(() => {
     if (!navigationBlocked) return;

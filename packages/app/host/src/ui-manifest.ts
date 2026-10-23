@@ -10,6 +10,7 @@ export type ApplicationUiContribution = Readonly<{
   kind: "sandbox";
   title?: string;
   layout?: "workspace" | "fullscreen";
+  immersive?: boolean;
 }>;
 
 export type ApplicationUiDocument = Readonly<{
@@ -141,6 +142,9 @@ export const loadApplicationUiManifest = async (
       layout !== "fullscreen"
     )
       throw new Error(productId(".ui.layout 只支持 workspace 或 fullscreen。"));
+    const immersive = ui.immersive;
+    if (immersive !== undefined && typeof immersive !== "boolean")
+      throw new Error(productId(".ui.immersive 必须是布尔值。"));
 
     if (ui.kind === "sandbox") {
       const entry = relativeEntry(ui.entry, productId(".ui.entry"), [
@@ -172,6 +176,7 @@ export const loadApplicationUiManifest = async (
           kind: "sandbox",
           ...(title ? { title } : {}),
           ...(layout === undefined ? {} : { layout }),
+          ...(immersive === undefined ? {} : { immersive }),
         },
         document: { script, style: stylesheet },
         error: null,

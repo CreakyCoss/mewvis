@@ -38,6 +38,14 @@ const BRIDGE_SOURCE = String.raw`
       appliedThemeTokens.push(name);
     });
   };
+  const applyViewport = (viewport) => {
+    const root = document.documentElement;
+    for (const edge of ["top", "right", "bottom", "left"]) {
+      const value = viewport?.safeArea?.[edge];
+      root.style.setProperty("--${PRODUCT_NAMESPACE}-safe-area-" + edge,
+        (typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : 0) + "px");
+    }
+  };
   const send = (message) => parent.postMessage({ channel, ...message }, "*");
   const api = Object.freeze({
     version: 1,
@@ -140,6 +148,7 @@ const BRIDGE_SOURCE = String.raw`
     if (message.type === "host:init") {
       host = Object.freeze(message.host);
       applyTheme(host.theme, host.themeTokens);
+      applyViewport(host.viewport);
       dispatchEvent(new CustomEvent("${PRODUCT_NAMESPACE}:ready", { detail: host }));
       return;
     }
@@ -147,6 +156,12 @@ const BRIDGE_SOURCE = String.raw`
       if (host) host = Object.freeze({ ...host, theme: message.theme, themeTokens: message.themeTokens });
       applyTheme(message.theme, message.themeTokens);
       dispatchEvent(new CustomEvent("${PRODUCT_NAMESPACE}:theme", { detail: message.theme }));
+      return;
+    }
+    if (message.type === "host:viewport") {
+      if (host) host = Object.freeze({ ...host, viewport: message.viewport });
+      applyViewport(message.viewport);
+      dispatchEvent(new CustomEvent("${PRODUCT_NAMESPACE}:viewport", { detail: message.viewport }));
       return;
     }
     if (message.type !== "host:result" || typeof message.id !== "string") return;

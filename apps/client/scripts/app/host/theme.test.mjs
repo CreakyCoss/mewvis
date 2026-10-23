@@ -80,11 +80,44 @@ test("sandbox receives host tokens before ready, updates without changing mode a
   assert.equal(app.window.mewvisApplication.getHost().themeTokens["--primary"], "#654321");
   assert.equal(app.events.at(-1).detail, "light");
   app.send({ type: "host:theme", theme: "dark" });
-  assert.equal(app.styles.size, 0);
+  assert.deepEqual(
+    [...app.styles],
+    ["top", "right", "bottom", "left"].map((edge) => [`--mewvis-safe-area-${edge}`, "0px"]),
+  );
   assert.equal(app.classes.has("dark"), true);
   assert.equal(app.root.dataset.theme, "dark");
   assert.match(app.html, /--primary:/);
   assert.match(app.html, /--error:/);
+});
+
+test("viewport applies safe areas before ready and updates without reinitializing the application", () => {
+  const app = sandbox();
+  const viewport = {
+    fullscreen: true,
+    immersive: true,
+    safeArea: { top: 40, right: 88, bottom: 0, left: 80 },
+  };
+  app.send({ type: "host:init", host: { theme: "light", viewport } });
+  assert.equal(app.styles.get("--mewvis-safe-area-top"), "40px");
+  assert.equal(app.styles.get("--mewvis-safe-area-left"), "80px");
+  assert.equal(app.styles.get("--mewvis-safe-area-right"), "88px");
+  assert.equal(app.events.at(-1).type, "mewvis:ready");
+  app.send({ type: "host:viewport", viewport: null }, {});
+  assert.equal(app.window.mewvisApplication.getHost().viewport, viewport);
+  assert.equal(app.styles.get("--mewvis-safe-area-top"), "40px");
+  app.send({ type: "host:theme", theme: "dark", themeTokens: { "--primary": "blue" } });
+  assert.equal(app.styles.get("--mewvis-safe-area-top"), "40px");
+  const restored = {
+    fullscreen: false,
+    immersive: false,
+    safeArea: { top: 0, right: 0, bottom: 0, left: 0 },
+  };
+  app.send({ type: "host:viewport", viewport: restored });
+  assert.equal(app.window.mewvisApplication.getHost().viewport, restored);
+  assert.equal(app.styles.get("--mewvis-safe-area-top"), "0px");
+  assert.equal(app.events.at(-1).type, "mewvis:viewport");
+  assert.equal(app.events.at(-1).detail, restored);
+  assert.equal(app.events.filter((event) => event.type === "mewvis:ready").length, 1);
 });
 
 test("non-parent messages cannot replace theme; malformed tokens are ignored", () => {

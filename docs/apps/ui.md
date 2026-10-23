@@ -36,6 +36,8 @@ React 项目可使用 [应用工程工具链](development.md)：页面从 `main/
 
 宿主不显示应用详情栏或沙箱卡片边框。macOS 覆盖式标题栏保留 40 px 窗口拖动区域，全屏操作复用该区域。Windows/Linux 保留原生标题栏；未设置应用公共顶栏时，全屏操作以右上角悬浮按钮组显示，不额外占用内容高度，按钮之外的区域可正常点击。Web 使用相同的悬浮布局。应用主动通过公共顶栏接口显示标题与内部返回按钮时，Windows/Linux 和 Web 才显示 40 px 导航行，全屏操作复用该行。应用加载失败时，宿主显示错误信息；UI 声明无效或未提供自带界面时，使用通用工具页面。
 
+`mewvis.ui.immersive` 是可选布尔值，默认 `false`。显式为 `true` 且处于应用全屏时，iframe 从工作区顶部铺满，公共顶栏也以透明覆盖层显示；macOS 保留顶部窗口拖动区，Windows/Linux 保留原生标题栏。宿主操作默认仅显示图标，悬停或键盘聚焦时显示半透明底。退出全屏、使用 `layout: "workspace"` 或离开应用后恢复常规布局。应用须按宿主提供的安全区避让操作内容，背景可继续铺满；配置和 CSS 示例见[沉浸式顶栏](development.md#沉浸式顶栏)。
+
 未声明 `mewvis.ui` 时，Mewvis 根据工具 JSON Schema 生成通用表单，因此只有自定义流程才需要自带界面。
 
 宿主先安装桥，再执行入口。页面可操作 iframe 内 DOM，仅能调用同一应用注册的工具：
@@ -51,11 +53,13 @@ console.log(response.value);
 
 - `window.mewvisApplication.version`：当前为 `1`。
 - `window.mewvisApplication.getHost()`：最近一次宿主描述，包括安全的应用元数据、`light` / `dark` 主题与工具 Schema。
+- `getHost().viewport`：可选的 `{ fullscreen, immersive, safeArea: { top, right, bottom, left } }`。安全区以 CSS px 表示，并同步到根元素的 `--mewvis-safe-area-*` 变量；普通布局下全为 0。沉浸式下 `top` 为 40，`right` 为 88，macOS 覆盖式顶栏 `left` 为 80（其他平台为 0），`bottom` 为 0；左右值仅描述顶部条带内的窗口操作预留宽度。
 - `window.mewvisApplication.header`：可选的宿主顶栏接口，旧宿主和独立开发预览可能不提供。`header.set({ title, backLabel?, backDisabled? })` 显示 32 px 高的紧凑导航组，包含纯文本标题和可选返回按钮：macOS 放在覆盖式 40 px 顶栏的最右侧；Windows/Linux 和 Web 放在内容区内 40 px 导航行的左侧，不覆盖原生窗口按钮。返回 `{ supported }`；仅在 supported 为 true 后收起应用自己的 header。标题最多 160 字符，返回文案最多 80 字符。`header.subscribe(action => …)` 订阅 `"back"` 操作并返回取消订阅函数，应用自行处理内部导航；`header.set(null)` 清空本 frame 的顶栏。离开应用、重新加载或 frame 离开沙箱时宿主自动清理，macOS 顶栏空白处继续支持拖动窗口。该接口不提供自定义 HTML、窗口拖动或其他应用的导航能力。
 - `window.mewvisApplication.openExternal(url)`：由用户操作触发，请求宿主用系统浏览器打开 HTTP(S) 地址，其他协议会被拒绝。
 - `window.mewvisApplication.writeClipboardText(text)`：从用户点击操作复制文本，上限 256 KiB，不提供剪贴板读取。共享 Chat 消息与故事酒馆使用 SDK 的同名辅助函数，独立预览回退到浏览器剪贴板。
 - `mewvis:ready`：收到宿主描述后触发的窗口事件。
 - `mewvis:theme`：应用主题变化时触发的窗口事件。
+- `mewvis:viewport`：应用全屏或沉浸式状态变化时触发，`event.detail` 为最新 viewport；事件触发前已更新宿主描述与 CSS 安全区变量。
 
 ## 隔离与限制
 

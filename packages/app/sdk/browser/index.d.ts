@@ -1,8 +1,23 @@
+export interface ApplicationViewport {
+  /** Application layout fullscreen, independent of OS/browser fullscreen. */
+  fullscreen: boolean;
+  /** True only while fullscreen and explicitly enabled by ui.immersive. */
+  immersive: boolean;
+  /** CSS pixels. All zero outside immersive mode. Left/right reserve controls within the top strip only. */
+  safeArea: Readonly<{
+    top: number;
+    right: number;
+    bottom: number;
+    left: number;
+  }>;
+}
 export interface ApplicationHostInfo {
   application: { id: string; name: string; version: string };
   theme: "light" | "dark";
   /** Resolved design-system CSS tokens, also applied to the sandbox root by the host. */
   themeTokens?: Readonly<Record<string, string>>;
+  /** Current host overlay insets; updated by the mewvis:viewport window event. Older/preview hosts may omit it. */
+  viewport?: ApplicationViewport;
   tools: {
     name: string;
     description: string;

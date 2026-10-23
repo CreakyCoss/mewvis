@@ -31,6 +31,8 @@ export interface ApplicationConfig {
         title?: string;
         /** Defaults to fullscreen. Use workspace to retain host sidebars. */
         layout?: "workspace" | "fullscreen";
+        /** Opt into content beneath the transparent host title bar while fullscreen. Defaults to false. */
+        immersive?: boolean;
       };
   /** Default arrays, or a full SDK application entry that can capture the application context. */
   host?: {
@@ -39,4 +41,6 @@ export interface ApplicationConfig {
     skills?: string;
   };
 }
-export declare function defineConfig(config: ApplicationConfig): ApplicationConfig;
+export declare function defineConfig(
+  config: ApplicationConfig,
+): ApplicationConfig;

@@ -56,6 +56,20 @@ export default defineConfig({
 
 工具链将显式声明写入安装包的 `mewvis.ui.layout`，未声明布局的已有应用也默认全屏，内置与外部应用行为一致。独立开发预览不包含宿主导航，布局切换需在 Mewvis 宿主中验证。
 
+### 沉浸式顶栏
+
+应用可以显式配置 `ui: { layout: "fullscreen", immersive: true }`，让背景延伸至透明宿主顶栏下方。`layout` 可省略；`immersive` 默认 `false`，已有应用保持原布局。`layout: "workspace"` 时不启用沉浸式；退出应用全屏后恢复常规布局，重新进入时恢复沉浸式，两次切换均不重载应用。Windows/Linux 保留系统原生标题栏。
+
+开启后，应用负责避让顶栏。宿主在沙箱根元素同步 `--mewvis-safe-area-top`、`--mewvis-safe-area-right`、`--mewvis-safe-area-bottom`、`--mewvis-safe-area-left`（px），可以让背景铺满，只为内容增加内边距：
+
+```css
+.app-content {
+  padding-top: var(--mewvis-safe-area-top, 0px);
+}
+```
+
+沉浸式下顶部安全区高 40 px；左、右值表示该顶部区域内的窗口按钮预留宽度，无需给整个页面添加水平内边距。macOS 左侧预留 80 px，右侧操作预留 88 px。普通布局下四个值均为 0。SDK 的 `getApplicationHost().getHost()?.viewport` 提供相同信息，以及当前 `fullscreen` / `immersive` 状态；首次读取可监听 `mewvis:ready`，后续切换监听 `mewvis:viewport`（`event.detail` 为最新 viewport）。旧宿主和独立预览可能不提供 viewport，CSS 使用 `0px` 回退。
+
 在 `apps/client` 运行 `pnpm test:app-host:layout:browser` 可验证声明生效、切换时保留应用状态，以及离开应用或声明失效后的导航恢复；浏览器运行时路径可通过 `MEWVIS_PLAYWRIGHT_MODULE` 指定。
 
 ## 应用图标

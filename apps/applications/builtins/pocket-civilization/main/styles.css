@@ -29,7 +29,7 @@ button { color: inherit; }
 @keyframes bloom-in { from { opacity: 0; transform: scale(.45); } to { opacity: 1; transform: scale(1); } }
 .resident-speech { position: absolute; left: 35px; bottom: 90px; min-width: 136px; max-width: 200px; padding: 10px 15px; border: 1px solid #d9cfac; border-radius: 22px 22px 22px 5px; background: #faf4de; font-size: 15px; line-height: 1.45; white-space: normal; box-shadow: 0 3px 5px #3c47231b; }
 .is-paused .resident-body, .is-paused .rain-effect { animation-play-state: paused; }
-.island-identity { position: absolute; display: flex; align-items: flex-start; gap: 14px; left: 2.65%; top: 3%; }
+.island-identity { position: absolute; display: flex; align-items: flex-start; gap: 14px; left: 2.65%; top: calc(var(--mewvis-safe-area-top, 0px) + 3%); }
 .town-plaque, .day-plaque, .ceramic-button, .zoom-controls { background: #f4edd7; border: 1px solid #e2d6b6; box-shadow: 0 3px 0 #cfc29d, 0 6px 12px #38636122, inset 0 2px 1px #fffaf0; }
 .town-plaque { border-radius: 33% 18% 23% 20% / 29% 25% 29% 30%; display: flex; align-items: center; gap: 10px; padding: 12px 20px; min-width: 224px; text-align: left; }
 .town-plaque > svg { width: 57px; height: 57px; stroke-width: 2.3; }
@@ -38,7 +38,7 @@ button { color: inherit; }
 .day-plaque { display: flex; align-items: center; gap: 15px; padding: 14px 20px 14px 13px; border-radius: 32px 24px 24px 32px; font-size: 16px; white-space: nowrap; margin-top: 12px; }
 .day-plaque > svg { width: 36px; height: 36px; color: #c48a20; stroke-width: 2; }
 .town-plaque, .day-plaque { background-color: transparent; background-size: 100% 100%; border: 0; box-shadow: none; }
-.island-controls { position: absolute; right: 2.3%; top: 3%; display: flex; flex-direction: column; align-items: flex-end; gap: 25px; }
+.island-controls { position: absolute; right: 2.3%; top: calc(var(--mewvis-safe-area-top, 0px) + 3%); display: flex; flex-direction: column; align-items: flex-end; gap: 25px; }
 .control-row { display: flex; gap: 18px; }
 .ceramic-button { display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; width: 55px; height: 55px; padding: 12px; }
 .ceramic-button svg { width: 25px; height: 25px; stroke-width: 2.5; }
@@ -89,16 +89,16 @@ button { color: inherit; }
 .advance-day .clay-button svg:first-child { width: 34px; height: 34px; stroke-width: 1.8; }
 .advance-day .clay-button svg:last-child { width: 24px; }
 .pocket-notice, .pocket-alert, .pocket-progress { position: absolute; z-index: 50; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 14px; max-width: min(700px, calc(100% - 36px)); padding: 13px 22px; border: 1px solid #d8cba7; border-radius: 16px; background: #faf2db; box-shadow: 0 5px 20px #254b3d2b; font-size: 14px; line-height: 1.6; }
-.pocket-notice { top: 5%; animation: note-arrive .25s ease-out; }
-.pocket-alert { top: 14%; color: #744630; }
-.pocket-progress { top: 14%; }
+.pocket-notice { top: max(5%, calc(var(--mewvis-safe-area-top, 0px) + 12px)); animation: note-arrive .25s ease-out; }
+.pocket-alert { top: max(14%, calc(var(--mewvis-safe-area-top, 0px) + 12px)); color: #744630; }
+.pocket-progress { top: max(14%, calc(var(--mewvis-safe-area-top, 0px) + 12px)); }
 .pocket-progress button, .pocket-alert button { flex-shrink: 0; background: transparent; border: 0; text-decoration: underline; padding: 5px; color: inherit; }
 .pocket-spinner { width: 18px; height: 18px; border: 2px solid #c7ceac; border-top-color: #58714a; border-radius: 50%; animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes note-arrive { from { opacity: 0; translate: 0 -8px; } to { opacity: 1; translate: 0 0; } }
 
-.book-overlay { position: absolute; z-index: 40; inset: 0; display: flex; align-items: center; justify-content: center; background: #13382f40; backdrop-filter: blur(.5px); padding: 20px; }
-.island-book { position: relative; width: min(1100px, calc(100vw - 70px), calc((100dvh - 70px) * 1.4799)); aspect-ratio: 1070/723; background-size: 100% 100%; background-repeat: no-repeat; display: grid; grid-template-columns: 1fr 1fr; padding: 46px 53px 37px; font-size: clamp(14px, 1.2vw, 18px); animation: open-book .3s ease-out; }
+.book-overlay { position: absolute; z-index: 40; inset: 0; display: flex; align-items: center; justify-content: center; background: #13382f40; backdrop-filter: blur(.5px); padding: 20px; padding-top: calc(20px + var(--mewvis-safe-area-top, 0px)); }
+.island-book { position: relative; width: min(1100px, calc(100vw - 70px), calc((100dvh - 70px - var(--mewvis-safe-area-top, 0px)) * 1.4799)); aspect-ratio: 1070/723; background-size: 100% 100%; background-repeat: no-repeat; display: grid; grid-template-columns: 1fr 1fr; padding: 46px 53px 37px; font-size: clamp(14px, 1.2vw, 18px); animation: open-book .3s ease-out; }
 @keyframes open-book { from { opacity: 0; transform: translateY(18px) scale(.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
 .book-close { position: absolute; z-index: 1; right: 2.1%; top: 2.6%; width: 40px; height: 40px; padding: 8px; }
 .book-close svg { width: 22px; height: 22px; }
@@ -274,14 +274,14 @@ button { color: inherit; }
 }
 @media (max-width: 800px) {
   .world-stage { mask-image: linear-gradient(to bottom, transparent, #000 10%, #000 90%, transparent); }
-  .island-identity { top: 17px; left: 14px; gap: 8px; flex-direction: column; }
+  .island-identity { top: calc(var(--mewvis-safe-area-top, 0px) + 17px); left: 14px; gap: 8px; flex-direction: column; }
   .town-plaque { min-width: 190px; padding: 8px 16px; gap: 9px; }
   .town-plaque > svg { width: 39px; height: 39px; }
   .town-plaque strong { font-size: 24px; }
   .town-plaque small { font-size: 9px; letter-spacing: .5px; }
   .day-plaque { margin-top: 2px; margin-left: 5px; padding: 7px 13px; gap: 9px; font-size: 12px; }
   .day-plaque > svg { width: 24px; height: 24px; }
-  .island-controls { right: 16px; top: 20px; gap: 18px; }
+  .island-controls { right: 16px; top: calc(var(--mewvis-safe-area-top, 0px) + 20px); gap: 18px; }
   .control-row { gap: 9px; }
   .ceramic-button { width: 44px; height: 44px; padding: 9px; }
   .ceramic-button svg { width: 21px; height: 21px; }
@@ -319,7 +319,7 @@ button { color: inherit; }
   .advance-day .clay-button { height: 56px; min-height: 56px; font-size: 17px; gap: 8px; padding: 12px 17px; }
   .advance-day .clay-button svg:first-child { width: 25px; }
   .advance-day .clay-button svg:last-child { width: 18px; }
-  .book-overlay { padding: 12px; align-items: center; }
+  .book-overlay { padding: 12px; padding-top: calc(12px + var(--mewvis-safe-area-top, 0px)); align-items: center; }
   .island-book { width: 100%; max-width: 590px; height: 100%; max-height: 860px; aspect-ratio: auto; display: flex; flex-direction: column; gap: 16px; padding: 25px 28px; background-color: #f4ecd6; background-image: none !important; border: 7px solid #7d8b66; border-radius: 20px; overflow: auto; font-size: 14px; }
   .book-close { top: 11px; right: 11px; width: 34px; height: 34px; }
   .book-left { padding: 0 0 8px; align-items: flex-start; text-align: left; flex-shrink: 0; }

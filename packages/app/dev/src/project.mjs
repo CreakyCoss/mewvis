@@ -99,7 +99,7 @@ export async function readProject(root) {
     (typeof ui !== "object" ||
       Array.isArray(ui) ||
       Object.keys(ui).some(
-        (key) => !["entry", "title", "layout"].includes(key),
+        (key) => !["entry", "title", "layout", "immersive"].includes(key),
       ))
   )
     throw new Error("ui 配置无效");
@@ -114,6 +114,8 @@ export async function readProject(root) {
     ui.layout !== "fullscreen"
   )
     throw new Error("ui.layout 只支持 workspace 或 fullscreen");
+  if (ui?.immersive !== undefined && typeof ui.immersive !== "boolean")
+    throw new Error("ui.immersive 必须是布尔值");
   const uiEntry = ui
     ? await projectFile(root, ui.entry ?? "./main/App.tsx", "ui.entry")
     : undefined;

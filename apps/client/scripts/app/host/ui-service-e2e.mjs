@@ -297,29 +297,60 @@ try {
         ...(layout === undefined ? {} : { layout }),
       });
     }
+    delete manifest.mewvis.ui.layout;
+    for (const immersive of [undefined, false, true, "true", 1, null]) {
+      manifest.mewvis.ui.immersive = immersive;
+      writeFileSync(manifestPath, JSON.stringify(manifest));
+      const result = await request("configure", {
+        ...configuration,
+        applications: [{ ...configuration.applications[0], source, packageRoot: layoutRoot }],
+      });
+      assert.equal(result.applications[0].error, null);
+      if (immersive !== undefined && typeof immersive !== "boolean") {
+        assert.equal(result.applications[0].ui, null);
+        assert.match(result.applications[0].uiError, /ui.immersive 必须是布尔值/);
+      } else {
+        assert.equal(result.applications[0].uiError, null);
+        assert.deepEqual(result.applications[0].ui, {
+          kind: "sandbox",
+          title: "Portable UI Fixture",
+          ...(immersive === undefined ? {} : { immersive }),
+        });
+      }
+    }
   }
 
   const largeRoot = join(tempDir, "large-ui-application");
   cpSync(fixtureRoot, largeRoot, { recursive: true });
   writeFileSync(join(largeRoot, "app-ui.js"), `/*${"x".repeat(5 * 1024 * 1024)}*/`);
-  writeFileSync(join(largeRoot, "index.js"), `
+  writeFileSync(
+    join(largeRoot, "index.js"),
+    `
     export default { name: "large-response", inject: ["tools"], apply(ctx) {
       ctx.tools.register({ name: "large_response", description: "Response limit fixture", risk: "low",
         parameters: {}, output: { schema: {}, render: () => [] },
         execute: () => "x".repeat(5 * 1024 * 1024) });
     }};
-  `);
+  `,
+  );
   const large = await request("configure", {
     settingsPath: join(tempDir, "large-settings"),
-    applications: [{ ...configuration.applications[0],
-      entry: pathToFileURL(join(largeRoot, "index.js")).href,
-      packageRoot: largeRoot, patchPath: join(largeRoot, "cordis.patch.yml"),
-    }],
+    applications: [
+      {
+        ...configuration.applications[0],
+        entry: pathToFileURL(join(largeRoot, "index.js")).href,
+        packageRoot: largeRoot,
+        patchPath: join(largeRoot, "cordis.patch.yml"),
+      },
+    ],
   });
   assert.equal(large.applications[0].error, null);
   assert.equal(large.applications[0].uiError, null);
   assert.ok((await request("uiDocument", { applicationId: owner })).script.length > 4 * 1024 * 1024);
-  await assert.rejects(request("execute", { applicationId: owner, toolName: "large_response", arguments: {} }), /4 MiB/);
+  await assert.rejects(
+    request("execute", { applicationId: owner, toolName: "large_response", arguments: {} }),
+    /4 MiB/,
+  );
   assert.equal((await request("catalog")).applications.length, 1, "oversized tool responses do not kill the host");
 
   await request("shutdown");

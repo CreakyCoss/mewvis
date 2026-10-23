@@ -15,7 +15,12 @@ import "../../src/App.css";
 if (platform.kind !== "web") throw new Error("仅允许浏览器内存验证");
 const titleBar = new URLSearchParams(location.search).get("titleBar");
 if (titleBar === "overlay" || titleBar === "native") {
-  platform.window = { titleBarStyle: titleBar, startDragging: async () => {} };
+  platform.window = {
+    titleBarStyle: titleBar,
+    startDragging: async () => {
+      window.windowDragCount = (window.windowDragCount ?? 0) + 1;
+    },
+  };
 }
 const library = createLibrary(book);
 const tools = {
@@ -24,16 +29,28 @@ const tools = {
   mewvis_docs_search: ({ query }) => library.search(query),
 };
 const applications = ["bundled", "installed"].flatMap((source) =>
-  ["default", "workspace", "fullscreen"].map((layout) => ({
-    id: `@mewvis/docs-${source}-${layout}`,
-    name: `文档中心 ${source} ${layout}`,
+  [
+    { layout: "default" },
+    { layout: "workspace" },
+    { layout: "fullscreen" },
+    { layout: "default", immersive: true },
+    { layout: "fullscreen", immersive: true },
+    { layout: "fullscreen", immersive: false },
+    { layout: "workspace", immersive: true },
+  ].map(({ layout, immersive }) => ({
+    id: `@mewvis/docs-${source}-${layout}${immersive === undefined ? "" : `-immersive-${immersive}`}`,
+    name: `文档中心 ${source} ${layout}${immersive === undefined ? "" : ` immersive-${immersive}`}`,
     version: "0.1.0",
     description: "应用工作区验证",
     runtimeKind: "mewvis",
     source,
     error: null,
     uiError: null,
-    ui: { kind: "sandbox", ...(layout === "default" ? {} : { layout }) },
+    ui: {
+      kind: "sandbox",
+      ...(layout === "default" ? {} : { layout }),
+      ...(immersive === undefined ? {} : { immersive }),
+    },
     compatibility: [],
     permissions: [],
     permissionStatus: "declared",
@@ -47,7 +64,12 @@ window.fetch = async (input, init) => {
   const command = decodeURIComponent(path.replace("/api/commands/", ""));
   const payload = JSON.parse(init?.body ?? "{}");
   if (command === "list_application_ui") return Response.json({ applications });
-  if (command === "get_application_ui_document") return Response.json({ script, style });
+  if (command === "get_application_ui_document")
+    return Response.json({
+      script,
+      // Each column paints its own background through the overlay, while its contents avoid the title bar.
+      style: `${style}\n.sidebar, .reading-pane { padding-top: var(--mewvis-safe-area-top, 0px); }`,
+    });
   if (command === "execute_application_ui_tool") {
     const { toolName, arguments: args } = payload.input;
     if (!Object.hasOwn(tools, toolName)) throw new Error("未知工具");
@@ -57,7 +79,7 @@ window.fetch = async (input, init) => {
 };
 useApplicationCatalogStore.setState({ catalog: { applications } });
 const sidebar = (
-  <nav aria-label="应用侧栏" className="flex w-56 shrink-0 flex-col gap-4 border-r p-4 pt-12">
+  <nav aria-label="应用侧栏" className="flex w-56 shrink-0 flex-col gap-4 overflow-y-auto border-r p-4 pt-12">
     <NavLink to="/apps">应用列表</NavLink>
     {applications.map((application) => (
       <NavLink key={application.id} to={`/apps/${encodeURIComponent(application.id)}`}>
