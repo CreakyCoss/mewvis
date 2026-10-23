@@ -179,26 +179,28 @@ export async function createExtensionRunResources(
     const validators = new Map(
       catalog.tools.map((tool) => [tool.name, ajv.compile(tool.parameters)]),
     );
-    const risks = new Map(
-      sources.flatMap((source) =>
+    const risks = new Map([
+      ...catalog.tools.map((tool) => [tool.name, tool.risk] as const),
+      ...sources.flatMap((source) =>
         Object.entries(source.toolRisks ?? {}).map(
           ([name, risk]) => [extensionToolName(source.id, name), risk] as const,
         ),
       ),
-    );
+    ]);
     const commandValidators = new Map(
       catalog.commands.map((entry) => [
         entry.id,
         ajv.compile(entry.parameters),
       ]),
     );
-    const commandRisks = new Map(
-      sources.flatMap((source) =>
+    const commandRisks = new Map([
+      ...catalog.commands.map((entry) => [entry.id, entry.risk] as const),
+      ...sources.flatMap((source) =>
         Object.entries(source.commandRisks ?? {}).map(
           ([name, risk]) => [`${source.id}/${name}`, risk] as const,
         ),
       ),
-    );
+    ]);
     const calls = new Set<string>();
     let waitingCount = 0;
     const waitingListeners = new Set<() => void>();

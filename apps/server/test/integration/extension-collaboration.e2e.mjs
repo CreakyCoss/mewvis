@@ -237,7 +237,7 @@ test(
         sessionRootDir: `chats/${runTarget.chatId}/session`,
         agentRoleId: "main",
         userMessage,
-        permissions: { mode: "full" },
+        permissions: { mode: "auto" },
         runtimeModel: {
           provider: "openai",
           modelId: "local",

@@ -37,6 +37,7 @@ export default defineExtension({
       name: "hello",
       label: "问候",
       description: "生成问候文本。",
+      risk: "low",
       parameters: {
         type: "object",
         properties: { name: { type: "string" } },
@@ -57,9 +58,13 @@ export default defineExtension({
 
 `registerSkill` 注册 `{ name, description, content }` 内联技能，`onActivate` 注册异步初始化，`own` 注册清理函数。资源只能在同步 setup 中声明；资源分配尽量放在激活阶段，并在 setup 提前登记对应清理。
 
-`registerCommand` 注册 `{ name, description, parameters, execute }` 显式命令；`ctx.on(type, handler)` 订阅标准 Agent 事件；`ctx.session.get/set/delete` 访问当前插件的会话 JSON 状态。命令 ID 为 `extensionId/commandName`，可通过宿主 SDK 或协议调用，不自动解析斜杠指令，也不会注册为模型工具。命令输入和返回值必须为 JSON，参数在宿主和 worker 双重校验。`ExtensionSource.commandRisks` 与工具风险配置一样由宿主审核提供；未声明时按未知副作用处理，沿用现有审批流程。
+`registerCommand` 注册 `{ name, description, risk, parameters, execute }` 显式命令；`ctx.on(type, handler)` 订阅标准 Agent 事件；`ctx.session.get/set/delete` 访问当前插件的会话 JSON 状态。命令 ID 为 `extensionId/commandName`，可通过宿主 SDK 或协议调用，不自动解析斜杠指令，也不会注册为模型工具。命令输入和返回值必须为 JSON，参数在宿主和 worker 双重校验。
 
-工具 schema 使用 JSON Schema object，输入、输出和进度必须是 JSON。当前输出支持文本 content 和 JSON details。插件不直接声明执行风险；宿主可在审核后用 `ExtensionSource.toolRisks` 配置，未配置的工具按未知副作用处理。
+工具 schema 使用 JSON Schema object，输入、输出和进度必须是 JSON。当前输出支持文本 content 和 JSON details。
+
+工具和命令均可在注册定义中声明 `risk: "low" | "medium" | "high"`，表示其最高操作风险。纯计算、只读查询可声明低风险，普通数据修改为中风险，删除、执行程序等为高风险；多种操作按最高风险声明，或拆成独立入口。无效值在注册时拒绝，旧插件省略时按未知副作用处理。
+
+宿主审核配置 `ExtensionSource.toolRisks` / `commandRisks` 优先于插件声明，未覆盖的条目使用声明风险，两者均无则为未知。审批沿用统一档位：`ask` 自动通过低风险，`auto` 自动通过低、中风险，`full` 自动通过全部已声明风险；超过上限仍需审批。调用参数不能覆盖风险，风险声明不扩大 `agentAccess`、文件、网络或进程权限，也不能绕过明确拒绝规则。
 
 插件工具的完整身份是 `extensionId/toolName`；模型可见名称由 `extensionToolName()` 生成，例如 `ext_example_greeting__hello`。插件 ID 中的点和连字符转换为下划线，转换后发生冲突或名称超过 64 字符时拒绝加载，不覆盖已有工具。
 
@@ -179,7 +184,7 @@ SDK 提供插件入口
 
 来源、配置、能力或风险声明、入口 stat、最终沙箱策略变化时，下一操作先释放旧实例再创建新实例。入口检查不递归追踪依赖文件；请使用独立构建产物。`runtime.extensions.releaseSession({ workspacePath, sessionRootDir })` 可主动释放某一会话内存，保留持久状态；SDK 不自行定时回收实例，宿主应在会话不用时调用它，并在退出时调用 `shutdown()`。桌面沿用 supervisor 的空闲进程回收策略。
 
-工具执行前复制参数；宿主风险配置不由 worker 的声明覆盖。Pi 的安全钩子把插件工具交给共享入口检查，避免重复审批。输入 schema 在宿主和 worker 都校验。初始化、工具、命令和单个插件事件投递各有 60 秒 RPC 超时；取消或超时关闭 worker，不重放不确定的调用，同一轮重复调用 ID 会被拒绝。
+工具执行前复制参数；宿主风险配置优先于 worker 传回的注册声明。Pi 的安全钩子把插件工具交给共享入口检查，避免重复审批。输入 schema 在宿主和 worker 都校验。初始化、工具、命令和单个插件事件投递各有 60 秒 RPC 超时；取消或超时关闭 worker，不重放不确定的调用，同一轮重复调用 ID 会被拒绝。
 
 正常释放实例和激活失败时由 Chord 释放登记资源，`own` 不随每一轮完成触发。强制终止不保证插件清理回调完成，因此外部写入仍需插件自己设计恢复语义。当前支持[会话压缩钩子及结果事件](../extensions/session-control.md)；分叉、切换和树导航钩子尚未开放。
 

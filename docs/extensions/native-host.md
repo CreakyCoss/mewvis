@@ -58,6 +58,7 @@ export default definePlugin({
     ctx.registerCommand({
       name: "hello",
       description: "原生命令",
+      risk: "low",
       parameters: {
         type: "object",
         properties: {},
@@ -70,6 +71,8 @@ export default definePlugin({
   },
 });
 ```
+
+原生工具和命令同样支持 `risk: "low" | "medium" | "high"`，表示该入口的最高操作风险；宿主审核覆盖优先，省略时按未知副作用处理。风险声明经目录传给 Runtime 的统一审批入口，不改变能力与沙箱范围。
 
 UI 原生入口通过 `ctx.services` 访问宿主服务。`apps/extensions/session-ledger` 是原生实例，只依赖宿主包，读取链路并生成不回写的临时摘要。公开 SDK 的 UI 仍使用 `ctx.host`，这一差异由适配器转换。
 

@@ -40,6 +40,7 @@ import { defineUIExtension, uiSlotDefinitions } from "@mewvis/extension-sdk/ui";
 
 ## 校验与实现边界
 
+- Agent 工具与命令的注册定义支持 `risk: "low" | "medium" | "high"`（公开类型 `ExtensionRisk`）。声明表示该入口的最高操作风险；宿主风险覆盖优先，省略时按未知副作用处理，无效值在注册时拒绝。审批与权限边界见[插件运行时](../runtime/extensions.md)。
 - [manifest.schema.json](../../packages/extension/sdk/manifest.schema.json) 校验插件清单。
 - [ui/contribution.schema.json](../../packages/extension/sdk/ui/contribution.schema.json) 校验 UI 插槽与贡献类型，对外路径为 `@mewvis/extension-sdk/ui/contribution.schema.json`。独立使用 Ajv 时先注册此 Schema（ID 为 `urn:mewvis:ui-contribution`），再编译清单 Schema。
 - UI 插槽的唯一源定义是 `ui/slots.js`：`uiSlotTypes` 定义各类贡献的必填字段，`uiSlotDefinitions` 定义具体位置与作用域。运行 `pnpm --filter @mewvis/extension-sdk generate` 生成 `ui/slots.generated.d.ts` 与贡献 Schema；`check:ui` 检查生成物漂移。其他领域的类型与 Schema 仍按各自契约维护。

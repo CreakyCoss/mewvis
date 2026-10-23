@@ -20,6 +20,7 @@ export default defineExtension({
     ctx.registerTool({
       name: "evaluate",
       label: "智能判断",
+      risk: "low",
       description:
         "根据材料和问题进行选择、评分或是非判断。仅提供材料、问题和输出约束；内部自动选择适用标准。需复核或弃答不能视为确定结论。",
       parameters: decisionRequestSchema,
@@ -34,6 +35,7 @@ export default defineExtension({
     ctx.registerCommand({
       name: "evaluate",
       label: "智能判断",
+      risk: "low",
       description: "提供材料、问题和输出约束，自动匹配内部判断规则。",
       parameters: decisionRequestSchema,
       async execute(input, { signal }) {
@@ -76,6 +78,7 @@ export default defineExtension({
       ctx.registerCommand({
         name: item.id,
         label: item.name,
+        risk: "low",
         inputMode: "text",
         description: item.question,
         parameters: {

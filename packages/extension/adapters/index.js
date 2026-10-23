@@ -107,6 +107,7 @@ export function adaptAgentExtension(definition) {
             name: tool.name,
             label: tool.label,
             description: tool.description,
+            risk: tool.risk,
             parameters: copy(tool.parameters),
             execute: async (input, context) =>
               toolResult(
@@ -124,6 +125,7 @@ export function adaptAgentExtension(definition) {
             ...(command.label && { label: command.label }),
             name: command.name,
             description: command.description,
+            risk: command.risk,
             parameters: copy(command.parameters),
             execute: async (input, context) =>
               copy(

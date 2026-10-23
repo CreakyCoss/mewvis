@@ -458,6 +458,9 @@
               "description": {
                 "type": "string"
               },
+              "risk": {
+                "enum": ["low", "medium", "high"]
+              },
               "parameters": {
                 "type": "object"
               }

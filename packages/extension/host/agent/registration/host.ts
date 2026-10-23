@@ -139,6 +139,7 @@ export async function createExtensionHost(
               name,
               label: tool.label,
               description: tool.description,
+              ...(tool.risk !== undefined && { risk: tool.risk }),
               parameters,
             });
           },
@@ -260,6 +261,7 @@ export async function createExtensionHost(
                 ...(command.inputMode && { inputMode: command.inputMode }),
                 ...(command.label && { label: command.label }),
                 description: command.description,
+                ...(command.risk !== undefined && { risk: command.risk }),
                 parameters,
               });
             },

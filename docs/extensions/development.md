@@ -219,7 +219,7 @@ pnpm extension remove example.feature --settings /absolute/path/extensions.json
 
 内置包从当前 Runtime 安装目录的 `extensions/` 读取，用户的启停与配置保存在设置文件的 `bundled` 映射中，以插件 ID 为键，不保存内置包绝对路径。因此更新或移动安装目录后仍保留用户选择。外部包继续记录在 `packages` 数组；重复 ID 会明确报错，不允许静默覆盖内置插件。缺少内置目录时视为空目录，兼容不包含插件的精简 Runtime。
 
-UI 插件启停与配置通过宿主事件刷新侧栏并卸载旧视图；旧的数据租约立即撤销，包括尚未返回的查询。外部 CLI 修改设置后，重新聚焦窗口会刷新目录；数据请求自身也重新检查启用状态与配置。Agent 模块的启停和配置从下一次命令发现、命令执行或 Agent 运行开始生效；正在执行的操作保留原快照。命令默认走宿主审批，桌面管理页不提供降低执行风险的配置。配置表单由 JSON Schema 生成，复杂配置使用 JSON 输入。
+UI 插件启停与配置通过宿主事件刷新侧栏并卸载旧视图；旧的数据租约立即撤销，包括尚未返回的查询。外部 CLI 修改设置后，重新聚焦窗口会刷新目录；数据请求自身也重新检查启用状态与配置。Agent 模块的启停和配置从下一次命令发现、命令执行或 Agent 运行开始生效；正在执行的操作保留原快照。命令按风险和权限档位进入宿主审批策略，桌面管理页不提供降低执行风险的配置。配置表单由 JSON Schema 生成，复杂配置使用 JSON 输入。
 
 ## 宿主 SDK 接入
 
@@ -247,7 +247,9 @@ const runtime = createAgentRuntime({
 });
 ```
 
-`commandRisks` 和 `toolRisks` 是宿主审核后的配置，包清单不能设置它们；缺省时仍走未知副作用的审批流程。CLI 登记不会自动降低风险。运行权限继续由现有 `permissions` 与 `agentAccess` 控制。
+插件可在 `ctx.registerTool` 和 `ctx.registerCommand` 的定义中直接声明 `risk: "low" | "medium" | "high"`，按入口的最高操作风险填写；新建模板的问候命令声明为 `low`。SDK adapter 将声明传给宿主，注册时拒绝无效值，工具与命令目录保留声明。
+
+`commandRisks` 和 `toolRisks` 是宿主审核后的覆盖配置，包清单不能设置它们；逐项优先使用宿主覆盖，再使用插件注册声明，两者均无则仍走未知副作用的审批流程。CLI 登记不会自动降低风险。`ask` 自动通过低风险，`auto` 自动通过低、中风险，`full` 自动通过全部已声明风险；运行权限继续由现有 `permissions` 与 `agentAccess` 控制，调用参数不能覆盖声明。
 
 需要通过代码管理设置时，SDK 导出 `createExtensionPackageManager(settingsPath, { bundledPath })`，提供 `list/add/configure/remove/resolve`；第二个参数可省略。list 返回的 source 区分 bundled 与 local。`add` 和 `configure` 的配置也可包含宿主审核后的风险映射。
 

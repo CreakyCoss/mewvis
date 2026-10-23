@@ -16,6 +16,7 @@ test("SDK callbacks cross a real native registration boundary, retaining lifecyc
         name: "echo",
         label: "Echo",
         description: "Echo",
+        risk: "medium",
         parameters: { type: "object" },
         async execute(input, { signal, progress }) {
           signal.throwIfAborted();
@@ -45,6 +46,7 @@ test("SDK callbacks cross a real native registration boundary, retaining lifecyc
     own: (cb) => (registrations.dispose = cb),
     onActivate: (cb) => (registrations.activate = cb),
   });
+  assert.equal(registrations.tool.risk, "medium");
   await registrations.activate();
   const controller = new AbortController();
   const input = { text: "native" },

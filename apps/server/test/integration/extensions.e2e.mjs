@@ -164,12 +164,11 @@ test(
       path: join(root, "workspace"),
     });
     const target = { workspacePath: workspace.path, chatId: "bundled-test" };
-    assert.equal(
-      (await call("list_extension_commands", target)).commands.filter(
-        (item) => item.id.startsWith("mewvis.decisions/"),
-      ).length,
-      4,
+    const decisionCommands = (await call("list_extension_commands", target)).commands.filter(
+      (item) => item.id.startsWith("mewvis.decisions/"),
     );
+    assert.equal(decisionCommands.length, 4);
+    assert.ok(decisionCommands.every((item) => item.risk === "low"));
     await call("configure_extension", {
       id: "mewvis.decisions",
       enabled: false,

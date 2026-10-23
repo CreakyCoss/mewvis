@@ -68,6 +68,7 @@ export default defineExtension({
     ctx.registerCommand({
       name: "hello",
       description: "问候命令",
+      risk: "low",
       parameters: { type: "object", properties: {}, additionalProperties: false },
       async execute() { return { message: ${JSON.stringify(`你好，${APP_DISPLAY_NAME}！`)} }; },
     });

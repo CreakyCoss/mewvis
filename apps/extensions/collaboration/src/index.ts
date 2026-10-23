@@ -18,6 +18,7 @@ export default defineExtension({
       ctx.registerCommand({
         name: flow.id,
         label: flow.name,
+        risk: "medium",
         inputMode: "text",
         description: `协作 · ${flow.name}：${flow.description || `${flow.steps.length} 个步骤`}`,
         parameters,
@@ -33,6 +34,7 @@ export default defineExtension({
       ctx.registerTool({
         name: flow.id,
         label: flow.name,
+        risk: "medium",
         description: `执行用户配置的协作流程“${flow.name}”。${flow.description}。步骤：${flow.steps.map((s) => s.name).join(" → ")}。仅当任务需要该流程时调用；不要调用其他未配置的流程。`,
         parameters,
         async execute(input, { signal }) {

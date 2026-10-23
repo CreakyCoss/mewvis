@@ -248,6 +248,7 @@ class Command:
     parameters: dict[str, Any]
     input_mode: InputMode | None
     label: str | None
+    risk: Risk | None
 
 
 @dataclass

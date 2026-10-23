@@ -12,6 +12,7 @@ export const toolSchema = z
     name: localName,
     label: z.string().min(1),
     description: z.string().min(1),
+    risk: z.enum(["low", "medium", "high"]).optional(),
     parameters: z
       .record(z.string(), z.unknown())
       .refine(

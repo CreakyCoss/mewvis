@@ -1,5 +1,7 @@
 import type { JsonObject, JsonValue } from "../shared.js";
 
+export type ExtensionRisk = "low" | "medium" | "high";
+
 export interface ExtensionToolResult {
   content: Array<{ type: "text"; text: string }>;
   details: JsonValue;
@@ -9,6 +11,8 @@ export interface ExtensionTool {
   name: string;
   label: string;
   description: string;
+  /** Maximum operation risk. Host overrides take priority; omission means unknown. */
+  risk?: ExtensionRisk;
   parameters: JsonObject;
   execute(
     input: JsonObject,
@@ -33,6 +37,8 @@ export interface ExtensionCommand {
   inputMode?: "text";
   name: string;
   description: string;
+  /** Maximum operation risk. Host overrides take priority; omission means unknown. */
+  risk?: ExtensionRisk;
   parameters: JsonObject;
   execute(
     input: JsonObject,

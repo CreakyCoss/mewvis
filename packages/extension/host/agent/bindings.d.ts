@@ -6,6 +6,7 @@ import type {
   ExtensionToolResult,
   ExtensionSkill,
   ExtensionCommand,
+  ExtensionRisk,
 } from "./resources.js";
 import type {
   ExtensionMiddlewareType,
@@ -21,9 +22,9 @@ export interface ExtensionSource {
   config?: JsonObject;
   /** Package contributions must stay within this declaration. Omission gives a host-provided direct source access to all Agent capabilities. */
   capabilities?: readonly ExtensionCapability[];
-  /** Host-reviewed risk overrides, keyed by local tool name; omitted means unknown. */
-  toolRisks?: Readonly<Record<string, "low" | "medium" | "high">>;
-  commandRisks?: Readonly<Record<string, "low" | "medium" | "high">>;
+  /** Host-reviewed overrides by local name; fall back to the registered declaration, then unknown. */
+  toolRisks?: Readonly<Record<string, ExtensionRisk>>;
+  commandRisks?: Readonly<Record<string, ExtensionRisk>>;
 }
 
 /** Serializable contributions; executable callbacks stay behind the host binding. */
@@ -38,6 +39,7 @@ export interface ExtensionCatalog {
     name: string;
     label: string;
     description: string;
+    risk?: ExtensionRisk;
     parameters: ExtensionTool["parameters"];
   }>;
   commands: Array<{
@@ -45,6 +47,7 @@ export interface ExtensionCatalog {
     inputMode?: "text";
     id: string;
     description: string;
+    risk?: ExtensionRisk;
     parameters: ExtensionCommand["parameters"];
   }>;
   skills: Array<{

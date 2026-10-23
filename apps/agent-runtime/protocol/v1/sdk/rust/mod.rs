@@ -940,6 +940,9 @@ pub struct Command {
     pub label: Option<String>,
 
     pub parameters: HashMap<String, Option<serde_json::Value>>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub risk: Option<Risk>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

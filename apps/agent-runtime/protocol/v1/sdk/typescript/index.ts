@@ -818,6 +818,7 @@ export interface ExtensionCommandsResult {
     label?: string;
     id: string;
     description: string;
+    risk?: "low" | "medium" | "high";
     parameters: {
       [k: string]: unknown;
     };

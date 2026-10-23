@@ -17,6 +17,7 @@ import { verifyExtensionCollaboration } from "./extensions-collaboration-test.mj
 import { verifyExtensionCompaction } from "./extensions-compaction-test.mjs";
 import { verifyExtensionServices } from "./extensions-service-test.mjs";
 import { verifyExtensionWait } from "./extensions-wait-test.mjs";
+import { verifyExtensionRisks } from "./extensions-risk-test.mjs";
 
 // Self-contained demo/test: actual Pi SDK, actual execution workers and local SSE model.
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -72,6 +73,7 @@ try {
   await writeFile(echoEntry, `export default {id:'test.echo',protocolVersion:1,setup(ctx){
     let calls = 0;
     ctx.registerTool({name:'echo',label:'Echo',description:'Echo input',
+      ...(ctx.config.declaredRisk && {risk:ctx.config.declaredRisk}),
       parameters:{type:'object',properties:{text:{type:'string'}},required:['text'],additionalProperties:false},
       async execute(input,{progress}){const value={echo:input.text,calls:++calls};progress({content:[{type:'text',text:'working'}],details:{}});return {content:[{type:'text',text:JSON.stringify(value)}],details:value}}
     });
@@ -91,7 +93,7 @@ try {
     ...await import(pathToFileURL(join(dist, "mock-registry.js")).href),
   });
   const toolName = "ext_test_echo__echo";
-  const source = { id: "test.echo", entry: echoEntry, toolRisks: { echo: "low" } };
+  const source = { id: "test.echo", entry: echoEntry, config: { declaredRisk: "low" } };
   const script = [{ type: "tool", name: toolName, input: { text: "你好🌍\nMewvis" } }];
   const mock = api.createScriptedMockRuntime("scripted", script);
   const registry = api.createRuntimeAgentRegistry([...api.builtinRuntimeAgents, mock]);
@@ -141,7 +143,7 @@ try {
   );
 
   let approvals = 0;
-  const unknownRiskEngine = api.createAgentEngine({ registry, getExtensionSources: () => [{ ...source, toolRisks: undefined }] });
+  const unknownRiskEngine = api.createAgentEngine({ registry, getExtensionSources: () => [{ ...source, config: {} }] });
   await assert.rejects(
     () =>
       unknownRiskEngine.runAgent(command, {
@@ -414,6 +416,7 @@ try {
   await plainSdk.shutdown();
   console.log("PASS 公共 SDK 接入、会话落盘、注册表实例隔离");
   const { createPiAgentSession } = await import(pathToFileURL(join(dist, "pi-session.js")).href);
+  await verifyExtensionRisks({ api, hostApi, workspace, command });
   await verifyExtensionServices({ api, workspace, hostApi });
   await verifyExtensionCollaboration({ api, root, workspace, piCommand });
   await verifyExtensionSessions({ api, workspace, command, piCommand });
