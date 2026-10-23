@@ -193,9 +193,16 @@ export async function compileBook(docsRoot = defaultDocsRoot) {
   };
 }
 
-export async function checkReadmeLocations() {
-  async function walk(root) {
-    for (const entry of await readdir(root, { withFileTypes: true })) {
+export async function checkReadmeLocations(root = repositoryRoot) {
+  const componentDocumentationRoots = new Set(
+    [
+      "apps/applications/builtins",
+      "apps/extensions",
+      "packages/app/dev/templates",
+    ].map((directory) => join(root, directory)),
+  );
+  async function walk(directory) {
+    for (const entry of await readdir(directory, { withFileTypes: true })) {
       if (
         entry.name.startsWith(".") ||
         ["node_modules", "dist", "build", "target", "skills"].includes(
@@ -203,17 +210,17 @@ export async function checkReadmeLocations() {
         )
       )
         continue;
-      const path = join(root, entry.name);
-      if (path === join(repositoryRoot, "packages/app/dev/templates")) continue;
+      const path = join(directory, entry.name);
+      if (componentDocumentationRoots.has(path)) continue;
       if (entry.isDirectory()) await walk(path);
       else if (/^readme(?:[.-].*)?$/i.test(entry.name))
         throw new Error(
-          `请将自有 README 写入 docs：${relative(repositoryRoot, path)}`,
+          `请将宿主 README 写入 docs：${relative(root, path)}`,
         );
     }
   }
   for (const directory of ["apps", "packages"])
-    await walk(join(repositoryRoot, directory));
+    await walk(join(root, directory));
 }
 
 export async function buildBook({ check = false } = {}) {

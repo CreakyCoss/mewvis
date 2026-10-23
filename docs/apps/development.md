@@ -18,6 +18,8 @@ pnpm dev
 发布工具包后可不传 `--local`，模板使用版本依赖；这里不假设 npm 上已经存在这些包。
 创建命令不会覆盖已有目录，也不会自动安装依赖或启动服务。
 
+内置应用可在 `apps/applications/builtins/<应用目录>/` 保留模板生成的 `README.md`，并在应用目录或其 `docs/` 中维护专属文档。宿主与通用应用开发文档集中在根目录 `docs/`；应用自有文档不要求迁移或登记到 `docs/SUMMARY.md`，详见[文档维护](../guide/documentation.md)。
+
 ```text
 my-application/
 ├── package.json          # 身份、版本、依赖和命令

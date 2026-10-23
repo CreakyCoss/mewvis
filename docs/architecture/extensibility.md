@@ -17,7 +17,8 @@ Mewvis 中具有独立业务界面、设置、数据和会话的功能以**应�
 | 身份与协议        | `applicationId`、`application` 来源、`application:*` 桥接消息            |
 | 数据根目录        | 产品数据目录下的 `apps/`                                                 |
 | 数据权限          | `application-data`、`application-workspaces`                             |
-| 文档              | `docs/apps`                                                              |
+| 通用文档          | `docs/apps`                                                              |
+| 应用自有文档      | `apps/applications/builtins/<应用目录>/README.md` 或其 `docs/`             |
 
 使用旧命名的应用 SDK、清单字段、命令、路由、消息和数据位置不提供别名或自动迁移；已有应用源码和安装产物需要按当前协议重新构建。仓库中的布局整理与设置版本迁移继续服务于应用自己的数据格式，不负责读取旧命名的数据根目录。
 

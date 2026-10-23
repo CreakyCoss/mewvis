@@ -117,7 +117,7 @@ pnpm --filter client app:create -- "$PWD/apps/applications/builtins/notes-assist
 - 在新应用的 `package.json` 中，将 `@mewvis/app-sdk`、`@mewvis/product-config`、`@mewvis/app-dev` 三项依赖从 `link:...` 改为 `workspace:*`，其余依赖保留。
 - 在根目录 `pnpm-workspace.yaml` 的 `packages` 列表追加 `apps/applications/builtins/notes-assistant`。
 - 在 `apps/applications/registry.json` 的 `applications` 数组追加目录名 `notes-assistant`。
-- 将模板生成的 `README.md` 移到 `docs/apps/notes-assistant.md`，调整相对链接，并登记到 `docs/SUMMARY.md`。
+- 保留模板生成的 `README.md`，应用专属文档放在应用目录或其 `docs/` 中；需要加入统一文档的概览再写入根目录 `docs/` 并登记到 `docs/SUMMARY.md`。
 
 打包清单填写**目录名**；应用 ID 来自 `package.json` 的 `name`，本例是 `@example/notes-assistant`。
 
@@ -329,6 +329,6 @@ pnpm build:runtime
 | 失败情况         | 至少一个失败或边界输入，以及对应反馈     |
 | 实现说明         | 复用了哪些 SDK，新增了哪些业务或运行逻辑 |
 
-文档放入 `docs/` 并登记到 `docs/SUMMARY.md` 后，在仓库根目录运行 `pnpm docs:check` 检查目录覆盖和链接。
+应用与插件的专属文档可以随各自源码维护。宿主与通用开发文档放入根目录 `docs/` 并登记到 `docs/SUMMARY.md`，在仓库根目录运行 `pnpm docs:check` 检查目录覆盖和链接。具体归属见[文档维护](documentation.md)。
 
 推荐的第一个开发目标：**完成一个内置笔记助手，支持录入、持久化保存和查看笔记，让 AI 调用应用工具总结指定笔记，并演示一次重启恢复。**

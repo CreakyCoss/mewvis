@@ -14,7 +14,7 @@ pnpm extension validate apps/extensions/my-feature/dist/plugin
 pnpm extension pack apps/extensions/my-feature
 ```
 
-`create` 要求目标目录不存在，父目录需已存在；生成 `package.json` 和 `src/index.ts`。仓库文档统一写入 `docs`，不在插件源码目录生成 README。当前生成的依赖使用 `workspace:*`，用于本仓库开发，SDK/工具包尚未发布到 npm。
+`create` 要求目标目录不存在，父目录需已存在；生成 `package.json` 和 `src/index.ts`，不会自动生成 README。内置插件可在 `apps/extensions/<插件目录>/` 内自行维护 `README.md`、`docs/` 和其他专属说明；宿主与通用插件开发文档集中在根目录 `docs/`。当前生成的依赖使用 `workspace:*`，用于本仓库开发，SDK/工具包尚未发布到 npm。
 
 `build` 按声明从 `src/index.ts`（Agent / Node）和 `src/ui.ts`（UI / 浏览器）分别打包 ESM，输出到 `dist/plugin`；`--out` 可指定尚不存在的自定义输出目录。普通重建会替换约定的 `dist/plugin`。工具会拒绝直接导入 Pi 与宿主内部包，插件应依赖 SDK。该检查帮助维持开发边界，不是恶意代码隔离措施。
 

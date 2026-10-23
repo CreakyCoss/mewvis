@@ -1,15 +1,72 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join, relative } from "node:path";
 import { test } from "node:test";
-import { compileBook, parseSummary, repositoryRoot } from "./book.mjs";
+import {
+  checkReadmeLocations,
+  compileBook,
+  parseSummary,
+  repositoryRoot,
+} from "./book.mjs";
 import { createLibrary } from "../../builtins/docs-reader/library.js";
 
 test("目录拒绝重复、越界和缺少父级", () => {
   assert.throws(() => parseSummary("- [A](a.md)\n- [B](a.md)"), /重复/);
   assert.throws(() => parseSummary("- [A](../a.md)"), /越界/);
   assert.throws(() => parseSummary("  - [A](a.md)"), /父页面/);
+});
+
+test("内置应用和插件可保留自己的 README 与文档资源", async () => {
+  const root = await mkdtemp(join(tmpdir(), "mewvis-docs-locations-"));
+  try {
+    for (const path of [
+      "apps/applications/builtins/example/README.md",
+      "apps/applications/builtins/example/docs/README.zh-CN.md",
+      "apps/extensions/example/README.md",
+      "apps/extensions/example/docs/readme.md",
+      "packages/app/dev/templates/react/README.md",
+    ]) {
+      const file = join(root, path);
+      await mkdir(dirname(file), { recursive: true });
+      await writeFile(file, "# 组件说明\n");
+    }
+    await checkReadmeLocations(root);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("宿主和共享开发包仍须将 README 集中到 docs", async () => {
+  const root = await mkdtemp(join(tmpdir(), "mewvis-docs-locations-"));
+  try {
+    await mkdir(join(root, "apps"));
+    await mkdir(join(root, "packages"));
+    for (const path of [
+      "apps/client/src/README.md",
+      "apps/desktop/README.md",
+      "apps/server/README.md",
+      "apps/agent-runtime/README.zh-CN.md",
+      "apps/applications/README.md",
+      "apps/applications/scripts/README.md",
+      "apps/applications/builtins-extra/README.md",
+      "apps/extensions-extra/README.md",
+      "packages/app/sdk/README.md",
+      "packages/extension/host/readme.md",
+    ]) {
+      const file = join(root, path);
+      await mkdir(dirname(file), { recursive: true });
+      await writeFile(file, "# 宿主说明\n");
+      await assert.rejects(checkReadmeLocations(root), (error) => {
+        assert.match(error.message, /请将宿主 README 写入 docs/);
+        assert.ok(error.message.endsWith(relative(root, file)));
+        return true;
+      });
+      await rm(file);
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });
 
 test("真实文档可编译，中文和英文 API 可搜索，读取不可越界", async () => {

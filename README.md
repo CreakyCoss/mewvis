@@ -124,7 +124,7 @@ pnpm --filter client app:create -- "$PWD/apps/applications/builtins/my-ai-app" -
 - 在新应用的 `package.json` 中，将 `@mewvis/app-sdk`、`@mewvis/product-config` 和 `@mewvis/app-dev` 三项依赖从 `link:...` 改为 `workspace:*`，其余依赖保留。
 - 在 [pnpm-workspace.yaml](pnpm-workspace.yaml) 的 `packages` 列表中追加 `apps/applications/builtins/my-ai-app`，让 pnpm 管理新应用的依赖和命令。
 - 在 [应用打包清单](apps/applications/registry.json) 的 `applications` 数组中追加目录名 `my-ai-app`，让它随 Mewvis 构建。这里填写目录名，应用 ID 则来自 `package.json` 的 `name`。
-- 仓库文档统一放在 `docs/`。将模板生成的 `README.md` 移到 `docs/apps/my-ai-app.md`，调整其中的相对链接，并在 [文档目录](docs/SUMMARY.md) 中登记。
+- 保留应用目录中模板生成的 `README.md`，应用专属文档可继续放在该目录或其 `docs/` 中。宿主与通用开发文档集中在根目录 `docs/`；需要加入统一文档的应用概览可在 [文档目录](docs/SUMMARY.md) 中登记。
 
 随后在仓库根目录安装依赖并启动应用预览：
 

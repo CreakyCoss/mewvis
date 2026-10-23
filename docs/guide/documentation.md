@@ -1,6 +1,15 @@
 # 文档维护
 
-仓库根目录 `README.md` 提供项目介绍和快速启动，Mewvis 详细说明统一维护在 `docs/`。目录按主题分组，页面使用稳定的英文文件名与中文标题。
+仓库根目录 `README.md` 提供项目介绍和快速启动。宿主的使用说明、架构、SDK 和通用开发指南统一维护在根目录 `docs/`，不在宿主源码目录散落文档。内置应用和内置插件可以在各自目录维护自己的文档。
+
+## 文档归属
+
+- 宿主与共享开发包的详细文档放在根目录 `docs/`，包括 `apps/client/`、`apps/desktop/`、`apps/server/`、`apps/agent-runtime/`、`apps/applications/scripts/` 和 `packages/` 中的宿主、SDK、工具链与共享契约。
+- 内置应用在 `apps/applications/builtins/<应用目录>/` 内维护自己的 `README.md`、`docs/` 和其他专属说明；模板生成的 README 可直接保留。
+- 内置插件在 `apps/extensions/<插件目录>/` 内维护自己的 `README.md`、`docs/` 和其他专属说明。
+- 应用与插件的自有文档不要求迁移到根目录 `docs/`，也不要求登记到 `docs/SUMMARY.md`。需要在统一文档中介绍时，可在 `docs/apps/builtins/` 或 `docs/extensions/` 保留概览并链接组件目录，避免重复维护详细内容。
+
+在线文档站和离线文档中心仅收录根目录 `docs/` 中的页面。以下新增、目录与构建规则适用于这些页面；目录按主题分组，页面使用稳定的英文文件名与中文标题。
 
 ## 新增与修改
 
@@ -16,7 +25,7 @@ pnpm docs:build
 pnpm docs:test
 ```
 
-`docs:check` 验证目录覆盖、重复条目、文件链接与文档锚点，并阻止自有源码目录再出现 README。`docs:build` 生成 `docs/.generated/book.json`，并构建文档应用的 `app-ui.js` 入口。文档索引是忽略提交的派生产物，不应手工修改。正常内置应用打包也会先重新生成，防止旧内容进入应用。
+`docs:check` 验证根目录 `docs/` 的目录覆盖、重复条目、文件链接与文档锚点，并阻止宿主和共享开发包的源码目录再出现 README；`apps/applications/builtins/` 与 `apps/extensions/` 中的自有文档不受此位置限制。`docs:build` 生成 `docs/.generated/book.json`，并构建文档应用的 `app-ui.js` 入口。文档索引是忽略提交的派生产物，不应手工修改。正常内置应用打包也会先重新生成，防止旧内容进入应用。
 
 ## 内容范围
 
