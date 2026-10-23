@@ -40,7 +40,7 @@ package.json 不再维护一份重复的 `mewvis` 清单，构建时从 `app.con
 
 ## 全屏应用
 
-需要独立视觉风格或更大工作区的应用，可以在 `app.config.ts` 中声明全屏：
+所有自带界面的应用默认全屏打开，无需单独声明。应用会收起宿主侧栏，占满窗口工作区；顶部保留窗口拖动区、全屏切换和返回应用列表的入口。需要默认保留宿主导航栏时，在 `app.config.ts` 中显式声明普通布局：
 
 ```ts
 import { defineConfig } from "@mewvis/app-dev";
@@ -48,13 +48,13 @@ import { defineConfig } from "@mewvis/app-dev";
 export default defineConfig({
   displayName: "我的应用",
   permissions: [],
-  ui: { layout: "fullscreen" },
+  ui: { layout: "workspace" },
 });
 ```
 
-`ui.layout` 可省略或设为 `"workspace"`，保留宿主导航栏；设为 `"fullscreen"` 后，打开应用会收起宿主侧栏，界面占满窗口工作区。顶部保留窗口拖动区、全屏切换和返回应用列表的入口；应用也可以继续使用公共顶栏接口。切换全屏不会重新加载应用，离开应用或声明失效后自动恢复宿主导航。这里的全屏是应用布局，不切换操作系统或浏览器的全屏状态。
+`ui.layout` 可省略或设为 `"fullscreen"`，均使用全屏布局；`"workspace"` 使用普通布局。应用也可以继续使用公共顶栏接口。切换全屏不会重新加载应用，离开应用或声明失效后自动恢复宿主导航。这里的全屏是应用布局，不切换操作系统或浏览器的全屏状态。
 
-工具链将声明写入安装包的 `mewvis.ui.layout`，内置与外部应用行为一致。独立开发预览不包含宿主导航，布局切换需在 Mewvis 宿主中验证。
+工具链将显式声明写入安装包的 `mewvis.ui.layout`，未声明布局的已有应用也默认全屏，内置与外部应用行为一致。独立开发预览不包含宿主导航，布局切换需在 Mewvis 宿主中验证。
 
 在 `apps/client` 运行 `pnpm test:app-host:layout:browser` 可验证声明生效、切换时保留应用状态，以及离开应用或声明失效后的导航恢复；浏览器运行时路径可通过 `MEWVIS_PLAYWRIGHT_MODULE` 指定。
 

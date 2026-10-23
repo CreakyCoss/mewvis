@@ -32,7 +32,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "design-system/components/ui/dropdown-menu";
-import { getApplicationHost } from "@mewvis/app-sdk/browser";
 import {
   FLOW_STEPS,
   PROJECT_KINDS,
@@ -155,20 +154,6 @@ export function Workbench({
       setLeaving(false);
     }
   };
-  const backRef = useRef(back);
-  backRef.current = back;
-  useEffect(() => {
-    const header = getApplicationHost().header;
-    if (!header) return;
-    void header.set({ title: "影视工坊", backLabel: "作品库" }).catch(() => {});
-    const unsubscribe = header.subscribe(() => {
-      void backRef.current();
-    });
-    return () => {
-      unsubscribe();
-      void header.set(null).catch(() => {});
-    };
-  }, []);
   const selectPanel = (value: "assistant" | "reference") => {
     if (compactScreen) {
       setPanel(value);

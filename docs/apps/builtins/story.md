@@ -24,7 +24,7 @@
 
 宿主与故事共用 `packages/design-system` 的组件、主题变量和通用样式，组件从 `design-system/components/...` 引用。`cn` 和通用 hooks 分别由 `design-system/lib/utils`、`design-system/hooks/...` 提供。知识库列表样式属于宿主，酒馆强调样式属于故事应用。酒馆文件写入时由应用后端创建父目录。
 
-窗口标题栏与拖动区域由宿主统一管理，故事页面占满其下方、常驻导航栏之外的应用工作区。故事页面不设置窗口拖动区或为其预留空间，SDK 不提供窗口拖动接口。
+窗口标题栏与拖动区域由宿主统一管理，故事页面默认全屏，占满标题栏下方的应用工作区；顶部保留全屏切换与返回应用列表的入口。故事页面不设置窗口拖动区或为其预留空间，SDK 不提供窗口拖动接口。
 
 页面通过 `project-client` 调用应用自己的 `mewvis_story_project`，执行共享领域内核。Agent 使用 `story` 工具及应用技能，先调用 `describe_structure`，再通过 ChangeSet 校验并提交正式数据。
 

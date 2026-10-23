@@ -218,7 +218,7 @@ const ApplicationDetail = ({
   );
 
   useEffect(() => {
-    if (hasSandboxUi && application?.ui?.layout === "fullscreen") return registerFullscreen?.();
+    if (hasSandboxUi && application?.ui?.layout !== "workspace") return registerFullscreen?.();
   }, [application?.id, application?.ui?.layout, hasSandboxUi, registerFullscreen]);
 
   return (

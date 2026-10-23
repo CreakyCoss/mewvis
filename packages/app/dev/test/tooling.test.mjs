@@ -129,7 +129,7 @@ test("React scaffold checks and builds outside the Mewvis repository", async () 
   );
 });
 
-test("React application UI defaults to workspace and preserves explicit layout declarations", async () => {
+test("React application UI allows the host default and preserves explicit layout declarations", async () => {
   const { manifest } = await packApplication({ source, quiet: true });
   assert.equal(manifest.mewvis.ui.kind, "sandbox");
   assert.equal(Object.hasOwn(manifest.mewvis.ui, "layout"), false);

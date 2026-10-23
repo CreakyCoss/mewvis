@@ -4,7 +4,6 @@ import {
 } from "design-system/components/ui/native-select";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getApplicationDataClient } from "@mewvis/app-sdk/data";
-import { getApplicationHost } from "@mewvis/app-sdk/browser";
 import { getApplicationFileClient } from "@mewvis/app-sdk/files";
 import {
   PROJECT_KINDS,
@@ -68,14 +67,6 @@ export default function App() {
   useEffect(() => {
     void reload();
   }, [repository]);
-  useEffect(() => {
-    if (selectedId) return;
-    const header = getApplicationHost().header;
-    void header?.set({ title: "影视工坊" }).catch(() => {});
-    return () => {
-      void header?.set(null).catch(() => {});
-    };
-  }, [selectedId]);
   const run = async (action: () => Promise<void>) => {
     setBusy(true);
     setError("");

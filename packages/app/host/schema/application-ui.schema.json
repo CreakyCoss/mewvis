@@ -12,7 +12,8 @@
     "layout": {
       "type": "string",
       "enum": ["workspace", "fullscreen"],
-      "description": "Defaults to workspace. Fullscreen hides host sidebars and retains host exit controls."
+      "default": "fullscreen",
+      "description": "Defaults to fullscreen, hiding host sidebars and retaining host exit controls. Use workspace to retain host sidebars."
     }
   },
   "required": ["version", "kind", "entry"],

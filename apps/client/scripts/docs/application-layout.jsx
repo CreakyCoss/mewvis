@@ -24,7 +24,7 @@ const tools = {
   mewvis_docs_search: ({ query }) => library.search(query),
 };
 const applications = ["bundled", "installed"].flatMap((source) =>
-  ["workspace", "fullscreen"].map((layout) => ({
+  ["default", "workspace", "fullscreen"].map((layout) => ({
     id: `@mewvis/docs-${source}-${layout}`,
     name: `文档中心 ${source} ${layout}`,
     version: "0.1.0",
@@ -33,7 +33,7 @@ const applications = ["bundled", "installed"].flatMap((source) =>
     source,
     error: null,
     uiError: null,
-    ui: { kind: "sandbox", ...(layout === "fullscreen" ? { layout } : {}) },
+    ui: { kind: "sandbox", ...(layout === "default" ? {} : { layout }) },
     compatibility: [],
     permissions: [],
     permissionStatus: "declared",
