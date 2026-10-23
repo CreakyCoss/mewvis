@@ -1,0 +1,120 @@
+{
+  "generator": "built-in image_gen__imagegen",
+  "style_reference": "prototypes/pocket-civilization-design/00-selected-world.png",
+  "transparent_background": true,
+  "postprocess": "Copied generated PNG into project, then proportional resize with sips to 320x400. No recoloring, alpha removal, or painting.",
+  "assets": [
+    {
+      "id": "atuan",
+      "file": "actor-atuan.png",
+      "prompt": "Use case: background-extraction. Asset type: single transparent full-body game actor sprite for Pocket Civilization. Input image is style/character reference. Extract and recreate ONLY the little brown-haired boy standing outside the bakery in the lower-left area of the reference, 阿团. Single boy, full body, short brown parted hair with soft sculpted strands, large round head, warm expressive face, a neutral slightly sheepish smile, blue shirt, tan shorts/trousers, brown shoes. Preserve the original soft clay miniature toy-diorama material, three-quarter isometric game camera looking down slightly, front three-quarter body. Feet flat on a ground plane but no ground asset. Soft sunlight upper left. Arms gently at sides. NO cloud, rain, flowers, bread, prop, speech bubble, text, scene, decorative border, white sticker border or drop-shadow blob. Genuine fully transparent background with clean antialiased edge. Portrait canvas intended 320x400 after resizing, centered full body taking about 86% of canvas height with transparent margin, both feet at the same baseline. This must blend seamlessly with the reference game's tiny town; not flat vector, not flaticon, not photorealistic.",
+      "source": "Generated images are saved to /Users/haowen.zheng/.codex/generated_images/01a164b1-9599-7c70-a197-6b157c81bc96 as /Users/haowen.zheng/.codex/generated_images/01a164b1-9599-7c70-a197-6b157c81bc96/exec-5028cc2b-4c68-470b-9fb1-780248a4624d.png by default.\nIf you need to use a generated image at another path, copy it and leave the original in place unless the user explicitly asks you to delete it.\nThe generated image is already displayed to the user. There is no need to render it in the final response as a Markdown image or file link.",
+      "width": 320,
+      "height": 400,
+      "bytes": 101855,
+      "alphaRange": [
+        0,
+        255
+      ],
+      "visibleBoundsAlphaGT32": [
+        73,
+        37,
+        250,
+        378
+      ],
+      "footAnchor": [
+        161.5,
+        378
+      ]
+    },
+    {
+      "id": "xiaoman",
+      "file": "actor-xiaoman.png",
+      "prompt": "Use case: background-extraction. Asset type: single transparent full-body clay miniature game actor sprite for Pocket Civilization. Input reference shows the selected game's island. Extract and recreate ONLY 小满, the young female shopkeeper beside the purple umbrella stall in the lower center of the reference. Single girl, straw sunhat with warm brown/terracotta ribbon, short soft brown bob, warm friendly round face, large head and small body, blue apron over cream blouse, brown shoes. Neutral friendly pose with empty hands gently resting by her sides; NO props. Match the boy's soft clay miniature toy-diorama sculpting, original isometric game camera looking down slightly, front three-quarter body, soft sunlight upper left. Feet flat at same baseline, full body visible. Transparent canvas intended 320x400, centered subject with transparent margin, subject occupying86% of canvas height. No environment, stand, umbrella, rain, flowers, speech, text, decorative borders, white sticker border or shadow blob. Genuine alpha transparency. Not flat vector, not flaticon, not photorealistic. Render one isolated female character only, no variations or duplicate characters.",
+      "source": "Generated images are saved to /Users/haowen.zheng/.codex/generated_images/01a164b1-9599-7c70-a197-6b157c81bc96 as /Users/haowen.zheng/.codex/generated_images/01a164b1-9599-7c70-a197-6b157c81bc96/exec-cf01e972-3ea1-422a-add5-d3e5ffdc9593.png by default.\nIf you need to use a generated image at another path, copy it and leave the original in place unless the user explicitly asks you to delete it.\nThe generated image is already displayed to the user. There is no need to render it in the final response as a Markdown image or file link.",
+      "width": 320,
+      "height": 400,
+      "bytes": 112302,
+      "alphaRange": [
+        0,
+        255
+      ],
+      "visibleBoundsAlphaGT32": [
+        60,
+        24,
+        275,
+        384
+      ],
+      "footAnchor": [
+        167.5,
+        384
+      ]
+    },
+    {
+      "id": "mayor",
+      "file": "actor-mayor.png",
+      "prompt": "Use case: background-extraction. Asset type: single transparent full-body clay miniature game actor sprite for Pocket Civilization. Input reference shows selected game's island. Extract and recreate ONLY the elderly mayor visible at the center-right plaza above the umbrella stall. Single elderly man with snowy white hair and fluffy moustache, warm kind round face, slightly concerned gentle expression, large head small squat body, charcoal dark vest over cream shirt, dark grey trousers, brown shoes. Neutral standing pose with empty hands gently by his sides. Match the original soft clay miniature toy-diorama sculpted texture and game world. Same three-quarter isometric game camera looking down slightly, body front three-quarter, soft daylight upper left. Feet flat at same baseline, full body and both shoes visible. Transparent portrait canvas intended320x400 after resizing, centered subject with transparent margin, subject occupying86% canvas height. No cane, environment, building, furniture, speech, text, flowers, decorative border, white sticker border or shadow blob. Genuine alpha transparency. Not flat vector, not flaticon, not photorealistic. Render one isolated male character only, no variations or duplicates.",
+      "source": "Generated images are saved to /Users/haowen.zheng/.codex/generated_images/01a164b1-9599-7c70-a197-6b157c81bc96 as /Users/haowen.zheng/.codex/generated_images/01a164b1-9599-7c70-a197-6b157c81bc96/exec-f2a8c71e-72e3-4ab3-ad16-a4b2ad0a7b8b.png by default.\nIf you need to use a generated image at another path, copy it and leave the original in place unless the user explicitly asks you to delete it.\nThe generated image is already displayed to the user. There is no need to render it in the final response as a Markdown image or file link.",
+      "width": 320,
+      "height": 400,
+      "bytes": 100149,
+      "alphaRange": [
+        0,
+        255
+      ],
+      "visibleBoundsAlphaGT32": [
+        72,
+        42,
+        253,
+        367
+      ],
+      "footAnchor": [
+        162.5,
+        367
+      ]
+    },
+    {
+      "id": "gardener",
+      "file": "actor-gardener.png",
+      "prompt": "Use case: stylized-concept. Asset type: single transparent full-body clay miniature game actor sprite for Pocket Civilization. Input image is style and camera reference for the tiny island game world. Create one gardener resident matching this reference, similar in stature to the little characters in the town. Single friendly young adult with straw garden hat with dark green ribbon, short dark brown hair, warm round face with small smile, large head and small squat body, moss green overalls over a cream shirt, practical brown shoes. Neutral standing pose, empty hands relaxed by sides. Original soft clay miniature toy-diorama sculpted texture, same three-quarter isometric game camera looking down slightly, body front three-quarter, soft daylight from upper left. Feet flat at same baseline, full body visible. Transparent portrait canvas intended320x400 after resizing, centered subject with transparent margin, character about86% canvas height. No watering can, tools, plant, flower, ground, environment, speech, text, decorative border, white sticker border or shadow blob. Genuine fully transparent alpha. Not flat vector, not flaticon, not photorealistic. Render one isolated character only, no variations or duplicates.",
+      "source": "Generated images are saved to /Users/haowen.zheng/.codex/generated_images/01a164b1-9599-7c70-a197-6b157c81bc96 as /Users/haowen.zheng/.codex/generated_images/01a164b1-9599-7c70-a197-6b157c81bc96/exec-8c59c1c5-36e2-4c6d-8fad-d944d9df71fb.png by default.\nIf you need to use a generated image at another path, copy it and leave the original in place unless the user explicitly asks you to delete it.\nThe generated image is already displayed to the user. There is no need to render it in the final response as a Markdown image or file link.",
+      "width": 320,
+      "height": 400,
+      "bytes": 106702,
+      "alphaRange": [
+        0,
+        255
+      ],
+      "visibleBoundsAlphaGT32": [
+        50,
+        39,
+        274,
+        375
+      ],
+      "footAnchor": [
+        162.0,
+        375
+      ]
+    }
+  ],
+  "illustrations": [
+  {
+    "file": "law-rain-vignette.webp",
+    "generator": "built-in image_gen__imagegen",
+    "prompt": "Use case: compositing. Asset type: single transparent illustrated vignette for the cream left page of a clay miniature game law book, intended320x280. Input1 reference image shows desired vignette at bottom-left of book: tiny boy under raincloud next to lamppost and fence. Input2 actor reference defines the boy's identity and clothes. Recreate an isolated small scene: same little boy from Input2, brown parted sculpted hair, round face, blue shirt, tan shorts, brown shoes, a slightly sheepish expression, standing below one small local dark blue-grey fluffy raincloud with exactly five big blue raindrops below it. A tiny pale blue puddle directly under his shoes. To the boy's left, one short wooden garden fence of three posts, one warm glowing old fashioned black lamppost and a few white daisies and tiny green leaves. Softly isometric clay miniature style, softly textured handcrafted surfaces, soft daylight upper-left, broad three-quarter view like the reference. Entire vignette balanced horizontally, cloud above boy, feet and puddle near bottom, small fence and lamp at the side, generous transparent margin all sides. Genuine transparent background. No paper, no page, no book, no full island or large landscape, no text, no speech bubble, no UI, no sticker border. Nothing should fill the transparent outer space. One single vignette only. Match the selected reference style and the isolated boy's face. Use320x280 aspect ratio.",
+    "source": "Generated images are saved to /Users/haowen.zheng/.codex/generated_images/01a164b1-9599-7c70-a197-6b157c81bc96 as /Users/haowen.zheng/.codex/generated_images/01a164b1-9599-7c70-a197-6b157c81bc96/exec-c548e91e-6728-4b84-94c2-eace37e6038a.png by default.\nIf you need to use a generated image at another path, copy it and leave the original in place unless the user explicitly asks you to delete it.\nThe generated image is already displayed to the user. There is no need to render it in the final response as a Markdown image or file link.",
+    "width": 320,
+    "height": 280,
+    "bytes": 22850,
+    "alphaRange": [
+      0,
+      254
+    ],
+    "postprocess": "cwebp -q 90 -resize 320 280; lossless alpha preserved.",
+    "references": [
+      "prototypes/pocket-civilization-design/01-edit-world-law.png",
+      "apps/applications/builtins/pocket-civilization/main/assets/actor-atuan.png"
+    ]
+  }
+]
+}

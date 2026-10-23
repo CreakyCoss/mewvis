@@ -1,0 +1,62 @@
+{
+  "generator": "built-in image_gen__imagegen",
+  "intent": "Generate separate blank tactile UI surfaces matching approved Pocket Civilization reference images; all live text and controls remain HTML.",
+  "created": "2026-10-23",
+  "assets": [
+    {
+      "file": "book.webp",
+      "dimensions": [
+        1070,
+        723
+      ],
+      "transparent": true,
+      "source": "/Users/haowen.zheng/.codex/generated_images/01a164b0-5a4f-7882-aa53-14c969199390/exec-4ef20b71-e7b6-412f-88e7-f257744e9c1a.png",
+      "prompt": "Use case: precise-object-edit. Asset type: transparent game UI surface for real HTML content. Reference image is a UI design; isolate ONLY the open book occupying x215..1285 y166..889. Recreate the book alone, front-facing and symmetrical in a landscape canvas matching width:height 1070:723. Preserve warm cream lightly grained blank paper, gently rounded slightly uneven page edges, olive green fabric cover rim visible around pages, narrow center binding crease, small lilac ribbon bookmark at top center. Remove ALL text, drawings, pictograms, illustrations, rules, dividers, buttons, input fields, close icon, lines and decorative plants. The whole interior of both pages must be clean empty cream paper available for HTML controls. No shadows or ghost images of removed content. Keep the near-frontal orientation from the screenshot; no perspective desk. Actual alpha-transparent outside the silhouette, soft ambient contact shadow close to its edges only. Book fills canvas with tiny margin. Subtle tactile cozy clay-game material, exactly restrained reference texture. No ornate fantasy decorations. No background, no scene, no hands, no extra objects.",
+      "processing": "Lanczos resize only; WebP quality 90."
+    },
+    {
+      "file": "scroll.webp",
+      "dimensions": [
+        720,
+        125
+      ],
+      "transparent": true,
+      "source": "/Users/haowen.zheng/.codex/generated_images/01a164b0-5a4f-7882-aa53-14c969199390/exec-23da3eba-81a6-46a9-a69f-0be1cc2b5584.png",
+      "prompt": "Use case: precise-object-edit. Asset type: transparent game UI background surface for real HTML content. Input reference is full game UI. Extract and recreate ONLY the horizontal cream paper scroll from bottom center, approximately x475..1080 y914..1017. Make it a standalone wide paper scroll, target aspect ratio 720:125 (about 5.76:1). Blank warm ivory grained paper, softly uneven long edges, gently curled/rolled left edge, thin edge shadow, a small lilac ribbon bookmark draped over upper-right edge. Remove all text, icons, lines, divider, circles, buttons, edit control, green plants and every other graphic. The paper central area is completely blank for live game UI text. Front-facing UI illustration, no perspective desk. Keep the tactile cozy clay-game look and restrained cream texture of the reference. Fill canvas closely with the scroll silhouette, tiny transparent margin, alpha-transparent outside. No background, no island, no characters, no extra objects. No ornate fantasy details. Exactly one horizontal blank scroll.",
+      "processing": "Crop transparent source margins to [42,152,2096,586]; Lanczos resize; WebP quality 90."
+    },
+    {
+      "file": "notebook.webp",
+      "dimensions": [
+        430,
+        285
+      ],
+      "transparent": true,
+      "source": "/Users/haowen.zheng/.codex/generated_images/01a164b0-5a4f-7882-aa53-14c969199390/exec-62ce031d-cb7f-4370-9226-4568ef44eb27.png",
+      "prompt": "Use case: precise-object-edit. Asset type: transparent UI surface for live game event journal. Reference image contains a small cream journal at lower-left x24..400 y787..1024. Recreate ONLY this blank notebook/journal UI panel, target aspect ratio 430:285. Preserve front-facing near-flat cream paper page with rounded corners, several thin page edges, softly uneven handmade paper contour, subtle warm beige grain, muted brown backing, exactly THREE short brown binder rings wrapping around the LEFT edge. Remove ALL Chinese writing, text, portraits, icons, leaf drawings, horizontal rules, dividers, dates, buttons, arrows, green plants and leaves. All paper area must be clean empty cream paper for HTML text. Keep the cozy handcrafted miniature-clay-game material language, restrained and natural, no elaborate fantasy ornament. Actual alpha-transparent outside silhouette. Notebook fills canvas with tiny margin. No background, no island, no hands, no extra objects. Exactly one blank notebook surface.",
+      "processing": "Crop transparent source margins to [17,50,1528,989]; Lanczos resize; WebP quality 90."
+    },
+    {
+      "file": "clay-button.webp",
+      "dimensions": [
+        320,
+        90
+      ],
+      "transparent": true,
+      "source": "/Users/haowen.zheng/.codex/generated_images/01a164b0-5a4f-7882-aa53-14c969199390/exec-b7f73bfd-47d0-4afd-912b-b59333ac3b6a.png",
+      "prompt": "Use case: precise-object-edit. Asset type: isolated transparent primary game UI button surface for live HTML text and icon overlay. Input reference is full Pocket Civilization game UI. Recreate ONLY the warm terracotta action button at bottom-right, approximately x1191..1457 y915..1010. Single blank broad rounded pill with target aspect ratio 320:90. Soft handmade matte terracotta clay material, subtle natural grain and slight uneven crafted edges, gently raised softly beveled rim, warmer top-left lighting, restrained soft contact shadow immediately beneath. Preserve the cozy clay miniature game material, warm muted burnt coral orange. Remove ALL text, sun, arrow, icons, marks, plants and other graphics; entire face completely blank. Front-facing UI surface with no desk and no angled perspective. Actual alpha-transparent outside silhouette. Button fills canvas closely with tiny margin. No background, no island, no ornaments, no extra objects.",
+      "processing": "Crop transparent source margins to [46,80,1996,697]; Lanczos resize; WebP quality 92."
+    },
+    {
+      "file": "title-plaque.webp",
+      "dimensions": [
+        280,
+        105
+      ],
+      "transparent": true,
+      "source": "/Users/haowen.zheng/.codex/generated_images/01a164b0-5a4f-7882-aa53-14c969199390/exec-1adfe4c5-9f0e-4f45-99a2-f44495d2cfe9.png",
+      "prompt": "Use case: precise-object-edit. Asset type: isolated transparent game UI title plaque material for live HTML label overlay. Reference image is full Pocket Civilization game screen. Recreate ONLY the cream title plaque at top-left approximately x40..265 y33..127, but completely blank. Target width:height 280:105. Warm ivory tactile paper-clay slab with subtle fine grain, softly irregular rounded oblong silhouette, faint raised edge and warm shallow bevel, soft subtle shadow immediately outside the edge. Cozy handmade miniature game material, restrained natural texture. Front-facing near-flat UI geometry as reference, soft light from upper-left matching scene. All interior surface is clean blank cream, no icons, no island symbol, no text, no lines, no flourishes, no green decoration. Actual alpha-transparent outside silhouette. Plaque fills canvas closely with tiny margin. Exactly one blank title plaque, no background, no island, no desk, no extra objects.",
+      "processing": "Crop transparent source margins to [11,38,2040,743]; Lanczos resize; WebP quality 92."
+    }
+  ]
+}
