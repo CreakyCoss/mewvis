@@ -2,8 +2,9 @@ import { useEffect, useRef, useState, type ButtonHTMLAttributes } from "react";
 import { BookOpen, Check, ChevronRight, CloudSun, Leaf, Minus, Pause, Pencil, Play, Plus, Sun, TreePalm } from "lucide-react";
 import { ACTORS, ART } from "./art";
 import { RESIDENT_IDS, RESIDENTS, type IslandEvent, type ResidentId, type World } from "./model";
+import { IslandChanges, ResidentActor } from "./LivingScene";
 
-export type BookView = "law" | "journal" | "residents" | "settings";
+export type BookView = "law" | "journal" | "residents" | "settings" | "island";
 export function Avatar({ id, className = "" }: { id: ResidentId; className?: string }) {
   return <span className={`resident-avatar ${className}`} style={{ backgroundColor: RESIDENTS[id].color }}><img src={ACTORS[id]} alt="" /></span>;
 }
@@ -13,11 +14,12 @@ export function ClayButton({ children, className = "", ...props }: ButtonHTMLAtt
 
 interface Props {
   world: World; ready: boolean; busy: string; paused: boolean;
+  performanceId: number | null;
   open(view: BookView, id?: string): void;
   onPause(): void; onAdvance(): void; onResident(id: ResidentId): void; onWithdraw(): void;
 }
 
-export function Island({ world, ready, busy, paused, open, onPause, onAdvance, onResident, onWithdraw }: Props) {
+export function Island({ world, ready, busy, paused, performanceId, open, onPause, onAdvance, onResident, onWithdraw }: Props) {
   const shell = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ width: 1487, height: 1058 });
   const [zoom, setZoom] = useState(1);
@@ -38,18 +40,8 @@ export function Island({ world, ready, busy, paused, open, onPause, onAdvance, o
     <div className="world-stage" style={{ width: 1487, height: 1058, top: compact ? "42%" : "50%", transform: `translate(-50%, -50%) scale(${scale})` }}>
       <img className="island-landscape" src={ART.island} alt="雨点镇：面包店、雨伞铺、果园与小石桥组成的一座海中小岛" draggable={false} />
       <div className="world-light" key={world.day} />
-      {RESIDENT_IDS.map((id) => {
-        const actor = RESIDENTS[id];
-        const event = [...today].reverse().find((event) => event.residentId === id);
-        return <div key={id} className={`resident-position resident-${id}`} style={{ left: actor.x, top: actor.y, zIndex: Math.round(actor.y) }}>
-          {event?.effect === "flowers" && <img className="flower-effect" src={ART.flowers} alt={`${actor.name}脚边开出小花`} />}
-          <button className="resident-body" onClick={() => onResident(id)} aria-label={`看看${actor.name}：${actor.role}`} title={`${actor.name} · ${actor.role}`}>
-            <img src={ACTORS[id]} alt={actor.name} draggable={false} />
-          </button>
-          {event?.effect === "rain" && <img className="rain-effect" src={ART.rain} alt={`${actor.name}头顶正在下雨`} />}
-          {id === "atuan" && event && <button className="resident-speech" onClick={() => open("journal", event.id)} aria-label={`查看这件事：${event.speech}`}>{event.speech}</button>}
-        </div>;
-      })}
+      <IslandChanges world={world} onInspect={() => open("island")} />
+      {RESIDENT_IDS.map((id) => { const event = [...today].reverse().find((event) => event.residentId === id); return <ResidentActor key={id} id={id} world={world} event={event} paused={paused} performanceId={performanceId} index={event ? today.indexOf(event) : 0} onResident={onResident} onEvent={(eventId) => open("journal", eventId)} />; })}
     </div>
 
     <header className="island-identity">
@@ -70,7 +62,7 @@ export function Island({ world, ready, busy, paused, open, onPause, onAdvance, o
     <section className={`island-journal ${visibleEvents.length === 3 ? "journal-three-events" : ""}`} style={{ backgroundImage: `url(${ART.notebook})` }} aria-label="岛上新鲜事">
       <button className="journal-heading" onClick={() => open("journal")}><Leaf /><strong>岛上新鲜事</strong>{world.day > 7 && <small>第{world.day}天</small>}</button>
       <div className="journal-events">{visibleEvents.map((event) => <EventRow key={event.id} event={event} onClick={() => open("journal", event.id)} />)}</div>
-      <button className={`journal-link ${pendingPetition ? "petition-link" : ""}`} onClick={() => open("journal")}>{pendingPetition ? "有一封岛民请愿" : "翻看昨天"}<ChevronRight size={16} /></button>
+      <div className="journal-footer"><button className="journal-link" onClick={() => open("island")}>小岛近况</button><button className={`journal-link ${pendingPetition ? "petition-link" : ""}`} onClick={() => open("journal")}>{pendingPetition ? "有一封岛民请愿" : "翻看昨天"}<ChevronRight size={16} /></button></div>
     </section>
 
     <section className={`world-law ${world.pendingLaw ? "law-pending" : ""}`} style={{ backgroundImage: `url(${ART.scroll})` }} aria-label="世界法则">

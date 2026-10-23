@@ -2,6 +2,7 @@ import { getApplicationChatClient, type ApplicationChatClient, type ApplicationC
 import { getApplicationDataClient, type ApplicationDataClient } from "@mewvis/app-sdk/data";
 import { productId } from "@mewvis/product-config";
 import { LAW_OPTIONS, RESIDENTS, TRIGGERS, EFFECTS, effectiveInterpretation, lawFromChoice, makePlan, validateAction, type World, type Law, type Judgment, type DayPlan } from "./model";
+import { actionOptions, residentGoal, roadStatus, selectCandidateActions } from "./simulation";
 
 const SESSION_KEY = "pocket:judge-session:v1";
 const commandPrefix = `${productId(".decisions")}/`;
@@ -183,30 +184,32 @@ export class IslandIntelligence {
       const material = {
         day: world.day + 1, law, interpretation: effectiveInterpretation(world),
         interpretationText: effectiveInterpretation(world) === "once" ? "每位居民第一次说出某件事实时才会开花；重复表达已说过的同一事实不再触发，换一种说法也算重复。" : effectiveInterpretation(world) === "always" ? "每次真话都算；重复同一事实仍然触发。" : "玩家还没有补充解释。",
-        residents: RESIDENTS,
+        residents: Object.fromEntries(Object.entries(RESIDENTS).map(([id, resident]) => {
+          const key = id as keyof typeof RESIDENTS;
+          const personal = world.island.residents[key];
+          return [id, { ...resident, ...personal, memories: personal.memories.slice(-4), currentGoal: residentGoal(world.island, key) }];
+        })),
+        island: { flowers: world.island.flowers, shop: world.island.shop, road: roadStatus(world.island) },
+        candidates: actionOptions(world),
         recentEvents: world.events.slice(-12).map(({ residentId, text, day }) => ({ residentId, text, day })),
         petitions: world.petitions.filter((petition) => petition.lawId === law.id).slice(-3),
       };
       const raw = await runSessionText(this.session, [
-        "为下列世界提出3件不同居民的行动。不要调用工具，不解释，只输出JSON：{\"actions\":[{\"residentId\":\"atuan|xiaoman|mayor|gardener\",\"kind\":\"confess|repeat|misremember|help|praise|trade\",\"text\":\"不超过45字的已发生行动，不写法则效果\",\"speech\":\"不超过25字的一句居民对白\"}]}",
-        "只使用给定居民、已有地点及上述动作。遵循角色当时所知，承接已发生事件。text里不宣称开花、下雨或判断结论；这些效果稍后由判断插件与程序决定。不要新增建筑、物品种类、资源数量或事实。选择符合角色目标而又有一点新鲜感的行动。真话开花的世界里，小满可能尝试重复同一个事实。",
+        "为小岛选择3位不同居民今天的行动，只能使用candidates里已有的id。不要调用工具，不解释，只输出JSON：{\"actions\":[{\"candidateId\":\"候选id\"},{\"candidateId\":\"候选id\"},{\"candidateId\":\"候选id\"}]}。",
+        "依据每位居民自己的已知事实、亲历记忆、当前目标和关系来选择；别把其他居民知道的事当作他已知道。考虑库存、通行和之前的选择，优先承接未完成的目标，也给新鲜的生活留一点空间。不要安排两个人收同一处花。候选的行动与对白已经有可执行含义，不能改写材料、地点、资源或结算效果；是否触发法则稍后由判断插件独立裁定。",
         JSON.stringify(material),
       ].join("\n"), signal);
       signal.throwIfAborted();
       let proposal: unknown;
       try { proposal = JSON.parse(raw.trim().replace(/^```(?:json)?\s*\n([\s\S]*?)\n```$/, "$1")); }
       catch { throw new Error("导演的行动草稿格式不完整，小岛保留在原来的一天，可以重试。"); }
-      const actionValues = proposal && typeof proposal === "object" && "actions" in proposal ? (proposal as { actions: unknown }).actions : null;
-      if (!Array.isArray(actionValues) || actionValues.length !== 3) throw new Error("导演没有给出完整的3件行动，小岛尚未改变。");
-      const actions = actionValues.map(validateAction);
-      if (new Set(actions.map((a) => a.residentId)).size !== actions.length) throw new Error("这次行动都落在同一位居民身上，请重新演绎。");
-      if (actions.some((a) => /开出.{0,3}花|头顶.{0,4}雨|触发法则|法则生效/.test(a.text))) throw new Error("行动草稿提前结算了法则效果，这份草稿没有被采用，可以重试。");
+      const actions = selectCandidateActions(world, proposal);
       const judgments: Judgment[] = [];
       for (const [index, action] of actions.entries()) {
         progress(`正在看看${RESIDENTS[action.residentId].name}的行动（${index + 1}/3）…`);
         const result = await this.evaluate(
-          JSON.stringify({ world: material, action, actorKnownFacts: RESIDENTS[action.residentId].fact }),
-          `根据给出的法则、解释、事实与行动，判断本次行动是否满足“${TRIGGERS[law.trigger]}”并应产生“${EFFECTS[law.effect]}”。误记不等于故意说谎；缺失事实不能自行补充。若事实充分但重复触发的法则解释确有争议，选择存在解释争议；若信息不足则弃答。已有玩家解释优先。只判断，不编造后续剧情。`,
+          JSON.stringify({ world: { ...material, candidates: undefined }, action: validateAction(action), actorKnownFacts: world.island.residents[action.residentId].knownFacts, actorMemories: world.island.residents[action.residentId].memories }),
+          `根据给出的法则、解释、事实与行动，判断本次行动是否满足“${TRIGGERS[law.trigger]}”并应产生“${EFFECTS[law.effect]}”。误记不等于故意说谎；收拢道路上的花并送给邻居是一种帮助，制作和售卖本身不等于帮助或真话。缺失事实不能自行补充。若事实充分但重复触发的法则解释确有争议，选择存在解释争议；若信息不足则弃答。已有玩家解释优先。只判断，不编造后续剧情。`,
           ["触发法则", "不触发法则", "存在解释争议"], signal, progress,
         );
         judgments.push({ ...result, value: result.value as Judgment["value"], source: "plugin" });

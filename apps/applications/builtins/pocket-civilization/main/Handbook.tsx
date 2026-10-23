@@ -1,9 +1,10 @@
 import { useEffect, useRef, type Dispatch, type SetStateAction } from "react";
-import { BookOpen, Check, ChevronRight, Flower2, Leaf, Pause, Pencil, Sun, X } from "lucide-react";
+import { BookOpen, Check, ChevronRight, Flower2, Leaf, Pause, Pencil, Sun, TreePalm, X } from "lucide-react";
 import type { ApplicationModelOption } from "@mewvis/app-sdk/chat";
 import { ACTORS, ART } from "./art";
 import { EFFECTS, RESIDENT_IDS, RESIDENTS, TRIGGERS, interpretStoryLaw, type ResidentId, type World } from "./model";
 import { Avatar, ClayButton, type BookView } from "./Island";
+import { MILESTONES, PLACE_IDS, PLACES, relationshipText, residentGoal, roadStatus } from "./simulation";
 
 interface Props {
   world: World; view: BookView; setView: Dispatch<SetStateAction<BookView | null>>;
@@ -18,8 +19,10 @@ interface Props {
 export function Handbook(props: Props) {
   const { world, view, setView, onClose, busy, error } = props;
   const dialog = useRef<HTMLDivElement>(null);
+  const rightPage = useRef<HTMLElement>(null);
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
+  useEffect(() => { if (rightPage.current) rightPage.current.scrollTop = 0; }, [view, props.resident, props.selectedEvent]);
   useEffect(() => {
     const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const target = dialog.current;
@@ -27,7 +30,7 @@ export function Handbook(props: Props) {
     const handleKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") { event.preventDefault(); closeRef.current(); }
       if (event.key === "Tab" && target) {
-        const elements = [...target.querySelectorAll<HTMLElement>("button:not(:disabled), textarea:not(:disabled), select:not(:disabled), a[href]")].filter((element) => element.getClientRects().length);
+        const elements = [...target.querySelectorAll<HTMLElement>("button:not(:disabled), textarea:not(:disabled), select:not(:disabled), a[href], [tabindex='0']")].filter((element) => element.getClientRects().length);
         const first = elements[0], last = elements.at(-1);
         if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
         else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
@@ -46,14 +49,15 @@ export function Handbook(props: Props) {
         <small className="active-day">第{world.day}天 · 正在生效</small><p className="book-current-law">{world.law.text.includes("，") ? <>{world.law.text.split("，")[0]}，<br />{world.law.text.split("，").slice(1).join("，")}</> : world.law.text}</p>
         <div className="book-vignette" aria-hidden="true">{world.law.effect === "rain" ? <img className="vignette-scene" src={ART.lawRainVignette} alt="" /> : <><img className="vignette-actor" src={ACTORS.atuan} alt="" /><img className="vignette-flowers" src={ART.flowers} alt="" /></>}</div>
         <p className="book-history-note">新法则会替换它，已经发生的故事会被记下。</p>
-        <nav className="book-navigation" aria-label="手册章节">{([ ["law", "法则"], ["residents", "岛民"], ["journal", "手账"], ["settings", "游玩"]] as const).map(([id, label]) => <button key={id} aria-current={view === id ? "page" : undefined} onClick={() => setView(id)}>{label}</button>)}</nav>
+        <nav className="book-navigation" aria-label="手册章节">{([ ["law", "法则"], ["residents", "岛民"], ["island", "小岛"], ["journal", "手账"], ["settings", "游玩"]] as const).map(([id, label]) => <button key={id} aria-current={view === id ? "page" : undefined} onClick={() => setView(id)}>{label}</button>)}</nav>
         <small className="book-paused"><Pause size={15} />翻阅时，岛上演出暂停。</small>
       </section>
-      <section className="book-right">
+      <section className="book-right" ref={rightPage} tabIndex={0} aria-label="手册内容">
         {view === "law" && <LawPage {...props} />}
         {view === "residents" && <ResidentPage {...props} />}
         {view === "journal" && <JournalPage {...props} />}
         {view === "settings" && <SettingsPage {...props} />}
+        {view === "island" && <IslandPage {...props} />}
         {error && <p className="book-error" role="alert">{error}</p>}
         {busy && <p className="book-busy" role="status">{busy}</p>}
       </section>
@@ -78,11 +82,13 @@ function LawPage({ world, draft, setDraft, busy, saveLaw, onClose }: Props) {
 
 function ResidentPage({ world, resident, setResident }: Props) {
   const actor = RESIDENTS[resident];
-  const history = world.events.filter((event) => event.residentId === resident).slice(-3).reverse();
+  const person = world.island.residents[resident];
   return <><h2><Leaf />认识岛上的人</h2><div className="resident-selector">{RESIDENT_IDS.map((id) => <button key={id} onClick={() => setResident(id)} aria-pressed={id === resident}><Avatar id={id} /><span>{RESIDENTS[id].name}</span></button>)}</div>
     <div className="resident-profile"><img src={ACTORS[resident]} alt={actor.name} /><div><h3>{actor.name}</h3><small>{actor.role}</small><p>{actor.traits}</p></div></div>
-    <dl className="profile-facts"><div><dt>小小心愿</dt><dd>{actor.goal}</dd></div><div><dt>他知道的事</dt><dd>{actor.fact}</dd></div></dl>
-    <h3 className="section-caption">最近的小故事</h3><div className="resident-memories">{history.length ? history.map((event) => <p key={event.id}><small>第{event.day}天</small>{event.text}</p>) : <p>还没有写进手账的故事，明天去看看吧。</p>}</div>
+    <dl className="profile-facts"><div><dt>眼下的心愿</dt><dd>{residentGoal(world.island, resident)}</dd></div><div><dt>现在在</dt><dd>{PLACES[person.place].name}</dd></div><div><dt>知道的事</dt><dd>{person.knownFacts.slice(-3).map((fact) => <p className="known-fact" key={fact}>{fact}</p>)}</dd></div></dl>
+    <h3 className="section-caption">和邻居的相处</h3><div className="resident-relations">{RESIDENT_IDS.filter((id) => id !== resident).map((id) => <button key={id} onClick={() => setResident(id)}><Avatar id={id} /><span><strong>{RESIDENTS[id].name}</strong><small>{relationshipText(person.relations[id])}</small></span></button>)}</div>
+    {!!person.milestones.length && <p className="resident-milestones">{person.milestones.map((key) => MILESTONES[key]).join(" · ")}</p>}
+    <h3 className="section-caption">留在心里的事</h3><div className="resident-memories">{person.memories.length ? [...person.memories].reverse().slice(0, 6).map((memory) => <p key={memory.eventId}><small>第{memory.day}天</small>{memory.text}</p>) : <p>还没有新的经历，明天去看看吧。</p>}</div>
   </>;
 }
 
@@ -91,9 +97,19 @@ function JournalPage({ world, selectedEvent, setSelectedEvent, resolve, busy }: 
   const selected = world.events.find((event) => event.id === selectedEvent);
   if (petition && !selected) return <><h2><Leaf />一封岛民请愿</h2><p className="petition-greeting">给写下法则的你：</p><h3 className="petition-title">{petition.title}</h3><p className="petition-body">{petition.text}</p><div className="petition-signatures"><Avatar id="xiaoman" /><Avatar id="gardener" /><span>小满和青禾一起写下</span></div><p className="writing-hint">留下一条解释，从明天起，大家都会照着它生活。</p><div className="petition-choices">{petition.options.map((option) => <button key={option.id} disabled={!!busy} onClick={() => resolve(petition.id, option.id)}><strong>{option.title}</strong><span>{option.description}</span><ChevronRight /></button>)}</div><button className="text-button" onClick={() => setSelectedEvent(world.events.at(-1)?.id ?? null)}>先翻看发生了什么</button></>;
   return <><h2><BookOpen />小岛记得这些事</h2>
-    {selected ? <div className="event-detail"><button className="text-button" onClick={() => setSelectedEvent(null)}>返回手账</button><div className="event-person"><Avatar id={selected.residentId} /><span>{RESIDENTS[selected.residentId].name}<small>第{selected.day}天 · {selected.time}</small></span></div><blockquote>“{selected.speech}”</blockquote><p>{selected.text}</p><h3 className="section-caption">这次为什么会这样</h3><p className="event-reason">{selected.judgment.reason}</p><small className="event-source">{selected.judgment.source === "plugin" ? "已记录智能判断插件的结论" : "来自手写的故事情节"}</small><p className="event-law-ref">依据法则：{selected.lawId === world.law.id ? world.law.text : "当时生效的世界法则"}</p></div>
+    {selected ? <div className="event-detail"><button className="text-button" onClick={() => setSelectedEvent(null)}>返回手账</button><div className="event-person"><Avatar id={selected.residentId} /><span>{RESIDENTS[selected.residentId].name}<small>第{selected.day}天 · {selected.time}</small></span></div><blockquote>“{selected.speech}”</blockquote><p>{selected.text}</p>{selected.outcome && <><h3 className="section-caption">这件事留下了什么</h3><ul className="event-consequences">{selected.outcome.notes.map((note) => <li key={note}>{note}</li>)}</ul></>}<h3 className="section-caption">这次为什么会这样</h3><p className="event-reason">{selected.judgment.reason}</p><small className="event-source">{selected.judgment.source === "plugin" ? "已记录智能判断插件的结论" : "来自手写的故事情节"}</small><p className="event-law-ref">依据法则：{selected.lawId === world.law.id ? world.law.text : "当时生效的世界法则"}</p></div>
       : <div className="journal-full">{[...world.events].reverse().slice(0, 24).map((event) => <button key={event.id} onClick={() => setSelectedEvent(event.id)}><Avatar id={event.residentId} /><span><small>第{event.day}天 · {event.time}</small><strong>{event.text}</strong></span><ChevronRight size={15} /></button>)}</div>}
     {world.petitions.some((p) => p.lawId === world.law.id && p.resolution) && !selected && <p className="writing-hint">你的解释也记在这里：{world.pendingInterpretation === "once" || world.interpretation === "once" ? "重复的真话不再开花。" : "每次真话都算，大家一起照顾小路。"}</p>}
+  </>;
+}
+
+function IslandPage({ world }: Props) {
+  const { island } = world, { shop } = island;
+  const changes = world.events.filter((event) => event.day === world.day && event.outcome).flatMap((event) => event.outcome!.notes).slice(0, 5);
+  return <><h2><TreePalm />小岛留下的变化</h2><p className="island-road-status"><Leaf />小路{roadStatus(island)}<small>花会留到明天，收拢后可以再做成鲜花伞。</small></p>
+    <h3 className="section-caption">诚实雨伞铺的小账</h3><dl className="shop-ledger"><div><dt>待装饰的旧雨伞</dt><dd>{shop.plainUmbrellas}把</dd></div><div><dt>已经编好的鲜花伞</dt><dd>{shop.flowerUmbrellas}把</dd></div><div><dt>花篮里的材料</dt><dd>{shop.looseFlowers}簇</dd></div><div><dt>开店以来</dt><dd>卖出{shop.sold}把 · 留下{shop.coins}枚零钱</dd></div></dl>
+    <h3 className="section-caption"><Flower2 size={17} />花留在了哪里</h3><div className="flower-register">{PLACE_IDS.filter((id) => island.flowers[id] > 0).map((id) => <p key={id}><span>{PLACES[id].name}</span><strong>{island.flowers[id]}簇</strong><small>{id !== "orchard" && island.flowers[id] >= 4 ? "需要给小路留点空隙" : "还可以慢慢走过"}</small></p>)}{!PLACE_IDS.some((id) => island.flowers[id]) && <p className="writing-hint">小路上还没有法则留下的花。</p>}</div>
+    {!!changes.length && <><h3 className="section-caption">今天做成的小事</h3><ul className="event-consequences">{changes.map((note, index) => <li key={`${index}:${note}`}>{note}</li>)}</ul></>}
   </>;
 }
 

@@ -24,6 +24,7 @@ export default function App() {
   const [draft, setDraft] = useState("说真话的人，身边会开花。");
   const [paused, setPaused] = useState(false);
   const [models, setModels] = useState<ApplicationModelOption[]>([]);
+  const [performanceId, setPerformanceId] = useState<number | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -96,6 +97,7 @@ export default function App() {
     signal.throwIfAborted();
     const next = applyPlan(current, plan);
     await commit(next);
+    setPerformanceId(next.revision);
     setNotice(plan.petition ? "有一封新的岛民请愿，记在手账里了。" : `第${next.day}天，小岛又长出了一点新故事。`);
   });
   const connect = (modelId: string) => run("正在连接智能演绎…", async (signal) => {
@@ -116,18 +118,18 @@ export default function App() {
   });
 
   return <div className="pocket-app">
-    <Island world={world} ready={ready} busy={busy} paused={paused || !!view} open={open}
+    <Island world={world} ready={ready} busy={busy} paused={paused || !!view} performanceId={performanceId} open={open}
       onPause={() => setPaused((value) => !value)} onAdvance={advance}
       onResident={(id) => { setResident(id); open("residents"); }}
       onWithdraw={() => void run("正在撤回新法则…", async () => { await commit(withdrawLaw(worldRef.current)); setNotice("已撤回，今天的法则继续留在手册里。"); })} />
-    {view && <Handbook world={world} view={view} setView={setView} draft={draft} setDraft={setDraft}
+    {view && <Handbook world={world} view={view} setView={(value) => { setError(""); setView(value); }} draft={draft} setDraft={setDraft}
       resident={resident} setResident={setResident} selectedEvent={selectedEvent} setSelectedEvent={setSelectedEvent}
       busy={busy} error={error} models={models} saveLaw={saveLaw}
       onClose={() => { if (busy) operation.current?.abort(); setView(null); }}
       connect={connect} storyMode={storyMode}
       resolve={(id, choice) => void run("正在记下你的解释…", async () => { await commit(resolvePetition(worldRef.current, id, choice)); setNotice("这条解释已记下，从明天起生效。"); })} />}
     {!view && error && <div className="pocket-alert" role="alert"><span>{error}</span><button onClick={() => setError("")}>收起</button></div>}
-    {notice && <div className="pocket-notice" role="status">{notice}</div>}
+    {notice && !view && <div className="pocket-notice" role="status">{notice}</div>}
     {!!busy && <div className="pocket-progress" role="status"><span className="pocket-spinner" />{busy}<button onClick={() => operation.current?.abort()}>停止</button></div>}
     {!ready && !error && <div className="pocket-notice" role="status">正在翻开小岛的手账…</div>}
   </div>;
