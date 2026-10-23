@@ -183,7 +183,7 @@ export function ApplicationPermissionSummary(props: PermissionSummaryProps) {
           type="button"
           aria-label={props.triggerLabel ?? "查看权限声明"}
           className={cn(
-            "-ml-0.5 inline-flex min-h-7 cursor-pointer items-center gap-1.5 rounded-md px-0.5 text-[13px] leading-5 text-muted-foreground transition-colors hover:bg-accent/40 hover:text-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none motion-reduce:transition-none",
+            "-ml-0.5 inline-flex min-h-7 cursor-pointer items-center gap-1.5 rounded-md px-0.5 text-[13px] leading-5 text-muted-foreground transition-colors hover:bg-accent/40 hover:text-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none aria-expanded:bg-accent/40 aria-expanded:text-primary motion-reduce:transition-none",
             props.status !== "declared" && "text-warning",
             props.className,
           )}

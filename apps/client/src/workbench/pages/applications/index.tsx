@@ -39,34 +39,22 @@ const LoadingState = () => (
   </div>
 );
 
-const ApplicationCard = ({
-  application,
-  isLastItem,
-  isLastRow,
-}: {
-  application: ApplicationUiApplication;
-  isLastItem: boolean;
-  isLastRow: boolean;
-}) => {
+const ApplicationCard = ({ application }: { application: ApplicationUiApplication }) => {
   const titleId = useId();
   const status = applicationStatus(application);
   const StatusIcon = status?.icon;
   return (
     <article
       aria-labelledby={titleId}
-      className={cn(
-        "grid min-h-28 min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-4 border-b border-border/70 py-4 lg:odd:border-r lg:odd:pr-6 lg:even:pl-6",
-        isLastItem && "border-b-0",
-        isLastRow ? "lg:border-b-0" : "lg:border-b",
-      )}
+      className="grid min-h-26 min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-2.5 rounded-xl border border-border/70 bg-card/50 px-3 py-3 transition-colors duration-150 hover:border-primary/20 hover:bg-card/75 focus-within:border-primary/30 focus-within:bg-card/75 motion-reduce:transition-none sm:gap-x-4 sm:px-4"
     >
       <ApplicationIcon
         application={application}
-        className="size-14 rounded-xl"
+        className="size-11 rounded-xl sm:size-14"
         iconClassName="size-7"
       />
       <div className="min-w-0">
-        <div className="flex min-w-0 items-center gap-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 sm:flex-nowrap">
           <h2
             id={titleId}
             className="truncate text-base font-semibold tracking-[-0.01em]"
@@ -130,24 +118,31 @@ const ApplicationCatalog = ({
     <PageHeader
       title="应用"
       description="为你的创作，选一件顺手的工具。"
-      className="max-sm:flex-wrap"
+      density="compact"
+      className="border-b-0 max-sm:flex-wrap max-sm:gap-3 max-sm:[&>div:first-child]:basis-full max-sm:[&>div:last-child]:ml-auto"
       action={
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
           <Button
             type="button"
             variant="ghost"
-            size="icon"
-            className="text-muted-foreground"
+            size="icon-sm"
+            className="rounded-md text-muted-foreground"
             disabled={isLoading}
             onClick={() => void refresh()}
             aria-label="刷新应用列表"
             title="刷新应用列表"
           >
-            <RefreshCw className={cn("size-4", isLoading && "animate-spin motion-reduce:animate-none")} />
+            <RefreshCw className={cn("size-3.5", isLoading && "animate-spin motion-reduce:animate-none")} />
           </Button>
-          <Button asChild type="button" variant="outline">
+          <Button
+            asChild
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="gap-1.5 rounded-md px-2.5 text-[13px] text-muted-foreground hover:text-foreground"
+          >
             <NavLink to="/apps/manage">
-              <Settings2 className="size-4" />
+              <Settings2 className="size-3.5" />
               管理应用
             </NavLink>
           </Button>
@@ -157,7 +152,7 @@ const ApplicationCatalog = ({
 
     <main
       id="application-main"
-      className="min-h-0 flex-1 overflow-y-auto px-6 pb-6 focus:outline-none lg:px-8"
+      className="min-h-0 flex-1 overflow-y-auto p-6 focus:outline-none"
       tabIndex={-1}
     >
       <div className="w-full">
@@ -172,14 +167,9 @@ const ApplicationCatalog = ({
         {isLoading && applications.length === 0 ? (
           <LoadingState />
         ) : applications.length > 0 ? (
-          <div className="grid lg:grid-cols-2">
-            {applications.map((application, index) => (
-              <ApplicationCard
-                key={application.id}
-                application={application}
-                isLastItem={index === applications.length - 1}
-                isLastRow={index >= applications.length - (applications.length % 2 || 2)}
-              />
+          <div className="grid gap-3 lg:grid-cols-2">
+            {applications.map((application) => (
+              <ApplicationCard key={application.id} application={application} />
             ))}
           </div>
         ) : (

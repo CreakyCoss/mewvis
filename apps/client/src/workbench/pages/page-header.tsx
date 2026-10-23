@@ -10,13 +10,23 @@ type PageHeaderProps = {
   description: string;
   backLink?: { to: string; label: string };
   action?: ReactNode;
+  density?: "default" | "compact";
   className?: string;
 };
 
-export const PageHeader = ({ title, titleAction, description, backLink, action, className }: PageHeaderProps) => (
+export const PageHeader = ({
+  title,
+  titleAction,
+  description,
+  backLink,
+  action,
+  density = "default",
+  className,
+}: PageHeaderProps) => (
   <header
     className={cn(
       "app-page-header flex min-h-28 shrink-0 items-center justify-between gap-4 bg-transparent px-6 py-5 lg:px-8",
+      density === "compact" && "min-h-22 lg:px-6",
       className,
     )}
   >
@@ -35,10 +45,24 @@ export const PageHeader = ({ title, titleAction, description, backLink, action, 
       )}
       <div className="min-w-0">
         <div className="flex min-w-0 items-center gap-2">
-          <h2 className="truncate text-xl font-semibold tracking-[-0.02em]">{title}</h2>
+          <h2
+            className={cn(
+              "truncate font-semibold tracking-[-0.02em]",
+              density === "compact" ? "text-lg leading-6" : "text-xl",
+            )}
+          >
+            {title}
+          </h2>
           {titleAction}
         </div>
-        <p className="mt-1 truncate text-sm text-muted-foreground">{description}</p>
+        <p
+          className={cn(
+            "mt-1 truncate text-muted-foreground",
+            density === "compact" ? "text-[13px] leading-5" : "text-sm",
+          )}
+        >
+          {description}
+        </p>
       </div>
     </div>
 
