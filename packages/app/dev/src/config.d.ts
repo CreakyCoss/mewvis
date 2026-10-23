@@ -29,6 +29,8 @@ export interface ApplicationConfig {
     | {
         entry?: string;
         title?: string;
+        /** Defaults to workspace. Fullscreen hides host sidebars until the user exits. */
+        layout?: "workspace" | "fullscreen";
       };
   /** Default arrays, or a full SDK application entry that can capture the application context. */
   host?: {

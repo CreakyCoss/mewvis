@@ -211,6 +211,9 @@ export const validateApplication = async (source) => {
               kind: "sandbox",
               entry: "./" + relative(root, uiEntry).split(sep).join("/"),
               title: config.ui?.title ?? config.displayName,
+              ...(config.ui?.layout === undefined
+                ? {}
+                : { layout: config.ui.layout }),
             },
           }
         : {}),
@@ -323,6 +326,12 @@ export const validateApplication = async (source) => {
         problems.push(productId(".ui.version 必须为 1。"));
       if (mewvis.ui.kind !== "sandbox")
         problems.push(productId('.ui.kind 必须是 "sandbox"。'));
+      if (
+        mewvis.ui.layout !== undefined &&
+        mewvis.ui.layout !== "workspace" &&
+        mewvis.ui.layout !== "fullscreen"
+      )
+        problems.push(productId(".ui.layout 只支持 workspace 或 fullscreen。"));
       try {
         if (typeof mewvis.ui.entry !== "string")
           throw new Error(productId(".ui.entry 必须是字符串。"));

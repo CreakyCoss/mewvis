@@ -5,5 +5,5 @@ export default defineConfig({
   icon: "./assets/icon.png",
   defaultEnabled: true,
   permissions: ["application-workspaces", "workspace-files"],
-  ui: { title: "设计画布" },
+  ui: { title: "设计画布", layout: "fullscreen" },
 });

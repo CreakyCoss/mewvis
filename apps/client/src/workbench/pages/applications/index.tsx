@@ -7,6 +7,7 @@ import { Alert, AlertDescription, AlertTitle } from "design-system/components/ui
 import { Button } from "design-system/components/ui/button";
 import { cn } from "design-system/lib/utils";
 import { PageHeader } from "../page-header";
+import { useWorkspaceFullscreen } from "@/workbench/shell/layout/workspace";
 import { useApplicationCatalogStore } from "./catalog-store";
 import { ApplicationFrame } from "./application-frame";
 import { ApplicationIcon } from "./application-icon";
@@ -211,9 +212,14 @@ const ApplicationDetail = ({
   error: string;
   refresh: () => Promise<void>;
 }) => {
+  const registerFullscreen = useWorkspaceFullscreen();
   const hasSandboxUi = Boolean(
     application && !application.error && !application.uiError && application.ui?.kind === "sandbox",
   );
+
+  useEffect(() => {
+    if (hasSandboxUi && application?.ui?.layout === "fullscreen") return registerFullscreen?.();
+  }, [application?.id, application?.ui?.layout, hasSandboxUi, registerFullscreen]);
 
   return (
     <section className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-surface/45">

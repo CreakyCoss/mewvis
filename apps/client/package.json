@@ -37,6 +37,7 @@
     "test:app-host:playground-files:browser": "pnpm build:chat-ui && pnpm --filter @mewvis/chat-playground build && pnpm --filter @mewvis/server build && node scripts/app/host/files-browser-e2e.mjs --playground",
     "test:app-host:data": "pnpm build:app-host && node ../agent-runtime/scripts/copy-node-runtime.mjs && node scripts/app/host/data-e2e.mjs",
     "test:app-host:layout": "pnpm build:app-host && node scripts/app/host/layout-migration-e2e.mjs",
+    "test:app-host:layout:browser": "node scripts/app/host/layout-browser-e2e.mjs",
     "test:app-host:chat-playground": "pnpm build:app-host && node scripts/app/host/chat-playground-data-e2e.mjs && node ../applications/builtins/chat-playground/test.mjs",
     "test:app-host:packaging": "pnpm build:agent-runtime && node scripts/app/host/ui-service-e2e.mjs --bundled && node scripts/docs/reader-e2e.mjs --bundled",
     "test:app-host:tooling": "pnpm build:app-host && node scripts/app/host/application-tooling-e2e.mjs",

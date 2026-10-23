@@ -13,27 +13,33 @@ import { createLibrary } from "../../../applications/builtins/docs-reader/librar
 import "../../src/App.css";
 
 if (platform.kind !== "web") throw new Error("仅允许浏览器内存验证");
+const titleBar = new URLSearchParams(location.search).get("titleBar");
+if (titleBar === "overlay" || titleBar === "native") {
+  platform.window = { titleBarStyle: titleBar, startDragging: async () => {} };
+}
 const library = createLibrary(book);
 const tools = {
   mewvis_docs_catalog: () => library.catalog(),
   mewvis_docs_read: ({ id }) => library.read(id),
   mewvis_docs_search: ({ query }) => library.search(query),
 };
-const applications = ["bundled", "installed"].map((source) => ({
-  id: `@mewvis/docs-${source}`,
-  name: `文档中心 ${source}`,
-  version: "0.1.0",
-  description: "应用工作区验证",
-  runtimeKind: "mewvis",
-  source,
-  error: null,
-  uiError: null,
-  ui: { kind: "sandbox" },
-  compatibility: [],
-  permissions: [],
-  permissionStatus: "declared",
-  tools: Object.keys(tools).map((name) => ({ name, description: name, parameters: { type: "object" } })),
-}));
+const applications = ["bundled", "installed"].flatMap((source) =>
+  ["workspace", "fullscreen"].map((layout) => ({
+    id: `@mewvis/docs-${source}-${layout}`,
+    name: `文档中心 ${source} ${layout}`,
+    version: "0.1.0",
+    description: "应用工作区验证",
+    runtimeKind: "mewvis",
+    source,
+    error: null,
+    uiError: null,
+    ui: { kind: "sandbox", ...(layout === "fullscreen" ? { layout } : {}) },
+    compatibility: [],
+    permissions: [],
+    permissionStatus: "declared",
+    tools: Object.keys(tools).map((name) => ({ name, description: name, parameters: { type: "object" } })),
+  })),
+);
 const browserFetch = window.fetch.bind(window);
 window.fetch = async (input, init) => {
   const path = new URL(input instanceof Request ? input.url : input, window.location.href).pathname;

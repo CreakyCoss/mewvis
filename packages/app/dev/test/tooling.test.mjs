@@ -129,10 +129,62 @@ test("React scaffold checks and builds outside the Mewvis repository", async () 
   );
 });
 
-test("React application UI is packaged without configurable layouts", async () => {
+test("React application UI defaults to workspace and preserves explicit layout declarations", async () => {
   const { manifest } = await packApplication({ source, quiet: true });
   assert.equal(manifest.mewvis.ui.kind, "sandbox");
   assert.equal(Object.hasOwn(manifest.mewvis.ui, "layout"), false);
+  const configFile = join(source, "app.config.ts");
+  const original = await readFile(configFile, "utf8");
+  try {
+    for (const layout of ["workspace", "fullscreen"]) {
+      await writeFile(
+        configFile,
+        `export default { displayName: "Layout", permissions: ["chat"], ui: { layout: "${layout}" } };`,
+      );
+      await checkApplication(source);
+      const packed = await packApplication({ source, quiet: true });
+      assert.equal(packed.manifest.mewvis.ui.layout, layout);
+    }
+    for (const layout of ["contained", "full", "unknown", true, null]) {
+      await writeFile(
+        configFile,
+        `export default { displayName: "Layout", permissions: [], ui: { layout: ${JSON.stringify(layout)} } };`,
+      );
+      await assert.rejects(
+        validateApplication(source),
+        /ui.layout 只支持 workspace 或 fullscreen/,
+      );
+    }
+  } finally {
+    await writeFile(configFile, original);
+  }
+});
+
+test("package UI layouts are validated before packing", async () => {
+  const directory = join(temporary, "package-layout");
+  await createApplication({
+    destination: directory,
+    name: "@example/package-layout",
+    template: "tools",
+  });
+  const path = join(directory, "package.json");
+  const manifest = JSON.parse(await readFile(path, "utf8"));
+  manifest.mewvis.ui = { version: 1, kind: "sandbox", entry: "./app-ui.js" };
+  await writeFile(join(directory, "app-ui.js"), "document.body.textContent = 'Layout';");
+  for (const layout of ["workspace", "fullscreen"]) {
+    manifest.mewvis.ui.layout = layout;
+    await writeFile(path, JSON.stringify(manifest));
+    const packed = await packApplication({ source: directory, quiet: true });
+    assert.equal(packed.manifest.mewvis.ui.layout, layout);
+  }
+  for (const layout of ["full", "unknown", false, null]) {
+    manifest.mewvis.ui.layout = layout;
+    await writeFile(path, JSON.stringify(manifest));
+    await assert.rejects(
+      validateApplication(directory),
+      /ui.layout 只支持 workspace 或 fullscreen/,
+    );
+  }
 });
 
 test("embedded-views is declared in the built manifest and its browser SDK bundles outside the repository", async () => {

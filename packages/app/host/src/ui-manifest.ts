@@ -9,6 +9,7 @@ import { extname, isAbsolute, relative, resolve } from "node:path";
 export type ApplicationUiContribution = Readonly<{
   kind: "sandbox";
   title?: string;
+  layout?: "workspace" | "fullscreen";
 }>;
 
 export type ApplicationUiDocument = Readonly<{
@@ -133,6 +134,13 @@ export const loadApplicationUiManifest = async (
     if (ui.version !== 1)
       throw new Error(productId(".ui.version 当前只支持 1。"));
     const title = optionalTitle(ui.title);
+    const layout = ui.layout;
+    if (
+      layout !== undefined &&
+      layout !== "workspace" &&
+      layout !== "fullscreen"
+    )
+      throw new Error(productId(".ui.layout 只支持 workspace 或 fullscreen。"));
 
     if (ui.kind === "sandbox") {
       const entry = relativeEntry(ui.entry, productId(".ui.entry"), [
@@ -163,6 +171,7 @@ export const loadApplicationUiManifest = async (
         contribution: {
           kind: "sandbox",
           ...(title ? { title } : {}),
+          ...(layout === undefined ? {} : { layout }),
         },
         document: { script, style: stylesheet },
         error: null,

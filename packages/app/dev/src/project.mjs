@@ -98,7 +98,9 @@ export async function readProject(root) {
     ui &&
     (typeof ui !== "object" ||
       Array.isArray(ui) ||
-      Object.keys(ui).some((key) => !["entry", "title"].includes(key)))
+      Object.keys(ui).some(
+        (key) => !["entry", "title", "layout"].includes(key),
+      ))
   )
     throw new Error("ui 配置无效");
   if (
@@ -106,6 +108,12 @@ export async function readProject(root) {
     (typeof ui.title !== "string" || !ui.title.trim() || ui.title.length > 100)
   )
     throw new Error("ui.title 必须为 1–100 个字符");
+  if (
+    ui?.layout !== undefined &&
+    ui.layout !== "workspace" &&
+    ui.layout !== "fullscreen"
+  )
+    throw new Error("ui.layout 只支持 workspace 或 fullscreen");
   const uiEntry = ui
     ? await projectFile(root, ui.entry ?? "./main/App.tsx", "ui.entry")
     : undefined;

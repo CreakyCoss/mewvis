@@ -273,13 +273,30 @@ try {
   );
 
   for (const source of ["bundled", "installed"]) {
-    const result = await request("configure", {
-      ...configuration,
-      applications: [{ ...configuration.applications[0], source }],
-    });
-    assert.equal(result.applications[0].error, null);
-    assert.equal(result.applications[0].uiError, null);
-    assert.deepEqual(result.applications[0].ui, { kind: "sandbox", title: "Portable UI Fixture" });
+    const layoutRoot = join(tempDir, `layout-${source}`);
+    cpSync(fixtureRoot, layoutRoot, { recursive: true });
+    const manifestPath = join(layoutRoot, "package.json");
+    const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+    for (const layout of [undefined, "workspace", "fullscreen", "invalid", true, null]) {
+      manifest.mewvis.ui.layout = layout;
+      writeFileSync(manifestPath, JSON.stringify(manifest));
+      const result = await request("configure", {
+        ...configuration,
+        applications: [{ ...configuration.applications[0], source, packageRoot: layoutRoot }],
+      });
+      assert.equal(result.applications[0].error, null);
+      if (layout === "invalid" || layout === true || layout === null) {
+        assert.equal(result.applications[0].ui, null);
+        assert.match(result.applications[0].uiError, /ui.layout 只支持 workspace 或 fullscreen/);
+        continue;
+      }
+      assert.equal(result.applications[0].uiError, null);
+      assert.deepEqual(result.applications[0].ui, {
+        kind: "sandbox",
+        title: "Portable UI Fixture",
+        ...(layout === undefined ? {} : { layout }),
+      });
+    }
   }
 
   const largeRoot = join(tempDir, "large-ui-application");

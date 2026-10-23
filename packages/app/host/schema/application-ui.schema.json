@@ -8,7 +8,12 @@
     "kind": { "const": "sandbox" },
     "entry": { "type": "string", "pattern": "^\\./.*\\.(m?js)$" },
     "style": { "type": "string", "pattern": "^\\./.*\\.css$" },
-    "title": { "type": "string", "minLength": 1, "maxLength": 100 }
+    "title": { "type": "string", "minLength": 1, "maxLength": 100 },
+    "layout": {
+      "type": "string",
+      "enum": ["workspace", "fullscreen"],
+      "description": "Defaults to workspace. Fullscreen hides host sidebars and retains host exit controls."
+    }
   },
   "required": ["version", "kind", "entry"],
   "additionalProperties": false
