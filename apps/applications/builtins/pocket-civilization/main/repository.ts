@@ -1,7 +1,7 @@
 import { getApplicationDataClient, type ApplicationStorage, type ApplicationStorageValue } from "@mewvis/app-sdk/data";
 import { createWorld, validateWorld, type World } from "./model";
 
-export const WORLD_KEY = "pocket:world:v2";
+export const WORLD_KEY = "pocket:world:v3";
 export class WorldRepository {
   private queue: Promise<unknown> = Promise.resolve();
   constructor(private storage: ApplicationStorage = getApplicationDataClient().storage) {}

@@ -5,6 +5,7 @@ import { WorldRepository } from "./repository";
 import { applyPlan, createWorld, interpretStoryLaw, planStoryDay, resolvePetition, scheduleLaw, withdrawLaw, type ResidentId, type World } from "./model";
 import { Island, type BookView } from "./Island";
 import { Handbook } from "./Handbook";
+import { saveDayDraft } from "./day-draft";
 import "./styles.css";
 
 export default function App() {
@@ -34,6 +35,7 @@ export default function App() {
       worldRef.current = loaded;
       setWorld(loaded);
       if (loaded.pendingLaw) setDraft(loaded.pendingLaw.text);
+      if (loaded.dayDraft) setNotice("有一份明天的演绎草稿待续，已完成的判断都留着。");
       setReady(true);
     }).catch((e) => { if (alive) setError(message(e)); });
     return () => { alive = false; operation.current?.abort(); intelligence.current?.detach(); };
@@ -51,6 +53,7 @@ export default function App() {
     const saved = await repository.current.save(next, worldRef.current.revision);
     worldRef.current = saved;
     setWorld(saved);
+    return saved;
   };
   const run = async (label: string, action: (signal: AbortSignal) => Promise<void>) => {
     if (lock.current || !ready) return;
@@ -59,7 +62,7 @@ export default function App() {
     operation.current = controller;
     setBusy(label); setError("");
     try { await action(controller.signal); }
-    catch (e) { setError(message(e)); }
+    catch (e) { setError(message(e)); if (worldRef.current.dayDraft && !controller.signal.aborted) setView("review"); }
     finally {
       if (operation.current === controller) operation.current = null;
       lock.current = false; setBusy("");
@@ -85,21 +88,28 @@ export default function App() {
     setView(null);
     setNotice(`新法则已写好，第${current.day + 1}天开始生效。`);
   });
-  const advance = () => run("小岛正在醒来…", async (signal) => {
-    const current = worldRef.current;
+  const advance = (note?: string) => {
+    if (worldRef.current.dayDraft && note === undefined) { open("review"); return; }
+    return run("小岛正在醒来…", async (signal) => {
+    let current = worldRef.current;
+    if (current.dayDraft && note !== undefined && note.trim() !== current.dayDraft.note) {
+      current = await commit(saveDayDraft(current, { ...current.dayDraft, note: note.trim().slice(0, 300) }));
+    }
     const plan = current.mode === "intelligent"
       ? await (async () => {
           await getIntelligence().connect(current.modelId);
           signal.throwIfAborted();
-          return getIntelligence().planDay(current, signal, setBusy);
+          return getIntelligence().planDay(current, signal, setBusy, commit, note);
         })()
       : planStoryDay(current);
     signal.throwIfAborted();
-    const next = applyPlan(current, plan);
+    const next = applyPlan(worldRef.current, plan);
     await commit(next);
+    setView(null);
     setPerformanceId(next.revision);
     setNotice(plan.petition ? "有一封新的岛民请愿，记在手账里了。" : `第${next.day}天，小岛又长出了一点新故事。`);
-  });
+    });
+  };
   const connect = (modelId: string) => run("正在连接智能演绎…", async (signal) => {
     const service = getIntelligence();
     let connected;
@@ -108,18 +118,18 @@ export default function App() {
     signal.throwIfAborted();
     setModels(connected.models);
     const current = worldRef.current;
-    await commit({ ...current, mode: "intelligent", modelId: connected.modelId, revision: current.revision + 1, updatedAt: Date.now() });
+    await commit({ ...current, dayDraft: current.modelId === connected.modelId ? current.dayDraft : null, mode: "intelligent", modelId: connected.modelId, revision: current.revision + 1, updatedAt: Date.now() });
     setNotice("智能演绎已连接。下一天会由居民的目标与判断共同展开。");
   });
   const storyMode = () => run("正在记下游玩方式…", async () => {
     const current = worldRef.current;
-    await commit({ ...current, mode: "story", revision: current.revision + 1, updatedAt: Date.now() });
+    await commit({ ...current, dayDraft: null, mode: "story", revision: current.revision + 1, updatedAt: Date.now() });
     setNotice("已切换到手写的故事模式。");
   });
 
   return <div className="pocket-app">
     <Island world={world} ready={ready} busy={busy} paused={paused || !!view} performanceId={performanceId} open={open}
-      onPause={() => setPaused((value) => !value)} onAdvance={advance}
+      onPause={() => setPaused((value) => !value)} onAdvance={() => void advance()}
       onResident={(id) => { setResident(id); open("residents"); }}
       onWithdraw={() => void run("正在撤回新法则…", async () => { await commit(withdrawLaw(worldRef.current)); setNotice("已撤回，今天的法则继续留在手册里。"); })} />
     {view && <Handbook world={world} view={view} setView={(value) => { setError(""); setView(value); }} draft={draft} setDraft={setDraft}
@@ -127,7 +137,8 @@ export default function App() {
       busy={busy} error={error} models={models} saveLaw={saveLaw}
       onClose={() => { if (busy) operation.current?.abort(); setView(null); }}
       connect={connect} storyMode={storyMode}
-      resolve={(id, choice) => void run("正在记下你的解释…", async () => { await commit(resolvePetition(worldRef.current, id, choice)); setNotice("这条解释已记下，从明天起生效。"); })} />}
+      resume={(note) => void advance(note)} discard={() => void run("正在收起演绎草稿…", async () => { await commit(saveDayDraft(worldRef.current, null)); setView("journal"); setNotice("草稿已放下，今天的日期和资源保持原样。"); })}
+      resolve={(id, choice) => void run("正在记下你的主意…", async () => { await commit(resolvePetition(worldRef.current, id, choice)); setNotice("你的选择已记下，从明天起生效。"); })} />}
     {!view && error && <div className="pocket-alert" role="alert"><span>{error}</span><button onClick={() => setError("")}>收起</button></div>}
     {notice && !view && <div className="pocket-notice" role="status">{notice}</div>}
     {!!busy && <div className="pocket-progress" role="status"><span className="pocket-spinner" />{busy}<button onClick={() => operation.current?.abort()}>停止</button></div>}

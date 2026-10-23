@@ -1,4 +1,5 @@
 import { RESIDENTS, RESIDENT_IDS, type Action, type IslandEvent, type ResidentId, type World } from "./model";
+import { currentFlowerArc, flowerPolicy, needsRoadConversation } from "./stories";
 
 export const PLACES = {
   bakery: { name: "面包店前", x: 501, y: 590 },
@@ -10,7 +11,7 @@ export const PLACES = {
 export type PlaceId = keyof typeof PLACES;
 export const PLACE_IDS = Object.keys(PLACES) as PlaceId[];
 export const HOME: Record<ResidentId, PlaceId> = { atuan: "bakery", xiaoman: "shop", mayor: "square", gardener: "orchard" };
-export const ACTIVITIES = ["admit-bread", "deny-bread", "share-feeling", "bridge-fact", "admit-lost", "find-way", "help-neighbor", "praise-neighbor", "decorate-umbrella", "sell-umbrella", "restock-umbrella", "clear-flowers"] as const;
+export const ACTIVITIES = ["admit-bread", "deny-bread", "share-feeling", "bridge-fact", "admit-lost", "find-way", "help-neighbor", "praise-neighbor", "decorate-umbrella", "sell-umbrella", "restock-umbrella", "clear-flowers", "discuss-flowers"] as const;
 export type Activity = typeof ACTIVITIES[number];
 export const MILESTONES = { confessed: "承认过偷吃面包", decorated: "做出了鲜花伞", traded: "卖出了第一把伞", cleared: "为大家清过小路", bridge: "发现了重复真话的效果", route: "记住了石桥的位置" } as const;
 type Milestone = keyof typeof MILESTONES;
@@ -75,7 +76,7 @@ const strings = (value: unknown, max: number, length: number): string[] => {
 export const isPlace = (value: unknown): value is PlaceId => typeof value === "string" && Object.hasOwn(PLACES, value);
 export const isActivity = (value: unknown): value is Activity => ACTIVITIES.includes(value as Activity);
 export const isResident = (value: unknown): value is ResidentId => RESIDENT_IDS.includes(value as ResidentId);
-const followsTarget = (activity: Activity) => ["admit-bread", "deny-bread", "help-neighbor", "praise-neighbor"].includes(activity);
+const followsTarget = (activity: Activity) => ["admit-bread", "deny-bread", "help-neighbor", "praise-neighbor", "discuss-flowers"].includes(activity);
 
 export function validateIsland(value: unknown, day: number): IslandState {
   const input = record(value), flowers = record(input.flowers), shop = record(input.shop), people = record(input.residents);
@@ -132,7 +133,9 @@ export function actionOptions(world: World): ActionOption[] {
     add("mayor", "admit-lost", "confess", "square", "承认迷路", "镇长承认自己记反了石桥的方向。", "刚才是我把方向记反了。", law.trigger === "truth" ? 95 : 50);
     add("mayor", "find-way", "misremember", "bridge", "认一认路", "镇长走到石桥边，记住了通向雨伞铺的路。", "原来这条路通向小满的店。", 55);
   }
-  if (law.trigger === "truth") add("xiaoman", "bridge-fact", "repeat", "bridge", "试试重复真话", "小满来到石桥边，又说了一遍“镇上有一座桥”。", "这里真的有一座桥呀。", !world.pendingLaw && (world.pendingInterpretation ?? world.interpretation) === "once" ? 10 : !island.residents.xiaoman.milestones.includes("bridge") && world.day >= law.since ? 108 : crowdedPlaces(island).length ? 20 : 82);
+  const policy = flowerPolicy(world), arc = currentFlowerArc(world);
+  if (law.trigger === "truth") add("xiaoman", "bridge-fact", "repeat", policy === "orchard" ? "orchard" : "bridge", policy === "orchard" ? "去果园试种" : "试试重复真话", policy === "orchard" ? "小满按约定来到果园，又说了一遍“镇上有一座桥”。" : "小满来到石桥边，又说了一遍“镇上有一座桥”。", "镇上真的有一座桥呀。", policy === "orchard" && !arc?.entries.some((entry) => entry.id === "practice") ? 115 : !world.pendingLaw && (world.pendingInterpretation ?? world.interpretation) === "once" ? 10 : !island.residents.xiaoman.milestones.includes("bridge") && world.day >= law.since ? 108 : crowdedPlaces(island).length ? 20 : 82);
+  if (needsRoadConversation(world)) add("mayor", "discuss-flowers", "discuss", island.residents.gardener.place, "商量小路的事", "镇长找到青禾，听她说起花料和通行的难处，准备一起向你请愿。", "花要留下，小路也要留给大家。", 122, "gardener");
   if (island.shop.plainUmbrellas > 0 && island.shop.looseFlowers >= 2) add("xiaoman", "decorate-umbrella", "decorate", "shop", "编一把鲜花伞", "小满从花篮里取出花，编在一把旧雨伞上。", "晴天也能带着花出门。", island.shop.flowerUmbrellas > 0 ? 60 : 100);
   if (island.shop.flowerUmbrellas + island.shop.plainUmbrellas > 0) add("xiaoman", "sell-umbrella", "trade", "shop", "照顾小店", island.shop.flowerUmbrellas ? "小满把一把鲜花伞卖给了路过的客人。" : "小满把一把旧雨伞卖给了路过的客人。", "带上它，慢慢走呀。", island.shop.flowerUmbrellas ? 96 : law.trigger === "truth" ? 58 : 88);
   if (island.shop.coins >= 2) add("xiaoman", "restock-umbrella", "restock", "shop", "给小店进货", "小满用小店收入补进两把待装饰的旧雨伞。", "再准备两把，明天也开门。", island.shop.plainUmbrellas + island.shop.flowerUmbrellas === 0 ? 105 : 25);
@@ -141,7 +144,7 @@ export function actionOptions(world: World): ActionOption[] {
     add(id, "help-neighbor", "help", island.residents[target].place, "帮帮邻居", `${RESIDENTS[id].name}找到${RESIDENTS[target].name}，帮忙整理手边的东西。`, "这件事我们一起做吧。", id === "atuan" && island.residents.atuan.milestones.includes("confessed") && island.residents.xiaoman.relations.atuan < 75 ? 90 : id === "mayor" ? 69 : 42, target);
     add(id, "praise-neighbor", "praise", island.residents[target].place, "认真夸奖", `${RESIDENTS[id].name}认真夸奖${RESIDENTS[target].name}为小镇付出的心思。`, "你做的这些，我都有看见。", law.trigger === "praise" ? 92 : 28, target);
     if (id === "xiaoman") continue;
-    for (const place of PLACE_IDS.filter((place) => island.flowers[place] > 0)) add(id, "clear-flowers", "clear", place, "收拢路边的花", `${RESIDENTS[id].name}把${PLACES[place].name}的花收拢，送进小满的花篮。`, "花留在篮子里，小路留给大家。", (id === "gardener" ? 75 : 35) + (island.flowers[place] >= 4 ? 35 : 0), "xiaoman");
+    for (const place of PLACE_IDS.filter((place) => island.flowers[place] > 0)) add(id, "clear-flowers", "clear", place, "收拢路边的花", `${RESIDENTS[id].name}把${PLACES[place].name}的花收拢，送进小满的花篮。`, "花留在篮子里，小路留给大家。", (id === "gardener" ? policy && place !== "orchard" ? 120 : 75 : 35) + (island.flowers[place] >= 4 ? 35 : 0), "xiaoman");
   }
   return options;
 }
@@ -224,6 +227,10 @@ export function settleIsland(input: IslandState, events: IslandEvent[]): { islan
       milestone(person, "route"); learn(person, "已经认清石桥通向雨伞铺的路，不需要再假装认路。"); notes.push("镇长把这条路记在了心里。");
     } else if (event.activity === "bridge-fact") {
       milestone(person, "bridge"); learn(person, `在第${event.day}天，重复说石桥的事实${event.effect === "flowers" ? "也开了花" : "没有带来新的花"}。`);
+    } else if (event.activity === "discuss-flowers") {
+      learn(person, "青禾愿意收拢小路上的花，小满也需要花料；大家要一起商量。");
+      if (target) learn(island.residents[target], "镇长听过了花料和通行的难处，愿意一起向法则的书写者请愿。");
+      notes.push("花料和通行的分歧被认真听见，居民准备写一封请愿。");
     }
     if (target && ["help", "praise", "clear"].includes(event.kind)) {
       trust(island, target, event.residentId, event.kind === "praise" ? 4 : 7);

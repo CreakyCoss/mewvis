@@ -10,7 +10,7 @@ const root = fileURLToPath(new URL("../", import.meta.url));
 const temporary = await mkdtemp(join(tmpdir(), "pocket-test-"));
 const entry = join(temporary, "fixture.mjs");
 await build({
-  stdin: { contents: 'export * from "./main/model.ts"; export * from "./main/intelligence.ts"; export * from "./main/repository.ts"; export * from "./main/simulation.ts"; export { evaluate as pluginEvaluate, formatDecision } from "../../../extensions/decisions/src/evaluate.ts";', resolveDir: root },
+  stdin: { contents: 'export * from "./main/model.ts"; export * from "./main/intelligence.ts"; export * from "./main/repository.ts"; export * from "./main/simulation.ts"; export * from "./main/stories.ts"; export * from "./main/day-draft.ts"; export { evaluate as pluginEvaluate, formatDecision } from "../../../extensions/decisions/src/evaluate.ts";', resolveDir: root },
   bundle: true, platform: "node", format: "esm", target: "node22", outfile: entry, logLevel: "silent",
 });
 const f = await import(pathToFileURL(entry).href);
@@ -192,7 +192,7 @@ test("unavailable materials, duplicate harvests and unsupported model choices ca
 test("current saves preserve the initial story, resources and personal memories through round trips", async () => {
   const storage = memoryStorage(), repository = new f.WorldRepository(storage);
   const world = await repository.load();
-  assert.equal(world.format, "pocket-civilization-v2");
+  assert.equal(world.format, "pocket-civilization-v3");
   assert.equal(world.island.shop.sold, 0);
   for (const id of f.RESIDENT_IDS) {
     assert.deepEqual(world.island.residents[id].memories, world.events.filter(event => event.residentId === id).map(event => ({ eventId: event.id, day: event.day, text: event.text })));
@@ -286,7 +286,7 @@ test("plugin result status and value remain distinct, including abstention", () 
   assert.throws(() => f.makePlan(world, [f.storyActions(world, world.law)[0]], [{ source: "plugin", status: "review_required", value: "触发法则", reason: "信息有待复核。" }]), /尚未推进/);
 });
 
-function intelligentFixture({ plugin = true, review = false, badCandidate = false } = {}) {
+function intelligentFixture({ plugin = true, review = false, badCandidate = false, decide } = {}) {
   const storage = memoryStorage(), calls = [], modelRequests = [], listeners = new Set();
   const snapshot = {
     initialized: true, identity: { scope: "application:pocket", id: "pocket-test" }, phase: "idle", activeTaskId: null,
@@ -303,7 +303,7 @@ function intelligentFixture({ plugin = true, review = false, badCandidate = fals
       if (input.title.includes("匹配")) return { text: JSON.stringify({ matches: [] }) };
       const material = JSON.parse(JSON.parse(input.text).input);
       const value = material.法则原文 ? "真话开花" : material.action.kind === "confess" ? "触发法则" : "不触发法则";
-      return { text: JSON.stringify({ type: "choice", value, confidence: review ? .2 : .99, reason: "根据提供的法则和明确事实判断。" }) };
+      return { text: JSON.stringify({ type: "choice", value, confidence: review ? .2 : .99, reason: "根据提供的法则和明确事实判断。", ...(!material.法则原文 && decide ? await decide(material) : {}) }) };
     } },
   };
   const session = {
@@ -338,7 +338,7 @@ function intelligentFixture({ plugin = true, review = false, badCandidate = fals
   };
   const chat = { async listModels() { return [{ id: "local-test", provider: { name: "Local" }, modelName: "Fixture" }]; }, async createSession() { return session; }, async openSession() { return session; }, dispose() {} };
   const data = { storage, workspaces: { async list() { return [{ id: "pocket-workspace", isDefault: true }]; } } };
-  return { intelligence: new f.IslandIntelligence(chat, data), calls, modelRequests, session };
+  return { intelligence: new f.IslandIntelligence(chat, data), calls, modelRequests, session, chat, data, storage };
 }
 
 test("application orchestration consumes actual decisions-plugin output through existing command format", async () => {
@@ -347,7 +347,7 @@ test("application orchestration consumes actual decisions-plugin output through 
   const signal = new AbortController().signal;
   const law = await fixture.intelligence.interpretLaw("说真话的人，身边会开花。", 8, signal);
   let world = f.scheduleLaw({ ...f.createWorld(), mode: "intelligent" }, law);
-  const plan = await fixture.intelligence.planDay(world, signal, () => {});
+  const plan = await fixture.intelligence.planDay(world, signal, () => {}, async (next) => (world = next));
   world = f.applyPlan(world, plan);
   assert.equal(world.day, 8);
   assert.equal(plan.events[0].effect, "flowers");
@@ -364,7 +364,7 @@ test("missing plugin and low-confidence judgments never turn into fixed story su
   const review = intelligentFixture({ review: true });
   await review.intelligence.connect();
   const world = { ...f.createWorld(), mode: "intelligent" };
-  await assert.rejects(review.intelligence.planDay(world, new AbortController().signal, () => {}), /尚未推进/);
+  await assert.rejects(review.intelligence.planDay(world, new AbortController().signal, () => {}), /尚未改变/);
   assert.equal(world.day, 7);
 });
 
@@ -415,4 +415,156 @@ test("host approval stays visible while a judgment waits, without approving in t
   for (const listener of listeners) listener();
   assert.equal(await pending, "host-approved result");
   assert.equal(listeners.size, 0);
+});
+
+test("flower stories reach all four endings through real conversations, petitions, work and trade", () => {
+  for (const repeat of ["once", "always"]) for (const policy of ["harvest", "orchard"]) {
+    let world = f.scheduleLaw(f.createWorld(), f.interpretStoryLaw("真话开花", 8));
+    let choices = 0, practiced = false;
+    for (let day = 0; day < 45; day++) {
+      const petition = world.petitions.find((p) => p.lawId === world.law.id && !p.resolution);
+      if (petition) {
+        assert.ok(world.stories.flowers.at(-1).entries.some((entry) => entry.id === "discussion"));
+        const snapshot = structuredClone(world.island);
+        world = f.resolvePetition(world, petition.id, petition.kind === "repeat" ? repeat : policy);
+        assert.deepEqual(world.island, snapshot, "choices take effect tomorrow without free resources");
+        choices++;
+      }
+      const plan = f.planStoryDay(world);
+      if (f.flowerPolicy(world) === "orchard") {
+        assert.ok(f.actionOptions(world).filter((action) => action.activity === "bridge-fact").every((action) => action.place === "orchard"));
+        if (plan.events.some((event) => event.activity === "bridge-fact" && event.place === "orchard")) practiced = true;
+      }
+      world = f.applyPlan(world, plan);
+      const arc = world.stories.flowers.at(-1);
+      if (arc.stage === "complete") {
+        assert.equal(choices, 2);
+        assert.equal(arc.repeatChoice, repeat); assert.equal(arc.policy, policy);
+        assert.ok(arc.entries.some((entry) => entry.id === "practice"));
+        assert.ok(arc.entries.some((entry) => entry.id === "customer"));
+        assert.ok(world.island.shop.sold > arc.soldAtAgreement);
+        assert.ok(f.roadFlowers(world.island) < 4);
+        assert.match(arc.ending, policy === "harvest" ? /日常合作/ : /果园/);
+        break;
+      }
+    }
+    assert.equal(world.stories.flowers.at(-1).stage, "complete", `${repeat}/${policy} reaches its ending`);
+    if (policy === "orchard") assert.ok(practiced);
+    for (let i = 0; i < 15; i++) world = f.applyPlan(world, f.planStoryDay(world));
+    assert.equal(world.petitions.length, 2, "completed stories never send the same petitions again");
+    assert.equal(world.stories.friendship.stage, "friends");
+    assert.equal(world.stories.friendship.entries.filter((entry) => entry.id === "friends").length, 1);
+  }
+});
+
+test("stories need actual events, reject unrelated choices, and record a changed law without resetting the world", () => {
+  let quiet = f.scheduleLaw(f.createWorld(), f.interpretStoryLaw("真话开花", 8));
+  for (let i = 0; i < 8; i++) quiet = act(quiet, "gardener", "help-neighbor");
+  assert.equal(quiet.petitions.length, 0, "dates alone never create the petition");
+  let world = f.scheduleLaw(f.createWorld(), f.interpretStoryLaw("真话开花", 8));
+  for (let i = 0; i < 2; i++) world = f.applyPlan(world, f.planStoryDay(world));
+  assert.throws(() => f.resolvePetition(world, world.petitions[0].id, "orchard"), /提供的选择/);
+  const prior = structuredClone(world);
+  world = f.scheduleLaw(world, f.interpretStoryLaw("说谎下雨", world.day + 1));
+  assert.deepEqual(world.island, prior.island);
+  world = f.applyPlan(world, f.planStoryDay(world));
+  assert.equal(world.stories.flowers[0].stage, "changed");
+  assert.ok(world.stories.flowers[0].entries.some((entry) => entry.id === "law-change"));
+  assert.equal(world.petitions.length, 1);
+  assert.ok(world.events.some((event) => event.id === prior.events[0].id));
+});
+
+async function replayFixture(decide) {
+  const fixture = intelligentFixture({ decide });
+  const repository = new f.WorldRepository(fixture.storage);
+  let world = await repository.load();
+  world = await repository.save({ ...world, mode: "intelligent", modelId: "local-test", revision: world.revision + 1 }, world.revision);
+  await fixture.intelligence.connect(world.modelId);
+  return { ...fixture, repository, get world() { return world; }, async checkpoint(next) { world = await repository.save(next, world.revision); return world; } };
+}
+
+test("review, abstention, interpretation disputes and network errors preserve the completed prefix across reloads", async () => {
+  for (const interruption of ["review", "abstain", "dispute", "network"]) {
+    let blocked = true;
+    const seen = [];
+    const fixture = await replayFixture((material) => {
+      seen.push(material);
+      if (blocked && material.action.residentId === "xiaoman") {
+        if (interruption === "network") throw new Error("local network interrupted");
+        return { value: interruption === "abstain" ? null : interruption === "dispute" ? "存在解释争议" : "不触发法则", confidence: interruption === "review" ? .2 : .99, reason: "需要核对制作行为与法则之间的关系。" };
+      }
+      return {};
+    });
+    const original = structuredClone(fixture.world);
+    await assert.rejects(fixture.intelligence.planDay(fixture.world, new AbortController().signal, () => {}, fixture.checkpoint), /尚未改变|network interrupted/);
+    let saved = await fixture.repository.load();
+    assert.equal(saved.day, original.day); assert.deepEqual(saved.island, original.island);
+    assert.equal(saved.dayDraft.judgments.filter(f.isFinalJudgment).length, 1);
+    assert.equal(saved.dayDraft.judgments[2], null);
+    if (interruption === "network") assert.match(saved.dayDraft.failure, /network interrupted/);
+    blocked = false;
+    const reconnected = new f.IslandIntelligence(fixture.chat, fixture.data);
+    await reconnected.connect(saved.modelId);
+    const plan = await reconnected.planDay(saved, new AbortController().signal, () => {}, fixture.checkpoint, "请只依据已有的制作行为判断，不补充说话情节。");
+    saved = await fixture.repository.save(f.applyPlan(fixture.world, plan), fixture.world.revision);
+    assert.equal(saved.day, original.day + 1); assert.equal(saved.dayDraft, null);
+    assert.equal(saved.island.shop.flowerUmbrellas, 1); assert.equal(saved.island.shop.plainUmbrellas, 5);
+    assert.equal(fixture.calls.filter((text) => !text.startsWith("/")).length, 1, "the director is not rerun");
+    assert.equal(seen.filter((material) => material.action.residentId === "atuan").length, 1, "accepted judgments are not reissued");
+    assert.ok(seen.some((material) => material.review.playerNote.includes("已有的制作行为")));
+    assert.throws(() => f.applyPlan(saved, plan), /旧的演绎/);
+  }
+});
+
+test("cancellation and a failed checkpoint preserve prior judgments without settling resources", async () => {
+  for (const interrupt of ["cancel", "disk"]) {
+    const fixture = await replayFixture();
+    const controller = new AbortController(), original = structuredClone(fixture.world.island);
+    const checkpoint = async (next) => {
+      if (interrupt === "disk" && next.dayDraft?.judgments[1]) fixture.storage.fail = true;
+      const saved = await fixture.checkpoint(next);
+      if (interrupt === "cancel" && saved.dayDraft?.judgments[0]) controller.abort();
+      return saved;
+    };
+    await assert.rejects(fixture.intelligence.planDay(fixture.world, controller.signal, () => {}, checkpoint), /abort|disk full/i);
+    fixture.storage.fail = false;
+    const saved = await fixture.repository.load();
+    assert.deepEqual(saved.island, original); assert.equal(saved.day, 7);
+    assert.equal(saved.dayDraft.judgments.filter(f.isFinalJudgment).length, 1);
+    const resumed = await fixture.intelligence.planDay(saved, new AbortController().signal, () => {}, fixture.checkpoint);
+    assert.equal(f.applyPlan(fixture.world, resumed).day, 8);
+  }
+});
+
+test("completed drafts retry only the final commit, while edits invalidate unfinished drafts", async () => {
+  const fixture = await replayFixture();
+  await fixture.intelligence.planDay(fixture.world, new AbortController().signal, () => {}, fixture.checkpoint);
+  const calls = fixture.calls.length, saved = await fixture.repository.load();
+  assert.ok(saved.dayDraft.judgments.every(f.isFinalJudgment));
+  const plan = await fixture.intelligence.planDay(saved, new AbortController().signal, () => {}, fixture.checkpoint);
+  assert.equal(fixture.calls.length, calls, "final save retry makes no model requests");
+  assert.equal(f.applyPlan(fixture.world, plan).dayDraft, null);
+  const changed = f.scheduleLaw(saved, f.interpretStoryLaw("真话开花", 8));
+  assert.equal(changed.dayDraft, null); assert.equal(f.saveDayDraft(saved, null).dayDraft, null);
+  assert.throws(() => f.validateWorld({ ...saved, modelId: "different-model" }), /草稿/);
+  assert.throws(() => f.validateWorld({ ...saved, day: 8 }), /草稿/);
+  const corrupted = structuredClone(saved); corrupted.dayDraft.judgments[0] = null;
+  assert.throws(() => f.validateWorld(corrupted), /顺序/);
+  const badStories = structuredClone(saved); badStories.stories.friendship.entries.push({ id: "future", day: 99, text: "还没发生" });
+  assert.throws(() => f.validateWorld(badStories), /故事/);
+});
+
+test("a concurrent world edit cannot be overwritten by a pending draft checkpoint", async () => {
+  const fixture = await replayFixture();
+  const other = new f.WorldRepository(fixture.storage);
+  let edited = false;
+  await assert.rejects(fixture.intelligence.planDay(fixture.world, new AbortController().signal, () => {}, async (next) => {
+    if (!edited) {
+      edited = true;
+      await other.save(f.scheduleLaw(fixture.world, f.interpretStoryLaw("真话开花", 8)), fixture.world.revision);
+    }
+    return fixture.checkpoint(next);
+  }), /另一个页面/);
+  const saved = await other.load();
+  assert.equal(saved.pendingLaw.trigger, "truth"); assert.equal(saved.dayDraft, null); assert.equal(saved.day, 7);
 });

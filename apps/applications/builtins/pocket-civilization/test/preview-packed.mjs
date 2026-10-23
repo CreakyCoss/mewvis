@@ -8,6 +8,8 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 // Isolated browser QA: real production sandbox + public SDK bridge, memory data only.
 const root = fileURLToPath(new URL("../../../../../", import.meta.url));
 const app = fileURLToPath(new URL("../", import.meta.url));
+const reviewFixture = process.argv.includes("--review-fixture");
+const port = reviewFixture ? 5188 : 5187;
 const compiled = await build({
   entryPoints: [join(root, "apps/client/src/workbench/pages/applications/sandbox-document.ts")],
   bundle: true, write: false, format: "esm", target: "es2022",
@@ -20,6 +22,25 @@ const temporary = await mkdtemp(join(tmpdir(), "pocket-sandbox-"));
 const modulePath = join(temporary, "sandbox.mjs");
 await writeFile(modulePath, compiled.outputFiles[0].text);
 const { sandboxDocument } = await import(pathToFileURL(modulePath).href);
+let fixedReview;
+if (reviewFixture) {
+  const sample = await build({ stdin: { resolveDir: app, contents: `
+    import {createWorld, scheduleLaw, interpretStoryLaw, validateAction} from './main/model.ts';
+    import {actionOptions} from './main/simulation.ts';
+    import {saveDayDraft} from './main/day-draft.ts';
+    import {WORLD_KEY} from './main/repository.ts';
+    const world = scheduleLaw({...createWorld(),mode:'intelligent',modelId:'qa-fixed-sample'},interpretStoryLaw('说真话的人，身边会开花。',8));
+    const candidates = actionOptions(world);
+    const actions = [['atuan','admit-bread'],['xiaoman','decorate-umbrella'],['gardener','help-neighbor']].map(([id,activity])=>validateAction(candidates.find(action=>action.residentId===id&&action.activity===activity)));
+    const accepted = {source:'plugin',status:'accepted',value:'触发法则',reason:'阿团知道面包是自己吃的，这次主动承认，符合真话的条件。'};
+    const review = {source:'plugin',status:'review_required',value:'不触发法则',reason:'给出的行动只说明小满用花篮材料编伞，没有明确说出一句话。制作本身不等于真话，需要核对行动与触发条件。'};
+    export const key = WORLD_KEY;
+    export const value = saveDayDraft(world,{id:'qa-review-sample',day:8,originRevision:world.revision,lawId:world.pendingLaw.id,modelId:world.modelId,actions,judgments:[accepted,review,null],attempts:[{actionIndex:0,judgment:accepted},{actionIndex:1,judgment:review}],note:'',failure:null});
+  ` }, bundle: true, write: false, format: "esm", platform: "node", logLevel: "silent" });
+  const samplePath = join(temporary, "review.mjs");
+  await writeFile(samplePath, sample.outputFiles[0].text);
+  fixedReview = await import(pathToFileURL(samplePath).href);
+}
 await rm(temporary, { recursive: true });
 const ui = {
   script: await readFile(join(app, "dist/mewvis/app-ui.js"), "utf8"),
@@ -31,8 +52,10 @@ const chat = {
 };
 const sandbox = sandboxDocument(ui, chat);
 const values = new Map();
+if (fixedReview) values.set(fixedReview.key, fixedReview.value);
 const host = `<!doctype html><html lang="zh-CN"><meta charset="utf-8"><title>口袋文明 · 打包沙盒预览</title>
-<style>html,body{margin:0;height:100%;overflow:hidden}iframe{border:0;width:100%;height:100%;display:block}</style>
+<style>html,body{margin:0;height:100%;overflow:hidden}iframe{border:0;width:100%;height:${reviewFixture ? "calc(100% - 28px)" : "100%"};display:block}aside{height:28px;text-align:center;background:#eee6d2;color:#635b43;font:12px/28px sans-serif}</style>
+${reviewFixture ? "<aside>复核界面测试 · 固定样本，没有调用模型</aside>" : ""}
 <iframe id="app" title="口袋文明" sandbox="allow-scripts"></iframe><script type="module">
 import { createPreviewChat } from "/chat-host.js";
 const owner = document.getElementById("app"), channel = "mewvis-app-ui-v1";
@@ -74,4 +97,4 @@ const server = createServer(async (request, response) => {
     response.writeHead(500, { "content-type": "application/json" }); response.end(JSON.stringify({ ok: false, error: { code: "TEST_HOST", message: error.message } }));
   }
 });
-server.listen(5187, "127.0.0.1", () => process.stdout.write("Packed pocket sandbox: http://127.0.0.1:5187/\n"));
+server.listen(port, "127.0.0.1", () => process.stdout.write(`Packed pocket sandbox: http://127.0.0.1:${port}/\n`));

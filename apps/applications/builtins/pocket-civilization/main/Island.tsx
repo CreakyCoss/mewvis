@@ -4,7 +4,7 @@ import { ACTORS, ART } from "./art";
 import { RESIDENT_IDS, RESIDENTS, type IslandEvent, type ResidentId, type World } from "./model";
 import { IslandChanges, ResidentActor } from "./LivingScene";
 
-export type BookView = "law" | "journal" | "residents" | "settings" | "island";
+export type BookView = "law" | "journal" | "residents" | "settings" | "island" | "review";
 export function Avatar({ id, className = "" }: { id: ResidentId; className?: string }) {
   return <span className={`resident-avatar ${className}`} style={{ backgroundColor: RESIDENTS[id].color }}><img src={ACTORS[id]} alt="" /></span>;
 }
@@ -74,7 +74,7 @@ export function Island({ world, ready, busy, paused, performanceId, open, onPaus
       <div className="law-actions"><button className="ceramic-button edit-law" onClick={() => open("law")} disabled={!ready || !!busy} aria-label="改写世界法则"><Pencil /><small>改写</small></button>{world.pendingLaw && <button className="withdraw-law" onClick={onWithdraw} disabled={!!busy}>撤回</button>}</div>
     </section>
 
-    <div className="advance-day"><small>{world.pendingLaw ? "让新法则从明天开始" : "看看明天会发生什么"}</small><ClayButton disabled={!ready || !!busy} onClick={onAdvance} aria-label="推进一天"><Sun /><span>{busy ? "小岛正在醒来" : "推进一天"}</span><ChevronRight /></ClayButton></div>
+    <div className="advance-day"><small>{world.dayDraft ? "改写或撤回法则会放弃草稿" : world.pendingLaw ? "让新法则从明天开始" : "看看明天会发生什么"}</small><ClayButton disabled={!ready || !!busy} onClick={onAdvance} aria-label={world.dayDraft ? "查看待续演绎" : "推进一天"}><Sun /><span>{busy ? "小岛正在醒来" : world.dayDraft ? "查看待续演绎" : "推进一天"}</span><ChevronRight /></ClayButton></div>
   </div>;
 }
 

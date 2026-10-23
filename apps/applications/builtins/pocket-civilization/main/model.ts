@@ -1,10 +1,12 @@
-import { actionOptions, createIsland, isActivity, isPlace, isResident, roadFlowers, settleIsland, validateActionBatch, validateIsland, validateOutcome, type Activity, type IslandState, type Outcome, type PlaceId } from "./simulation";
+import { actionOptions, createIsland, isActivity, isPlace, isResident, settleIsland, validateActionBatch, validateIsland, validateOutcome, type Activity, type IslandState, type Outcome, type PlaceId } from "./simulation";
+import { advanceStories, createStories, nextPetitionKind, recordStoryChoice, validateStories, type Stories } from "./stories";
+import { isFinalJudgment, validateDayDraft, type DayDraft } from "./day-draft";
 
 export type ResidentId = "atuan" | "xiaoman" | "mayor" | "gardener";
 export type Trigger = "truth" | "lie" | "help" | "praise";
 export type Effect = "rain" | "flowers";
 export type PlayMode = "story" | "intelligent";
-export type ActionKind = "confess" | "repeat" | "misremember" | "help" | "praise" | "trade" | "share" | "decorate" | "clear" | "restock";
+export type ActionKind = "confess" | "repeat" | "misremember" | "help" | "praise" | "trade" | "share" | "decorate" | "clear" | "restock" | "discuss";
 export type JudgmentStatus = "accepted" | "review_required" | "abstained";
 
 export interface Law {
@@ -38,14 +40,16 @@ export interface IslandEvent extends Action {
   judgment: Judgment;
   outcome?: Outcome;
 }
+export type PetitionChoice = "once" | "always" | "harvest" | "orchard";
 export interface Petition {
   id: string;
+  kind: "repeat" | "road";
   lawId: string;
   day: number;
   title: string;
   text: string;
-  options: { id: "once" | "always"; title: string; description: string }[];
-  resolution?: "once" | "always";
+  options: { id: PetitionChoice; title: string; description: string }[];
+  resolution?: PetitionChoice;
   resolvedDay?: number;
 }
 export interface DayPlan {
@@ -57,7 +61,7 @@ export interface DayPlan {
   island: IslandState;
 }
 export interface World {
-  format: "pocket-civilization-v2";
+  format: "pocket-civilization-v3";
   revision: number;
   day: number;
   law: Law;
@@ -70,6 +74,8 @@ export interface World {
   modelId: string;
   updatedAt: number;
   island: IslandState;
+  stories: Stories;
+  dayDraft: DayDraft | null;
 }
 
 export const RESIDENTS: Record<ResidentId, {
@@ -114,7 +120,7 @@ export function interpretStoryLaw(text: string, day: number): Law {
 export function createWorld(): World {
   const law: Law = { id: "first-rain", text: "说谎的人，头顶会下雨。", trigger: "lie", effect: "rain", since: 1 };
   const world: World = {
-    format: "pocket-civilization-v2", revision: 0, day: 7, law, pendingLaw: null, island: createIsland(),
+    format: "pocket-civilization-v3", revision: 0, day: 7, law, pendingLaw: null, island: createIsland(), stories: createStories(), dayDraft: null,
     mode: "story", modelId: "", interpretation: null, pendingInterpretation: null,
     petitions: [], updatedAt: Date.now(),
     events: [
@@ -144,7 +150,7 @@ function validateLaw(v: unknown): Law {
 }
 export function validateAction(v: unknown): Action {
   const r = object(v);
-  if (!RESIDENT_IDS.includes(r.residentId as ResidentId) || !["confess", "repeat", "misremember", "help", "praise", "trade", "share", "decorate", "clear", "restock"].includes(String(r.kind))) throw new Error("导演提出了岛上还无法执行的行动。");
+  if (!RESIDENT_IDS.includes(r.residentId as ResidentId) || !["confess", "repeat", "misremember", "help", "praise", "trade", "share", "decorate", "clear", "restock", "discuss"].includes(String(r.kind))) throw new Error("导演提出了岛上还无法执行的行动。");
   if (r.activity !== undefined && !isActivity(r.activity) || r.place !== undefined && !isPlace(r.place) || r.targetId !== undefined && !isResident(r.targetId)) throw new Error("行动的地点、对象或做法还无法执行。");
   return { residentId: r.residentId as ResidentId, kind: r.kind as ActionKind, text: textValue(r.text, 120), speech: textValue(r.speech, 40), ...(r.activity ? { activity: r.activity as Activity } : {}), ...(r.place ? { place: r.place as PlaceId } : {}), ...(r.targetId ? { targetId: r.targetId as ResidentId } : {}) };
 }
@@ -157,7 +163,7 @@ export function validateJudgment(v: unknown, source?: Judgment["source"]): Judgm
 }
 export function validateWorld(v: unknown): World {
   const r = object(v);
-  if (r.format !== "pocket-civilization-v2" || !Number.isInteger(r.day) || Number(r.day) < 1 || !Number.isInteger(r.revision) || Number(r.revision) < 0 || !["story", "intelligent"].includes(String(r.mode)) || !Array.isArray(r.events) || r.events.length > 200 || !Array.isArray(r.petitions)) throw new Error("小岛存档无法读取，原存档已保留。");
+  if (r.format !== "pocket-civilization-v3" || !Number.isInteger(r.day) || Number(r.day) < 1 || !Number.isInteger(r.revision) || Number(r.revision) < 0 || !["story", "intelligent"].includes(String(r.mode)) || !Array.isArray(r.events) || r.events.length > 200 || !Array.isArray(r.petitions) || r.petitions.length > 30) throw new Error("小岛存档无法读取，原存档已保留。");
   const law = validateLaw(r.law), pendingLaw = r.pendingLaw === null ? null : validateLaw(r.pendingLaw);
   if (law.since > Number(r.day) || (pendingLaw && pendingLaw.since !== Number(r.day) + 1)) throw new Error("法则生效日期与存档不符。");
   const events = r.events.map((v): IslandEvent => {
@@ -169,33 +175,43 @@ export function validateWorld(v: unknown): World {
   if (new Set(events.map((e) => e.id)).size !== events.length) throw new Error("事件记录出现重复。");
   const petitions = r.petitions.map((v): Petition => {
     const p = object(v);
-    if (!Number.isInteger(p.day) || Number(p.day) > Number(r.day) || (p.resolution && !["once", "always"].includes(String(p.resolution)))) throw new Error("请愿记录无效。");
-    return { ...makePetition(Number(p.day), textValue(p.lawId, 100)), id: textValue(p.id, 100), ...(p.resolution ? { resolution: p.resolution as "once" | "always", resolvedDay: Number(p.resolvedDay) } : {}) };
+    if (!Number.isInteger(p.day) || Number(p.day) < 1 || Number(p.day) > Number(r.day) || !["repeat", "road"].includes(String(p.kind))) throw new Error("请愿记录无效。");
+    const petition = makePetition(Number(p.day), textValue(p.lawId, 100), p.kind as Petition["kind"]);
+    if (p.resolution !== undefined && (!petition.options.some((option) => option.id === p.resolution) || !Number.isInteger(p.resolvedDay) || Number(p.resolvedDay) < Number(p.day) || Number(p.resolvedDay) > Number(r.day))) throw new Error("请愿选择无效。");
+    return { ...petition, id: textValue(p.id, 100), ...(p.resolution ? { resolution: p.resolution as PetitionChoice, resolvedDay: Number(p.resolvedDay) } : {}) };
   });
   const interpretation = (value: unknown) => value === null || value === "once" || value === "always" ? value : (() => { throw new Error("法则解释无效。"); })();
-  return { format: "pocket-civilization-v2", revision: Number(r.revision), day: Number(r.day), law, pendingLaw, mode: r.mode as PlayMode, modelId: typeof r.modelId === "string" ? r.modelId : "", events, petitions, interpretation: interpretation(r.interpretation), pendingInterpretation: interpretation(r.pendingInterpretation), updatedAt: Number(r.updatedAt) || Date.now(), island: validateIsland(r.island, Number(r.day)) };
+  const world: World = { format: "pocket-civilization-v3", revision: Number(r.revision), day: Number(r.day), law, pendingLaw, mode: r.mode as PlayMode, modelId: typeof r.modelId === "string" ? r.modelId : "", events, petitions, interpretation: interpretation(r.interpretation), pendingInterpretation: interpretation(r.pendingInterpretation), updatedAt: Number(r.updatedAt) || Date.now(), island: validateIsland(r.island, Number(r.day)), stories: validateStories(r.stories, Number(r.day)), dayDraft: null };
+  world.dayDraft = validateDayDraft(r.dayDraft, world);
+  return world;
 }
 
 export function scheduleLaw(world: World, law: Law): World {
   if (law.since !== world.day + 1) throw new Error("新法则只能从下一天生效。");
-  return { ...world, pendingLaw: validateLaw(law), revision: world.revision + 1, updatedAt: Date.now() };
+  return { ...world, pendingLaw: validateLaw(law), dayDraft: null, revision: world.revision + 1, updatedAt: Date.now() };
 }
 export function withdrawLaw(world: World): World {
-  return { ...world, pendingLaw: null, revision: world.revision + 1, updatedAt: Date.now() };
+  return { ...world, pendingLaw: null, dayDraft: null, revision: world.revision + 1, updatedAt: Date.now() };
 }
 export function effectiveInterpretation(world: World): World["interpretation"] {
   return world.pendingLaw ? null : world.pendingInterpretation ?? world.interpretation;
 }
-export function makePetition(day: number, lawId: string): Petition {
-  return { id: `petition-repeat-${day}`, lawId, day, title: "同一句真话，也能一直开花吗？", text: "小满想用反复说“镇上有一座桥”来种花。鲜花伞需要材料，青禾又想给小路留些空间。她们想请你把法则说得更清楚一点。", options: [
+export function makePetition(day: number, lawId: string, kind: Petition["kind"] = "repeat"): Petition {
+  if (kind === "road") return { id: `petition-road-${day}`, kind, lawId, day, title: "花从哪里来，小路留给谁？", text: "法则已经解释清楚，店里的生意和路边的花却还要继续照顾。青禾愿意帮忙收花，小满也愿意把试种挪到果园。她们想与你定下一个日常约定。", options: [
+    { id: "harvest", title: "一起收花，把小路留出来", description: "居民优先清理路边的花，回收材料做鲜花伞。" },
+    { id: "orchard", title: "把重复真话的试种移到果园", description: "小满到果园尝试种花，邻居继续收拢路边旧花。" },
+  ] };
+  return { id: `petition-repeat-${day}`, kind, lawId, day, title: "同一句真话，也能一直开花吗？", text: "小满想用反复说“镇上有一座桥”来种花。鲜花伞需要材料，青禾又想给小路留些空间。镇长听过双方的心事，大家想请你把法则说得更清楚一点。", options: [
     { id: "once", title: "重复的真话不再开花", description: "每位居民第一次说出这件事时，才会开花。" },
     { id: "always", title: "每一次真话都算", description: "保留这份自由，请大家一起整理花朵。" },
   ] };
 }
-export function resolvePetition(world: World, id: string, resolution: "once" | "always"): World {
-  if (!world.petitions.some((p) => p.id === id && !p.resolution)) throw new Error("这封请愿已经处理过了。");
-  if (world.pendingLaw || !world.petitions.some((p) => p.id === id && p.lawId === world.law.id)) throw new Error("这封请愿属于之前的法则，不能用来解释即将生效的新法则。");
-  return { ...world, revision: world.revision + 1, updatedAt: Date.now(), pendingInterpretation: resolution, petitions: world.petitions.map((p) => p.id === id ? { ...p, resolution, resolvedDay: world.day } : p) };
+export function resolvePetition(world: World, id: string, resolution: PetitionChoice): World {
+  const petition = world.petitions.find((p) => p.id === id && !p.resolution);
+  if (!petition) throw new Error("这封请愿已经处理过了。");
+  if (world.pendingLaw || petition.lawId !== world.law.id) throw new Error("这封请愿属于之前的法则，不能用来解释即将生效的新法则。");
+  if (!petition.options.some((option) => option.id === resolution)) throw new Error("这不是这封请愿提供的选择。");
+  return { ...world, dayDraft: null, revision: world.revision + 1, updatedAt: Date.now(), stories: recordStoryChoice(world, petition, resolution), pendingInterpretation: petition.kind === "repeat" ? resolution as "once" | "always" : world.pendingInterpretation, petitions: world.petitions.map((p) => p.id === id ? { ...p, resolution, resolvedDay: world.day } : p) };
 }
 export function storyActions(world: World, law: Law): Action[] {
   const candidates = actionOptions({ ...world, pendingLaw: law.id !== world.law.id ? law : world.pendingLaw }).sort((a, b) => b.priority - a.priority);
@@ -220,15 +236,13 @@ export function makePlan(world: World, actions: Action[], judgments: Judgment[])
   const canonical = validateActionBatch(world, actions.map(validateAction));
   const events = canonical.map((action, index): IslandEvent => {
     const judgment = validateJudgment(judgments[index]);
-    if (judgment.status !== "accepted" || !judgment.value) throw new Error("还有判断需要复核，这一天尚未推进。请稍后重试。");
+    if (!isFinalJudgment(judgment)) throw new Error("还有判断需要复核，这一天尚未推进。请稍后重试。");
     const effect = judgment.value === "触发法则" ? law.effect : null;
     return { ...validateAction(action), id: newId(), day, time: ["08:30", "09:10", "10:00"][index], lawId: law.id, effect, judgment, text: `${action.text}${effect ? EFFECTS[effect] + "。" : ""}` };
   });
   const settled = settleIsland(world.island, events);
-  const mayPetition = law.trigger === "truth" && law.effect === "flowers" && !effectiveInterpretation(world) && !world.petitions.some((p) => p.lawId === law.id && !p.resolution);
-  const hasPetition = mayPetition && roadFlowers(settled.island) >= 4 && events.some((e) => e.activity === "bridge-fact" && e.effect === "flowers");
-  const disputed = mayPetition && events.some((e) => e.activity === "bridge-fact" && e.judgment.value === "存在解释争议");
-  return { baseRevision: world.revision, day, law, events: settled.events, island: settled.island, ...(hasPetition || disputed ? { petition: makePetition(day, law.id) } : {}) };
+  const kind = nextPetitionKind(world, settled.island, settled.events);
+  return { baseRevision: world.revision, day, law, events: settled.events, island: settled.island, ...(kind ? { petition: makePetition(day, law.id, kind) } : {}) };
 }
 export function planStoryDay(world: World): DayPlan {
   const law = world.pendingLaw ?? world.law;
@@ -241,8 +255,8 @@ export function applyPlan(world: World, plan: DayPlan): World {
   if (world.mode === "intelligent" && plan.events.some((e) => e.judgment.source !== "plugin")) throw new Error("智能模式没有收到实际插件判断。");
   const canonical = validateActionBatch(world, plan.events);
   for (const [index, event] of plan.events.entries()) {
-    if (event.place !== canonical[index].place || event.activity !== canonical[index].activity || event.day !== plan.day || event.lawId !== plan.law.id || event.judgment.status !== "accepted" || event.effect !== (event.judgment.value === "触发法则" ? plan.law.effect : null)) throw new Error("这一天的行动与判断不一致。");
+    if (event.place !== canonical[index].place || event.activity !== canonical[index].activity || event.day !== plan.day || event.lawId !== plan.law.id || !isFinalJudgment(event.judgment) || event.effect !== (event.judgment.value === "触发法则" ? plan.law.effect : null)) throw new Error("这一天的行动与判断不一致。");
   }
   const settled = settleIsland(world.island, plan.events);
-  return validateWorld({ ...world, revision: world.revision + 1, day: plan.day, law: plan.law, pendingLaw: null, interpretation: world.law.id !== plan.law.id ? null : effectiveInterpretation(world), pendingInterpretation: null, events: [...world.events, ...settled.events].slice(-180), petitions: plan.petition ? [...world.petitions, plan.petition].slice(-30) : world.petitions, updatedAt: Date.now(), island: settled.island });
+  return validateWorld({ ...world, dayDraft: null, stories: advanceStories(world, plan, settled.island), revision: world.revision + 1, day: plan.day, law: plan.law, pendingLaw: null, interpretation: world.law.id !== plan.law.id ? null : effectiveInterpretation(world), pendingInterpretation: null, events: [...world.events, ...settled.events].slice(-180), petitions: plan.petition ? [...world.petitions, plan.petition].slice(-30) : world.petitions, updatedAt: Date.now(), island: settled.island });
 }

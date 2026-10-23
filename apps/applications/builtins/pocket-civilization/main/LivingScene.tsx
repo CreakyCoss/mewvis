@@ -5,7 +5,7 @@ import { RESIDENTS, type IslandEvent, type ResidentId, type World } from "./mode
 import { HOME, PLACE_IDS, PLACES, roadStatus, walkingRoute, type Activity, type PlaceId } from "./simulation";
 
 const LABELS: Record<Activity, string> = {
-  "admit-bread": "承认偷吃", "deny-bread": "藏起空盘子", "share-feeling": "说说心里话", "bridge-fact": "试试真话", "admit-lost": "承认迷路", "find-way": "认一认路", "help-neighbor": "帮帮邻居", "praise-neighbor": "认真夸奖", "decorate-umbrella": "编鲜花伞", "sell-umbrella": "照顾小店", "restock-umbrella": "补进旧雨伞", "clear-flowers": "收拢路边花",
+  "admit-bread": "承认偷吃", "deny-bread": "藏起空盘子", "share-feeling": "说说心里话", "bridge-fact": "试试真话", "admit-lost": "承认迷路", "find-way": "认一认路", "help-neighbor": "帮帮邻居", "praise-neighbor": "认真夸奖", "decorate-umbrella": "编鲜花伞", "sell-umbrella": "照顾小店", "restock-umbrella": "补进旧雨伞", "clear-flowers": "收拢路边花", "discuss-flowers": "商量小路的事",
 };
 const OFFSETS = { atuan: { x: -70, y: 32 }, xiaoman: { x: 0, y: 0 }, mayor: { x: -10, y: 70 }, gardener: { x: 76, y: 44 } };
 function residentPoint(id: ResidentId, place: PlaceId) {
