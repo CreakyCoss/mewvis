@@ -25,6 +25,7 @@ export const AppWorkspace = ({
 }) => {
   const overlayTitleBar = platform.window?.titleBarStyle === "overlay";
   const [header, setHeader] = useState<{ owner: symbol; content: ReactNode } | null>(null);
+  const floatingControls = !overlayTitleBar && !header;
   const [fullscreen, setFullscreen] = useState<{ owner: symbol; active: boolean } | null>(null);
   const registerFullscreen = useCallback<RegisterWorkspaceFullscreen>(() => {
     const owner = Symbol("workspace-fullscreen");
@@ -58,7 +59,7 @@ export const AppWorkspace = ({
               <div
                 className={cn(
                   "pointer-events-none z-50 flex h-10 shrink-0 items-center",
-                  overlayTitleBar ? "absolute inset-x-0 top-0" : "relative",
+                  overlayTitleBar || floatingControls ? "absolute inset-x-0 top-0" : "relative",
                   overlayTitleBar && fullscreen?.active && "pl-20",
                 )}
               >
@@ -67,7 +68,12 @@ export const AppWorkspace = ({
                   <div
                     role="group"
                     aria-label="应用窗口操作"
-                    className="pointer-events-auto flex shrink-0 items-center gap-0.5 px-2"
+                    className={cn(
+                      "pointer-events-auto flex shrink-0 items-center gap-0.5",
+                      floatingControls
+                        ? "mr-2 rounded-lg border border-border/70 bg-background/95 p-0.5 shadow-sm"
+                        : "px-2",
+                    )}
                   >
                     <Button
                       type="button"

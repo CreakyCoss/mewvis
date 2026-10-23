@@ -18,6 +18,7 @@ try {
     const browser = await playwright[engine].launch({ headless: true, ...(executablePath ? { executablePath } : {}) });
     try {
       for (const titleBar of ["web", "native", "overlay"]) {
+        const contentTop = titleBar === "overlay" ? 40 : 0;
         const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
         const errors = [];
         page.on("pageerror", (error) => errors.push(error.message));
@@ -30,7 +31,9 @@ try {
         await hidden(sidebar);
         await visible(frameLocator());
         near((await frameLocator().boundingBox()).x, 0);
+        near((await frameLocator().boundingBox()).y, contentTop);
         near((await frameLocator().boundingBox()).width, 1280);
+        near((await frameLocator().boundingBox()).height, 800 - contentTop);
         await page.getByRole("link", { name: "退出应用，返回应用列表", exact: true }).click();
         await visible(sidebar);
         await hidden(controls);
@@ -51,13 +54,31 @@ try {
             const marker = await frame.evaluate(() => (window.fullscreenTestMarker = Math.random()));
             const bounds = await frameLocator().boundingBox();
             near(bounds.x, 0);
-            near(bounds.y, 40);
+            near(bounds.y, contentTop);
             near(bounds.width, 1280);
-            near(bounds.height, 760);
+            near(bounds.height, 800 - contentTop);
+
+            // The transparent area around floating controls must pass clicks through to the app.
+            await frame.evaluate(() => {
+              const button = document.createElement("button");
+              button.textContent = "顶部内容点击验证";
+              button.style.cssText = "position:fixed;top:0;left:8px;height:32px;z-index:9999";
+              button.onclick = () => {
+                window.topContentClicked = true;
+              };
+              document.body.append(button);
+            });
+            await frame.getByRole("button", { name: "顶部内容点击验证", exact: true }).click();
+            assert.equal(await frame.evaluate(() => window.topContentClicked), true);
+            await frame
+              .getByRole("button", { name: "顶部内容点击验证", exact: true })
+              .evaluate((button) => button.remove());
 
             await page.getByRole("button", { name: "退出应用全屏", exact: true }).click();
             await visible(sidebar);
             near((await frameLocator().boundingBox()).x, 224);
+            near((await frameLocator().boundingBox()).y, contentTop);
+            near((await frameLocator().boundingBox()).height, 800 - contentTop);
             assert.equal(await frame.evaluate(() => window.fullscreenTestMarker), marker, "退出全屏不重载沙箱");
             await page.getByRole("button", { name: "进入应用全屏", exact: true }).click();
             await hidden(sidebar);
@@ -86,6 +107,13 @@ try {
             await page.getByRole("button", { name: "退出应用全屏", exact: true }).click();
             await page.getByRole("button", { name: "进入应用全屏", exact: true }).click();
             assert.equal(await frame.evaluate(() => window.fullscreenTestMarker), marker);
+            await frame.evaluate(() => window.mewvisApplication.header.set(null));
+            await hidden(applicationHeader);
+            near((await frameLocator().boundingBox()).y, contentTop);
+            near((await frameLocator().boundingBox()).height, 760 - contentTop);
+            if (process.env.MEWVIS_LAYOUT_SCREENSHOT && titleBar === "native" && source === "installed") {
+              await page.screenshot({ path: `${process.env.MEWVIS_LAYOUT_SCREENSHOT}-native-${engine}.png` });
+            }
             await page.setViewportSize({ width: 1280, height: 800 });
 
             await page.getByRole("link", { name: "退出应用，返回应用列表", exact: true }).click();
