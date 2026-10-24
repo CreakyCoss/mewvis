@@ -16,6 +16,11 @@ import {
 import { canonicalPath } from "../../../../../../security/platforms/resources.js";
 import entries from "../../../../../../../build-entries.json" with { type: "json" };
 import {
+  assertMediaGenerationArguments,
+  mediaCallHelp,
+  mediaPurposeContract,
+} from "./contract.js";
+import {
   redactMedia,
   type MediaProgress,
   type MediaResult,
@@ -27,14 +32,14 @@ export const MEDIA_TOOL_DEFINITION = {
   name: "generate_media",
   label: "生成媒体",
   description:
-    "Generate or edit images, generate videos and synthesize speech using only the currently selected model's configuration. First call action=list to discover its available purposes, inputSchema and overridable parameters. Parameters marked askWhenMissing must be supplied from the user's request or an ask_user answer: do not guess or silently copy their defaults. Ask only for values the user has not already specified, using the configured schema.enum options when available. Then call action=generate with input matching that schema. If status=needs_input, no generation was submitted: use ask_user with the returned questions, decode its JSON-encoded option value, and retry with the answers in parameters, preserving the original input and other arguments. If the user cancels, stop generation; do not substitute a default. The tool handles model credentials, provider polling and saving files. Wait for the result and use its absolute file paths in later tools or the answer. Do not switch models or invent unsupported purposes or options. A saved path does not mean you have inspected or listened to the result. On failure or stopped waiting, do not automatically resubmit a paid generation request.",
+    "Generate or edit images, generate videos and synthesize speech using the selected model's configured purposes. First call {action:'list'} with only an optional purpose filter: list only discovers configuration and NEVER generates anything. Read each purpose's actual modelId, inputSchema, parameterPaths and callExample. Then make a separate call with action:'generate' and that purpose. Put content only in input and ALL adjustable values in the top-level parameters object; never put parameters or a supplier's HTTP request body inside input. Replace input example placeholders with actual content. User-specified values override defaults; never copy an example/default over the user's choice. Parameters marked askWhenMissing require explicit user values: use ask_user only for genuinely missing values, never guess them. If status=needs_input, no generation was submitted: use ask_user with the returned questions, JSON-decode option values and retry with the answers in parameters, preserving the other arguments. If the user cancels, stop generation. The tool selects the purpose's actual model and renders its saved HTTP/JSON template; do not construct supplier HTTP requests yourself. Wait for returned file paths. A saved path does not mean you inspected or listened to it. On failure or stopped waiting, do not automatically resubmit paid generation requests.",
   parameters: {
     type: "object",
     properties: {
       action: {
         type: "union",
         description:
-          "List the selected model's available media purposes or generate media.",
+          "list only queries configuration (no input/parameters/files/output settings). generate submits generation and requires purpose and input.",
         anyOf: [
           { type: "literal", value: "list" },
           { type: "literal", value: "generate" },
@@ -50,7 +55,7 @@ export const MEDIA_TOOL_DEFINITION = {
         type: "json",
         optional: true,
         description:
-          "Required for generate. Follow the selected model purpose's inputSchema exactly; field names vary by configuration.",
+          "Generation content only, following inputSchema and inputPaths from list. Adjustable values belong in parameters, NOT inside input. Do not supply this field for list.",
       },
       files: {
         type: "array",
@@ -91,7 +96,7 @@ export const MEDIA_TOOL_DEFINITION = {
         type: "json",
         optional: true,
         description:
-          "Object containing only parameters listed as overridable. Preserve their JSON types: integer/number values must be numbers, boolean values must be booleans. Omitted values use configured defaults unless askWhenMissing is enabled; those values must come from the user, using ask_user when not already specified.",
+          "Top-level object for adjustable values, e.g. parameters:{voice_id:'user-requested-voice',speed:1.2}. Follow parameterPaths and schemas from list. Never put these fields inside input or at the root. Preserve JSON types. Omitted values use defaults unless askWhenMissing requires asking the user. Do not supply this field for list.",
       },
       outputDirectory: {
         type: "string",
@@ -305,27 +310,60 @@ export function createMediaTool(context: MediaToolContext) {
       execution: MediaRunContext = {},
     ) {
       execution.signal?.throwIfAborted();
-      const args = argumentsSchema.parse(input);
-      if (args.action === "list")
+      const parsed = argumentsSchema.safeParse(input);
+      if (!parsed.success) {
+        const purpose =
+          input && typeof input === "object" && "purpose" in input
+            ? catalog.find((purpose) => purpose.type === input.purpose)
+            : undefined;
+        throw new Error(
+          redactMedia(
+            `generate_media 参数格式错误：${parsed.error.message}。可调参数必须放在顶层 parameters 对象中，不能使用 description 或直接放在根级。${mediaCallHelp(purpose)}`,
+            secrets,
+          ),
+        );
+      }
+      const args = parsed.data;
+      if (args.action === "list") {
+        const generationFields = [
+          "input",
+          "parameters",
+          "files",
+          "outputDirectory",
+          "timeoutSeconds",
+        ].filter((field) => Object.hasOwn(args, field));
+        if (generationFields.length) {
+          const purpose = catalog.find(
+            (purpose) => purpose.type === args.purpose,
+          );
+          throw new Error(
+            redactMedia(
+              `action="list" 只查询配置，不能携带 ${generationFields.join("、")}。尚未提交生成请求；要生成请改用 action="generate"。${mediaCallHelp(purpose)}`,
+              secrets,
+            ),
+          );
+        }
+        const purposes = catalog.filter(
+          (purpose) => !args.purpose || purpose.type === args.purpose,
+        );
+        if (!purposes.length)
+          throw new Error(
+            "当前模型未配置此媒体用途，请使用 action=list 查看可用用途",
+          );
         return redactMedia(
           {
-            modelId: model.modelId,
-            purposes: catalog
-              .filter(
-                (purpose) => !args.purpose || purpose.type === args.purpose,
-              )
-              .map((purpose) => ({
-                purpose: purpose.type,
-                input: purpose.input,
-                output: purpose.output,
-                inputSchema: purpose.inputSchema ?? true,
-                parameters: purpose.parameters.filter(
-                  (parameter) => parameter.overridable,
-                ),
-              })),
+            status: "ready",
+            selectedModelId: model.modelId,
+            nextAction: "generate",
+            message:
+              "仅查询了配置，尚未生成媒体。实际型号见各用途的 modelId；下一步调用 generate_media，action=generate。input 示例需替换为实际内容，可调参数放在 parameters。默认值仅用于用户未指定的非询问参数。HTTP 请求体由工具按已保存模板渲染。",
+            purposes: purposes.map((purpose) =>
+              mediaPurposeContract(purpose, model.modelId),
+            ),
           },
           secrets,
         );
+      }
       if (!args.purpose)
         throw new Error("生成媒体必须指定 list 返回的 purpose");
       const purpose = catalog.find((purpose) => purpose.type === args.purpose);
@@ -333,6 +371,16 @@ export function createMediaTool(context: MediaToolContext) {
         throw new Error("当前模型未配置可执行的媒体用途，请先使用 list 查看");
       const previous = calls.get(callId);
       if (previous) return previous;
+      try {
+        assertMediaGenerationArguments(purpose, args);
+      } catch (error) {
+        throw new Error(
+          redactMedia(
+            error instanceof Error ? error.message : "生成参数无效",
+            secrets,
+          ),
+        );
+      }
       const missing = getMissingModelParameters(purpose, args.parameters);
       if (missing.length)
         return redactMedia(

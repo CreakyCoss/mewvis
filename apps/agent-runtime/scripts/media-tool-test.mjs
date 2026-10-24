@@ -51,6 +51,7 @@ await build({
       )
       .concat(
         `export { minimaxPreset } from ${JSON.stringify(join(runtime, "../client/src/workbench/pages/settings/llm/edit/presets/providers/minimax.ts"))};`,
+        'export { validateToolArguments } from "@earendil-works/pi-ai";',
       )
       .join("\n"),
     loader: "ts",
@@ -134,7 +135,13 @@ test("generic definition lists only the selected model's executable purposes and
     throw new Error("no network for list");
   });
   const list = await f.call({ action: "list" });
-  assert.equal(list.modelId, f.model.modelId);
+  assert.equal(list.selectedModelId, f.model.modelId);
+  assert.equal(list.modelId, undefined);
+  assert.equal(list.status, "ready");
+  assert.equal(list.nextAction, "generate");
+  assert.equal(list.purposes[0].modelId, f.model.modelId);
+  assert.equal(list.purposes[0].callExample.action, "generate");
+  assert.equal(list.purposes[0].callExample.purpose, "image-generation");
   assert.deepEqual(list.purposes[0].inputSchema.required, ["prompt"]);
   assert.deepEqual(
     list.purposes[0].parameters.map((p) => p.name),
@@ -299,19 +306,30 @@ test("speech presets list, submit and save playable audio paths through the exis
     apiKey: "speech-secret",
   };
   f.model.configuration.purposes = [purpose];
-  const list = await f.call({ action: "list", purpose: "speech" });
+  const pi = api.createPiMediaTool(f.context);
+  const list = (await pi.execute("speech-list", { action: "list", purpose: "speech" })).details;
   assert.deepEqual(
     list.purposes.map((entry) => entry.purpose),
     ["speech"],
   );
   assert.deepEqual(list.purposes[0].inputSchema.required, ["text"]);
+  assert.equal(list.purposes[0].modelId, "speech-2.8-hd");
+  assert.equal(list.purposes[0].parameterPaths.voice_id, "parameters.voice_id");
+  assert.deepEqual(list.purposes[0].inputPaths, ["input.text"]);
+  assert.equal(typeof list.purposes[0].callExample.input.text, "string");
   assert.doesNotMatch(JSON.stringify(list), /speech-secret|tts\.example/);
   const args = {
-    purpose: "speech",
+    ...list.purposes[0].callExample,
     input: { text: "Hello" },
-    parameters: { speed: 1.2 },
+    parameters: { voice_id: "custom-user-voice", speed: 1.2 },
   };
-  const result = await f.generate(args, "speech");
+  const validated = api.validateToolArguments(pi, {
+    type: "toolCall",
+    id: "speech",
+    name: pi.name,
+    arguments: args,
+  });
+  const result = (await pi.execute("speech", validated)).details;
   assert.equal(result.status, "completed", JSON.stringify(result));
   assert.equal(result.modelId, "speech-2.8-hd");
   assert.equal(result.purpose, "speech");
@@ -326,6 +344,7 @@ test("speech presets list, submit and save playable audio paths through the exis
   assert.equal(body.stream, false);
   assert.equal(body.output_format, "url");
   assert.equal(body.voice_setting.speed, 1.2);
+  assert.equal(body.voice_setting.voice_id, "custom-user-voice");
   assert.equal(body.audio_setting.format, "mp3");
   assert.equal(result.outputs[0].type, "audio");
   assert.equal(result.outputs[0].mimeType, "audio/mpeg");
@@ -335,7 +354,7 @@ test("speech presets list, submit and save playable audio paths through the exis
     JSON.stringify(result),
     /speech-secret|cdn\.example|ID3-synthesized/,
   );
-  assert.deepEqual(await f.generate(args, "speech"), result);
+  assert.deepEqual((await pi.execute("speech", validated)).details, result);
   assert.equal(requests.length, 2);
 });
 
@@ -636,8 +655,10 @@ test("Hailuo local first-frame calls expose typed files and overrides and reject
   };
   for (const files of [{ item: args.files[0] }, null, Array(9).fill(args.files[0])])
     await assert.rejects(tool.execute("bad-files", { ...args, files }), /files/);
-  const invalid = await tool.execute("string-duration", { ...args, parameters: { duration: "6" } });
-  assert.equal(invalid.details.status, "failed");
+  await assert.rejects(
+    tool.execute("string-duration", { ...args, parameters: { duration: "6" } }),
+    /可调参数无效.*尚未提交生成请求/,
+  );
   assert.equal(requests.length, 0);
   const result = await tool.execute("local-frame", args);
   assert.equal(result.details.status, "completed", JSON.stringify(result));
@@ -656,8 +677,6 @@ test("schema errors, immutable parameters, protected paths and symlinks fail bef
   });
   for (const args of [
     { input: {} },
-    { parameters: { response_format: "base64" } },
-    { parameters: { unknown: 1 } },
     { outputDirectory: temporary },
     { outputDirectory: ".git" },
     { outputDirectory: "workspace.db" },
@@ -667,6 +686,8 @@ test("schema errors, immutable parameters, protected paths and symlinks fail bef
       "failed",
       JSON.stringify(args),
     );
+  for (const parameters of [{ response_format: "base64" }, { unknown: 1 }, { n: 0 }, { n: "1" }])
+    await assert.rejects(f.generate({ parameters }), /可调参数无效.*尚未提交生成请求/);
   await symlink(temporary, join(f.workspace, "alias"));
   assert.equal(
     (await f.generate({ outputDirectory: "alias" })).status,
@@ -809,6 +830,19 @@ test("Pi is a thin adapter over the generic tool and its existing safety analysi
   const tool = api.createPiMediaTool(f.context);
   assert.equal(tool.name, api.MEDIA_TOOL_DEFINITION.name);
   assert.deepEqual(tool.parameters.required, ["action"]);
+  assert.deepEqual(tool.parameters.properties.action.enum, ["list", "generate"]);
+  assert.equal(tool.parameters.properties.action.anyOf, undefined);
+  const validated = api.validateToolArguments(tool, {
+    type: "toolCall",
+    id: "action-probe",
+    name: tool.name,
+    arguments: {
+      action: "generate",
+      purpose: "image-generation",
+      input: { prompt: "cat" },
+    },
+  });
+  assert.equal(validated.action, "generate");
   const list = await tool.execute("list", { action: "list" });
   assert.equal(JSON.parse(list.content[0].text).purposes.length, 1);
   const result = await tool.execute("pi-generate", {
@@ -985,3 +1019,235 @@ test(
     assert.deepEqual(await readFile(result.outputs[0].filePath), png);
   },
 );
+
+test("list cannot silently accept generation fields or start a worker", async (t) => {
+  let workers = 0;
+  const f = await fixture(t);
+  f.context.run = async () => {
+    workers++;
+    throw new Error("must not run");
+  };
+  for (const extra of [
+    { input: { prompt: "cat" } },
+    { parameters: {} },
+    { files: [] },
+    { outputDirectory: "generated-media" },
+    { timeoutSeconds: 30 },
+  ]) {
+    await assert.rejects(
+      f.call({ action: "list", purpose: "image-generation", ...extra }),
+      /只查询配置.*action="generate".*调用格式/,
+    );
+  }
+  await assert.rejects(
+    f.call({ action: "list", purpose: "speech" }),
+    /未配置此媒体用途/,
+  );
+  assert.equal(workers, 0);
+  const list = await f.call({ action: "list" });
+  assert.equal(list.nextAction, "generate");
+  assert.equal(workers, 0);
+});
+
+test("misplaced speech parameters are rejected before workers or network instead of using defaults", async (t) => {
+  let workers = 0,
+    requests = 0;
+  const f = await fixture(t, async () => {
+    requests++;
+    throw new Error("must not request");
+  });
+  const purpose = structuredClone(
+    api.minimaxPreset.models.find((model) => model.modelId === "speech-2.8-hd")
+      .templates[0].purpose,
+  );
+  purpose.modelId = "speech-2.8-hd";
+  purpose.connection = {
+    apiEndpoint: "https://tts.example",
+    apiKey: "speech-secret",
+  };
+  f.model.configuration.purposes = [purpose];
+  f.context.run = async () => {
+    workers++;
+    throw new Error("must not run");
+  };
+  for (const input of [
+    { text: "Hello", voice_id: "requested-voice" },
+    {
+      text: "Hello",
+      voice_setting: { voice_id: "requested-voice", speed: 1.2 },
+    },
+    { text: "Hello", model: "other-model" },
+  ])
+    await assert.rejects(
+      f.call({ action: "generate", purpose: "speech", input }),
+      /输入字段位置不正确.*parameters/,
+    );
+  await assert.rejects(
+    f.call({
+      action: "generate",
+      purpose: "speech",
+      input: { text: "Hello" },
+      voice_id: "requested-voice",
+    }),
+    /顶层 parameters.*调用格式/,
+  );
+  await assert.rejects(
+    f.call({
+      action: "generate",
+      purpose: "speech",
+      input: { text: "Hello" },
+      description: { voice_id: "requested-voice" },
+    }),
+    /顶层 parameters.*调用格式/,
+  );
+  await assert.rejects(
+    f.call({ action: "generate", purpose: "speech" }),
+    /生成需要 input/,
+  );
+  assert.equal(workers, 0);
+  assert.equal(requests, 0);
+  const direct = await api.runMediaGeneration(
+    {
+      model: f.model,
+      purpose: {
+        ...purpose,
+        connection: { ...purpose.connection, apiFormat: "http-json" },
+      },
+      arguments: {
+        action: "generate",
+        input: {
+          text: "Hello",
+          voice_setting: { voice_id: "requested-voice" },
+        },
+      },
+      execution: f.context.execution,
+      protectedPaths: [],
+    },
+    {
+      fetch: async () => {
+        requests++;
+        throw new Error("must not request");
+      },
+    },
+  );
+  assert.equal(direct.status, "failed");
+  assert.match(direct.error, /parameters.voice_id/);
+  assert.equal(requests, 0);
+});
+
+test("catalog examples never fill parameters that require user answers and remain credential-free", async (t) => {
+  const f = await fixture(t);
+  const purpose = f.model.configuration.purposes[0];
+  purpose.modelId = "image-model";
+  purpose.parameters.find(
+    (parameter) => parameter.name === "aspect_ratio",
+  ).askWhenMissing = true;
+  const list = await f.call({ action: "list" });
+  const entry = list.purposes[0];
+  assert.equal(list.selectedModelId, "upstream-image");
+  assert.equal(entry.modelId, "image-model");
+  assert.deepEqual(entry.requiredUserParameters, ["aspect_ratio"]);
+  assert.equal(
+    Object.hasOwn(entry.callExample.parameters, "aspect_ratio"),
+    false,
+  );
+  assert.equal(entry.parameterPaths.aspect_ratio, "parameters.aspect_ratio");
+  assert.equal(entry.callExample.parameters.n, 3);
+  assert.doesNotMatch(
+    JSON.stringify(list),
+    /model-fixture-key|Authorization|apiEndpoint/,
+  );
+});
+
+test("input binding checks preserve nested, optional, polling and whole-input templates", async (t) => {
+  const f = await fixture(t);
+  const p = f.model.configuration.purposes[0];
+  p.inputSchema = {
+    type: "object",
+    properties: {
+      content: { type: "object" },
+      settings: { type: "object" },
+      optional: { type: "string" },
+      poll_seed: { type: "string" },
+      result_file: { type: "string" },
+    },
+  };
+  p.request.body = {
+    content: "{{input.content.text}}",
+    settings: "{{input.settings}}",
+    optional: "{{input.optional?}}",
+  };
+  p.response.mode = "task";
+  p.response.task = {
+    idPath: "/id",
+    statusPath: "/status",
+    successValues: ["done"],
+    failureValues: ["failed"],
+    intervalSeconds: 1,
+    request: {
+      method: "GET",
+      path: "/tasks/{{task.id}}?seed={{input.poll_seed}}",
+      headers: {},
+    },
+    resultRequest: {
+      method: "GET",
+      path: "/files/{{input.result_file}}",
+      headers: {},
+    },
+  };
+  const sent = [];
+  f.context.run = async (request) => {
+    sent.push(request.arguments.input);
+    return {
+      status: "completed",
+      modelId: request.purpose.modelId,
+      purpose: request.purpose.type,
+      outputs: [],
+    };
+  };
+  const list = await f.call({ action: "list" });
+  assert.deepEqual(list.purposes[0].inputPaths, [
+    "input.content.text",
+    "input.settings",
+    "input.optional",
+    "input.poll_seed",
+    "input.result_file",
+  ]);
+  await f.generate({
+    input: {
+      content: { text: "Hello" },
+      settings: { arbitrary: true },
+      poll_seed: "seed",
+      result_file: "file",
+    },
+  });
+  await assert.rejects(
+    f.generate({
+      input: { content: { text: "Hello", voice_id: "ignored" }, settings: {} },
+    }),
+    /input.content.voice_id/,
+  );
+  assert.equal(sent.length, 1);
+  p.request.body = "{{input}}";
+  f.reset();
+  await f.generate({
+    input: { voice_id: "actually consumed", arbitrary: { nested: true } },
+  });
+  assert.equal(sent.length, 2);
+});
+
+test("file-injected unused input is rejected by the worker before the paid request", async (t) => {
+  let requests = 0;
+  const f = await fixture(t, async () => {
+    requests++;
+    return image();
+  });
+  const path = join(f.workspace, "ref.png");
+  await writeFile(path, png);
+  const result = await f.generate({
+    files: [{ pointer: "/unused", filePath: path }],
+  });
+  assert.equal(result.status, "failed");
+  assert.match(result.error, /input.unused.*未被请求模板使用/);
+  assert.equal(requests, 0);
+});

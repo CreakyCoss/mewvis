@@ -4,6 +4,10 @@ import { executeMedia } from "./request.js";
 import { collectMedia, prepareMediaInput, readMediaFile } from "./files.js";
 import { authorizeMediaPath, authorizeMediaUrl } from "./permissions.js";
 import {
+  assertMediaGenerationArguments,
+  assertMediaInputBindings,
+} from "./contract.js";
+import {
   redactMedia,
   type MediaArtifact,
   type MediaGenerationRequest,
@@ -62,10 +66,12 @@ export async function runMediaGeneration(
   const secrets = [connection.apiKey ?? ""];
   try {
     signal.throwIfAborted();
+    assertMediaGenerationArguments(purpose, args);
     await authorize(join(directory, ".media-output-check"), "write");
     const input = await prepareMediaInput(args.input, args.files, (path) =>
       readMediaFile(path, (path) => authorize(path, "read"), signal),
     );
+    assertMediaInputBindings(purpose, input);
     const transport = {
       signal,
       authorizeUrl: (url: URL) => authorizeMediaUrl(execution, url),
