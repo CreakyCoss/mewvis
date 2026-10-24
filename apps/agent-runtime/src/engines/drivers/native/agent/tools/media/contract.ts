@@ -5,7 +5,10 @@ import type {
   ModelPurpose,
 } from "@mewvis/chat-contracts/model-configuration";
 import type { MediaArguments, MediaParameterQuestion } from "./types.js";
-import { resolveModelParameters } from "@mewvis/chat-contracts/model-configuration";
+import {
+  getSchemaOptions,
+  resolveModelParameters,
+} from "@mewvis/chat-contracts/model-configuration";
 
 /** Collect input variables referenced by the configured templates, including polling. */
 export function mediaInputPaths(purpose: ModelPurpose): string[] {
@@ -74,11 +77,21 @@ export function mediaParameterQuestion(
     parameter.schema && typeof parameter.schema === "object"
       ? parameter.schema
       : undefined;
-  const values = Array.isArray(schema?.enum) ? schema.enum : [];
-  const options = values.map((value) => ({
-    value: JSON.stringify(value),
-    label: typeof value === "string" ? value : JSON.stringify(value),
+  const options = (getSchemaOptions(parameter.schema) ?? []).map((option) => ({
+    value: JSON.stringify(option.value),
+    label: option.label,
+    ...(option.description ? { description: option.description } : {}),
   }));
+  const context = [
+    ...new Set(
+      [
+        parameter.description?.trim() ?? "",
+        typeof schema?.description === "string"
+          ? schema.description.trim()
+          : "",
+      ].filter(Boolean),
+    ),
+  ].join("\n");
   return {
     parameter: parameter.name,
     valueType: parameter.type,
@@ -86,9 +99,7 @@ export function mediaParameterQuestion(
       options.length >= 2
         ? `请选择 ${parameter.name}`
         : `请提供 ${parameter.name} 的明确值`,
-    ...(typeof schema?.description === "string" && schema.description.trim()
-      ? { context: schema.description.trim() }
-      : {}),
+    ...(context ? { context } : {}),
     input:
       options.length >= 2
         ? {

@@ -72,7 +72,10 @@ function ParameterJsonDialog({
 }) {
   const id = useId();
   const input = useRef<HTMLTextAreaElement>(null);
-  const [raw, setRaw] = useState(() => JSON.stringify(parameter, null, 2));
+  const [raw, setRaw] = useState(() => {
+    const { name, type, description, ...rest } = parameter;
+    return JSON.stringify({ name, type, description: description ?? "", ...rest }, null, 2);
+  });
   const result = parseParameterJson(raw, parameters, index);
   return (
     <DialogContent
@@ -125,7 +128,8 @@ function ParameterJsonDialog({
           }}
         />
         <p className="text-[11px] text-muted-foreground">
-          删除 default 表示不设置默认值；askWhenMissing: true 表示缺少时询问用户。
+          参数用途填写顶层 description；取值约束填写 schema，可用 enum 或 options（value、label，可选
+          description），二者只选一种。 删除 default 表示不设置默认值。
         </p>
         {result.error && (
           <p id={`${id}-error`} className="text-xs text-destructive" role="alert">

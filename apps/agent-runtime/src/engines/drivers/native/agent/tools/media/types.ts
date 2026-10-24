@@ -20,7 +20,7 @@ export type MediaParameterQuestion = {
   input: {
     type: "select" | "text";
     label: string;
-    options?: { value: string; label: string }[];
+    options?: { value: string; label: string; description?: string }[];
     selected?: string;
   };
 };

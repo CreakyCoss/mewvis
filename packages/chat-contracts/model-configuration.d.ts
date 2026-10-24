@@ -6,6 +6,12 @@ import type {
 export type JsonValue =
   null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };
 export type JsonSchema = boolean | { [key: string]: JsonValue };
+/** schema.options is a labeled alternative to schema.enum. Values form the allowed set. */
+export type ModelSchemaOption = {
+  value: JsonValue;
+  label: string;
+  description?: string;
+};
 export type ModelProtocol =
   | "anthropic-messages"
   | "openai-completions"
@@ -23,6 +29,8 @@ export interface ModelConnection {
 export interface ModelParameter {
   name: string;
   type: "string" | "integer" | "number" | "boolean" | "object" | "array";
+  /** Business meaning used to interpret user intent; separate from schema constraints. */
+  description?: string;
   default?: JsonValue;
   overridable: boolean;
   /** Require an explicit call value, even when a default is configured. Agents must ask the user when missing. */
@@ -99,6 +107,7 @@ export declare function createModelPurpose(
 ): ModelPurpose;
 export declare function getModelConfigurationError(value: unknown): string;
 export declare function getModelParametersError(value: unknown): string;
+export declare function getSchemaOptions(schema: JsonSchema | undefined): ModelSchemaOption[] | undefined;
 export declare function resolveModelConnection(
   purpose: ModelPurpose | undefined,
   provider: ModelConnection,

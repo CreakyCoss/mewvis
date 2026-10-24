@@ -37,7 +37,10 @@ export function ParametersEditor({
             while (purpose.parameters.some((p) => p.name === `parameter_${i}`)) i++;
             onChange({
               ...purpose,
-              parameters: [...purpose.parameters, { name: `parameter_${i}`, type: "string", overridable: true }],
+              parameters: [
+                ...purpose.parameters,
+                { name: `parameter_${i}`, type: "string", description: "", overridable: true },
+              ],
             });
           }}
         >
@@ -68,6 +71,7 @@ export function ParametersEditor({
               autoFocus={param.name.startsWith("parameter_") && index === purpose.parameters.length - 1}
               className="h-8 min-w-0 px-2 font-mono text-xs shadow-none"
               aria-label={`参数 ${index + 1} 名称`}
+              title={(param.description?.trim() ?? "") || undefined}
               value={param.name}
               onChange={(event) => {
                 update(index, { ...param, name: event.currentTarget.value });

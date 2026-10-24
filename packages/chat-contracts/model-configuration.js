@@ -78,6 +78,54 @@ const json = (value) => {
     });
   fail("请使用有效的 JSON 值");
 };
+const schemaMaps = new Set([
+  "properties", "patternProperties", "$defs", "definitions", "dependentSchemas", "dependencies",
+]);
+const schemaChildren = new Set([
+  "items", "additionalItems", "additionalProperties", "unevaluatedItems", "unevaluatedProperties",
+  "contains", "propertyNames", "not", "if", "then", "else", "contentSchema", "allOf", "anyOf", "oneOf",
+]);
+// Convert only schema positions: objects in const/enum/default/options.value are data.
+const standardSchema = (schema, label) => {
+  if (!isObject(schema)) return schema;
+  const result = { ...schema };
+  if (own(schema, "options")) {
+    if (own(schema, "enum")) fail(`${label} 的 options 和 enum 不能同时设置`);
+    if (!Array.isArray(schema.options) || !schema.options.length) fail(`${label} 的 options 至少需要一个选项`);
+    const seen = new Set();
+    for (const option of schema.options) {
+      keys(option, ["value", "label", "description"], `${label} 的选项`);
+      if (!own(option, "value") || typeof option.label !== "string" || !option.label.trim() ||
+        (option.description !== undefined && typeof option.description !== "string"))
+        fail(`${label} 的选项需要 value 和非空 label，description 必须是字符串`);
+      const key = JSON.stringify(option.value, (_key, value) => isObject(value)
+        ? Object.fromEntries(Object.keys(value).sort().map((key) => [key, value[key]])) : value);
+      if (seen.has(key)) fail(`${label} 的选项 value 不能重复`);
+      seen.add(key);
+    }
+    result.enum = schema.options.map((option) => option.value);
+    delete result.options;
+  }
+  for (const [key, value] of Object.entries(result)) {
+    if (schemaMaps.has(key) && isObject(value))
+      result[key] = Object.fromEntries(Object.entries(value).map(([name, child]) =>
+        [name, standardSchema(child, `${label}.${key}.${name}`)]));
+    else if (schemaChildren.has(key)) result[key] = Array.isArray(value)
+      ? value.map((child, index) => standardSchema(child, `${label}.${key}.${index}`))
+      : standardSchema(value, `${label}.${key}`);
+  }
+  return result;
+};
+
+/** Display and intent metadata; validation derives enum from options without changing saved JSON. */
+export function getSchemaOptions(schema) {
+  if (!isObject(schema)) return undefined;
+  if (Array.isArray(schema.options)) return schema.options;
+  if (Array.isArray(schema.enum)) return schema.enum.map((value) => ({
+    value, label: typeof value === "string" && value.trim() ? value : JSON.stringify(value),
+  }));
+  return undefined;
+}
 const checkSchema = (schema, label) => {
   if (schema === undefined) return;
   json(schema);
@@ -90,8 +138,9 @@ const checkSchema = (schema, label) => {
     Object.values(value).forEach(visit);
   };
   visit(schema);
+  const standard = standardSchema(schema, label);
   try {
-    compileSchema(schema);
+    compileSchema(standard);
   } catch {
     fail(`${label}不是有效的 JSON Schema`);
   }
@@ -99,7 +148,7 @@ const checkSchema = (schema, label) => {
 const matchesSchema = (schema, value, label) => {
   checkSchema(schema, label);
   if (schema === undefined) return;
-  const validate = compileSchema(schema);
+  const validate = compileSchema(standardSchema(schema, label));
   if (!validate(value)) {
     const error = validate.errors?.[0];
     fail(
@@ -212,16 +261,18 @@ const checkParameters = (parameters) => {
   )
     fail("参数名称不能重复，最多支持 100 个参数");
   for (const param of parameters) {
-    keys(param, ["name", "type", "default", "overridable", "schema", "askWhenMissing"], "参数");
+    keys(param, ["name", "type", "description", "default", "overridable", "schema", "askWhenMissing"], "参数");
     if (typeof param.name !== "string" || !/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(param.name) || forbidden.has(param.name))
       fail("参数名请使用字母、数字和下划线，且不能以数字开头");
     if (!MODEL_PARAMETER_TYPES.includes(param.type) || typeof param.overridable !== "boolean")
       fail("参数类型或覆盖开关无效");
+    if (param.description !== undefined && typeof param.description !== "string") fail(`参数 ${param.name} 的描述必须是字符串`);
     if (param.askWhenMissing !== undefined && typeof param.askWhenMissing !== "boolean") fail("缺少参数时询问开关无效");
     if (param.askWhenMissing && !param.overridable) fail(`参数 ${param.name} 需要允许覆盖才能询问用户`);
     checkSchema(param.schema, `参数 ${param.name} 的 Schema`);
-    if (param.askWhenMissing && isObject(param.schema) && Array.isArray(param.schema.enum))
-      for (const value of param.schema.enum) matchesSchema(parameterSchema(param), value, `参数 ${param.name} 选项`);
+    if (param.askWhenMissing)
+      for (const option of getSchemaOptions(param.schema) ?? [])
+        matchesSchema(parameterSchema(param), option.value, `参数 ${param.name} 选项`);
     if (own(param, "default")) {
       json(param.default);
       matchesSchema(parameterSchema(param), param.default, `参数 ${param.name} 默认值`);

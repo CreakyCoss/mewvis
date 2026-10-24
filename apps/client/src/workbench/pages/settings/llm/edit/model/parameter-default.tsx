@@ -26,6 +26,8 @@ export function ParameterDefault({
   const buffer = buffers.values[id];
   const control = getParameterDefaultControl(parameter);
   const summary = summarizeParameterSchema(parameter.schema);
+  const description = parameter.description?.trim() ?? "";
+  if (description && !summary.includes(description)) summary.unshift(description);
   const error =
     buffer?.error || (parameter.default === undefined ? "" : getParameterDefaultError(parameter, parameter.default));
   const raw = buffer?.raw ?? parameterDefaultInput(parameter);
@@ -64,8 +66,13 @@ export function ParameterDefault({
                     </NativeSelectOption>
                   )}
                   {control.options.map((option, index) => (
-                    <NativeSelectOption key={index} value={`option-${index}`} disabled={option.disabled}>
-                      {parameterValueText(option.value)}
+                    <NativeSelectOption
+                      key={index}
+                      value={`option-${index}`}
+                      disabled={option.disabled}
+                      title={option.description}
+                    >
+                      {option.label ?? parameterValueText(option.value)}
                     </NativeSelectOption>
                   ))}
                 </NativeSelect>

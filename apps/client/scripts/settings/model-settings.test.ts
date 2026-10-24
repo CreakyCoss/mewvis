@@ -34,8 +34,10 @@ import {
   resolveModelConnection,
   resolveModelParameters,
   getMissingModelParameters,
+  getModelParametersError,
+  getSchemaOptions,
 } from "@mewvis/chat-contracts/model-configuration";
-import type { ModelConfiguration, ModelPurpose } from "@mewvis/chat-contracts";
+import type { JsonValue, ModelConfiguration, ModelParameter, ModelPurpose } from "@mewvis/chat-contracts";
 import { editorPresets } from "../../src/workbench/pages/settings/llm/edit/presets";
 import { createEditorPresets } from "../../src/workbench/pages/settings/llm/edit/presets/resolve";
 import { commonPreset } from "../../src/workbench/pages/settings/llm/edit/presets/common";
@@ -420,6 +422,8 @@ test("speech templates configure independent audio generation and preserve it th
   for (const modelId of ["speech-2.8-hd", "speech-2.8-turbo"]) {
     const m = createModelConfig(p, { modelId: "deepseek-flash", modelName: "Chat with speech" });
     const speech = applyPurposeTemplate(p, m, createModelPurpose("speech"), `minimax-${modelId}`);
+    const voiceSchema = speech.parameters.find((parameter) => parameter.name === "voice_id")!.schema as { options: JsonValue[] };
+    voiceSchema.options.push({ value: "custom-voice", label: "用户音色" });
     assert.equal(speech.modelId, modelId);
     assert.deepEqual(speech.input, ["text"]);
     assert.deepEqual(speech.output, ["audio"]);
@@ -1500,7 +1504,7 @@ test("parameter JSON validates syntax, structure, names and policies before repl
     { name: "n" },
     { ...parameters[0], name: "quality" },
     { ...parameters[0], name: "__proto__" },
-    { ...parameters[0], description: "misplaced" },
+    { ...parameters[0], description: 123 },
     { ...parameters[0], askWhenMissing: "true" },
     { ...parameters[0], overridable: false, askWhenMissing: true },
     { ...parameters[0], schema: { minimum: "bad" } },
@@ -1713,4 +1717,141 @@ test("fallback defaults validate all schema rules without losing metadata or mis
     getParameterDefaultError({ ...text, schema: { allOf: [{ pattern: "^high$" }] } }, "medium").includes("pattern"),
     true,
   );
+});
+
+test("schema options keep labels in settings while enforcing values in defaults and generated requests", () => {
+  const purpose = imagePurpose();
+  const ratio = purpose.parameters.find((parameter) => parameter.name === "aspect_ratio")!;
+  ratio.askWhenMissing = true;
+  ratio.default = "16:9";
+  ratio.schema = {
+    description: "图片宽高比",
+    options: [
+      { value: "1:1", label: "方形" },
+      { value: "16:9", label: "横向宽屏", description: "适合横屏展示" },
+    ],
+  };
+  const before = structuredClone(purpose);
+  assert.equal(getModelConfigurationError(configuration([purpose])), "");
+  const parsed = parseParameterJson(JSON.stringify(ratio), purpose.parameters, 0);
+  assert.equal(parsed.error, "");
+  assert.deepEqual(parsed.parameter, ratio);
+  assert.deepEqual(getSchemaOptions(ratio.schema), ratio.schema.options);
+  assert.deepEqual(getParameterDefaultControl(ratio), {
+    type: "select",
+    options: [
+      { value: "1:1", label: "方形", disabled: false },
+      { value: "16:9", label: "横向宽屏", description: "适合横屏展示", disabled: false },
+    ],
+  });
+  assert.match(getParameterDefaultError(ratio, "横向宽屏"), /enum/);
+  assert.equal(resolveModelParameters(purpose, { aspect_ratio: "1:1" }).aspect_ratio, "1:1");
+  assert.throws(() => resolveModelParameters(purpose, { aspect_ratio: "9:16" }), /enum/);
+  const saved = normalizeLlmSettingsConfig(toLlmSettingsConfig({ providers: [provider({ provider: "minimax-cn", name: "MiniMax", apiEndpoint: "https://api.minimaxi.com", models: [model({ configuration: configuration([purpose]) })] })] }));
+  assert.equal(validateLlmSettingsConfig(saved), "");
+  assert.deepEqual(saved.providers[0].models[0].configuration!.purposes[0].parameters[0].schema, ratio.schema);
+  assert.deepEqual(purpose, before);
+  assert.equal(Object.hasOwn(ratio.schema, "enum"), false);
+  assert.deepEqual(summarizeParameterSchema(ratio.schema), ["图片宽高比", "可选值：方形（1:1）、横向宽屏（16:9）：适合横屏展示"]);
+});
+
+test("schema options reject malformed metadata, duplicate values and simultaneous enum", () => {
+  const parameter = { name: "choice", type: "string" as const, overridable: true };
+  const valid = { value: "a", label: "选项 A" };
+  for (const schema of [
+    { options: [] },
+    { options: "invalid" },
+    { options: [{ label: "无值" }] },
+    { options: [{ value: "a", label: " " }] },
+    { options: [{ ...valid, description: 1 }] },
+    { options: [{ ...valid, extra: true }] },
+    { options: [valid, { value: "a", label: "重复" }] },
+    { enum: ["a"], options: [valid] },
+  ]) assert.notEqual(getModelParametersError([{ ...parameter, schema }]), "", JSON.stringify(schema));
+  assert.match(getModelParametersError([{ ...parameter, schema: { enum: ["a"], options: [valid] } }]), /不能同时/);
+  assert.match(getModelParametersError([{
+    name: "choice", type: "object", overridable: true,
+    schema: { options: [{ value: { a: 1, b: 2 }, label: "A" }, { value: { b: 2, a: 1 }, label: "B" }] },
+  }]), /不能重复/);
+});
+
+test("schema options preserve false, zero, empty strings and object values without treating data as schemas", () => {
+  const cases: [ModelParameter["type"], JsonValue][] = [
+    ["boolean", false], ["integer", 0], ["string", ""],
+    ["object", { options: ["literal data"], enum: ["also data"] }],
+    ["array", [{ options: "data" }]],
+  ];
+  for (const [type, value] of cases) {
+    const parameter: ModelParameter = {
+      name: "value", type, default: value, overridable: true,
+      schema: { options: [{ value, label: "选项" }] },
+    };
+    const before = structuredClone(parameter);
+    assert.equal(getModelParametersError([parameter]), "", JSON.stringify(parameter));
+    const purpose = { ...imagePurpose(), parameters: [parameter] };
+    assert.deepEqual(resolveModelParameters(purpose).value, value);
+    assert.deepEqual(parameter, before);
+  }
+});
+
+test("schema options in local definitions and nested schema branches remain enforced", () => {
+  const parameter: ModelParameter = {
+    name: "settings", type: "object", overridable: true,
+    schema: {
+      $defs: { mode: { type: "string", options: [{ value: "a", label: "A" }, { value: "b", label: "B" }] } },
+      properties: { mode: { $ref: "#/$defs/mode" }, options: { type: "string" } },
+      required: ["mode"], additionalProperties: false,
+    },
+  };
+  const purpose = { ...imagePurpose(), parameters: [parameter] };
+  assert.equal(getModelParametersError([parameter]), "");
+  assert.deepEqual(resolveModelParameters(purpose, { settings: { mode: "a", options: "data" } }).settings, { mode: "a", options: "data" });
+  assert.throws(() => resolveModelParameters(purpose, { settings: { mode: "c" } }), /enum/);
+  const branch = { ...parameter, schema: { oneOf: [{ type: "object", properties: { mode: { options: [{ value: "a", label: "A" }] } }, required: ["mode"] }] } };
+  assert.throws(() => resolveModelParameters({ ...purpose, parameters: [branch] }, { settings: { mode: "b" } }), /enum/);
+});
+
+test("MiniMax media presets document parameters and provide official labeled voices and optional emotions", () => {
+  const minimax = editorPresets.getProvider("minimax-cn")!;
+  for (const entry of minimax.models) for (const template of entry.templates ?? [])
+    for (const parameter of template.purpose.parameters)
+      assert.equal(typeof parameter.description, "string", `${entry.modelId}/${parameter.name}`);
+  const purpose = editorPresets.instantiateTemplate("minimax-speech-2.8-hd", "speech");
+  const voice = purpose.parameters.find((parameter) => parameter.name === "voice_id")!;
+  const options = getSchemaOptions(voice.schema)!;
+  assert.equal(options.length, 58);
+  assert.match(options.find((option) => option.value === "male-qn-qingse")!.label, /男声.*青涩青年/);
+  assert.match(options.find((option) => option.value === "female-shaonv")!.label, /女声.*少女/);
+  const emotion = purpose.parameters.find((parameter) => parameter.name === "emotion")!;
+  assert.equal(Object.hasOwn(emotion, "default"), false);
+  const context = { apiEndpoint: "https://tts.example", auth: { apiKey: "test" }, model: { id: "speech-2.8-hd" }, input: { text: "你好" } };
+  const body = buildModelRequest(purpose, context).body as Record<string, JsonValue>;
+  assert.equal(Object.hasOwn(body.voice_setting as object, "emotion"), false);
+  const happy = buildModelRequest(purpose, context, { voice_id: "female-shaonv", emotion: "happy" }).body as Record<string, JsonValue>;
+  assert.equal((happy.voice_setting as Record<string, JsonValue>).emotion, "happy");
+  assert.throws(() => buildModelRequest(purpose, context, { emotion: "whisper" }), /enum/);
+});
+
+test("parameter description is independent from schema notes and survives editing and settings round trips", () => {
+  const purpose = imagePurpose();
+  const parameter = purpose.parameters[0];
+  parameter.description = "图片的宽高比，按用户要求选择";
+  parameter.schema = { enum: ["1:1", "16:9"], description: "仅允许正方形或横向宽屏" };
+  parameter.default = "16:9";
+  const before = structuredClone(parameter);
+  const result = parseParameterJson(JSON.stringify(parameter), purpose.parameters, 0);
+  assert.equal(result.error, "");
+  assert.equal(result.parameter!.description, parameter.description);
+  assert.deepEqual(result.parameter!.schema, parameter.schema);
+  const changed = withParameterDefault(parameter, "1:1");
+  assert.equal(changed.description, parameter.description);
+  assert.deepEqual(changed.schema, parameter.schema);
+  const saved = normalizeLlmSettingsConfig(toLlmSettingsConfig({ providers: [provider({
+    provider: "minimax-cn", apiEndpoint: "https://api.minimaxi.com",
+    models: [model({ configuration: configuration([purpose]) })],
+  })] }));
+  assert.equal(validateLlmSettingsConfig(saved), "");
+  assert.deepEqual(saved.providers[0].models[0].configuration!.purposes[0].parameters[0], before);
+  assert.deepEqual(parameter, before);
+  assert.match(getModelParametersError([{ ...parameter, description: 42 }]), /描述必须是字符串/);
 });

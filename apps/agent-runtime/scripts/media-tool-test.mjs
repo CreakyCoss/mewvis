@@ -312,6 +312,9 @@ test("speech can clarify from the catalog before generation and use an already e
   const voice = purpose.parameters.find((parameter) => parameter.name === "voice_id");
   voice.default = "female-shaonv";
   voice.askWhenMissing = true;
+  voice.description = "用户音色参数说明";
+  voice.schema.description = "仅允许配置的音色 ID";
+  voice.schema.options.find((option) => option.value === "male-qn-qingse").description = "用户配置的音色说明";
   f.model.configuration.purposes = [purpose];
   let workers = 0;
   const run = f.context.run;
@@ -326,12 +329,16 @@ test("speech can clarify from the catalog before generation and use an already e
     "speech-clarification",
     async (question) => {
       questions++;
-      assert.equal(question.input.type, "text");
-      assert.equal(question.input.options, undefined);
-      assert.equal(question.context, undefined);
+      assert.equal(question.input.type, "select");
+      const male = question.input.options.find((option) => JSON.parse(option.value) === "male-qn-qingse");
+      assert.match(male.label, /男声.*青涩青年/);
+      assert.equal(male.description, "用户配置的音色说明");
+      assert.match(question.context, /音色/);
+      assert.match(question.context, /用户音色参数说明/);
+      assert.match(question.context, /仅允许配置的音色 ID/);
       assert.equal(workers, 0);
       assert.equal(requests.length, 0);
-      return "user-provided-voice";
+      return male.value;
     },
   );
   const pi = api.createPiMediaTool(f.context);
@@ -343,11 +350,21 @@ test("speech can clarify from the catalog before generation and use an already e
   assert.equal(workers, 0);
   assert.equal(requests.length, 0);
   const entry = list.purposes[0];
+  assert.equal(entry.parameters.find((parameter) => parameter.name === "voice_id").description, "用户音色参数说明");
+  assert.match(pi.parameters.properties.parameters.properties.voice_id.description, /用户音色参数说明/);
+  assert.match(list.parameterFields.description, /用途/);
+  await assert.rejects(pi.execute("invalid-voice", {
+    action: "generate", purpose: "speech", input: { text: "Hello" }, parameters: { voice_id: "not-in-options" },
+  }), /enum/);
+  assert.equal(workers, 0);
+  assert.equal(requests.length, 0);
   assert.deepEqual(entry.requiredUserParameters, ["voice_id"]);
   assert.equal(Object.hasOwn(entry.callExample.parameters, "voice_id"), false);
   assert.equal(entry.parameters.find((parameter) => parameter.name === "voice_id").default, "female-shaonv");
   // Optional parameters also have templates, for an unclear user preference rather than a missing default.
-  assert.deepEqual(entry.questionTemplates.map((question) => question.parameter), ["voice_id", "speed", "vol", "pitch"]);
+  assert.deepEqual(entry.questionTemplates.map((question) => question.parameter), ["voice_id", "speed", "vol", "pitch", "emotion"]);
+  assert.match(list.parameterFields["schema.options"], /value/);
+  assert.match(list.parameterFields.askWhenMissing, /明确/);
   const template = entry.questionTemplates.find((question) => question.parameter === "voice_id");
   const askArguments = api.validateToolArguments(askTool, {
     type: "toolCall",
@@ -363,7 +380,7 @@ test("speech can clarify from the catalog before generation and use an already e
     arguments: {
       ...entry.callExample,
       input: { text: "Hello" },
-      parameters: { ...entry.callExample.parameters, voice_id: answer, speed: 1.2 },
+      parameters: { ...entry.callExample.parameters, voice_id: JSON.parse(answer), speed: 1.2 },
     },
   });
   const result = (await pi.execute("confirmed", confirmed)).details;
@@ -372,19 +389,19 @@ test("speech can clarify from the catalog before generation and use an already e
   assert.equal(workers, 1);
   assert.equal(requests.length, 2);
   const body = JSON.parse(requests[0].body);
-  assert.equal(body.voice_setting.voice_id, "user-provided-voice");
+  assert.equal(body.voice_setting.voice_id, "male-qn-qingse");
   assert.equal(body.voice_setting.speed, 1.2);
   // A value already provided in the user request can go straight to generate despite askWhenMissing.
   const explicit = (await pi.execute("explicit", {
     action: "generate",
     purpose: "speech",
     input: { text: "Already specified" },
-    parameters: { voice_id: "explicit-user-voice" },
+    parameters: { voice_id: "male-qn-jingying" },
   })).details;
   assert.equal(explicit.status, "completed", JSON.stringify(explicit));
   assert.equal(questions, 1);
   assert.equal(workers, 2);
-  assert.equal(JSON.parse(requests[2].body).voice_setting.voice_id, "explicit-user-voice");
+  assert.equal(JSON.parse(requests[2].body).voice_setting.voice_id, "male-qn-jingying");
 });
 
 test("speech presets list, submit and save playable audio paths through the existing media workflow", async (t) => {
@@ -405,6 +422,9 @@ test("speech presets list, submit and save playable audio paths through the exis
   );
   const purpose = structuredClone(preset.templates[0].purpose);
   purpose.modelId = preset.modelId;
+  purpose.parameters.find((parameter) => parameter.name === "voice_id").schema.options.push({
+    value: "custom-user-voice", label: "用户音色", description: "用户已配置的自定义音色",
+  });
   purpose.connection = {
     apiEndpoint: "https://tts.example",
     apiKey: "speech-secret",

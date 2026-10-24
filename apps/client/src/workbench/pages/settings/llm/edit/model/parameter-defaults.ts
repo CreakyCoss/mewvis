@@ -1,5 +1,5 @@
 import type { JsonValue, ModelParameter } from "@mewvis/chat-contracts";
-import { getModelParametersError } from "@mewvis/chat-contracts/model-configuration";
+import { getModelParametersError, getSchemaOptions } from "@mewvis/chat-contracts/model-configuration";
 
 export function withParameterDefault(parameter: ModelParameter, value: JsonValue | undefined): ModelParameter {
   const next = { ...parameter };
@@ -13,14 +13,15 @@ export function getParameterDefaultError(parameter: ModelParameter, value: JsonV
 }
 
 type DefaultControl =
-  | { type: "select"; options: { value: JsonValue; disabled: boolean }[] }
+  | { type: "select"; options: { value: JsonValue; label?: string; description?: string; disabled: boolean }[] }
   | { type: "number"; min?: number; max?: number; step: number | "any" }
   | { type: "text" };
 
 export function getParameterDefaultControl(parameter: ModelParameter): DefaultControl {
   const schema = parameter.schema && typeof parameter.schema === "object" ? parameter.schema : {};
-  const values = Array.isArray(schema.enum)
-    ? schema.enum
+  const choices = getSchemaOptions(schema);
+  const values = choices
+    ? choices.map((option) => option.value)
     : schema.const !== undefined
       ? [schema.const]
       : parameter.type === "boolean"
@@ -29,7 +30,11 @@ export function getParameterDefaultControl(parameter: ModelParameter): DefaultCo
   if (values)
     return {
       type: "select",
-      options: values.map((value) => ({ value, disabled: !!getParameterDefaultError(parameter, value) })),
+      options: values.map((value, index) => ({
+        ...(Array.isArray(schema.options) ? choices![index] : {}),
+        value,
+        disabled: !!getParameterDefaultError(parameter, value),
+      })),
     };
   if (parameter.type !== "integer" && parameter.type !== "number") return { type: "text" };
   const integer = parameter.type === "integer";

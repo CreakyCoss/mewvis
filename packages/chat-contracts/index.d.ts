@@ -36,6 +36,7 @@ export type {
   ModelConnection,
   ModelPurpose,
   ModelParameter,
+  ModelSchemaOption,
   ModelRequest,
   ModelResponse,
   ModelOutputRule,

@@ -34,7 +34,7 @@ export const MEDIA_TOOL_DEFINITION = {
   label: "生成媒体",
   description: [
     "Generate images, edit images, generate videos or synthesize speech using the selected model configuration. Workflow: first call action=list with only an optional purpose filter. This returns configuration, not a decision that user parameters are complete. Read the purpose modelId, inputSchema, parameters, requiredUserParameters, questionTemplates and conditional nextSteps.",
-    "Before generation, compare the CURRENT user request with those constraints. Reuse values the user already clearly supplied; never ask for them again. askWhenMissing=true requires an explicit value from the request or an ask_user answer, even when a default exists. A preference such as male voice is not a voice_id unless the returned configuration establishes the mapping. If a requested value or its mapping is unclear, call ask_user BEFORE generate, even when askWhenMissing=false. Use defaults only for unspecified non-asking parameters with no conflicting user preference.",
+    "Before generation, compare the CURRENT user request with those constraints. Read parameter.description for its business meaning, schema.description for value constraints, and schema.options labels/descriptions to interpret the user's intent; only option.value is sent to the provider. schema.enum is the equivalent raw allowed-value list. Reuse values the user already clearly supplied; never ask for them again. askWhenMissing=true requires an explicit or reliably mapped value from the request or an ask_user answer, even when a default exists. A preference such as male voice is not a voice_id unless the returned configuration establishes the mapping. If a requested value or its mapping is unclear, call ask_user BEFORE generate, even when askWhenMissing=false. Use defaults only for unspecified non-asking parameters with no conflicting user preference.",
     "Use the relevant questionTemplates question/context/input to call ask_user, adapting the wording to the user. Templates are possible questions, not a list of missing values. Ask only unresolved items; never invent options. Decode JSON-encoded select answers, or parse text according to valueType/schema, and put the confirmed values in parameters. If the user cancels, stop generation.",
     "Do not use Bash, file/source/history searches or repeated list calls to discover or guess missing parameter identifiers. Ask the user instead. Do not submit generate merely to find out what to ask.",
     "Once values are resolved, call action=generate with the configured purpose. Put content in input and adjustable values in the top-level parameters object. Replace callExample input placeholders and preserve user choices instead of copying example defaults. Never construct supplier HTTP bodies. The tool selects the actual model, renders the saved template, polls tasks and saves files.",
@@ -159,7 +159,15 @@ function overrideParameters(
       const variants =
         parameters.get(parameter.name) ??
         new Map<string, ToolParameterDefinition>();
-      const description = `Override ${parameter.name}; follow the selected purpose's list result for allowed values.`;
+      const previous = variants.get(parameter.type);
+      const description = [
+        previous && "description" in previous
+          ? previous.description
+          : undefined,
+        `${purpose.type}: ${(parameter.description?.trim() ?? "") || `Override ${parameter.name}`}. Follow this purpose's list result for allowed values.`,
+      ]
+        .filter(Boolean)
+        .join("\n");
       variants.set(
         parameter.type,
         parameter.type === "object"
@@ -361,6 +369,23 @@ export function createMediaTool(context: MediaToolContext) {
           {
             status: "configuration",
             selectedModelId: model.modelId,
+            parameterFields: {
+              name: "传入 parameters 时使用的字段名。",
+              type: "实际 JSON 数据类型，不能把数字、布尔值转换为字符串。",
+              description:
+                "参数本身的业务用途与意图匹配依据，优先用于理解用户要求。",
+              "schema.description": "取值结构与约束的补充说明。",
+              "schema.options":
+                "带说明的允许值列表。根据 label、description 匹配用户意图，只提交 value；不提交标签或选项对象。",
+              "schema.enum":
+                "允许值列表，与 options 二选一；其他 Schema 条件仍需同时满足。",
+              default:
+                "未指定且 askWhenMissing=false 时可使用；askWhenMissing=true 时仅作为询问的推荐值，不能代替用户选择。",
+              askWhenMissing:
+                "true 表示需要从用户要求或回答中得到明确值；已有明确值或可从选项说明可靠匹配时无需重复询问。无论开关如何，无法确定符合用户要求的有效值时都先询问。",
+              overridable:
+                "true 才允许通过 parameters 提供值；false 的配置值由工具使用，模型不得覆盖。",
+            },
             message:
               "仅返回配置，尚未判断用户参数是否完整，也未提交生成。请先结合用户原话核对所选用途的 inputSchema、parameters 和 requiredUserParameters：已明确且符合约束的值直接使用，不要重复询问；尚未明确的询问参数，或无法可靠映射为有效值的用户偏好，必须先调用 ask_user。questionTemplates 仅供需要时提问，不代表其中每个参数都缺失。不要反复 list，也不要通过 Bash、文件、源码或历史会话搜索来猜测参数 ID。实际型号见各用途的 modelId，HTTP 请求体由工具按已保存模板渲染。",
             nextSteps: [

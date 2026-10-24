@@ -40,6 +40,10 @@ const provider = (extra = {}) => ({
 test("model purpose configuration persists across restart and invalid templates leave saved settings intact", async (t) => {
   const s = await setup(t);
   const configuration = structuredClone(modelConfigurationFixture);
+  const parameter = configuration.purposes[0].parameters[0];
+  parameter.description = "用户填写的参数用途说明";
+  parameter.schema.options = parameter.schema.enum.map((value) => ({ value, label: `比例 ${value}`, description: "用户填写的选项说明" }));
+  delete parameter.schema.enum;
   const saved = await s.invoke("save_llm_settings", {
     input: { providers: [provider({ models: [model({ configuration })] })] },
   });
@@ -48,6 +52,8 @@ test("model purpose configuration persists across restart and invalid templates 
   assert.deepEqual(await s.invoke("get_llm_settings"), saved);
   for (const mutate of [
     (c) => (c.purposes[0].parameters[2].default = 10),
+    (c) => (c.purposes[0].parameters[0].description = 42),
+    (c) => (c.purposes[0].parameters[0].schema.options = []),
     (c) => (c.purposes[0].request.body.prompt = "{{params.unknown}}"),
     (c) => (c.purposes[0].inputSchema = { $ref: "https://example.com/schema" }),
     (c) => c.purposes.push(structuredClone(c.purposes[0])),
