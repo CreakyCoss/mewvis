@@ -37,7 +37,6 @@ import { ParametersEditor } from "./model/parameters";
 import { ResponseEditor } from "./model/response";
 import { CallPreview } from "./model/preview";
 import { ChatParameters } from "./model/chat";
-import { PurposeConnection } from "./model/connection";
 import { PurposeCapabilities } from "./model/capabilities";
 import { ConfirmDelete } from "./confirm-delete";
 import { editorPresets } from "./presets";
@@ -231,23 +230,14 @@ function ModelEditor({
                 </TabsTrigger>
               ))}
             </TabsList>
-            <TabsContent value="request" className="space-y-5 pt-4">
-              <PurposeConnection
-                key={`${selected.type}-${selected.preset?.id}`}
+            <TabsContent value="request" className="pt-4">
+              <RequestEditor
+                key={selected.type}
                 provider={provider}
                 model={draft}
                 purpose={selected}
                 onChange={updatePurpose}
               />
-              <div className="border-t border-border/70 pt-4">
-                <RequestEditor
-                  key={selected.type}
-                  provider={provider}
-                  model={draft}
-                  purpose={selected}
-                  onChange={updatePurpose}
-                />
-              </div>
             </TabsContent>
             <TabsContent value="parameters" className="pt-4">
               {selected.adapter === "native" ? (
