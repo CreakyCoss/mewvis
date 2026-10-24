@@ -1,4 +1,4 @@
-import { useImperativeHandle, useRef, useState, type Ref } from "react";
+import { useImperativeHandle, useLayoutEffect, useRef, useState, type Ref } from "react";
 import { Download, Eye, EyeOff, Loader2, Plus, Save, ServerCog, Zap } from "lucide-react";
 import {
   getModelThinking,
@@ -38,6 +38,8 @@ import {
   cloneProviderConfig,
   appendDiscoveredModels,
   createProviderConfig,
+  duplicateProviderModel,
+  moveProviderModel,
   normalizeLlmSettingsConfig,
   normalizeProvidersForSave,
   toLlmSettingsConfig,
@@ -47,8 +49,10 @@ import {
 } from "./utils";
 
 import { ModelEditDialog } from "./model";
+import { ModelActions } from "./model-actions";
 import { DiscoverModelsDialog } from "./discover-models";
 import { ProviderSelector } from "./provider-selector";
+import { useModelDiscovery } from "./use-model-discovery";
 
 type ProviderEditMode = "create" | "edit";
 
@@ -75,10 +79,18 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
   const [connectionTest, setConnectionTest] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const connectionTestRun = useRef(0);
   const modelFocusTarget = useRef<string | null>(null);
+  const modelMoveFocusTarget = useRef<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isApiKeyVisible, setIsApiKeyVisible] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [error, setError] = useState("");
+  const modelDiscovery = useModelDiscovery(open ? providerDraft : null);
+
+  useLayoutEffect(() => {
+    if (!modelMoveFocusTarget.current) return;
+    document.getElementById(modelMoveFocusTarget.current)?.focus();
+    modelMoveFocusTarget.current = null;
+  }, [providerDraft]);
 
   const clearConnectionTest = () => {
     connectionTestRun.current += 1;
@@ -92,6 +104,7 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
     setIsDiscoveryOpen(false);
     clearConnectionTest();
     modelFocusTarget.current = null;
+    modelMoveFocusTarget.current = null;
     setIsApiKeyVisible(false);
     setIsDeleteConfirmOpen(false);
   };
@@ -271,7 +284,7 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
       <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent
           aria-describedby={undefined}
-          className={`!flex max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] flex-col gap-0 overflow-hidden border-border/70 bg-popover p-0 shadow-[var(--shadow-floating)] sm:max-w-[960px] [&>[data-slot=dialog-close]]:top-2.5 ${modelEditor ? "invisible" : ""}`}
+          className="!flex max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] flex-col gap-0 overflow-hidden border-border/70 bg-popover p-0 shadow-[var(--shadow-floating)] sm:max-w-[960px] [&>[data-slot=dialog-close]]:top-2.5"
           onOpenAutoFocus={(event) => {
             if (!modelFocusTarget.current) return;
             const target = document.getElementById(modelFocusTarget.current);
@@ -429,7 +442,6 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
                       />
                     </div>
                   </div>
-
                 </section>
 
                 <section className="border-t border-border/70 px-6 py-5" aria-labelledby="llm-models-heading">
@@ -446,6 +458,7 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
                         className="h-9 gap-1.5 bg-transparent px-3 shadow-none"
                         onClick={(event) => {
                           modelFocusTarget.current = event.currentTarget.id;
+                          modelDiscovery.load(true);
                           setIsDiscoveryOpen(true);
                         }}
                       >
@@ -459,6 +472,7 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
                         className="h-9 gap-1.5 bg-primary/10 px-3 text-primary hover:bg-primary/15"
                         onClick={(event) => {
                           modelFocusTarget.current = event.currentTarget.id;
+                          modelDiscovery.load();
                           setModelEditor({});
                         }}
                       >
@@ -472,7 +486,7 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
                     <table className="w-full table-fixed text-left text-sm" aria-labelledby="llm-models-heading">
                       <thead className="border-b border-border/70 bg-muted/30 text-xs text-muted-foreground">
                         <tr>
-                          <th scope="col" className="px-3 py-2.5 font-normal md:w-[30%]">
+                          <th scope="col" className="px-3 py-2.5 font-normal md:w-[24%]">
                             模型
                           </th>
                           <th scope="col" className="hidden px-3 py-2.5 font-normal md:table-cell">
@@ -481,16 +495,16 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
                           <th scope="col" className="hidden w-20 px-3 py-2.5 font-normal sm:table-cell lg:w-24">
                             上下文
                           </th>
-                          <th scope="col" className="w-24 px-2 py-2.5 font-normal sm:w-32 sm:px-3 lg:w-36">
+                          <th scope="col" className="hidden px-3 py-2.5 font-normal sm:table-cell sm:w-28">
                             思考等级
                           </th>
-                          <th scope="col" className="w-14 px-2 py-2.5 font-normal sm:w-16 sm:px-3">
-                            操作
+                          <th scope="col" className="w-44 px-2 py-2.5 font-normal sm:px-3">
+                            <span className="pl-[7px]">操作</span>
                           </th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border/60">
-                        {providerDraft.models.map((model) => {
+                        {providerDraft.models.map((model, index) => {
                           const thinking = getModelThinking(providerDraft, model);
                           const defaultLevel = thinking?.levels.find((level) => level.value === thinking.defaultLevel);
                           const capabilities = getModelCapabilities(providerDraft, model);
@@ -507,8 +521,7 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
                                           option.value,
                                         ) &&
                                         model.configuration?.purposes.some(
-                                          (purpose) =>
-                                            purpose.type === option.value && purpose.adapter === "http-json",
+                                          (purpose) => purpose.type === option.value && purpose.adapter === "http-json",
                                         )
                                       ? "（工具调用）"
                                       : "（待接入）"}
@@ -544,7 +557,7 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
                                   ? formatContextWindow(getModelLimits(providerDraft, model).contextWindow)
                                   : "—"}
                               </td>
-                              <td className="px-2 py-3 text-xs sm:px-3">
+                              <td className="hidden px-3 py-3 text-xs sm:table-cell">
                                 {thinking?.levels.length ? (
                                   <>
                                     <p
@@ -572,24 +585,56 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
                                 )}
                               </td>
                               <td className="px-2 py-3 sm:px-3">
-                                <Button
-                                  id={`llm-model-${model.id}`}
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-auto min-w-0 rounded-none p-0 text-primary hover:bg-transparent"
-                                  aria-label={`编辑模型 ${model.modelName || model.modelId || "未命名模型"}`}
-                                  onClick={(event) => {
-                                    modelFocusTarget.current = event.currentTarget.id;
+                                <ModelActions
+                                  model={model}
+                                  index={index}
+                                  count={providerDraft.models.length}
+                                  disabled={isSaving}
+                                  onEdit={() => {
+                                    modelFocusTarget.current = `llm-model-${model.id}`;
+                                    modelDiscovery.load();
                                     setModelEditor({ model });
                                   }}
-                                >
-                                  编辑
-                                </Button>
+                                  onDuplicate={() =>
+                                    updateProviderDraft((current) => duplicateProviderModel(current, model.id))
+                                  }
+                                  onMove={(direction) => {
+                                    const target = index + direction;
+                                    let action = direction === -1 ? "up" : "down";
+                                    if (target === 0) action = "down";
+                                    else if (target === providerDraft.models.length - 1) action = "up";
+                                    modelMoveFocusTarget.current = `llm-model-${model.id}-${action}`;
+                                    updateProviderDraft((current) => moveProviderModel(current, model.id, direction));
+                                  }}
+                                  onDelete={() => {
+                                    modelFocusTarget.current = providerDraft.models[index + 1]
+                                      ? `llm-model-${providerDraft.models[index + 1].id}`
+                                      : providerDraft.models[index - 1]
+                                        ? `llm-model-${providerDraft.models[index - 1].id}`
+                                        : "llm-add-model";
+                                    updateProviderDraft((current) => ({
+                                      ...current,
+                                      models: current.models.filter((item) => item.id !== model.id),
+                                    }));
+                                  }}
+                                  onDeleteCloseAutoFocus={(event) => {
+                                    if (!modelFocusTarget.current) return;
+                                    event.preventDefault();
+                                    document.getElementById(modelFocusTarget.current)?.focus();
+                                    modelFocusTarget.current = null;
+                                  }}
+                                />
                               </td>
                             </tr>
                           );
                         })}
+                        {providerDraft.models.length === 0 && (
+                          <tr>
+                            <td colSpan={5} className="px-4 py-8 text-center text-xs text-muted-foreground">
+                              暂无模型，点击“新增模型”或“获取模型”添加。
+                            </td>
+                          </tr>
+                        )}
                       </tbody>
                     </table>
                   </div>
@@ -613,7 +658,10 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
                         updateProviderDraft((current) => ({ ...current, isDefault: true }));
                       }}
                     />
-                    <Label htmlFor="llm-default-provider" className="cursor-pointer text-xs font-normal text-muted-foreground">
+                    <Label
+                      htmlFor="llm-default-provider"
+                      className="cursor-pointer text-xs font-normal text-muted-foreground"
+                    >
                       设为默认 Provider
                     </Label>
                   </div>
@@ -640,6 +688,8 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
       {open && providerDraft && isDiscoveryOpen && (
         <DiscoverModelsDialog
           provider={providerDraft}
+          discovery={modelDiscovery}
+          onReload={() => modelDiscovery.load(true)}
           onClose={() => setIsDiscoveryOpen(false)}
           onConfirm={(models) => {
             updateProviderDraft((current) => appendDiscoveredModels(current, models));
@@ -652,6 +702,8 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
         <ModelEditDialog
           provider={providerDraft}
           model={modelEditor.model}
+          discovery={modelDiscovery}
+          onReloadModels={() => modelDiscovery.load(true)}
           onClose={() => setModelEditor(null)}
           onCloseAutoFocus={(event) => {
             event.preventDefault();
@@ -668,18 +720,6 @@ export const ProviderEditDialog = ({ bind, providers, onSaved }: ProviderEditDia
             }));
             setModelEditor(null);
           }}
-          onDelete={
-            modelEditor.model
-              ? () => {
-                  modelFocusTarget.current = "llm-add-model";
-                  updateProviderDraft((current) => ({
-                    ...current,
-                    models: current.models.filter((item) => item.id !== modelEditor.model?.id),
-                  }));
-                  setModelEditor(null);
-                }
-              : undefined
-          }
         />
       )}
 

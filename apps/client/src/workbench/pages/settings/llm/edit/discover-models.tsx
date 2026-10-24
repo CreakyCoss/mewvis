@@ -1,7 +1,6 @@
-import { useEffect, useId, useState } from "react";
+import { useId, useState } from "react";
 import { Download, Loader2, RefreshCw } from "lucide-react";
 import type { LlmProviderConfig } from "@/agent-client/runtime-model";
-import { discoverProviderModels } from "@/api/llm";
 import type { DiscoveredProviderModel } from "@mewvis/chat-contracts";
 import { Button } from "design-system/components/ui/button";
 import { Checkbox } from "design-system/components/ui/checkbox";
@@ -16,6 +15,7 @@ import {
 import { Input } from "design-system/components/ui/input";
 import { Label } from "design-system/components/ui/label";
 import { formatContextWindow, MODEL_MODALITY_OPTIONS } from "../options";
+import type { ModelDiscoveryState } from "./use-model-discovery";
 
 const metadataSummary = (model: DiscoveredProviderModel) => {
   const details: string[] = [];
@@ -38,38 +38,23 @@ const metadataSummary = (model: DiscoveredProviderModel) => {
 
 type DiscoverModelsDialogProps = {
   provider: LlmProviderConfig;
+  discovery: ModelDiscoveryState;
+  onReload: () => void;
   onConfirm: (models: DiscoveredProviderModel[]) => void;
   onClose: () => void;
 };
 
-export const DiscoverModelsDialog = ({ provider, onConfirm, onClose }: DiscoverModelsDialogProps) => {
+export const DiscoverModelsDialog = ({
+  provider,
+  discovery,
+  onReload,
+  onConfirm,
+  onClose,
+}: DiscoverModelsDialogProps) => {
   const id = useId();
-  const [models, setModels] = useState<DiscoveredProviderModel[]>([]);
+  const { models, isLoading, error } = discovery;
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const [query, setQuery] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [attempt, setAttempt] = useState(0);
-  const { apiFormat, apiEndpoint, apiKey } = provider;
-
-  useEffect(() => {
-    const controller = new AbortController();
-    setIsLoading(true);
-    setError("");
-    setModels([]);
-    setSelected(new Set());
-    void discoverProviderModels({ apiFormat, apiEndpoint, apiKey }, controller.signal)
-      .then(({ models: discovered }) => {
-        if (!controller.signal.aborted) setModels(discovered);
-      })
-      .catch((caught: unknown) => {
-        if (!controller.signal.aborted) setError(caught instanceof Error ? caught.message : String(caught));
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setIsLoading(false);
-      });
-    return () => controller.abort();
-  }, [apiFormat, apiEndpoint, apiKey, attempt]);
 
   const existing = new Set(provider.models.map((model) => model.modelId.trim()));
   const search = query.trim().toLowerCase();
@@ -107,7 +92,7 @@ export const DiscoverModelsDialog = ({ provider, onConfirm, onClose }: DiscoverM
               >
                 {error}
               </p>
-              <Button type="button" variant="outline" onClick={() => setAttempt((current) => current + 1)}>
+              <Button type="button" variant="outline" onClick={onReload}>
                 <RefreshCw className="size-4" />
                 重新获取
               </Button>

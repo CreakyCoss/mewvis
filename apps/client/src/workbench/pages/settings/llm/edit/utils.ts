@@ -33,6 +33,34 @@ export const createModelConfig = (
   return model;
 };
 
+export const duplicateProviderModel = (provider: LlmProviderConfig, modelId: string): LlmProviderConfig => {
+  const index = provider.models.findIndex((model) => model.id === modelId);
+  if (index < 0) return provider;
+  const source = provider.models[index];
+  const name = source.modelName.trim() || source.modelId.trim() || "未命名模型";
+  const names = new Set(provider.models.map((model) => model.modelName.trim()));
+  let suffix = 1;
+  let modelName = `${name}（副本）`;
+  while (names.has(modelName)) modelName = `${name}（副本 ${++suffix}）`;
+  const copy = { ...cloneDeep(source), id: createUuid(), modelName };
+  const models = [...provider.models];
+  models.splice(index + 1, 0, copy);
+  return { ...provider, models };
+};
+
+export const moveProviderModel = (
+  provider: LlmProviderConfig,
+  modelId: string,
+  direction: -1 | 1,
+): LlmProviderConfig => {
+  const index = provider.models.findIndex((model) => model.id === modelId);
+  const target = index + direction;
+  if (index < 0 || target < 0 || target >= provider.models.length) return provider;
+  const models = [...provider.models];
+  [models[index], models[target]] = [models[target], models[index]];
+  return { ...provider, models };
+};
+
 export const initializeModelPreset = (
   provider: Pick<LlmProviderConfig, "provider" | "apiFormat">,
   model: ProviderModelConfig,

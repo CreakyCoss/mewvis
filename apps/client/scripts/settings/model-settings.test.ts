@@ -17,6 +17,8 @@ import {
   validateLlmSettingsConfig,
   createModelConfig,
   createProviderConfig,
+  duplicateProviderModel,
+  moveProviderModel,
   initializeModelPreset,
   applyProviderDefaults,
   appendDiscoveredModels,
@@ -87,6 +89,57 @@ test("editor owns connection and model suggestions without a built-in model list
   const changed = applyProviderDefaults(p, "deepseek");
   assert.deepEqual(changed.models, p.models);
   assert.equal(changed.apiEndpoint, "https://api.deepseek.com");
+});
+
+test("copying a provider model keeps independent settings and inserts a uniquely named copy after it", () => {
+  const draft = toLlmSettingsConfig({ providers: [provider({ models: [model(), model({ id: "next" })] })] })
+    .providers[0];
+  const source = draft.models[0];
+  source.configuration = initialModelConfiguration(draft, source);
+  source.limits = { contextWindow: 64000, maxTokens: 4000 };
+  source.thinking = { levels: [{ value: "high", label: "High" }], defaultLevel: "high" };
+  const before = structuredClone(draft);
+  const duplicated = duplicateProviderModel(draft, source.id);
+  const copy = duplicated.models[1];
+  assert.deepEqual(draft, before);
+  assert.equal(duplicated.models[0], source);
+  assert.equal(duplicated.models[2], draft.models[1]);
+  assert.notEqual(copy.id, source.id);
+  assert.deepEqual(copy, { ...source, id: copy.id, modelName: "Flash（副本）" });
+  copy.configuration!.purposes[0].input.push("image");
+  copy.limits!.maxTokens = 2000;
+  copy.thinking!.levels[0].label = "Changed";
+  assert.deepEqual(source, before.models[0]);
+  const repeated = duplicateProviderModel(duplicated, source.id);
+  assert.equal(repeated.models[1].modelName, "Flash（副本 2）");
+  assert.notEqual(repeated.models[1].id, copy.id);
+  assert.equal(validateLlmSettingsConfig(normalizeLlmSettingsConfig({ providers: [repeated] })), "");
+  assert.equal(duplicateProviderModel(draft, "missing"), draft);
+});
+
+test("moving provider models preserves identities and saved order and stops at the boundaries", () => {
+  const draft = toLlmSettingsConfig({
+    providers: [provider({ models: [model(), model({ id: "second" }), model({ id: "third" })] })],
+  }).providers[0];
+  const moved = moveProviderModel(draft, "second", -1);
+  assert.deepEqual(
+    draft.models.map((item) => item.id),
+    ["m", "second", "third"],
+  );
+  assert.deepEqual(
+    moved.models.map((item) => item.id),
+    ["second", "m", "third"],
+  );
+  assert.equal(moved.models[0], draft.models[1]);
+  assert.deepEqual(
+    normalizeLlmSettingsConfig({ providers: [moved] }).providers[0].models.map((item) => item.id),
+    ["second", "m", "third"],
+  );
+  assert.deepEqual(moveProviderModel(moved, "second", 1).models, draft.models);
+  assert.equal(moveProviderModel(moved, "second", -1), moved);
+  assert.equal(moveProviderModel(draft, "third", 1), draft);
+  assert.equal(moveProviderModel(draft, "missing", 1), draft);
+  assert.deepEqual(moveProviderModel({ ...draft, models: [] }, "m", -1).models, []);
 });
 
 test("submitted capabilities reach runtime and missing values use generic fallbacks", () => {

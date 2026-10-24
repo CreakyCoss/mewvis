@@ -6,11 +6,13 @@ export function ConfirmDelete({
   title,
   description,
   onConfirm,
+  onCloseAutoFocus,
   children,
 }: {
   title: string;
   description: string;
   onConfirm: () => void;
+  onCloseAutoFocus?: (event: Event) => void;
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
@@ -26,6 +28,7 @@ export function ConfirmDelete({
         className="z-90 w-72 max-w-[calc(100vw-2rem)] gap-3 rounded-lg p-3"
         aria-labelledby={`${id}-title`}
         aria-describedby={`${id}-description`}
+        onCloseAutoFocus={onCloseAutoFocus}
       >
         <div className="space-y-1">
           <h4 id={`${id}-title`} className="text-xs font-medium">

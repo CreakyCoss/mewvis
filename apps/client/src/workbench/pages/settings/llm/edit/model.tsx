@@ -41,14 +41,17 @@ import { PurposeConnection } from "./model/connection";
 import { PurposeCapabilities } from "./model/capabilities";
 import { ConfirmDelete } from "./confirm-delete";
 import { editorPresets } from "./presets";
+import { ModelIdSelector } from "./model-id-selector";
+import type { ModelDiscoveryState } from "./use-model-discovery";
 
 type ModelEditDialogProps = {
   provider: LlmProviderConfig;
   model?: ProviderModelConfig;
+  discovery: ModelDiscoveryState;
+  onReloadModels: () => void;
   onConfirm: (model: ProviderModelConfig) => void;
   onClose: () => void;
   onCloseAutoFocus?: (event: Event) => void;
-  onDelete?: () => void;
 };
 
 function ModelEditor({
@@ -56,11 +59,15 @@ function ModelEditor({
   draft,
   setDraft,
   isNew,
+  discovery,
+  onReloadModels,
 }: {
   provider: LlmProviderConfig;
   draft: ProviderModelConfig;
   setDraft: Dispatch<SetStateAction<ProviderModelConfig>>;
   isNew: boolean;
+  discovery: ModelDiscoveryState;
+  onReloadModels: () => void;
 }) {
   const configuration = draft.configuration!;
   const [selectedType, setSelectedType] = useState(configuration.purposes[0]?.type ?? "chat");
@@ -68,8 +75,8 @@ function ModelEditor({
   const [tab, setTab] = useState("request");
   const buffers = useEditorBuffers();
   const initializedModelId = useRef(draft.modelId.trim());
-  const commitModelId = () => {
-    const modelId = draft.modelId.trim();
+  const commitModelId = (value = draft.modelId) => {
+    const modelId = value.trim();
     if (!isNew || initializedModelId.current === modelId || !editorPresets.getModel(provider.provider, modelId))
       return false;
     initializedModelId.current = modelId;
@@ -92,17 +99,19 @@ function ModelEditor({
           <Label htmlFor={`${draft.id}-model-id`} className="text-xs">
             模型 ID
           </Label>
-          <Input
+          <ModelIdSelector
             id={`${draft.id}-model-id`}
-            required
-            className="h-8 font-mono"
-            placeholder="输入模型 ID，也可在供应商页面获取模型"
             value={draft.modelId}
-            onChange={(event) => {
-              const value = event.currentTarget.value;
+            discovery={discovery}
+            onReload={onReloadModels}
+            onValueChange={(value) => {
               setDraft((current) => applyModelDefaults(current, provider.provider, value));
             }}
-            onBlur={commitModelId}
+            onSelect={(value) => {
+              setDraft((current) => applyModelDefaults(current, provider.provider, value));
+              commitModelId(value);
+            }}
+            onBlur={() => commitModelId()}
             onKeyDown={(event) => {
               if (event.key === "Enter" && !event.nativeEvent.isComposing && commitModelId()) event.preventDefault();
             }}
@@ -270,10 +279,11 @@ function ModelEditor({
 export const ModelEditDialog = ({
   provider,
   model,
+  discovery,
+  onReloadModels,
   onConfirm,
   onClose,
   onCloseAutoFocus,
-  onDelete,
 }: ModelEditDialogProps) => {
   const [draft, setDraft] = useState<ProviderModelConfig>(() => {
     const current = model ? structuredClone(model) : createModelConfig(provider);
@@ -342,7 +352,14 @@ export const ModelEditDialog = ({
         >
           <div className="min-h-0 overflow-y-auto px-5 pt-4 pb-4 sm:px-6">
             <EditorBuffers onError={setJsonError}>
-              <ModelEditor provider={provider} draft={draft} setDraft={setDraft} isNew={!model} />
+              <ModelEditor
+                provider={provider}
+                draft={draft}
+                setDraft={setDraft}
+                isNew={!model}
+                discovery={discovery}
+                onReloadModels={onReloadModels}
+              />
             </EditorBuffers>
           </div>
           <div className="shrink-0 border-t border-border/70 bg-muted/10 px-5 py-3.5 sm:px-6">
@@ -353,25 +370,7 @@ export const ModelEditDialog = ({
             )}
             <DialogFooter className="flex-row items-center justify-between sm:justify-between">
               <div className="min-w-0">
-                {model && onDelete ? (
-                  <ConfirmDelete
-                    title={`删除“${model.modelName || model.modelId}”？`}
-                    description="此模型及其全部用途配置将从供应商中移除，更改随供应商配置保存。"
-                    onConfirm={onDelete}
-                  >
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 px-0 text-xs text-muted-foreground hover:bg-transparent hover:text-destructive"
-                    >
-                      <Trash2 className="size-3.5" />
-                      删除模型
-                    </Button>
-                  </ConfirmDelete>
-                ) : (
-                  <span className="hidden text-[11px] text-muted-foreground sm:block">更改随供应商配置保存</span>
-                )}
+                <span className="hidden text-[11px] text-muted-foreground sm:block">更改随供应商配置保存</span>
               </div>
               <div className="flex shrink-0 items-center gap-2">
                 <Button type="button" variant="outline" className="h-8 min-w-18 text-xs shadow-none" onClick={onClose}>
