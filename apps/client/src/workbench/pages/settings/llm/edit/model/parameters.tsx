@@ -46,11 +46,12 @@ export function ParametersEditor({
         </Button>
       </div>
       <div className="overflow-hidden rounded-lg border border-border/70">
-        <div className="hidden grid-cols-[minmax(0,1.1fr)_6.5rem_minmax(0,1fr)_4rem_4rem] gap-3 border-b border-border/60 bg-muted/25 px-3 py-2 text-[11px] text-muted-foreground sm:grid">
+        <div className="hidden grid-cols-[minmax(0,1fr)_6.5rem_minmax(0,1.1fr)_3.5rem_7.5rem_4rem] gap-3 border-b border-border/60 bg-muted/25 px-3 py-2 text-[11px] text-muted-foreground sm:grid">
           <span>参数名</span>
           <span>类型</span>
           <span>默认值</span>
           <span>可覆盖</span>
+          <span>缺少时</span>
           <span className="pl-[7px]">操作</span>
         </div>
         {purpose.parameters.length === 0 && (
@@ -61,7 +62,7 @@ export function ParametersEditor({
         {purpose.parameters.map((param, index) => (
           <div
             key={index}
-            className="grid grid-cols-[minmax(0,1fr)_5rem_4rem] items-center gap-2 border-b border-border/50 px-3 py-2 last:border-b-0 sm:grid-cols-[minmax(0,1.1fr)_6.5rem_minmax(0,1fr)_4rem_4rem] sm:gap-3"
+            className="grid grid-cols-[minmax(0,1fr)_6.5rem_4rem] items-center gap-2 border-b border-border/50 px-3 py-2 last:border-b-0 sm:grid-cols-[minmax(0,1fr)_6.5rem_minmax(0,1.1fr)_3.5rem_7.5rem_4rem] sm:gap-3"
           >
             <Input
               autoFocus={param.name.startsWith("parameter_") && index === purpose.parameters.length - 1}
@@ -98,6 +99,22 @@ export function ParametersEditor({
                 }}
               />
             </label>
+            <div
+              className="col-span-3 row-start-3 flex min-w-0 items-center gap-2 sm:col-span-1 sm:row-start-auto sm:block"
+              title={!param.overridable ? "开启可覆盖后可设置缺少时的处理方式" : undefined}
+            >
+              <span className="shrink-0 text-[11px] text-muted-foreground sm:hidden">缺少时</span>
+              <Choice
+                label={`${param.name} 缺少时`}
+                value={param.askWhenMissing ? "ask" : "default"}
+                disabled={!param.overridable}
+                options={[
+                  { value: "default", label: "使用默认值" },
+                  { value: "ask", label: "缺少时询问" },
+                ]}
+                onChange={(value) => update(index, { ...param, askWhenMissing: value === "ask" })}
+              />
+            </div>
             <div className="col-start-3 row-start-1 flex items-center justify-start gap-1 sm:col-start-auto sm:row-start-auto">
               <ParameterEditor
                 parameter={param}

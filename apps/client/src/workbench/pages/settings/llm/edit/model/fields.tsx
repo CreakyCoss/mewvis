@@ -81,17 +81,20 @@ export function Choice<T extends string>({
   onChange,
   options,
   label,
+  disabled,
 }: {
   value: T;
   onChange: (value: T) => void;
   options: readonly { value: T; label: string }[];
   label: string;
+  disabled?: boolean;
 }) {
   return (
     <NativeSelect
       className="w-full [&_select]:text-xs"
       size="sm"
       aria-label={label}
+      disabled={disabled}
       value={value}
       onChange={(event) => onChange(event.currentTarget.value as T)}
     >

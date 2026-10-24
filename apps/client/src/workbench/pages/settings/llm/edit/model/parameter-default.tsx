@@ -114,7 +114,6 @@ export function ParameterDefault({
           {error}
         </p>
       )}
-      {parameter.askWhenMissing && <p className="text-[11px] text-muted-foreground">缺少时询问</p>}
     </div>
   );
 }
