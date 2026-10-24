@@ -12,6 +12,18 @@ export type MediaArtifact = {
   size?: number;
   value?: JsonValue;
 };
+export type MediaParameterQuestion = {
+  parameter: string;
+  valueType: string;
+  question: string;
+  context?: string;
+  input: {
+    type: "select" | "text";
+    label: string;
+    options?: { value: string; label: string }[];
+    selected?: string;
+  };
+};
 export type MediaResult = {
   status: "completed" | "failed" | "stopped" | "needs_input";
   modelId: string;
@@ -23,17 +35,7 @@ export type MediaResult = {
   resubmitAutomatically?: false;
   nextAction?: "ask_user";
   message?: string;
-  questions?: {
-    parameter: string;
-    valueType: string;
-    question: string;
-    input: {
-      type: "select" | "text";
-      label: string;
-      options?: { value: string; label: string }[];
-      selected?: string;
-    };
-  }[];
+  questions?: MediaParameterQuestion[];
 };
 export type MediaProgress = {
   stage: string;

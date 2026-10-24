@@ -41,6 +41,7 @@ await build({
       "engines/drivers/native/agent/tools/media/index.ts",
       "engines/drivers/native/agent/tools/media/generate.ts",
       "engines/drivers/native/agent/runtimes/pi/tools/media-tool.ts",
+      "engines/drivers/native/agent/runtimes/pi/tools/ask-user-tool.ts",
       "engines/drivers/native/agent/runtimes/pi/tools/safety.ts",
       "security/access/index.ts",
       "security/execution/index.ts",
@@ -137,8 +138,9 @@ test("generic definition lists only the selected model's executable purposes and
   const list = await f.call({ action: "list" });
   assert.equal(list.selectedModelId, f.model.modelId);
   assert.equal(list.modelId, undefined);
-  assert.equal(list.status, "ready");
-  assert.equal(list.nextAction, "generate");
+  assert.equal(list.status, "configuration");
+  assert.equal(list.nextAction, undefined);
+  assert.deepEqual(list.nextSteps.map((step) => step.tool), ["ask_user", "generate_media"]);
   assert.equal(list.purposes[0].modelId, f.model.modelId);
   assert.equal(list.purposes[0].callExample.action, "generate");
   assert.equal(list.purposes[0].callExample.purpose, "image-generation");
@@ -195,7 +197,7 @@ test("missing user-choice parameters ask before any worker or paid request and p
       parameter.askWhenMissing = true;
     if (parameter.name === "n") {
       parameter.default = 1;
-      parameter.schema = { ...parameter.schema, enum: [1, 2, 4] };
+      parameter.schema = { ...parameter.schema, enum: [1, 2, 4], description: "生成数量" };
     }
     if (parameter.name === "prompt_optimizer")
       parameter.schema = { enum: [true, false] };
@@ -224,6 +226,11 @@ test("missing user-choice parameters ask before any worker or paid request and p
     [1, 2, 4],
   );
   assert.equal(needed.questions[0].input.selected, "1");
+  assert.equal(needed.questions[0].context, "生成数量");
+  assert.deepEqual(
+    needed.questions[0],
+    list.purposes[0].questionTemplates.find((question) => question.parameter === "n"),
+  );
   assert.equal(workers, 0);
   assert.equal(requests, 0);
   const pending = await f.generate({}, "unanswered");
@@ -281,6 +288,103 @@ test("choice questions fall back to text without multiple options and direct exe
   assert.equal(direct.status, "failed");
   assert.match(direct.error, /询问用户/);
   assert.equal(requests, 0);
+});
+
+test("speech can clarify from the catalog before generation and use an already explicit voice without asking again", async (t) => {
+  const requests = [];
+  const f = await fixture(t, async (_url, init) => {
+    requests.push(init);
+    return init.method === "POST"
+      ? Response.json({
+          base_resp: { status_code: 0 },
+          data: { audio: "https://cdn.example/clarified.mp3" },
+        })
+      : new Response(Buffer.from("ID3-confirmed-voice"), {
+          headers: { "content-type": "audio/mpeg" },
+        });
+  });
+  const preset = api.minimaxPreset.models.find(
+    (model) => model.modelId === "speech-2.8-hd",
+  );
+  const purpose = structuredClone(preset.templates[0].purpose);
+  purpose.modelId = preset.modelId;
+  purpose.connection = { apiEndpoint: "https://tts.example", apiKey: "speech-secret" };
+  const voice = purpose.parameters.find((parameter) => parameter.name === "voice_id");
+  voice.default = "female-shaonv";
+  voice.askWhenMissing = true;
+  f.model.configuration.purposes = [purpose];
+  let workers = 0;
+  const run = f.context.run;
+  f.context.run = (...args) => {
+    workers++;
+    return run(...args);
+  };
+  let askTool;
+  let questions = 0;
+  api.registerPiAskUserTool(
+    { registerTool: (tool) => { askTool = tool; } },
+    "speech-clarification",
+    async (question) => {
+      questions++;
+      assert.equal(question.input.type, "text");
+      assert.equal(question.input.options, undefined);
+      assert.equal(question.context, undefined);
+      assert.equal(workers, 0);
+      assert.equal(requests.length, 0);
+      return "user-provided-voice";
+    },
+  );
+  const pi = api.createPiMediaTool(f.context);
+  const list = (await pi.execute("catalog", { action: "list", purpose: "speech" })).details;
+  assert.equal(list.status, "configuration");
+  assert.equal(list.questions, undefined);
+  assert.equal(list.nextAction, undefined);
+  assert.equal(questions, 0);
+  assert.equal(workers, 0);
+  assert.equal(requests.length, 0);
+  const entry = list.purposes[0];
+  assert.deepEqual(entry.requiredUserParameters, ["voice_id"]);
+  assert.equal(Object.hasOwn(entry.callExample.parameters, "voice_id"), false);
+  assert.equal(entry.parameters.find((parameter) => parameter.name === "voice_id").default, "female-shaonv");
+  // Optional parameters also have templates, for an unclear user preference rather than a missing default.
+  assert.deepEqual(entry.questionTemplates.map((question) => question.parameter), ["voice_id", "speed", "vol", "pitch"]);
+  const template = entry.questionTemplates.find((question) => question.parameter === "voice_id");
+  const askArguments = api.validateToolArguments(askTool, {
+    type: "toolCall",
+    id: "ask-voice",
+    name: "ask_user",
+    arguments: { question: template.question, context: template.context, input: template.input },
+  });
+  const answer = (await askTool.execute("ask-voice", askArguments)).details.answer;
+  const confirmed = api.validateToolArguments(pi, {
+    type: "toolCall",
+    id: "confirmed",
+    name: pi.name,
+    arguments: {
+      ...entry.callExample,
+      input: { text: "Hello" },
+      parameters: { ...entry.callExample.parameters, voice_id: answer, speed: 1.2 },
+    },
+  });
+  const result = (await pi.execute("confirmed", confirmed)).details;
+  assert.equal(result.status, "completed", JSON.stringify(result));
+  assert.equal(questions, 1);
+  assert.equal(workers, 1);
+  assert.equal(requests.length, 2);
+  const body = JSON.parse(requests[0].body);
+  assert.equal(body.voice_setting.voice_id, "user-provided-voice");
+  assert.equal(body.voice_setting.speed, 1.2);
+  // A value already provided in the user request can go straight to generate despite askWhenMissing.
+  const explicit = (await pi.execute("explicit", {
+    action: "generate",
+    purpose: "speech",
+    input: { text: "Already specified" },
+    parameters: { voice_id: "explicit-user-voice" },
+  })).details;
+  assert.equal(explicit.status, "completed", JSON.stringify(explicit));
+  assert.equal(questions, 1);
+  assert.equal(workers, 2);
+  assert.equal(JSON.parse(requests[2].body).voice_setting.voice_id, "explicit-user-voice");
 });
 
 test("speech presets list, submit and save playable audio paths through the existing media workflow", async (t) => {
@@ -1045,7 +1149,8 @@ test("list cannot silently accept generation fields or start a worker", async (t
   );
   assert.equal(workers, 0);
   const list = await f.call({ action: "list" });
-  assert.equal(list.nextAction, "generate");
+  assert.equal(list.status, "configuration");
+  assert.equal(list.nextAction, undefined);
   assert.equal(workers, 0);
 });
 

@@ -1,9 +1,10 @@
 import type {
   JsonSchema,
   JsonValue,
+  ModelParameter,
   ModelPurpose,
 } from "@mewvis/chat-contracts/model-configuration";
-import type { MediaArguments } from "./types.js";
+import type { MediaArguments, MediaParameterQuestion } from "./types.js";
 import { resolveModelParameters } from "@mewvis/chat-contracts/model-configuration";
 
 /** Collect input variables referenced by the configured templates, including polling. */
@@ -65,6 +66,46 @@ function inputExample(
   return `<${name}: 替换为实际内容>`;
 }
 
+/** Reused before generation and by the execution-time missing-parameter guard. */
+export function mediaParameterQuestion(
+  parameter: ModelParameter,
+): MediaParameterQuestion {
+  const schema =
+    parameter.schema && typeof parameter.schema === "object"
+      ? parameter.schema
+      : undefined;
+  const values = Array.isArray(schema?.enum) ? schema.enum : [];
+  const options = values.map((value) => ({
+    value: JSON.stringify(value),
+    label: typeof value === "string" ? value : JSON.stringify(value),
+  }));
+  return {
+    parameter: parameter.name,
+    valueType: parameter.type,
+    question:
+      options.length >= 2
+        ? `请选择 ${parameter.name}`
+        : `请提供 ${parameter.name} 的明确值`,
+    ...(typeof schema?.description === "string" && schema.description.trim()
+      ? { context: schema.description.trim() }
+      : {}),
+    input:
+      options.length >= 2
+        ? {
+            type: "select",
+            label: parameter.name,
+            options,
+            ...(Object.hasOwn(parameter, "default") &&
+            options.some(
+              (option) => option.value === JSON.stringify(parameter.default),
+            )
+              ? { selected: JSON.stringify(parameter.default) }
+              : {}),
+          }
+        : { type: "text", label: parameter.name },
+  };
+}
+
 export function mediaPurposeContract(
   purpose: ModelPurpose,
   selectedModelId: string,
@@ -89,6 +130,8 @@ export function mediaPurposeContract(
     requiredUserParameters: parameters
       .filter((parameter) => parameter.askWhenMissing)
       .map((parameter) => parameter.name),
+    // Templates are available for clarification, not a claim that these values are missing.
+    questionTemplates: parameters.map(mediaParameterQuestion),
     callExample: {
       action: "generate" as const,
       purpose: purpose.type,

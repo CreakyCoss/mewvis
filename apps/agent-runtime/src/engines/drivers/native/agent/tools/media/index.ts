@@ -18,6 +18,7 @@ import entries from "../../../../../../../build-entries.json" with { type: "json
 import {
   assertMediaGenerationArguments,
   mediaCallHelp,
+  mediaParameterQuestion,
   mediaPurposeContract,
 } from "./contract.js";
 import {
@@ -31,8 +32,14 @@ import {
 export const MEDIA_TOOL_DEFINITION = {
   name: "generate_media",
   label: "生成媒体",
-  description:
-    "Generate or edit images, generate videos and synthesize speech using the selected model's configured purposes. First call {action:'list'} with only an optional purpose filter: list only discovers configuration and NEVER generates anything. Read each purpose's actual modelId, inputSchema, parameterPaths and callExample. Then make a separate call with action:'generate' and that purpose. Put content only in input and ALL adjustable values in the top-level parameters object; never put parameters or a supplier's HTTP request body inside input. Replace input example placeholders with actual content. User-specified values override defaults; never copy an example/default over the user's choice. Only map a natural-language preference (such as a male voice) to a parameter value when the current configuration, an explicit user-provided value, or verified provider information establishes that mapping. Previous tool calls, local files and old chat logs are not a verified catalog of supported parameter values; do not search them to guess identifiers. If you cannot confirm a supported value that satisfies the user's preference, use ask_user before generation, even when askWhenMissing is false; do not invent options or use a conflicting default. Parameters marked askWhenMissing require explicit user values: use ask_user only for genuinely missing values, never guess them. If status=needs_input, no generation was submitted: use ask_user with the returned questions, JSON-decode option values and retry with the answers in parameters, preserving the other arguments. If the user cancels, stop generation. The tool selects the purpose's actual model and renders its saved HTTP/JSON template; do not construct supplier HTTP requests yourself. Wait for returned file paths. A saved path does not mean you inspected or listened to it. On failure or stopped waiting, do not automatically resubmit paid generation requests.",
+  description: [
+    "Generate images, edit images, generate videos or synthesize speech using the selected model configuration. Workflow: first call action=list with only an optional purpose filter. This returns configuration, not a decision that user parameters are complete. Read the purpose modelId, inputSchema, parameters, requiredUserParameters, questionTemplates and conditional nextSteps.",
+    "Before generation, compare the CURRENT user request with those constraints. Reuse values the user already clearly supplied; never ask for them again. askWhenMissing=true requires an explicit value from the request or an ask_user answer, even when a default exists. A preference such as male voice is not a voice_id unless the returned configuration establishes the mapping. If a requested value or its mapping is unclear, call ask_user BEFORE generate, even when askWhenMissing=false. Use defaults only for unspecified non-asking parameters with no conflicting user preference.",
+    "Use the relevant questionTemplates question/context/input to call ask_user, adapting the wording to the user. Templates are possible questions, not a list of missing values. Ask only unresolved items; never invent options. Decode JSON-encoded select answers, or parse text according to valueType/schema, and put the confirmed values in parameters. If the user cancels, stop generation.",
+    "Do not use Bash, file/source/history searches or repeated list calls to discover or guess missing parameter identifiers. Ask the user instead. Do not submit generate merely to find out what to ask.",
+    "Once values are resolved, call action=generate with the configured purpose. Put content in input and adjustable values in the top-level parameters object. Replace callExample input placeholders and preserve user choices instead of copying example defaults. Never construct supplier HTTP bodies. The tool selects the actual model, renders the saved template, polls tasks and saves files.",
+    "Execution also checks missing parameters: if status=needs_input, no generation was submitted. Use ask_user with the returned questions and retry with the answers in parameters, preserving input and other arguments. Wait for returned file paths; a path does not mean you inspected or listened to it. On failure or stopped waiting, do not automatically resubmit paid generation requests.",
+  ].join("\n\n"),
   parameters: {
     type: "object",
     properties: {
@@ -352,11 +359,25 @@ export function createMediaTool(context: MediaToolContext) {
           );
         return redactMedia(
           {
-            status: "ready",
+            status: "configuration",
             selectedModelId: model.modelId,
-            nextAction: "generate",
             message:
-              "仅查询了配置，尚未生成媒体。实际型号见各用途的 modelId；下一步调用 generate_media，action=generate。input 示例需替换为实际内容，可调参数放在 parameters。默认值仅用于用户未指定的非询问参数。HTTP 请求体由工具按已保存模板渲染。",
+              "仅返回配置，尚未判断用户参数是否完整，也未提交生成。请先结合用户原话核对所选用途的 inputSchema、parameters 和 requiredUserParameters：已明确且符合约束的值直接使用，不要重复询问；尚未明确的询问参数，或无法可靠映射为有效值的用户偏好，必须先调用 ask_user。questionTemplates 仅供需要时提问，不代表其中每个参数都缺失。不要反复 list，也不要通过 Bash、文件、源码或历史会话搜索来猜测参数 ID。实际型号见各用途的 modelId，HTTP 请求体由工具按已保存模板渲染。",
+            nextSteps: [
+              {
+                when: "所选用途仍有需要用户明确的参数，或无法确认符合用户偏好的有效值",
+                tool: "ask_user",
+                instruction:
+                  "使用对应 questionTemplates 的 question、context、input 提问，可改写为用户易懂的表达。只询问未明确项，保留用户已给出的值；取消时停止生成。选择项 value 是 JSON 编码，解码后放入 parameters；文本回答按 valueType 和 schema 转换并校验，不要猜测。",
+              },
+              {
+                when: "用户要求和询问参数都已明确，其他未指定参数允许使用默认值",
+                tool: "generate_media",
+                action: "generate",
+                instruction:
+                  "替换 callExample 的 input 示例内容，将已明确的参数放进 parameters。callExample 中的默认值不能覆盖用户要求；askWhenMissing=true 的默认值不能代替用户选择。",
+              },
+            ],
             purposes: purposes.map((purpose) =>
               mediaPurposeContract(purpose, model.modelId),
             ),
@@ -392,38 +413,7 @@ export function createMediaTool(context: MediaToolContext) {
             nextAction: "ask_user",
             message:
               "尚未提交生成请求。请使用 ask_user 询问缺少的参数，选项 value 是 JSON 编码，回答后解码并放入 parameters。保留原始输入和其他调用参数；用户取消时停止生成，不要套用默认值。",
-            questions: missing.map((parameter) => {
-              const values =
-                typeof parameter.schema === "object" &&
-                Array.isArray(parameter.schema.enum)
-                  ? parameter.schema.enum
-                  : [];
-              const options = values.map((value) => ({
-                value: JSON.stringify(value),
-                label:
-                  typeof value === "string" ? value : JSON.stringify(value),
-              }));
-              return {
-                parameter: parameter.name,
-                valueType: parameter.type,
-                question: `请选择 ${parameter.name}`,
-                input:
-                  options.length >= 2
-                    ? {
-                        type: "select" as const,
-                        label: parameter.name,
-                        options,
-                        ...(Object.hasOwn(parameter, "default") &&
-                        options.some(
-                          (option) =>
-                            option.value === JSON.stringify(parameter.default),
-                        )
-                          ? { selected: JSON.stringify(parameter.default) }
-                          : {}),
-                      }
-                    : { type: "text" as const, label: parameter.name },
-              };
-            }),
+            questions: missing.map(mediaParameterQuestion),
           } satisfies MediaResult,
           secrets,
         );
