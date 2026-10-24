@@ -32,6 +32,8 @@ import {
   parseModelResponse,
   readJsonPointer,
   resolveModelConnection,
+  resolveModelParameters,
+  getMissingModelParameters,
 } from "@mewvis/chat-contracts/model-configuration";
 import type { ModelConfiguration, ModelPurpose } from "@mewvis/chat-contracts";
 import { editorPresets } from "../../src/workbench/pages/settings/llm/edit/presets";
@@ -44,6 +46,17 @@ import {
   initialModelConfiguration,
   updateModelPurpose,
 } from "../../src/workbench/pages/settings/llm/edit/model/configuration";
+import {
+  parameterValueText,
+  parseParameterJson,
+  summarizeParameterSchema,
+} from "../../src/workbench/pages/settings/llm/edit/model/parameter-json";
+import {
+  getParameterDefaultControl,
+  getParameterDefaultError,
+  parseParameterDefault,
+  withParameterDefault,
+} from "../../src/workbench/pages/settings/llm/edit/model/parameter-defaults";
 
 const model = (extra: Partial<ProviderModel> = {}): ProviderModel => ({
   id: "m",
@@ -264,6 +277,67 @@ test("runtime IDs and capabilities are independent of any editor model catalog",
 
 const imagePurpose = () => editorPresets.instantiateTemplate("minimax-image-01", "image-generation");
 const configuration = (purposes: ModelPurpose[]): ModelConfiguration => ({ version: 1, purposes });
+
+test("parameters can require user choices without silently applying defaults", () => {
+  const image = imagePurpose();
+  const ratio = image.parameters.find((parameter) => parameter.name === "aspect_ratio")!;
+  ratio.askWhenMissing = true;
+  assert.equal(getModelConfigurationError(configuration([image])), "");
+  assert.deepEqual(
+    getMissingModelParameters(image).map((parameter) => parameter.name),
+    ["aspect_ratio"],
+  );
+  assert.throws(() => resolveModelParameters(image), /aspect_ratio.*询问用户/);
+  assert.throws(
+    () =>
+      buildModelRequest(image, {
+        apiEndpoint: "https://api.example.com",
+        model: { id: "image-01" },
+        input: { prompt: "cat" },
+        auth: { apiKey: "demo" },
+      }),
+    /aspect_ratio.*询问用户/,
+  );
+  assert.equal(resolveModelParameters(image, { aspect_ratio: "1:1" }).aspect_ratio, "1:1");
+  assert.throws(() => resolveModelParameters(image, { aspect_ratio: "invalid-ratio" }), /结构要求/);
+  const saved = normalizeLlmSettingsConfig(
+    toLlmSettingsConfig({ providers: [provider({ models: [model({ configuration: configuration([image]) })] })] }),
+  );
+  assert.equal(saved.providers[0].models[0].configuration!.purposes[0].parameters[0].askWhenMissing, true);
+  ratio.overridable = false;
+  assert.match(getModelConfigurationError(configuration([image])), /允许覆盖/);
+  ratio.overridable = true;
+  (ratio as unknown as { askWhenMissing: unknown }).askWhenMissing = "yes";
+  assert.match(getModelConfigurationError(configuration([image])), /询问开关/);
+  image.parameters = [{ name: "n", type: "integer", default: 1, overridable: true, askWhenMissing: true,
+    schema: { enum: [0, 1], minimum: 1 } }];
+  assert.match(getModelConfigurationError(configuration([image])), /n 选项/);
+});
+
+test("explicit false, zero and empty string are provided values, while legacy parameters still use defaults", () => {
+  const image = imagePurpose();
+  image.parameters = [
+    {
+      name: "enabled",
+      type: "boolean",
+      default: true,
+      overridable: true,
+      askWhenMissing: true,
+      schema: { enum: [true, false] },
+    },
+    { name: "seed", type: "integer", default: 1, overridable: true, askWhenMissing: true, schema: { enum: [0, 1] } },
+    { name: "text", type: "string", default: "fallback", overridable: true, askWhenMissing: true },
+    { name: "legacy", type: "integer", default: 2, overridable: true },
+  ];
+  const explicit = { enabled: false, seed: 0, text: "" };
+  assert.deepEqual(getMissingModelParameters(image, explicit), []);
+  assert.deepEqual(resolveModelParameters(image, explicit), { ...explicit, legacy: 2 });
+  assert.deepEqual(
+    getMissingModelParameters(image, { enabled: false }).map((parameter) => parameter.name),
+    ["seed", "text"],
+  );
+  assert.throws(() => resolveModelParameters(image, { ...explicit, seed: "0" }), /结构要求/);
+});
 
 test("model choices summarize configured media purposes without mixing their modalities into conversation capabilities", () => {
   const purposes = [
@@ -1380,4 +1454,263 @@ test("removing preset sources preserves saved legacy chat and media configuratio
   });
   assert.equal((request.body as { model: string }).model, "gpt-image-2");
   assert.equal(request.url, "https://api.openai.com/v1/images/generations");
+});
+
+test("parameter JSON accepts range defaults without enum and preserves complete schemas through settings round trips", () => {
+  const p = applyProviderDefaults(createProviderConfig(true), "minimax-cn");
+  const m = createModelConfig(p, { modelId: "image-01", modelName: "Image" });
+  const purpose = m.configuration!.purposes.find((entry) => entry.type === "image-generation")!;
+  const index = purpose.parameters.findIndex((parameter) => parameter.name === "n");
+  const range = { ...purpose.parameters[index], schema: { description: "生成图片的数量", minimum: 1, maximum: 9 } };
+  const rangeResult = parseParameterJson(JSON.stringify(range), purpose.parameters, index);
+  assert.equal(rangeResult.error, "");
+  assert.deepEqual(rangeResult.parameter, range);
+  const combined = {
+    ...range,
+    askWhenMissing: true,
+    schema: { ...range.schema, enum: [1, 2, 4], multipleOf: 1, allOf: [{ type: "integer" }] },
+  };
+  const result = parseParameterJson(JSON.stringify(combined), purpose.parameters, index);
+  assert.equal(result.error, "");
+  assert.deepEqual(result.parameter, combined);
+  purpose.parameters[index] = result.parameter!;
+  const saved = normalizeLlmSettingsConfig({ providers: [{ ...p, models: [m] }] });
+  assert.equal(validateLlmSettingsConfig(saved), "");
+  const reopened = initialModelConfiguration(saved.providers[0], saved.providers[0].models[0]);
+  assert.deepEqual(reopened.purposes.find((entry) => entry.type === "image-generation")!.parameters[index], combined);
+  const invalid = { ...combined, default: 3 };
+  assert.match(parseParameterJson(JSON.stringify(invalid), purpose.parameters, index).error, /默认值.*enum/);
+  assert.match(
+    parseParameterJson(JSON.stringify({ ...range, default: 10 }), purpose.parameters, index).error,
+    /默认值.*maximum/,
+  );
+});
+
+test("parameter JSON validates syntax, structure, names and policies before replacing a row", () => {
+  const parameters = [
+    { name: "n", type: "integer" as const, default: 1, overridable: true },
+    { name: "quality", type: "string" as const, overridable: true },
+  ];
+  const before = structuredClone(parameters);
+  for (const value of [
+    null,
+    [],
+    1,
+    "text",
+    { name: "n" },
+    { ...parameters[0], name: "quality" },
+    { ...parameters[0], name: "__proto__" },
+    { ...parameters[0], description: "misplaced" },
+    { ...parameters[0], askWhenMissing: "true" },
+    { ...parameters[0], overridable: false, askWhenMissing: true },
+    { ...parameters[0], schema: { minimum: "bad" } },
+    { ...parameters[0], schema: { $ref: "https://example.com/schema" } },
+  ]) {
+    const result = parseParameterJson(JSON.stringify(value), parameters, 0);
+    assert.ok(result.error, JSON.stringify(value));
+    assert.equal(result.parameter, undefined);
+  }
+  const malformed = parseParameterJson('{"name":', parameters, 0);
+  assert.match(malformed.error, /JSON 格式错误/);
+  assert.equal(malformed.formatted, undefined);
+  const formatted = parseParameterJson(JSON.stringify(parameters[0]), parameters, 0);
+  assert.equal(formatted.formatted, JSON.stringify(parameters[0], null, 2));
+  const missing = parseParameterJson(JSON.stringify(parameters[0]), parameters, 3);
+  assert.match(missing.error, /不存在/);
+  assert.deepEqual(parameters, before);
+  const otherInvalid = [parameters[0], { ...parameters[1], default: false }];
+  assert.equal(parseParameterJson(JSON.stringify(parameters[0]), otherInvalid, 0).error, "");
+});
+
+test("parameter JSON preserves false, zero, empty strings, omitted defaults and nested schemas without coercion", () => {
+  const parameters = [{ name: "setting", type: "string" as const, overridable: true }];
+  const definitions = [
+    { name: "setting", type: "boolean", overridable: true, default: false },
+    { name: "setting", type: "integer", overridable: true, default: 0 },
+    {
+      name: "setting",
+      type: "string",
+      overridable: true,
+      default: "",
+      schema: { enum: ["", "auto"], description: "允许空字符串" },
+    },
+    { name: "setting", type: "array", overridable: true, schema: { items: { type: "integer" }, minItems: 1 } },
+    {
+      name: "setting",
+      type: "object",
+      overridable: true,
+      default: { quality: "high" },
+      schema: {
+        $defs: { quality: { type: "string", enum: ["high", "low"] } },
+        properties: { quality: { $ref: "#/$defs/quality" } },
+        required: ["quality"],
+        additionalProperties: false,
+      },
+    },
+  ];
+  for (const definition of definitions) {
+    const result = parseParameterJson(JSON.stringify(definition), parameters, 0);
+    assert.equal(result.error, "", JSON.stringify(definition));
+    assert.deepEqual(result.parameter, definition);
+    assert.equal(Object.hasOwn(result.parameter!, "default"), Object.hasOwn(definition, "default"));
+  }
+  for (const askWhenMissing of [true, false]) {
+    const definition = { ...definitions[0], askWhenMissing };
+    const result = parseParameterJson(JSON.stringify(definition), parameters, 0);
+    assert.equal(result.error, "");
+    assert.equal(result.parameter!.default, false);
+    assert.equal(result.parameter!.askWhenMissing, askWhenMissing);
+  }
+});
+
+test("parameter summaries present combined descriptions, choices and ranges without dropping advanced rules", () => {
+  assert.deepEqual(
+    summarizeParameterSchema({
+      description: "生成数量",
+      enum: [1, 2, 4],
+      minimum: 1,
+      maximum: 9,
+      multipleOf: 1,
+      allOf: [{ type: "integer" }],
+    }),
+    ["生成数量", "可选值：1、2、4", "范围：≥ 1，≤ 9", "步长：1", "其他规则：allOf"],
+  );
+  assert.deepEqual(summarizeParameterSchema({ exclusiveMinimum: 0, exclusiveMaximum: 1, minLength: 0 }), [
+    "范围：> 0，< 1",
+    "最少字符：0",
+  ]);
+  assert.equal(parameterValueText(""), '""');
+  assert.equal(parameterValueText(false), "false");
+  assert.deepEqual(summarizeParameterSchema(false), ["不允许任何值"]);
+  assert.deepEqual(summarizeParameterSchema(undefined), []);
+});
+
+test("default controls prefer enum, retain typed options and disable values outside the full schema", () => {
+  const parameter = {
+    name: "n",
+    type: "integer" as const,
+    overridable: true,
+    schema: { enum: [0, 1, 2, 4, 10], minimum: 1, maximum: 9 },
+  };
+  const control = getParameterDefaultControl(parameter);
+  assert.equal(control.type, "select");
+  if (control.type !== "select") throw new Error("expected select");
+  assert.deepEqual(control.options, [
+    { value: 0, disabled: true },
+    { value: 1, disabled: false },
+    { value: 2, disabled: false },
+    { value: 4, disabled: false },
+    { value: 10, disabled: true },
+  ]);
+  for (const parameter of [
+    { name: "enabled", type: "boolean" as const, overridable: true, schema: { enum: [false, true] } },
+    { name: "mode", type: "string" as const, overridable: true, schema: { enum: ["", "auto"] } },
+    {
+      name: "object",
+      type: "object" as const,
+      overridable: true,
+      schema: { enum: [{ quality: "high" }, { quality: "low" }] },
+    },
+  ]) {
+    const control = getParameterDefaultControl(parameter);
+    assert.equal(control.type, "select");
+    if (control.type !== "select") throw new Error("expected select");
+    assert.deepEqual(
+      control.options.map((option) => option.value),
+      parameter.schema.enum,
+    );
+    assert.ok(control.options.every((option) => !option.disabled));
+  }
+  const fixed = getParameterDefaultControl({ name: "n", type: "integer", overridable: true, schema: { const: 2 } });
+  assert.deepEqual(fixed, { type: "select", options: [{ value: 2, disabled: false }] });
+});
+
+test("boolean defaults offer true and false and keep missing values distinct from false", () => {
+  const parameter = {
+    name: "enabled",
+    type: "boolean" as const,
+    overridable: true,
+    askWhenMissing: true,
+    schema: { description: "是否优化" },
+  };
+  assert.deepEqual(getParameterDefaultControl(parameter), {
+    type: "select",
+    options: [
+      { value: true, disabled: false },
+      { value: false, disabled: false },
+    ],
+  });
+  const disabled = withParameterDefault(parameter, false);
+  assert.equal(disabled.default, false);
+  assert.equal(disabled.askWhenMissing, true);
+  const cleared = withParameterDefault(disabled, undefined);
+  assert.equal(Object.hasOwn(cleared, "default"), false);
+  assert.deepEqual(cleared, parameter);
+  assert.equal(Object.hasOwn(parameter, "default"), false);
+});
+
+test("number defaults infer inclusive and exclusive bounds and preserve number and integer validation", () => {
+  const integer = { name: "n", type: "integer" as const, overridable: true, schema: { minimum: 1, maximum: 9 } };
+  assert.deepEqual(getParameterDefaultControl(integer), { type: "number", min: 1, max: 9, step: 1 });
+  assert.deepEqual(
+    getParameterDefaultControl({
+      ...integer,
+      schema: { minimum: 1.2, maximum: 8.8, exclusiveMinimum: 2, exclusiveMaximum: 8 },
+    }),
+    { type: "number", min: 3, max: 7, step: 1 },
+  );
+  assert.deepEqual(parseParameterDefault(integer, "4"), { value: 4, error: "" });
+  for (const raw of ["0", "10", "1.5", "bad", "1e400"]) assert.ok(parseParameterDefault(integer, raw).error, raw);
+  assert.deepEqual(parseParameterDefault(integer, ""), { value: undefined, error: "" });
+  const decimal = {
+    ...integer,
+    type: "number" as const,
+    schema: { exclusiveMinimum: 0, exclusiveMaximum: 1, multipleOf: 0.25 },
+  };
+  assert.deepEqual(getParameterDefaultControl(decimal), { type: "number", min: 0, max: 1, step: "any" });
+  assert.deepEqual(parseParameterDefault(decimal, "0.5"), { value: 0.5, error: "" });
+  for (const raw of ["0", "1", "0.3"]) assert.ok(parseParameterDefault(decimal, raw).error, raw);
+});
+
+test("fallback defaults validate all schema rules without losing metadata or missing-value policy", () => {
+  const text = {
+    name: "style",
+    type: "string" as const,
+    default: "high",
+    overridable: true,
+    askWhenMissing: true,
+    schema: { description: "图片风格", pattern: "^[a-z]+$", minLength: 3 },
+  };
+  const before = structuredClone(text);
+  assert.deepEqual(getParameterDefaultControl(text), { type: "text" });
+  assert.deepEqual(parseParameterDefault(text, "medium"), { value: "medium", error: "" });
+  assert.ok(parseParameterDefault(text, "HI").error);
+  const edited = withParameterDefault(text, "medium");
+  assert.deepEqual(edited, { ...text, default: "medium" });
+  assert.deepEqual(withParameterDefault(edited, undefined), {
+    name: text.name,
+    type: text.type,
+    overridable: true,
+    askWhenMissing: true,
+    schema: text.schema,
+  });
+  assert.deepEqual(text, before);
+  const object = {
+    name: "options",
+    type: "object" as const,
+    overridable: true,
+    schema: {
+      properties: { quality: { type: "string", enum: ["high", "low"] } },
+      required: ["quality"],
+      additionalProperties: false,
+    },
+  };
+  assert.deepEqual(getParameterDefaultControl(object), { type: "text" });
+  assert.deepEqual(parseParameterDefault(object, '{"quality":"high"}'), { value: { quality: "high" }, error: "" });
+  assert.ok(parseParameterDefault(object, '{"quality":"medium"}').error);
+  assert.ok(parseParameterDefault(object, '{"quality":').error);
+  assert.equal(
+    getParameterDefaultError({ ...text, schema: { allOf: [{ pattern: "^high$" }] } }, "medium").includes("pattern"),
+    true,
+  );
 });

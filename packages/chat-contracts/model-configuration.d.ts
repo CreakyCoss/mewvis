@@ -25,6 +25,8 @@ export interface ModelParameter {
   type: "string" | "integer" | "number" | "boolean" | "object" | "array";
   default?: JsonValue;
   overridable: boolean;
+  /** Require an explicit call value, even when a default is configured. Agents must ask the user when missing. */
+  askWhenMissing?: boolean;
   schema?: JsonSchema;
 }
 export interface ModelRequest {
@@ -96,6 +98,7 @@ export declare function createModelPurpose(
   adapter?: ModelPurpose["adapter"],
 ): ModelPurpose;
 export declare function getModelConfigurationError(value: unknown): string;
+export declare function getModelParametersError(value: unknown): string;
 export declare function resolveModelConnection(
   purpose: ModelPurpose | undefined,
   provider: ModelConnection,
@@ -104,6 +107,10 @@ export declare function resolveModelParameters(
   purpose: ModelPurpose,
   overrides?: Record<string, JsonValue>,
 ): Record<string, JsonValue>;
+export declare function getMissingModelParameters(
+  purpose: ModelPurpose,
+  overrides?: Record<string, JsonValue>,
+): ModelParameter[];
 export declare function buildModelRequest(
   purpose: ModelPurpose,
   context: Omit<ModelTemplateContext, "params">,

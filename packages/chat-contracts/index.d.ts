@@ -76,7 +76,7 @@ export type ChatMediaArtifact = {
   size?: number;
 };
 export type ChatMediaResult = {
-  status: "running" | "completed" | "failed" | "stopped";
+  status: "running" | "completed" | "failed" | "stopped" | "needs_input";
   purpose?:
     "image-generation" | "image-editing" | "video-generation" | "speech";
   message?: string;

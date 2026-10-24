@@ -218,6 +218,25 @@ test("media business failures show errors despite a successful tool envelope and
   assert.deepEqual(block.media.outputs, [output]);
   await session.close();
 });
+test("missing media choices remain an input request instead of a generation failure, including restored history", async () => {
+  const { session, calls, emit } = await setup();
+  await session.send({ text: "生成图片" });
+  emit({ type: E.ToolExecutionStart, toolCallId: "choice", toolName: "generate_media",
+    args: { action: "generate", purpose: "image-generation" } });
+  emit({ type: E.ToolExecutionEnd, toolCallId: "choice", toolName: "generate_media", isError: false,
+    result: { details: { status: "needs_input", purpose: "image-generation", outputs: [], nextAction: "ask_user" } } });
+  emit({ type: E.Done, text: "需要选择画面比例" });
+  await session.flush();
+  const block = session.getSnapshot().messages[1].blocks.find((block: any) => block.type === "tool");
+  assert.equal(block.status, "done");
+  assert.equal(block.media.status, "needs_input");
+  assert.equal(block.media.error, undefined);
+  const saved = calls.saved.at(-1);
+  const restored = await setup({ storage: { load: async () => JSON.parse(JSON.stringify(saved)) } });
+  assert.equal(restored.session.getSnapshot().messages[1].blocks[0].media.status, "needs_input");
+  await restored.session.close();
+  await session.close();
+});
 test("stopping media generation finalizes progress and keeps completed artifacts", async () => {
   const { session, emit } = await setup();
   await session.send({ text: "生成图片" });

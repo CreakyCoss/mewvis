@@ -9,7 +9,7 @@ type Buffer = { raw: string; error: string };
 const Buffers = createContext<{
   values: Record<string, Buffer>;
   set: (id: string, value: Buffer) => void;
-  clear: (prefix: string) => void;
+  clear: (prefix: string, exact?: boolean) => void;
   removeRow: (prefix: string, index: number) => void;
 }>(null!);
 
@@ -22,8 +22,12 @@ export function EditorBuffers({ children, onError }: { children: ReactNode; onEr
       value={{
         values,
         set: (id, value) => setValues((current) => ({ ...current, [id]: value })),
-        clear: (prefix) =>
-          setValues((current) => Object.fromEntries(Object.entries(current).filter(([id]) => !id.startsWith(prefix)))),
+        clear: (prefix, exact = false) =>
+          setValues((current) =>
+            Object.fromEntries(
+              Object.entries(current).filter(([id]) => (exact ? id !== prefix : !id.startsWith(prefix))),
+            ),
+          ),
         removeRow: (prefix, index) =>
           setValues((current) =>
             Object.fromEntries(
@@ -46,7 +50,17 @@ export function EditorBuffers({ children, onError }: { children: ReactNode; onEr
 export const useEditorBuffers = () => useContext(Buffers);
 export const pretty = (value: unknown) => JSON.stringify(value, null, 2) ?? "";
 
-export function Field({ label, children, hint, labelAction }: { label: string; children: ReactNode; hint?: string; labelAction?: ReactNode }) {
+export function Field({
+  label,
+  children,
+  hint,
+  labelAction,
+}: {
+  label: string;
+  children: ReactNode;
+  hint?: string;
+  labelAction?: ReactNode;
+}) {
   return (
     <div className="min-w-0 space-y-1.5">
       {labelAction ? (

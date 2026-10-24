@@ -19,7 +19,10 @@ export function readMediaResult(value: unknown, previous?: ChatMediaResult): Cha
   const result = object(envelope?.details) ?? envelope;
   if (!result || !Array.isArray(result.outputs)) return undefined;
   const status =
-    result.status === "completed" || result.status === "failed" || result.status === "stopped"
+    result.status === "completed" ||
+    result.status === "failed" ||
+    result.status === "stopped" ||
+    result.status === "needs_input"
       ? result.status
       : typeof result.stage === "string"
         ? "running"

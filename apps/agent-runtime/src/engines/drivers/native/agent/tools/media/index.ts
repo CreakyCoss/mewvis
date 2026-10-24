@@ -2,6 +2,7 @@ import { fileURLToPath } from "node:url";
 import { z } from "zod";
 import {
   getModelConfigurationError,
+  getMissingModelParameters,
   MODEL_PROTOCOLS,
   resolveModelConnection,
   type ModelConfiguration,
@@ -26,7 +27,7 @@ export const MEDIA_TOOL_DEFINITION = {
   name: "generate_media",
   label: "生成媒体",
   description:
-    "Generate or edit images, generate videos and synthesize speech using only the currently selected model's configuration. First call action=list to discover its available purposes, inputSchema and overridable parameters. Then call action=generate with input matching that schema. The tool handles model credentials, provider polling and saving files. Wait for the result and use its absolute file paths in later tools or the answer. Do not switch models or invent unsupported purposes or options. A saved path does not mean you have inspected or listened to the result. On failure or stopped waiting, do not automatically resubmit a paid generation request.",
+    "Generate or edit images, generate videos and synthesize speech using only the currently selected model's configuration. First call action=list to discover its available purposes, inputSchema and overridable parameters. Parameters marked askWhenMissing must be supplied from the user's request or an ask_user answer: do not guess or silently copy their defaults. Ask only for values the user has not already specified, using the configured schema.enum options when available. Then call action=generate with input matching that schema. If status=needs_input, no generation was submitted: use ask_user with the returned questions, decode its JSON-encoded option value, and retry with the answers in parameters, preserving the original input and other arguments. If the user cancels, stop generation; do not substitute a default. The tool handles model credentials, provider polling and saving files. Wait for the result and use its absolute file paths in later tools or the answer. Do not switch models or invent unsupported purposes or options. A saved path does not mean you have inspected or listened to the result. On failure or stopped waiting, do not automatically resubmit a paid generation request.",
   parameters: {
     type: "object",
     properties: {
@@ -90,7 +91,7 @@ export const MEDIA_TOOL_DEFINITION = {
         type: "json",
         optional: true,
         description:
-          "Optional object containing only parameters listed as overridable. Preserve their JSON types: integer/number values must be numbers, boolean values must be booleans. Omitted values use configured defaults.",
+          "Object containing only parameters listed as overridable. Preserve their JSON types: integer/number values must be numbers, boolean values must be booleans. Omitted values use configured defaults unless askWhenMissing is enabled; those values must come from the user, using ask_user when not already specified.",
       },
       outputDirectory: {
         type: "string",
@@ -332,6 +333,52 @@ export function createMediaTool(context: MediaToolContext) {
         throw new Error("当前模型未配置可执行的媒体用途，请先使用 list 查看");
       const previous = calls.get(callId);
       if (previous) return previous;
+      const missing = getMissingModelParameters(purpose, args.parameters);
+      if (missing.length)
+        return redactMedia(
+          {
+            status: "needs_input",
+            modelId: purpose.modelId?.trim() || model.modelId,
+            purpose: purpose.type,
+            outputs: [],
+            nextAction: "ask_user",
+            message:
+              "尚未提交生成请求。请使用 ask_user 询问缺少的参数，选项 value 是 JSON 编码，回答后解码并放入 parameters。保留原始输入和其他调用参数；用户取消时停止生成，不要套用默认值。",
+            questions: missing.map((parameter) => {
+              const values =
+                typeof parameter.schema === "object" &&
+                Array.isArray(parameter.schema.enum)
+                  ? parameter.schema.enum
+                  : [];
+              const options = values.map((value) => ({
+                value: JSON.stringify(value),
+                label:
+                  typeof value === "string" ? value : JSON.stringify(value),
+              }));
+              return {
+                parameter: parameter.name,
+                valueType: parameter.type,
+                question: `请选择 ${parameter.name}`,
+                input:
+                  options.length >= 2
+                    ? {
+                        type: "select" as const,
+                        label: parameter.name,
+                        options,
+                        ...(Object.hasOwn(parameter, "default") &&
+                        options.some(
+                          (option) =>
+                            option.value === JSON.stringify(parameter.default),
+                        )
+                          ? { selected: JSON.stringify(parameter.default) }
+                          : {}),
+                      }
+                    : { type: "text" as const, label: parameter.name },
+              };
+            }),
+          } satisfies MediaResult,
+          secrets,
+        );
       if (running >= 4 || calls.size >= 64)
         throw new Error("媒体工具调用次数或并发数超过上限");
       const operation = (async () => {

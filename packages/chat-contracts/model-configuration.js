@@ -204,6 +204,41 @@ const checkRequest = (request, purpose, taskAllowed = false, resultAllowed = fal
   if (request.path.startsWith("//")) fail("请使用完整 URL 或相对路径");
 };
 
+const checkParameters = (parameters) => {
+  if (
+    !Array.isArray(parameters) ||
+    parameters.length > 100 ||
+    new Set(parameters.map((p) => p?.name)).size !== parameters.length
+  )
+    fail("参数名称不能重复，最多支持 100 个参数");
+  for (const param of parameters) {
+    keys(param, ["name", "type", "default", "overridable", "schema", "askWhenMissing"], "参数");
+    if (typeof param.name !== "string" || !/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(param.name) || forbidden.has(param.name))
+      fail("参数名请使用字母、数字和下划线，且不能以数字开头");
+    if (!MODEL_PARAMETER_TYPES.includes(param.type) || typeof param.overridable !== "boolean")
+      fail("参数类型或覆盖开关无效");
+    if (param.askWhenMissing !== undefined && typeof param.askWhenMissing !== "boolean") fail("缺少参数时询问开关无效");
+    if (param.askWhenMissing && !param.overridable) fail(`参数 ${param.name} 需要允许覆盖才能询问用户`);
+    checkSchema(param.schema, `参数 ${param.name} 的 Schema`);
+    if (param.askWhenMissing && isObject(param.schema) && Array.isArray(param.schema.enum))
+      for (const value of param.schema.enum) matchesSchema(parameterSchema(param), value, `参数 ${param.name} 选项`);
+    if (own(param, "default")) {
+      json(param.default);
+      matchesSchema(parameterSchema(param), param.default, `参数 ${param.name} 默认值`);
+    }
+  }
+};
+
+export function getModelParametersError(value) {
+  try {
+    checkParameters(value);
+    json(value);
+    return "";
+  } catch (error) {
+    return error instanceof Error ? error.message : "参数配置无效";
+  }
+}
+
 export function getModelConfigurationError(value) {
   try {
     keys(value, ["version", "purposes"], "模型配置");
@@ -297,40 +332,7 @@ export function getModelConfigurationError(value) {
           fail("预设来源无效");
       }
       checkSchema(purpose.inputSchema, "输入 Schema");
-      if (
-        !Array.isArray(purpose.parameters) ||
-        purpose.parameters.length > 100 ||
-        new Set(purpose.parameters.map((p) => p?.name)).size !==
-          purpose.parameters.length
-      )
-        fail("参数名称不能重复，最多支持 100 个参数");
-      for (const param of purpose.parameters) {
-        keys(
-          param,
-          ["name", "type", "default", "overridable", "schema"],
-          "参数",
-        );
-        if (
-          typeof param.name !== "string" ||
-          !/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(param.name) ||
-          forbidden.has(param.name)
-        )
-          fail("参数名请使用字母、数字和下划线，且不能以数字开头");
-        if (
-          !MODEL_PARAMETER_TYPES.includes(param.type) ||
-          typeof param.overridable !== "boolean"
-        )
-          fail("参数类型或覆盖开关无效");
-        checkSchema(param.schema, `参数 ${param.name} 的 Schema`);
-        if (own(param, "default")) {
-          json(param.default);
-          matchesSchema(
-            parameterSchema(param),
-            param.default,
-            `参数 ${param.name} 默认值`,
-          );
-        }
-      }
+      checkParameters(purpose.parameters);
       if (purpose.adapter === "native") {
         if (purpose.connection?.apiFormat === "http-json")
           fail("原生对话需要对话协议；使用 HTTP / JSON 时请切换用途的请求模板");
@@ -452,8 +454,19 @@ export function resolveModelConnection(purpose, provider) {
   };
 }
 
-export function resolveModelParameters(purpose, overrides = {}) {
+export function getMissingModelParameters(purpose, overrides = {}) {
   if (!isObject(overrides)) fail("调用参数必须是 JSON 对象");
+  return purpose.parameters.filter(
+    (param) => param.askWhenMissing && !own(overrides, param.name),
+  );
+}
+
+export function resolveModelParameters(purpose, overrides = {}) {
+  const missing = getMissingModelParameters(purpose, overrides);
+  if (missing.length)
+    fail(
+      `参数 ${missing.map((param) => param.name).join("、")} 缺少调用值，请先询问用户`,
+    );
   const result = {};
   for (const name of Object.keys(overrides)) {
     const param = purpose.parameters.find((p) => p.name === name);

@@ -13,7 +13,7 @@ export type MediaArtifact = {
   value?: JsonValue;
 };
 export type MediaResult = {
-  status: "completed" | "failed" | "stopped";
+  status: "completed" | "failed" | "stopped" | "needs_input";
   modelId: string;
   purpose: string;
   taskId?: string;
@@ -21,6 +21,19 @@ export type MediaResult = {
   outputs: MediaArtifact[];
   error?: string;
   resubmitAutomatically?: false;
+  nextAction?: "ask_user";
+  message?: string;
+  questions?: {
+    parameter: string;
+    valueType: string;
+    question: string;
+    input: {
+      type: "select" | "text";
+      label: string;
+      options?: { value: string; label: string }[];
+      selected?: string;
+    };
+  }[];
 };
 export type MediaProgress = {
   stage: string;

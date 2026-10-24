@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   CheckIcon,
   CircleAlertIcon,
+  CircleHelpIcon,
   CopyIcon,
   ExpandIcon,
   ImageIcon,
@@ -185,17 +186,21 @@ export function MediaResult({ result }: { result: ChatMediaResult }) {
         ? `${type}已生成`
         : result.status === "stopped"
           ? "已停止等待"
-          : "生成失败";
+          : result.status === "needs_input"
+            ? "需补充生成配置"
+            : "生成失败";
   const Icon =
     result.status === "running"
       ? Loader2Icon
       : result.status === "failed"
         ? CircleAlertIcon
-        : audio
-          ? Volume2Icon
-          : video
-            ? VideoIcon
-            : ImageIcon;
+        : result.status === "needs_input"
+          ? CircleHelpIcon
+          : audio
+            ? Volume2Icon
+            : video
+              ? VideoIcon
+              : ImageIcon;
   return (
     <section aria-label="媒体生成结果" className="w-[36rem] min-w-0 max-w-full space-y-3 py-1">
       <div className="flex items-center gap-2 text-xs text-muted-foreground" role="status">

@@ -172,6 +172,110 @@ test("generic workflow composes requests, saves large outputs and deduplicates c
   assert.doesNotMatch(JSON.stringify(a), /model-fixture-key|base64|iVBOR/);
 });
 
+test("missing user-choice parameters ask before any worker or paid request and preserve typed choices on retry", async (t) => {
+  let requests = 0;
+  const f = await fixture(t, async (_url, init) => {
+    requests++;
+    const body = JSON.parse(init.body);
+    assert.equal(body.aspect_ratio, "1:1");
+    assert.equal(body.n, 2);
+    assert.equal(body.prompt_optimizer, false);
+    return image();
+  });
+  const purpose = f.model.configuration.purposes[0];
+  for (const parameter of purpose.parameters) {
+    if (["aspect_ratio", "n", "prompt_optimizer"].includes(parameter.name))
+      parameter.askWhenMissing = true;
+    if (parameter.name === "n") {
+      parameter.default = 1;
+      parameter.schema = { ...parameter.schema, enum: [1, 2, 4] };
+    }
+    if (parameter.name === "prompt_optimizer")
+      parameter.schema = { enum: [true, false] };
+  }
+  let workers = 0;
+  const run = f.context.run;
+  f.context.run = (...args) => {
+    workers++;
+    return run(...args);
+  };
+  const list = await f.call({ action: "list" });
+  assert.equal(list.purposes[0].parameters[0].askWhenMissing, true);
+  const needed = await f.generate(
+    { parameters: { aspect_ratio: "1:1", prompt_optimizer: false } },
+    "choice",
+  );
+  assert.equal(needed.status, "needs_input");
+  assert.equal(needed.nextAction, "ask_user");
+  assert.deepEqual(
+    needed.questions.map((question) => question.parameter),
+    ["n"],
+  );
+  assert.equal(needed.questions[0].input.type, "select");
+  assert.deepEqual(
+    needed.questions[0].input.options.map((option) => JSON.parse(option.value)),
+    [1, 2, 4],
+  );
+  assert.equal(needed.questions[0].input.selected, "1");
+  assert.equal(workers, 0);
+  assert.equal(requests, 0);
+  const pending = await f.generate({}, "unanswered");
+  assert.equal(pending.status, "needs_input");
+  assert.equal(workers, 0);
+  const selected = JSON.parse(needed.questions[0].input.options[1].value);
+  const done = await f.generate(
+    {
+      parameters: { aspect_ratio: "1:1", n: selected, prompt_optimizer: false },
+    },
+    "choice",
+  );
+  assert.equal(done.status, "completed", JSON.stringify(done));
+  assert.equal(workers, 1);
+  assert.equal(requests, 1);
+  assert.deepEqual(
+    await f.generate(
+      { parameters: { aspect_ratio: "1:1", n: 2, prompt_optimizer: false } },
+      "choice",
+    ),
+    done,
+  );
+  assert.equal(requests, 1);
+});
+
+test("choice questions fall back to text without multiple options and direct execution cannot use a missing default", async (t) => {
+  let requests = 0;
+  const f = await fixture(t, async () => {
+    requests++;
+    return image();
+  });
+  const purpose = f.model.configuration.purposes[0];
+  const parameter = purpose.parameters.find(
+    (parameter) => parameter.name === "n",
+  );
+  parameter.askWhenMissing = true;
+  const question = await f.generate();
+  assert.equal(question.questions[0].input.type, "text");
+  assert.equal(question.questions[0].input.options, undefined);
+  const direct = await api.runMediaGeneration(
+    {
+      model: f.model,
+      purpose,
+      arguments: { action: "generate", input: { prompt: "cat" } },
+      execution: f.context.execution,
+      protectedPaths: [],
+    },
+    {
+      fetch: async () => {
+        requests++;
+        return image();
+      },
+    },
+  );
+  assert.equal(direct.status, "failed");
+  assert.match(direct.error, /询问用户/);
+  assert.equal(requests, 0);
+});
+
 test("speech presets list, submit and save playable audio paths through the existing media workflow", async (t) => {
   const audio = Buffer.from("ID3-synthesized-audio");
   const requests = [];
