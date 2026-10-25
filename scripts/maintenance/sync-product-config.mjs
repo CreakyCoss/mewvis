@@ -9,6 +9,22 @@ const productConfigPath = join(repositoryRoot, "apps/product.config.json");
 const packageRoot = join(repositoryRoot, "packages/product-config");
 const check = process.argv.includes("--check");
 const product = JSON.parse(await readFile(productConfigPath, "utf8"));
+// The root package owns the application release version. SDKs, built-in apps
+// and extensions keep their independently managed package versions.
+const { version } = JSON.parse(
+  await readFile(join(repositoryRoot, "package.json"), "utf8"),
+);
+const numeric = "(?:0|[1-9][0-9]*)";
+const prerelease = "(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)";
+const semver = new RegExp(
+  `^${numeric}\\.${numeric}\\.${numeric}(?:-${prerelease}(?:\\.${prerelease})*)?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$`,
+);
+if (
+  typeof version !== "string" ||
+  version !== version.trim() ||
+  !semver.test(version)
+)
+  throw new Error("Invalid release version in package.json: expected SemVer");
 for (const key of [
   "displayName",
   "namespace",
@@ -37,6 +53,15 @@ const escapeHtml = (value) =>
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;");
+
+for (const application of ["desktop", "client", "server", "agent-runtime"]) {
+  const file = `apps/${application}/package.json`;
+  const manifest = JSON.parse(
+    await readFile(join(repositoryRoot, file), "utf8"),
+  );
+  manifest.version = version;
+  await sync(file, json(manifest));
+}
 
 await sync("packages/product-config/product.config.json", json(product));
 const declaration = (value) => {
@@ -92,15 +117,39 @@ const tauri = JSON.parse(
 );
 tauri.productName = product.bundleName;
 tauri.identifier = product.bundleIdentifier;
+tauri.version = version;
 for (const window of tauri.app?.windows ?? [])
   window.title = product.windowTitle;
 await sync(tauriPath, json(tauri));
 const cargoPath = "apps/desktop/src-tauri/Cargo.toml";
+const cargo = await readFile(join(repositoryRoot, cargoPath), "utf8");
+const cargoPackage = cargo
+  .split(/(?=^\[)/m)
+  .find((section) => /^\[package\]\r?\n/.test(section));
+if (!cargoPackage || !/^version = "[^"]*"$/m.test(cargoPackage))
+  throw new Error("Missing package version in Cargo.toml");
+const nextCargoPackage = cargoPackage
+  .replace(/^version = "[^"]*"$/m, `version = "${version}"`)
+  .replace(
+    /^description = ".*"$/m,
+    () => `description = ${JSON.stringify(product.description)}`,
+  );
 await sync(
   cargoPath,
-  (await readFile(join(repositoryRoot, cargoPath), "utf8")).replace(
-    /^description = ".*"$/m,
-    `description = ${JSON.stringify(product.description)}`,
+  cargo.replace(cargoPackage, () => nextCargoPackage),
+);
+// Only the local desktop crate changes; dependency versions stay locked.
+const cargoLockPath = "apps/desktop/src-tauri/Cargo.lock";
+const cargoLock = await readFile(join(repositoryRoot, cargoLockPath), "utf8");
+const desktopLockVersion =
+  /(^\[\[package\]\]\r?\nname = "desktop"\r?\nversion = ")[^"]*(")/m;
+if (!desktopLockVersion.test(cargoLock))
+  throw new Error("Missing desktop package in Cargo.lock");
+await sync(
+  cargoLockPath,
+  cargoLock.replace(
+    desktopLockVersion,
+    (_, before, after) => `${before}${version}${after}`,
   ),
 );
 await sync(

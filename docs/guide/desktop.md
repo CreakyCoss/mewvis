@@ -32,6 +32,17 @@ Windows ARM64 包保留原生 ARM64 桌面外壳与 Node。sqlite-vec 0.1.9 的 
 
 技能资源由 `apps/client/resources/registry.json` 的 `skills` 数组显式登记。数组项是 `apps/client/resources/skills` 下的一级目录名；构建只复制列出的目录到 Runtime 的 `dist/skills`，开发和桌面启动均从这里加载。新增技能目录后需手动加入配置；未登记的目录不会随 Runtime 发布或注册为系统技能。删除条目并重新构建即可从新版 Runtime 移除对应资源。当前内置技能的上游来源和许可记录在各目录的 `SOURCE.md`、`LICENSE` 或 `LICENSE.txt` 中。
 
+## 应用发布版本
+
+根目录 `package.json` 的 `version` 是应用发布版本的唯一来源。升级版本时只修改这一处，然后在仓库根目录运行：
+
+```sh
+pnpm sync-product-config
+pnpm check:product-config
+```
+
+同步脚本将版本写入 Desktop、Client、Server、Agent Runtime 的包清单，以及 `tauri.conf.json`、桌面 `Cargo.toml` 和 `Cargo.lock` 中的本地 `desktop` 包记录。桌面开发和构建入口会在 Tauri 读取配置前同步，其他构建入口也会自动同步；只读检查会在版本未同步时报错。提交时应一并提交自动同步产生的文件改动，避免检出后出现版本差异。SDK、内置应用、插件和第三方依赖继续使用各自的版本。
+
 ## 平台能力边界
 
 `@mewvis/client-platform` 定义后端连接、路径选择、外部链接、文件位置和窗口操作的公共类型，不依赖 Tauri。共享页面通过 `apps/client/src/platform` 调用能力；Web 实现位于 `apps/client/src/platform/web.ts`，桌面实现位于 `apps/desktop/src/platform/tauri.ts`。Vite 与 TypeScript 的 `@platform-impl` 别名分别选择对应实现，生产页面不通过 `isTauri()` 判断环境。

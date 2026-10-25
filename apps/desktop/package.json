@@ -4,8 +4,8 @@
   "version": "0.2.0",
   "type": "module",
   "scripts": {
-    "dev": "tauri dev",
-    "build": "tauri build",
+    "dev": "pnpm sync-product-config && tauri dev",
+    "build": "pnpm sync-product-config && tauri build",
     "dev:ui": "pnpm sync-product-config && pnpm build:agent-runtime && vite",
     "build:ui": "pnpm sync-product-config && pnpm build:agent-runtime && tsc && vite build",
     "build:mac": "node scripts/build-macos.mjs",
