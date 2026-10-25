@@ -147,6 +147,7 @@ export function mediaPurposeContract(
       action: "generate" as const,
       purpose: purpose.type,
       input: inputExample(purpose.inputSchema),
+      outputName: "<根据内容填写简短名称，不含扩展名>",
       parameters: Object.fromEntries(
         parameters
           .filter(
@@ -166,7 +167,7 @@ export function mediaCallHelp(purpose?: ModelPurpose): string {
   if (!purpose)
     return '请先调用 {"action":"list"} 查看用途和 callExample；生成时使用 action="generate"。';
   const example = mediaPurposeContract(purpose, "").callExample;
-  return `调用格式：${JSON.stringify(example)}。替换 input 示例内容；用户指定的可调参数放在 parameters 中，不能复制默认值覆盖用户要求。`;
+  return `调用格式：${JSON.stringify(example)}。替换 input 和 outputName 示例内容；用户指定的可调参数放在 parameters 中，不能复制默认值覆盖用户要求。`;
 }
 
 /** Fail on ignored input rather than quietly generating with configured parameter defaults. */

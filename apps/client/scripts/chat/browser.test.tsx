@@ -643,10 +643,11 @@ async function checkAudio() {
   tag(36, "data");
   view.setUint32(40, bytes.length - 44, true);
   const url = URL.createObjectURL(new Blob([bytes], { type: "audio/wav" }));
-  const filePath = "/workspace/generated-media/speech.wav";
+  const fileName = "欢迎语配音-a7f92c18.wav";
+  const filePath = `/workspace/generated-media/${fileName}`;
   const resource: ApplicationFilePreviewResource = {
     id: "speech-preview",
-    name: "speech.wav",
+    name: fileName,
     size: bytes.length,
     mimeType: "audio/wav",
     kind: "audio",
@@ -692,7 +693,7 @@ async function checkAudio() {
               status,
               purpose: "speech",
               outputs:
-                status === "running" ? [] : [{ type: "audio", filePath, mimeType: "audio/wav", size: bytes.length }],
+                status === "running" ? [] : [{ type: "audio", filePath, fileName, mimeType: "audio/wav", size: bytes.length }],
             },
           }}
         />
@@ -706,6 +707,7 @@ async function checkAudio() {
     for (let attempts = 0; attempts < 50 && !fixture.querySelector("audio"); attempts++)
       await act(async () => new Promise((resolve) => setTimeout(resolve, 20)));
     const audio = fixture.querySelector("audio")!;
+    assert(fixture.textContent?.includes(fileName), "Generated audio displays its actual descriptive filename");
     assert(
       audio && !audio.controls && !audio.autoplay && !audio.muted,
       "Custom audio playback is audible, without native controls or autoplay",

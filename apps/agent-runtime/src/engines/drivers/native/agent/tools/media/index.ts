@@ -37,7 +37,8 @@ export const MEDIA_TOOL_DEFINITION = {
     "Before generation, compare the CURRENT user request with those constraints. Read parameter.description for its business meaning, schema.description for value constraints, and schema.options labels/descriptions to interpret the user's intent; only option.value is sent to the provider. schema.enum is the equivalent raw allowed-value list. Reuse values the user already clearly supplied; never ask for them again. askWhenMissing=true requires an explicit or reliably mapped value from the request or an ask_user answer, even when a default exists. A preference such as male voice is not a voice_id unless the returned configuration establishes the mapping. If a requested value or its mapping is unclear, call ask_user BEFORE generate, even when askWhenMissing=false. Use defaults only for unspecified non-asking parameters with no conflicting user preference.",
     "Use the relevant questionTemplates question/context/input to call ask_user, adapting the wording to the user. Templates are possible questions, not a list of missing values. Ask only unresolved items; never invent options. Decode JSON-encoded select answers, or parse text according to valueType/schema, and put the confirmed values in parameters. If the user cancels, stop generation.",
     "Do not use Bash, file/source/history searches or repeated list calls to discover or guess missing parameter identifiers. Ask the user instead. Do not submit generate merely to find out what to ask.",
-    "Once values are resolved, call action=generate with the configured purpose. Put content in input and adjustable values in the top-level parameters object. Replace callExample input placeholders and preserve user choices instead of copying example defaults. Never construct supplier HTTP bodies. The tool selects the actual model, renders the saved template, polls tasks and saves files.",
+    "Once values are resolved, call action=generate with the configured purpose. Put content in input and adjustable values in the top-level parameters object. Replace callExample input and outputName placeholders and preserve user choices instead of copying example defaults. Never construct supplier HTTP bodies. The tool selects the actual model, renders the saved template, polls tasks and saves files.",
+    "For generate, set outputName to a short descriptive title based on the user's request, honoring an explicitly requested filename. Omit the extension. This is a local filename hint, not provider input. Do not ask the user or make another model request just to name files. The runtime sanitizes names, adds batch indices when needed, a random suffix and the MIME-based extension; omitted or empty names fall back to media type and UTC time. Use the returned fileName and filePath as the actual saved names and paths.",
     "Execution also checks missing parameters: if status=needs_input, no generation was submitted. Use ask_user with the returned questions and retry with the answers in parameters, preserving input and other arguments. Wait for returned file paths; a path does not mean you inspected or listened to it. On failure or stopped waiting, do not automatically resubmit paid generation requests.",
   ].join("\n\n"),
   parameters: {
@@ -111,6 +112,12 @@ export const MEDIA_TOOL_DEFINITION = {
         description:
           "Directory within the current workspace, absolute or relative. Defaults to generated-media. Files receive unique names.",
       },
+      outputName: {
+        type: "string",
+        optional: true,
+        description:
+          "Short descriptive filename stem, at most 256 characters, without directory or extension. Honor the user's requested name or derive one from the content. The runtime sanitizes it and adds an optional batch index, random suffix and MIME-based extension. Do not supply this field for list.",
+      },
       timeoutSeconds: {
         type: "integer",
         optional: true,
@@ -143,6 +150,7 @@ const argumentsSchema = z
       .optional(),
     parameters: z.record(z.string(), z.json()).optional(),
     outputDirectory: z.string().trim().min(1).optional(),
+    outputName: z.string().trim().max(256).optional(),
     timeoutSeconds: z.number().int().min(1).max(3600).optional(),
   })
   .strict();
@@ -345,6 +353,7 @@ export function createMediaTool(context: MediaToolContext) {
           "parameters",
           "files",
           "outputDirectory",
+          "outputName",
           "timeoutSeconds",
         ].filter((field) => Object.hasOwn(args, field));
         if (generationFields.length) {

@@ -73,6 +73,8 @@ export type ChatToolEvent = {
 export type ChatMediaArtifact = {
   type: "image" | "video" | "audio";
   filePath: string;
+  /** Actual saved basename. Optional for older tool results and saved history. */
+  fileName?: string;
   mimeType?: string;
   size?: number;
 };

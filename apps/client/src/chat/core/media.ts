@@ -44,6 +44,9 @@ export function readMediaResult(value: unknown, previous?: ChatMediaResult): Cha
       {
         type: item.type,
         filePath: item.filePath,
+        ...(typeof item.fileName === "string" && item.fileName === item.filePath.split(/[\\/]/).at(-1)
+          ? { fileName: item.fileName }
+          : {}),
         ...(typeof item.mimeType === "string" ? { mimeType: item.mimeType.slice(0, 255) } : {}),
         ...(typeof item.size === "number" && Number.isFinite(item.size) && item.size >= 0 ? { size: item.size } : {}),
       },

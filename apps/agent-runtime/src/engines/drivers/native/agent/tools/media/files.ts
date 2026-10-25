@@ -37,6 +37,35 @@ const extensions: Record<string, string> = {
   "audio/webm": "weba",
 };
 
+const mediaExtension = new RegExp(
+  "\\.(?:" +
+    [...new Set([...Object.values(extensions), "jpeg", "bin"])].join("|") +
+    ")$",
+  "i",
+);
+
+/** A portable filename stem; the supplied name never controls the output directory or extension. */
+function mediaFileStem(name: string | undefined, type: string): string {
+  let cleaned = (name ?? "")
+    .normalize("NFC")
+    .replace(/[\p{Cc}\p{Cf}<>:"/\\|?*]+/gu, "-")
+    .replace(/\s+/g, "-")
+    .replace(/^[.\s-]+|[.\s-]+$/g, "")
+    .replace(mediaExtension, "");
+  // Windows reserves device names even when followed by an extension.
+  if (/^(con|prn|aux|nul|com[1-9¹²³]|lpt[1-9¹²³])(?:\.|$)/i.test(cleaned))
+    cleaned = `media-${cleaned}`;
+  let stem = "";
+  for (const character of cleaned) {
+    if (Buffer.byteLength(stem + character) > 120) break;
+    stem += character;
+  }
+  stem = stem.replace(/[.\s-]+$/g, "");
+  if (!stem)
+    return `${type}-${new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z")}`;
+  return stem;
+}
+
 function detectMime(bytes: Buffer): string | undefined {
   if (
     bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
@@ -130,6 +159,8 @@ export async function collectMedia(
   output: MediaOutput,
   options: {
     directory: string;
+    outputName?: string;
+    index?: number;
     authorize(path: string): Promise<string>;
     transport: MediaTransport;
   },
@@ -173,10 +204,12 @@ export async function collectMedia(
     )
       throw new Error("生成产物的媒体类型与用途配置不匹配，请检查 MIME 配置");
     mimeType = mimeType.toLowerCase();
-    const filePath = join(
-      options.directory,
-      randomUUID() + "." + (extensions[mimeType] ?? "bin"),
-    );
+    const stem = mediaFileStem(options.outputName, output.type);
+    const prefix = stem + (options.index === undefined ? "" : `-${options.index}`);
+    const extension = extensions[mimeType] ?? "bin";
+    const newFileName = () => `${prefix}-${randomUUID().slice(0, 8)}.${extension}`;
+    let fileName = newFileName();
+    let filePath = join(options.directory, fileName);
     await options.authorize(filePath);
     await mkdir(options.directory, { recursive: true });
     await options.authorize(filePath);
@@ -219,19 +252,30 @@ export async function collectMedia(
     await handle.sync();
     await handle.close();
     handle = undefined;
-    await options.authorize(filePath);
-    await options.authorize(temporary);
-    const current = await lstat(temporary);
-    if (
-      current.dev !== identity.dev ||
-      current.ino !== identity.ino ||
-      current.nlink !== 1
-    )
-      throw new Error("保存期间临时文件发生变化");
-    await link(temporary, filePath);
+    for (let attempt = 0; ; attempt++) {
+      transport.signal.throwIfAborted();
+      await options.authorize(filePath);
+      await options.authorize(temporary);
+      const current = await lstat(temporary);
+      if (
+        current.dev !== identity.dev ||
+        current.ino !== identity.ino ||
+        current.nlink !== 1
+      )
+        throw new Error("保存期间临时文件发生变化");
+      try {
+        await link(temporary, filePath);
+        break;
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "EEXIST" || attempt >= 4)
+          throw error;
+        fileName = newFileName();
+        filePath = join(options.directory, fileName);
+      }
+    }
     await unlink(temporary);
     temporary = undefined;
-    return { type: output.type, filePath, mimeType, size };
+    return { type: output.type, filePath, fileName, mimeType, size };
   } finally {
     await handle?.close().catch(() => {});
     if (temporary && identity) {

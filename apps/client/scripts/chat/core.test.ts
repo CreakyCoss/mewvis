@@ -157,6 +157,7 @@ test("media results retain all file metadata beyond truncated logs and survive s
   const outputs = Array.from({ length: 30 }, (_, i) => ({
     type: "image",
     filePath: `/workspace/generated-media/${i}.png`,
+    fileName: `${i}.png`,
     size: i + 100,
     resourceUrl: "https://not-persisted.example",
     value: "not-persisted-data",
@@ -175,6 +176,7 @@ test("media results retain all file metadata beyond truncated logs and survive s
   await session.flush();
   const mediaBlock = session.getSnapshot().messages[1].blocks.find((block: any) => block.type === "tool");
   assert.equal(mediaBlock.media.outputs.length, 30);
+  assert.equal(mediaBlock.media.outputs[0].fileName, "0.png");
   assert.match(mediaBlock.events.at(-1).content, /已省略/);
   assert.doesNotMatch(JSON.stringify(mediaBlock.media), /resourceUrl|not-persisted/);
   const saved = calls.saved.at(-1);
@@ -276,6 +278,7 @@ test("speech generation progress, audio metadata and saved playback references s
   const output = {
     type: "audio",
     filePath: "/workspace/generated-media/speech.mp3",
+    fileName: "speech.mp3",
     mimeType: "audio/mpeg",
     size: 1024,
   };

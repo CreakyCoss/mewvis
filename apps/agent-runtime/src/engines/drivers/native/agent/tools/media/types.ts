@@ -8,6 +8,7 @@ import type { ExecutionPolicy } from "../../../../../../security/execution/types
 export type MediaArtifact = {
   type: string;
   filePath?: string;
+  fileName?: string;
   mimeType?: string;
   size?: number;
   value?: JsonValue;
@@ -50,6 +51,7 @@ export type MediaArguments = {
   files?: JsonValue;
   parameters?: Record<string, JsonValue>;
   outputDirectory?: string;
+  outputName?: string;
   timeoutSeconds?: number;
 };
 export type MediaGenerationRequest = {

@@ -12,7 +12,7 @@ import {
   rm,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { createServer } from "node:http";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import entries from "../build-entries.json" with { type: "json" };
@@ -40,6 +40,7 @@ await build({
     contents: [
       "engines/drivers/native/agent/tools/media/index.ts",
       "engines/drivers/native/agent/tools/media/generate.ts",
+      "engines/drivers/native/agent/tools/media/files.ts",
       "engines/drivers/native/agent/runtimes/pi/tools/media-tool.ts",
       "engines/drivers/native/agent/runtimes/pi/tools/ask-user-tool.ts",
       "engines/drivers/native/agent/runtimes/pi/tools/safety.ts",
@@ -178,7 +179,87 @@ test("generic workflow composes requests, saves large outputs and deduplicates c
   );
   assert.equal(JSON.parse(requests[0].init.body).n, 1);
   assert.deepEqual(await readFile(a.outputs[0].filePath), png);
+  assert.match(a.outputs[0].fileName, /^image-\d{8}T\d{6}Z-[a-f0-9]{8}\.png$/);
+  assert.equal(a.outputs[0].fileName, basename(a.outputs[0].filePath));
   assert.doesNotMatch(JSON.stringify(a), /model-fixture-key|base64|iVBOR/);
+});
+
+test("descriptive names stay local and batch indices count only media files", async (t) => {
+  const requests = [];
+  const f = await fixture(t, async (_url, init) => {
+    requests.push(JSON.parse(init.body));
+    return Response.json({
+      base_resp: { status_code: 0 },
+      note: "Two variations",
+      data: { image_base64: [png.toString("base64"), png.toString("base64")] },
+    });
+  });
+  const purpose = f.model.configuration.purposes[0];
+  purpose.output.push("text");
+  purpose.response.outputs.unshift({ type: "text", source: "text", path: "/note" });
+  const result = await f.generate({ outputName: "橘猫 宇航员.PNG", outputDirectory: "pictures", parameters: { n: 2 } });
+  assert.equal(result.status, "completed", JSON.stringify(result));
+  assert.equal(requests.length, 1);
+  assert.equal(Object.hasOwn(requests[0], "outputName"), false);
+  assert.doesNotMatch(JSON.stringify(requests), /橘猫/);
+  assert.deepEqual(result.outputs[0], { type: "text", value: "Two variations" });
+  const files = result.outputs.slice(1);
+  for (let i = 0; i < files.length; i++) {
+    assert.match(files[i].fileName, new RegExp(`^橘猫-宇航员-${i + 1}-[a-f0-9]{8}\\.png$`));
+    assert.equal(files[i].filePath, join(f.workspace, "pictures", files[i].fileName));
+    assert.deepEqual(await readFile(files[i].filePath), png);
+  }
+  assert.equal(files.length, 2);
+});
+
+test("output names are portable, bounded and cannot change the directory or media extension", async (t) => {
+  const f = await fixture(t);
+  for (const [outputName, pattern] of [
+    ["../../封面\\图:<一>\"|?*\u0000.mp4", /^封面-图-一-[a-f0-9]{8}\.png$/],
+    ["CON.png", /^media-CON-[a-f0-9]{8}\.png$/],
+    ["nul.backup", /^media-nul\.backup-[a-f0-9]{8}\.png$/],
+    ["e\u0301.png", /^é-[a-f0-9]{8}\.png$/],
+    ["  ... / \\ : * ?  ", /^image-\d{8}T\d{6}Z-[a-f0-9]{8}\.png$/],
+    ["", /^image-\d{8}T\d{6}Z-[a-f0-9]{8}\.png$/],
+    ["猫".repeat(100), new RegExp(`^${"猫".repeat(40)}-[a-f0-9]{8}\\.png$`)],
+  ]) {
+    const result = await f.generate({ outputName });
+    assert.equal(result.status, "completed", JSON.stringify(result));
+    const output = result.outputs[0];
+    assert.match(output.fileName, pattern);
+    assert.equal(output.filePath, join(f.workspace, "generated-media", output.fileName));
+    assert.ok(Buffer.byteLength(output.fileName) < 160);
+    assert.deepEqual(await readFile(output.filePath), png);
+  }
+  for (const outputName of [42, "a".repeat(257)])
+    await assert.rejects(f.generate({ outputName }), /参数格式错误/);
+});
+
+test("filename collisions retry only local commit and never overwrite existing files", async (t) => {
+  const f = await fixture(t);
+  const directory = join(f.workspace, "generated-media");
+  await mkdir(directory);
+  let occupied;
+  const result = await api.collectMedia(
+    { type: "image", source: "base64", value: png.toString("base64") },
+    {
+      directory,
+      outputName: "封面",
+      transport: { signal: new AbortController().signal, authorizeUrl: async () => { throw new Error("no network"); } },
+      authorize: async (path) => {
+        if (!occupied && path.endsWith(".png")) {
+          occupied = path;
+          await writeFile(path, "existing file");
+        }
+        return path;
+      },
+    },
+  );
+  assert.notEqual(result.filePath, occupied);
+  assert.equal(result.fileName, basename(result.filePath));
+  assert.equal(await readFile(occupied, "utf8"), "existing file");
+  assert.deepEqual(await readFile(result.filePath), png);
+  assert.equal((await readdir(directory)).length, 2);
 });
 
 test("missing user-choice parameters ask before any worker or paid request and preserve typed choices on retry", async (t) => {
@@ -445,6 +526,7 @@ test("speech presets list, submit and save playable audio paths through the exis
   const args = {
     ...list.purposes[0].callExample,
     input: { text: "Hello" },
+    outputName: "欢迎语配音",
     parameters: { voice_id: "custom-user-voice", speed: 1.2 },
   };
   const validated = api.validateToolArguments(pi, {
@@ -472,6 +554,7 @@ test("speech presets list, submit and save playable audio paths through the exis
   assert.equal(body.audio_setting.format, "mp3");
   assert.equal(result.outputs[0].type, "audio");
   assert.equal(result.outputs[0].mimeType, "audio/mpeg");
+  assert.match(result.outputs[0].fileName, /^欢迎语配音-[a-f0-9]{8}\.mp3$/);
   assert.match(result.outputs[0].filePath, /\.mp3$/);
   assert.deepEqual(await readFile(result.outputs[0].filePath), audio);
   assert.doesNotMatch(
@@ -653,11 +736,12 @@ test("video polling and collection remain inside the generic tool without model 
       intervalSeconds: 1,
     },
   };
-  const result = await f.generate({ purpose: "video-generation" });
+  const result = await f.generate({ purpose: "video-generation", outputName: "宣传片开场" });
   assert.equal(result.status, "completed", JSON.stringify(result));
   assert.equal(result.taskId, "job/1");
   assert.equal(submissions, 1);
   assert.equal(queries, 2);
+  assert.match(result.outputs[0].fileName, /^宣传片开场-[a-f0-9]{8}\.mp4$/);
   assert.equal(await readFile(result.outputs[0].filePath, "utf8"), "video");
 });
 
@@ -1138,8 +1222,10 @@ test(
       action: "generate",
       purpose: "image-generation",
       input: { prompt: "cat" },
+      outputName: "工作进程图片",
     });
     assert.equal(result.status, "completed", JSON.stringify(result));
+    assert.match(result.outputs[0].fileName, /^工作进程图片-[a-f0-9]{8}\.png$/);
     assert.deepEqual(await readFile(result.outputs[0].filePath), png);
   },
 );
@@ -1156,6 +1242,7 @@ test("list cannot silently accept generation fields or start a worker", async (t
     { parameters: {} },
     { files: [] },
     { outputDirectory: "generated-media" },
+    { outputName: "封面" },
     { timeoutSeconds: 30 },
   ]) {
     await assert.rejects(

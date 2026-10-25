@@ -89,10 +89,19 @@ export async function runMediaGeneration(
       transport,
       progress,
     });
+    const fileCount = generated.filter(
+      (output) => output.source === "url" || output.source === "base64",
+    ).length;
+    let fileIndex = 0;
     for (const output of generated) {
       outputs.push(
         await collectMedia(output, {
           directory,
+          outputName: args.outputName,
+          index:
+            fileCount > 1 && (output.source === "url" || output.source === "base64")
+              ? ++fileIndex
+              : undefined,
           transport,
           authorize: (path) => authorize(path, "write"),
         }),
