@@ -7,6 +7,7 @@ export function renderImage(
   image.alt = resource.name;
   Object.assign(image.style, {
     display: "block",
+    flexShrink: "0",
     maxHeight:
       imageScale === undefined
         ? layout === "intrinsic"

@@ -6,7 +6,8 @@ export type FilePreviewSource =
   | { previewId: string; filePath?: never; applicationId?: never };
 
 export type FilePreviewProps = FilePreviewSource &
-  FilePreviewOptions & {
+  Omit<FilePreviewOptions, "mediaControls"> & {
+    mediaControls?: boolean;
     className?: string;
     onReady?(resource: FilePreviewResource, url: string): void;
     onError?(message: string): void;

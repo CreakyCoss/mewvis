@@ -23,11 +23,9 @@ import {
 import { Button } from "design-system/components/ui/button";
 import { writeClipboardText } from "@mewvis/app-sdk/browser";
 import { MediaView } from "./view";
+import { errorText, FileName, formatFileSize } from "./util";
 import { useMediaRuntime } from "./runtime";
 import type { MediaDialogProps } from "./types";
-
-const sizeText = (bytes: number) =>
-  bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
 
 /** Internal full-view presentation. Callers use Media with presentation="dialog". */
 export function MediaDialog({
@@ -72,7 +70,7 @@ export function MediaDialog({
         setCopiedId(preview.id);
       }
     } catch (error) {
-      setActionError(error instanceof Error ? error.message : String(error));
+      setActionError(errorText(error));
     } finally {
       setLocating(false);
     }
@@ -88,7 +86,7 @@ export function MediaDialog({
       }}
     >
       <DialogContent
-        className={`flex max-h-[90dvh] max-w-[calc(100vw-2rem)] flex-col gap-0 overflow-hidden rounded-xl p-0 has-[[data-media-small]]:sm:max-w-[560px] ${kind === "audio" ? "sm:max-w-[560px]" : "sm:max-w-[900px]"}`}
+        className={`flex max-h-[90dvh] max-w-[calc(100vw-2rem)] flex-col gap-0 overflow-hidden rounded-xl p-0 ${kind === "image" ? "h-[min(86dvh,760px)]" : ""} ${kind === "audio" ? "sm:max-w-[560px]" : "sm:max-w-[900px]"}`}
         onCloseAutoFocus={(event) => {
           if (onRestoreFocus) {
             event.preventDefault();
@@ -98,16 +96,17 @@ export function MediaDialog({
       >
         <DialogHeader className="flex h-14 shrink-0 flex-row items-center gap-2.5 border-b border-border/50 px-5 pr-16 text-left">
           <Icon aria-hidden="true" className="size-4 shrink-0 text-primary" />
-          <DialogTitle className="min-w-0 truncate text-sm font-medium" title={preview?.name}>
-            {preview?.name ?? "文件预览"}
+          <DialogTitle className="min-w-0 text-sm font-medium" aria-label={preview.name}>
+            <FileName name={preview?.name ?? "文件预览"} />
           </DialogTitle>
         </DialogHeader>
         <div
-          className={`relative min-h-0 overflow-auto ${kind === "audio" ? "flex items-center justify-center p-5" : media ? "flex-auto" : "h-[min(65dvh,720px)]"} ${kind === "image" ? "has-[[data-media-small]]:pt-4 has-[[data-media-small]]:pb-16" : ""}`}
+          data-slot="media-dialog-viewport"
+          className={`relative min-h-0 ${kind === "image" ? "flex-1 overflow-hidden bg-muted/30" : kind === "audio" ? "flex items-center justify-center overflow-auto p-5" : media ? "flex-auto overflow-auto" : "h-[min(65dvh,720px)] overflow-auto"}`}
           style={{ "--file-preview-max-height": "calc(90dvh - 9rem)" } as CSSProperties}
         >
           <div
-            className={`relative flex h-full min-h-0 w-full min-w-0 ${imageScale !== undefined ? "overflow-visible" : "overflow-auto"}`}
+            className={`relative flex h-full min-h-0 w-full min-w-0 ${kind === "image" ? "overflow-hidden p-4 pb-16" : "overflow-auto"}`}
             style={{ alignItems: "safe center", justifyContent: "safe center" }}
             aria-busy={loading}
           >
@@ -120,63 +119,70 @@ export function MediaDialog({
               </p>
             )}
             {resource && !error && (
-              <MediaView resource={resource} presentation="preview" imageScale={imageScale} formatLabel={formatLabel} />
+              <MediaView
+                resource={resource}
+                presentation="preview"
+                layout={kind === "image" ? "contain" : undefined}
+                imageScale={imageScale}
+                formatLabel={formatLabel}
+              />
             )}
           </div>
-        </div>
-        {kind === "image" && (
-          <div className="pointer-events-none relative z-10 -mt-14 flex h-14 shrink-0 items-start justify-center pb-3">
-            <div
-              role="toolbar"
-              aria-label="图片缩放"
-              className="pointer-events-auto flex h-10 items-center gap-1 rounded-xl border border-border/40 bg-popover/95 px-1.5 shadow-sm backdrop-blur-md"
-            >
-              <Button
-                variant="ghost"
-                size="icon"
-                className="size-8"
-                aria-label="缩小图片"
-                disabled={imageScale !== undefined && imageScale <= 0.25}
-                onClick={() => setImageScale(Math.max(0.25, (imageScale ?? 1) - 0.25))}
+          {kind === "image" && (
+            <div className="pointer-events-none absolute inset-x-0 bottom-3 z-10 flex justify-center">
+              <div
+                role="toolbar"
+                aria-label="图片缩放"
+                className="pointer-events-auto flex h-10 items-center gap-1 rounded-xl border border-border/40 bg-popover/95 px-1.5 shadow-sm backdrop-blur-md"
               >
-                <Minus className="size-3.5" />
-              </Button>
-              <button
-                type="button"
-                className="min-w-12 rounded-md px-1 text-xs tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                title="以原始尺寸查看"
-                onClick={() => setImageScale(1)}
-              >
-                {imageScale === undefined ? "适应" : `${Math.round(imageScale * 100)}%`}
-              </button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="size-8"
-                aria-label="放大图片"
-                disabled={imageScale !== undefined && imageScale >= 3}
-                onClick={() => setImageScale(Math.min(3, (imageScale ?? 1) + 0.25))}
-              >
-                <Plus className="size-3.5" />
-              </Button>
-              <span aria-hidden="true" className="mx-1 h-4 w-px bg-border" />
-              <Button
-                variant="ghost"
-                size="icon"
-                className="size-8"
-                aria-label="适应窗口"
-                onClick={() => setImageScale(undefined)}
-              >
-                <Maximize className="size-3.5" />
-              </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-8"
+                  aria-label="缩小图片"
+                  disabled={imageScale !== undefined && imageScale <= 0.25}
+                  onClick={() => setImageScale(Math.max(0.25, (imageScale ?? 1) - 0.25))}
+                >
+                  <Minus className="size-3.5" />
+                </Button>
+                <button
+                  type="button"
+                  className="min-w-12 rounded-md px-1 text-xs tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  title="以原始尺寸查看"
+                  onClick={() => setImageScale(1)}
+                >
+                  {imageScale === undefined ? "适应" : `${Math.round(imageScale * 100)}%`}
+                </button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-8"
+                  aria-label="放大图片"
+                  disabled={imageScale !== undefined && imageScale >= 3}
+                  onClick={() => setImageScale(Math.min(3, (imageScale ?? 1) + 0.25))}
+                >
+                  <Plus className="size-3.5" />
+                </Button>
+                <span aria-hidden="true" className="mx-1 h-4 w-px bg-border" />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-8"
+                  aria-label="适应窗口"
+                  onClick={() => setImageScale(undefined)}
+                >
+                  <Maximize className="size-3.5" />
+                </Button>
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
+
         <footer className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-border/50 bg-popover px-5 py-3">
           <div className="min-w-0 flex-1 basis-32">
             <DialogDescription className="text-xs">
               {preview
-                ? `${preview.name.split(".").pop()?.toUpperCase() ?? preview.kind} · ${sizeText(preview.size)}`
+                ? `${preview.name.split(".").pop()?.toUpperCase() ?? preview.kind} · ${formatFileSize(preview.size)}`
                 : "只读预览"}
             </DialogDescription>
             {parentPath && (

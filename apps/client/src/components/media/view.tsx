@@ -5,50 +5,35 @@ import { HoverCard, HoverCardArrow, HoverCardContent, HoverCardTrigger } from "d
 import { Button } from "design-system/components/ui/button";
 import { cn } from "design-system/lib/utils";
 import { MediaInfo } from "./info";
-import { getMediaLabels } from "./metadata";
+import { errorText, getMediaLabels, inferType } from "./util";
 import { AudioRenderer } from "./renderers/audio";
 import { useMediaRuntime } from "./runtime";
-import { errorText, useMediaPreview } from "./use-media";
+import { useMediaPreview } from "./use-media";
 import type { MediaContentProps } from "./types";
-
-function inferType({
-  type,
-  mimeType,
-  filePath,
-  name,
-  resource,
-}: MediaContentProps): NonNullable<MediaContentProps["type"]> {
-  if (resource) return resource.kind;
-  if (type) return type;
-  const mime = mimeType?.split("/")[0];
-  if (mime === "image" || mime === "video" || mime === "audio") return mime;
-  const extension = (name || filePath || "").split(".").at(-1)?.toLowerCase();
-  if (extension && ["png", "jpg", "jpeg", "gif", "webp", "avif", "svg", "bmp", "ico"].includes(extension))
-    return "image";
-  if (extension && ["mp4", "webm", "mov", "m4v", "ogv"].includes(extension)) return "video";
-  if (extension && ["mp3", "wav", "ogg", "m4a", "aac", "flac", "opus", "aiff"].includes(extension)) return "audio";
-  return "unsupported";
-}
 
 /** Private inline/body composition selected by the public Media facade. */
 export function MediaView(props: MediaContentProps) {
-  const type = inferType(props);
+  const hintType = inferType(props);
   const { resource, presentation = "inline", imageScale } = props;
   const inline = presentation === "inline";
-  const audio = type === "audio";
-  const visual = type === "image" || type === "video";
-  const layout = props.layout ?? (visual || audio ? "intrinsic" : "contain");
-  const path = resource?.filePath ?? props.filePath ?? "";
-  const name = props.name ?? resource?.name ?? path.split(/[\\/]/).at(-1) ?? "媒体文件";
-  const labels = getMediaLabels(type, props.formatLabel);
-  const label = labels.accessible;
-  const size = props.size ?? resource?.size;
+  // Source metadata may arrive after mounting. It must not reopen the lease just
+  // to change the renderer's layout or native audio/video controls.
+  const layout = props.layout ?? (inline || ["image", "audio", "video"].includes(hintType) ? "intrinsic" : "contain");
   const root = useRef<HTMLElement>(null);
   const stage = useRef<HTMLDivElement>(null);
   const popover = useRef<HTMLDivElement>(null);
   const getRuntime = useMediaRuntime();
   const [revision, setRevision] = useState(0);
-  const media = useMediaPreview({ ...props, type, layout }, root, revision);
+  const media = useMediaPreview({ ...props, layout }, root, revision);
+  const type = media.metadata?.kind ?? hintType;
+  const audio = type === "audio";
+  const visual = type === "image" || type === "video";
+  const path = media.metadata?.filePath ?? resource?.filePath ?? props.filePath ?? "";
+  const name = props.name ?? media.metadata?.name ?? (path.split(/[\\/]/).at(-1) || "媒体文件");
+  const labels = getMediaLabels(type, props.formatLabel);
+  const label = labels.accessible;
+  const size = media.metadata?.size ?? props.size;
+  const mimeType = media.metadata?.mimeType ?? props.mimeType;
   const [mediaSize, setMediaSize] = useState<{ width: number; height: number }>();
   const [small, setSmall] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
@@ -121,14 +106,13 @@ export function MediaView(props: MediaContentProps) {
       setActionError(errorText(error));
     }
   };
-  const info = (stacked = false, hoverDetails = false) => (
+  const info = (stacked = false) => (
     <MediaInfo
       name={name}
       type={type}
       size={size}
       label={label}
       stacked={stacked}
-      hoverDetails={hoverDetails}
       canReveal={canReveal}
       copied={copied}
       opening={opening}
@@ -157,6 +141,8 @@ export function MediaView(props: MediaContentProps) {
           aria-busy={media.loading}
           data-slot="media"
           data-media-kind={type}
+          data-media-mime-type={mimeType}
+          data-media-size={size}
           data-media-small={small || undefined}
           data-presentation={presentation}
           className={cn(
@@ -198,7 +184,7 @@ export function MediaView(props: MediaContentProps) {
               imageScale !== undefined && "max-w-none",
             )}
           >
-            {audio && inline && !media.error && info(true, true)}
+            {audio && inline && !media.error && info(true)}
             {type === "video" && inline && !media.error && labels.visible && (
               <span className="media-kind pointer-events-none absolute top-2.5 left-2.5 z-10 inline-flex max-w-[calc(100%-1.25rem)] items-center gap-1.5 rounded-md border border-border/50 bg-popover/90 px-2 py-1 text-[11px] text-muted-foreground">
                 <VideoIcon className="size-3.5 shrink-0" aria-hidden="true" />

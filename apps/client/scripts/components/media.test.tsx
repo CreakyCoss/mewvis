@@ -48,7 +48,7 @@ async function run() {
   const audio: ApplicationFilePreviewResource = {
     id: "audio",
     filePath: audioPath,
-    name: "212f823d-76ed-445d-b12b-37549abc2e51.wav",
+    name: "opening-narration-212f823d-76ed-445d-b12b-37549abc2e51-final-recording.wav",
     kind: "audio",
     mimeType: "audio/wav",
     size: 32044,
@@ -70,18 +70,20 @@ async function run() {
   const video: ApplicationFilePreviewResource = {
     ...image,
     id: "video",
-    filePath: "/workspace/blank-video.mp4",
-    name: "blank-video.mp4",
+    filePath: "/workspace/first-frame.mp4",
+    name: "first-frame.mp4",
     kind: "video",
     mimeType: "video/mp4",
     resourcePath: "video",
-    resourceUrl: new URL("./fixtures/blank-video.mp4", import.meta.url).href,
+    resourceUrl: new URL("./fixtures/first-frame.mp4", import.meta.url).href,
   };
   const released: string[] = [],
     located: string[] = [],
     opened: string[] = [];
+  let mounts = 0;
   const runtime: MediaRuntime = {
     async open(container, { filePath }, options) {
+      mounts++;
       const view = renderFilePreview(container, filePath === audioPath ? audio : image, options);
       return {
         ready: view.ready,
@@ -109,19 +111,47 @@ async function run() {
       ),
     );
   try {
-    await render({ filePath: audioPath, name: audio.name, mimeType: "audio/wav", size: audio.size });
+    await render({ filePath: audioPath });
     await waitFor(() => fixture.querySelector("audio")?.duration === 2);
     const native = fixture.querySelector("audio")!;
     const media = fixture.querySelector<HTMLElement>('[data-slot="media"]')!;
     assert(
       media.dataset.mediaKind === "audio" && !native.controls,
-      "Public Media infers audio from MIME and hides the native implementation",
+      "A path-only Media uses authoritative audio metadata and hides the native implementation",
+    );
+    assert(
+      media.dataset.mediaMimeType === audio.mimeType && Number(media.dataset.mediaSize) === audio.size,
+      "Media obtains MIME and the real file size from its existing preview lease",
+    );
+    assert(mounts === 1, "Resolving the actual media type does not open a second preview lease");
+    const permanentAction = media.querySelector<HTMLElement>('[title="打开所在目录"]')!;
+    assert(
+      getComputedStyle(permanentAction).visibility === "visible" && !permanentAction.closest(".media-hover"),
+      "Audio actions are visible without hover or keyboard focus",
+    );
+    const filename = media.querySelector<HTMLElement>('[data-slot="media-file-name"]')!;
+    const filenameHead = filename.firstElementChild as HTMLElement;
+    const filenameTail = filename.lastElementChild as HTMLElement;
+    assert(
+      filename.textContent === audio.name &&
+        filenameTail.textContent?.endsWith(".wav") &&
+        filenameHead.scrollWidth > filenameHead.clientWidth &&
+        getComputedStyle(filenameHead).textOverflow === "ellipsis",
+      "Long filenames truncate in the middle while preserving the ending and extension",
     );
     assert(
       media.getAttribute("aria-label") === "音频",
       "Media generates the default type label without a caller-provided label",
     );
     const audioProps = { filePath: audioPath, name: audio.name, mimeType: "audio/wav", size: audio.size };
+    await render({ ...audioProps, type: "image", mimeType: "image/png", size: 1 });
+    assert(
+      media.dataset.mediaKind === "audio" &&
+        media.dataset.mediaMimeType === audio.mimeType &&
+        Number(media.dataset.mediaSize) === audio.size &&
+        mounts === 1,
+      "Authorized metadata overrides incorrect caller hints without reopening the preview",
+    );
     const index = 2;
     await render({ ...audioProps, formatLabel: (label) => `${label} ${index + 1}` });
     assert(
@@ -139,7 +169,6 @@ async function run() {
     const before = media.getBoundingClientRect(),
       rowBefore = media.querySelector('[data-slot="audio-player"]')!.getBoundingClientRect();
     await act(async () => media.focus());
-    await waitFor(() => getComputedStyle(media.querySelector(".media-hover")!).visibility === "visible");
     const after = media.getBoundingClientRect(),
       rowAfter = media.querySelector('[data-slot="audio-player"]')!.getBoundingClientRect();
     assert(
@@ -257,6 +286,14 @@ async function run() {
 
     await render({ presentation: "dialog", preview: image, resource: image, onClose: closeDialog });
     await waitFor(() => Boolean(document.querySelector<HTMLImageElement>('[role="dialog"] img')?.complete));
+    const imageDialog = document.querySelector<HTMLElement>('[role="dialog"]')!;
+    const fixedDialogBox = imageDialog.getBoundingClientRect();
+    const fixedViewport = imageDialog.querySelector<HTMLElement>('[data-slot="media-dialog-viewport"]')!;
+    const fixedViewportBox = fixedViewport.getBoundingClientRect();
+    assert(
+      fixedViewportBox.height > 200 && fixedViewportBox.width > 300,
+      "Small images use the full fixed-size image dialog viewport",
+    );
     await act(async () =>
       document.querySelector<HTMLButtonElement>('[role="dialog"] [aria-label="放大图片"]')!.click(),
     );
@@ -264,6 +301,13 @@ async function run() {
     assert(
       document.querySelector('[role="dialog"] [title="以原始尺寸查看"]')?.textContent === "125%",
       "Image zoom state is maintained inside the common Media dialog",
+    );
+    await waitFor(() => imageDialog.querySelector<HTMLImageElement>("img")?.style.width === "20px");
+    assert(
+      imageDialog.getBoundingClientRect().width === fixedDialogBox.width &&
+        imageDialog.getBoundingClientRect().height === fixedDialogBox.height &&
+        fixedViewport.getBoundingClientRect().height === fixedViewportBox.height,
+      "Zoom changes the image inside the viewport without resizing the dialog",
     );
     const nextImage = { ...image, id: "next-small" };
     await render({
@@ -297,7 +341,18 @@ async function run() {
       "The common dialog reports close requests through the same public entry",
     );
     await render({ resource: video });
-    await waitFor(() => Boolean(fixture.querySelector("video")?.duration));
+    await waitFor(() =>
+      Boolean(
+        fixture.querySelector("video")?.readyState &&
+        fixture.querySelector("video")!.readyState >= 2 &&
+        !fixture.querySelector("video")!.seeking,
+      ),
+    );
+    const nativeVideo = fixture.querySelector("video")!;
+    assert(
+      nativeVideo.paused && nativeVideo.currentTime > 0 && nativeVideo.currentTime < 1 / 30,
+      "Video decodes its first frame while remaining paused with no autoplay",
+    );
     const videoFigure = fixture.querySelector<HTMLElement>('[data-slot="media"]')!;
     assert(
       videoFigure.getAttribute("aria-label") === "视频" &&

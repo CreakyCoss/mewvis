@@ -1,14 +1,15 @@
 import { useEffect, useRef, useState, type RefObject } from "react";
-import type { FilePreviewMediaControls, FilePreviewMediaState } from "@mewvis/app-sdk/files";
+import type { ApplicationFilePreview, FilePreviewMediaControls, FilePreviewMediaState } from "@mewvis/app-sdk/files";
 import { renderFilePreview } from "@mewvis/app-sdk/files/view";
 import { useMediaRuntime } from "./runtime";
+import { errorText } from "./util";
 import type { MediaContentProps } from "./types";
 
-export const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error));
 const initialPlayback: FilePreviewMediaState = { currentTime: 0, duration: 0, paused: true, ended: false };
 
 export function useMediaPreview(props: MediaContentProps, root: RefObject<HTMLElement | null>, revision: number) {
-  const { filePath, resource, presentation = "inline", layout = "intrinsic", imageScale, mediaControls, type } = props;
+  const { filePath, resource, presentation = "inline", layout = "intrinsic", imageScale, mediaControls } = props;
+  const sourceKey = resource?.id ?? filePath ?? "";
   const getRuntime = useMediaRuntime();
   const container = useRef<HTMLDivElement>(null);
   const controls = useRef<FilePreviewMediaControls | null>(null);
@@ -16,6 +17,7 @@ export function useMediaPreview(props: MediaContentProps, root: RefObject<HTMLEl
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [playback, setPlayback] = useState(initialPlayback);
+  const [metadata, setMetadata] = useState<{ key: string; file: ApplicationFilePreview }>();
   const callbacks = useRef(props);
   callbacks.current = props;
 
@@ -57,7 +59,12 @@ export function useMediaPreview(props: MediaContentProps, root: RefObject<HTMLEl
     const options = {
       layout,
       imageScale,
-      mediaControls: type === "audio" ? false : mediaControls,
+      mediaControls: { audio: false, video: mediaControls ?? true },
+      onMetadata(file: ApplicationFilePreview) {
+        if (disposed) return;
+        setMetadata({ key: sourceKey, file });
+        callbacks.current.onMetadata?.(file);
+      },
       onMediaReady(value: FilePreviewMediaControls | null) {
         if (disposed) return;
         controls.current = value;
@@ -88,6 +95,14 @@ export function useMediaPreview(props: MediaContentProps, root: RefObject<HTMLEl
       callbacks.current.onMediaReady?.(null);
       void view?.close();
     };
-  }, [filePath, resource, type, visible, revision, getRuntime, layout, imageScale, mediaControls]);
-  return { container, controls, playback, visible, loading, error };
+  }, [filePath, resource, sourceKey, visible, revision, getRuntime, layout, imageScale, mediaControls]);
+  return {
+    container,
+    controls,
+    playback,
+    visible,
+    loading,
+    error,
+    metadata: resource ?? (metadata?.key === sourceKey ? metadata.file : undefined),
+  };
 }

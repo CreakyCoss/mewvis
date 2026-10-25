@@ -13,10 +13,32 @@ export function renderMedia(
   const media = root.ownerDocument.createElement(
     resource.kind === "audio" ? "audio" : "video",
   );
-  media.controls = mediaControls;
-  media.muted = !mediaControls && resource.kind === "video";
-  media.preload = "metadata";
+  const showControls =
+    typeof mediaControls === "object"
+      ? (mediaControls[resource.kind] ?? true)
+      : mediaControls;
+  media.controls = showControls;
+  media.muted = !showControls && resource.kind === "video";
+  media.preload = resource.kind === "video" ? "auto" : "metadata";
+  if (resource.kind === "video") media.playsInline = true;
   let closed = false;
+  const showFirstFrame = () => {
+    if (closed || signal.aborted || !media.paused || media.currentTime !== 0)
+      return;
+    // A tiny seek asks WebKit to paint the first decoded frame without autoplay.
+    try {
+      media.currentTime = Math.min(
+        0.001,
+        Number.isFinite(media.duration) && media.duration > 0
+          ? media.duration / 2
+          : 0.001,
+      );
+    } catch {
+      /* Keep native playback available when a format cannot seek yet. */
+    }
+  };
+  if (resource.kind === "video")
+    media.addEventListener("loadedmetadata", showFirstFrame, { once: true });
   const publish = () => {
     if (!closed && !signal.aborted)
       onMediaStateChange?.({
@@ -87,6 +109,7 @@ export function renderMedia(
   return () => {
     if (closed) return;
     closed = true;
+    media.removeEventListener("loadedmetadata", showFirstFrame);
     for (const event of events) media.removeEventListener(event, publish);
     media.onerror = null;
     media.pause();

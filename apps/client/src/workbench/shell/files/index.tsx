@@ -20,6 +20,7 @@ export function FilePreview({
   mediaControls,
   onMediaReady,
   onMediaStateChange,
+  onMetadata,
   ...source
 }: FilePreviewProps) {
   const { resource, url, loading, error, onError } = useFilePreview(source);
@@ -54,6 +55,7 @@ export function FilePreview({
           mediaControls={mediaControls}
           onMediaReady={onMediaReady}
           onMediaStateChange={onMediaStateChange}
+          onMetadata={onMetadata}
           onError={onError}
         />
       )}

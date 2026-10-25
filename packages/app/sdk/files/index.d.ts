@@ -39,8 +39,10 @@ export interface FilePreviewOptions {
   layout?: "contain" | "intrinsic";
   /** Image pixel scale. Omit to fit the available space. */
   imageScale?: number;
-  /** Hide native playback controls for custom playback UI or silent video thumbnails. */
-  mediaControls?: boolean;
+  /** Native playback controls, optionally selected per media kind. */
+  mediaControls?: boolean | Partial<Record<"audio" | "video", boolean>>;
+  /** Authoritative metadata from the existing authorized preview lease. */
+  onMetadata?(file: ApplicationFilePreview): void;
   onMediaReady?(controls: FilePreviewMediaControls | null): void;
   onMediaStateChange?(state: FilePreviewMediaState): void;
 }

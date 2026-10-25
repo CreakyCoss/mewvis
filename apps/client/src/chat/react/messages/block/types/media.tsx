@@ -60,9 +60,6 @@ export function MediaResult({ result }: { result: ChatMediaResult }) {
             <Media
               key={artifact.filePath}
               filePath={artifact.filePath}
-              type={artifact.type}
-              mimeType={artifact.mimeType}
-              size={artifact.size}
               formatLabel={(label) => `${label} ${index + 1}`}
             />
           ))}

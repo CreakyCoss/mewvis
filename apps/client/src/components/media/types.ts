@@ -19,8 +19,10 @@ type MediaLabelOptions = {
 
 export type MediaContentProps = MediaSource &
   MediaLabelOptions &
-  FilePreviewOptions & {
+  Omit<FilePreviewOptions, "mediaControls"> & {
+    mediaControls?: boolean;
     name?: string;
+    /** Optional loading hints; resolved file metadata takes precedence. */
     type?: ApplicationFilePreviewResource["kind"];
     mimeType?: string;
     size?: number;

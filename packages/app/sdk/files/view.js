@@ -30,8 +30,8 @@ export function renderFilePreview(container, resource, options = {}) {
     height: options.layout === "intrinsic" ? "auto" : "100%",
     minWidth: "0",
     minHeight: "0",
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: "safe center",
+    justifyContent: "safe center",
     overflow: "auto",
     font: "inherit",
   });
@@ -55,6 +55,7 @@ export function renderFilePreview(container, resource, options = {}) {
   const ready = (async () => {
     if (typeof resource.resourceUrl !== "string")
       throw new Error("当前宿主未提供受限文件资源地址");
+    options.onMetadata?.(resource);
     cleanup = await (renderers[resource.kind] ?? renderUnsupported)(
       root,
       resource,

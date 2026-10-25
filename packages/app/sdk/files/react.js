@@ -18,10 +18,11 @@ export function FilePreview({
   imageScale,
   onMediaReady,
   onMediaStateChange,
+  onMetadata,
 }) {
   const container = useRef(null);
-  const callbacks = useRef({ onMediaReady, onMediaStateChange });
-  callbacks.current = { onMediaReady, onMediaStateChange };
+  const callbacks = useRef({ onMediaReady, onMediaStateChange, onMetadata });
+  callbacks.current = { onMediaReady, onMediaStateChange, onMetadata };
   useEffect(() => {
     let disposed = false,
       view;
@@ -37,6 +38,9 @@ export function FilePreview({
             mediaControls,
             layout,
             imageScale,
+            onMetadata: (file) => {
+              if (!disposed) callbacks.current.onMetadata?.(file);
+            },
             onMediaReady: (controls) => {
               if (!disposed) callbacks.current.onMediaReady?.(controls);
             },
