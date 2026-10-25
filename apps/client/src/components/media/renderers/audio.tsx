@@ -1,11 +1,11 @@
 import { PauseIcon, PlayIcon, Volume2Icon, VolumeXIcon } from "lucide-react";
 
-export const formatMediaTime = (seconds: number) => {
+const formatMediaTime = (seconds: number) => {
   const value = Number.isFinite(seconds) ? Math.max(0, Math.floor(seconds)) : 0;
   return `${Math.floor(value / 60)}:${String(value % 60).padStart(2, "0")}`;
 };
 
-export function AudioPlayer({
+export function AudioRenderer({
   label,
   currentTime = 0,
   duration = 0,
@@ -28,8 +28,9 @@ export function AudioPlayer({
 }) {
   return (
     <div
+      data-slot="audio-player"
       aria-label={`${label}播放器`}
-      className="flex h-14 w-full min-w-0 items-center gap-3 rounded-2xl bg-primary/8 px-3 text-primary"
+      className="flex h-14 w-full min-w-0 items-center gap-3 px-3.5 text-primary"
     >
       <button
         type="button"
@@ -55,7 +56,7 @@ export function AudioPlayer({
         disabled={disabled || !duration}
         onChange={(event) => onSeek(Number(event.target.value))}
       />
-      <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
+      <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
         {formatMediaTime(currentTime)} / {formatMediaTime(duration)}
       </span>
       {onMute && (

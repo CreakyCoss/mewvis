@@ -11,6 +11,7 @@ import { isChatBusy, type ChatRunConfig, type ChatSession } from "../core";
 import { getChatViewState } from "./view-state";
 import type { ChatDisplayOptions, ChatInputFile, ChatViewPersistence } from "./types";
 import type { ApplicationFileClient } from "@mewvis/app-sdk/files";
+import { MediaProvider } from "@/components/media";
 
 type Environment = {
   files?: (session: ChatSession) => ChatInputFile[];
@@ -20,7 +21,11 @@ type Environment = {
 };
 const EnvironmentContext = createContext<Environment>({});
 export function ChatEnvironment({ children, ...environment }: PropsWithChildren<Environment>) {
-  return <EnvironmentContext.Provider value={environment}>{children}</EnvironmentContext.Provider>;
+  return (
+    <EnvironmentContext.Provider value={environment}>
+      <MediaProvider value={environment.filePreview}>{children}</MediaProvider>
+    </EnvironmentContext.Provider>
+  );
 }
 const SessionContext = createContext<{ session: ChatSession; view: ReturnType<typeof getChatViewState> } | null>(null);
 export function ChatProvider({
@@ -54,9 +59,6 @@ export function useChatActions() {
 export function useBeforeComposer() {
   const session = useChatSession();
   return useContext(EnvironmentContext).renderBeforeComposer?.(session);
-}
-export function useChatFilePreview() {
-  return useContext(EnvironmentContext).filePreview;
 }
 export function useChatViewState() {
   const { view } = useBinding();

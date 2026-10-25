@@ -1,4 +1,4 @@
-import { useState, type CSSProperties, type ReactNode } from "react";
+import { useState, type CSSProperties } from "react";
 import {
   Check,
   Copy,
@@ -21,30 +21,38 @@ import {
   DialogTitle,
 } from "design-system/components/ui/dialog";
 import { Button } from "design-system/components/ui/button";
-import type { ApplicationFilePreview } from "@mewvis/app-sdk/files";
-import { getFilePreview } from "@/api/applications/files";
-import { platform } from "@/platform";
+import { writeClipboardText } from "@mewvis/app-sdk/browser";
+import { MediaView } from "./view";
+import { useMediaRuntime } from "./runtime";
+import type { MediaDialogProps } from "./types";
 
 const sizeText = (bytes: number) =>
   bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
 
-export function FilePreviewDialog({
-  preview,
-  url,
+/** Internal full-view presentation. Callers use Media with presentation="dialog". */
+export function MediaDialog({
+  preview: requested,
+  resource,
+  loading = !resource,
+  error,
   onClose,
-  children,
-  imageScale,
-  onImageScaleChange,
   onRestoreFocus,
-}: {
-  preview?: ApplicationFilePreview;
-  url: string;
-  onClose(): void;
-  children: ReactNode;
-  imageScale?: number;
-  onImageScaleChange(scale: number | undefined): void;
-  onRestoreFocus?(): void;
-}) {
+  onReveal,
+  formatLabel,
+}: MediaDialogProps) {
+  const preview = resource ?? requested;
+  const url = resource?.resourceUrl ?? "";
+  const [imageScale, setImageScale] = useState<number>();
+  const getRuntime = useMediaRuntime();
+  let reveal = onReveal;
+  if (!reveal && preview.filePath) {
+    try {
+      const revealPath = getRuntime().reveal;
+      if (revealPath) reveal = () => revealPath(preview.filePath!);
+    } catch {
+      /* Browser-only hosts retain the copy-path fallback. */
+    }
+  }
   const [locating, setLocating] = useState(false);
   const [copiedId, setCopiedId] = useState("");
   const [actionError, setActionError] = useState("");
@@ -57,12 +65,10 @@ export function FilePreviewDialog({
     setActionError("");
     setLocating(true);
     try {
-      if (platform.revealPath) {
-        const current = await getFilePreview(preview.id);
-        if (!current.filePath) throw new Error("当前文件位置不可用，请重新打开预览");
-        await platform.revealPath(current.filePath);
+      if (reveal) {
+        await reveal();
       } else {
-        await navigator.clipboard.writeText(preview.filePath);
+        await writeClipboardText(preview.filePath);
         setCopiedId(preview.id);
       }
     } catch (error) {
@@ -82,7 +88,7 @@ export function FilePreviewDialog({
       }}
     >
       <DialogContent
-        className={`flex max-h-[90dvh] max-w-[calc(100vw-2rem)] flex-col gap-0 overflow-hidden rounded-xl p-0 ${kind === "audio" ? "sm:max-w-[640px]" : "sm:max-w-[900px]"}`}
+        className={`flex max-h-[90dvh] max-w-[calc(100vw-2rem)] flex-col gap-0 overflow-hidden rounded-xl p-0 has-[[data-media-small]]:sm:max-w-[560px] ${kind === "audio" ? "sm:max-w-[560px]" : "sm:max-w-[900px]"}`}
         onCloseAutoFocus={(event) => {
           if (onRestoreFocus) {
             event.preventDefault();
@@ -97,10 +103,26 @@ export function FilePreviewDialog({
           </DialogTitle>
         </DialogHeader>
         <div
-          className={`relative min-h-0 overflow-auto ${kind === "audio" ? "flex items-center justify-center p-6 sm:p-8" : media ? "flex-auto" : "h-[min(65dvh,720px)]"}`}
+          className={`relative min-h-0 overflow-auto ${kind === "audio" ? "flex items-center justify-center p-5" : media ? "flex-auto" : "h-[min(65dvh,720px)]"} ${kind === "image" ? "has-[[data-media-small]]:pt-4 has-[[data-media-small]]:pb-16" : ""}`}
           style={{ "--file-preview-max-height": "calc(90dvh - 9rem)" } as CSSProperties}
         >
-          {children}
+          <div
+            className={`relative flex h-full min-h-0 w-full min-w-0 ${imageScale !== undefined ? "overflow-visible" : "overflow-auto"}`}
+            style={{ alignItems: "safe center", justifyContent: "safe center" }}
+            aria-busy={loading}
+          >
+            {loading && !error && (
+              <Loader2 className="m-6 size-6 animate-spin text-muted-foreground" aria-label="正在加载预览" />
+            )}
+            {error && (
+              <p role="alert" className="p-5 text-sm text-destructive">
+                {error}
+              </p>
+            )}
+            {resource && !error && (
+              <MediaView resource={resource} presentation="preview" imageScale={imageScale} formatLabel={formatLabel} />
+            )}
+          </div>
         </div>
         {kind === "image" && (
           <div className="pointer-events-none relative z-10 -mt-14 flex h-14 shrink-0 items-start justify-center pb-3">
@@ -115,7 +137,7 @@ export function FilePreviewDialog({
                 className="size-8"
                 aria-label="缩小图片"
                 disabled={imageScale !== undefined && imageScale <= 0.25}
-                onClick={() => onImageScaleChange(Math.max(0.25, (imageScale ?? 1) - 0.25))}
+                onClick={() => setImageScale(Math.max(0.25, (imageScale ?? 1) - 0.25))}
               >
                 <Minus className="size-3.5" />
               </Button>
@@ -123,7 +145,7 @@ export function FilePreviewDialog({
                 type="button"
                 className="min-w-12 rounded-md px-1 text-xs tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 title="以原始尺寸查看"
-                onClick={() => onImageScaleChange(1)}
+                onClick={() => setImageScale(1)}
               >
                 {imageScale === undefined ? "适应" : `${Math.round(imageScale * 100)}%`}
               </button>
@@ -133,7 +155,7 @@ export function FilePreviewDialog({
                 className="size-8"
                 aria-label="放大图片"
                 disabled={imageScale !== undefined && imageScale >= 3}
-                onClick={() => onImageScaleChange(Math.min(3, (imageScale ?? 1) + 0.25))}
+                onClick={() => setImageScale(Math.min(3, (imageScale ?? 1) + 0.25))}
               >
                 <Plus className="size-3.5" />
               </Button>
@@ -143,7 +165,7 @@ export function FilePreviewDialog({
                 size="icon"
                 className="size-8"
                 aria-label="适应窗口"
-                onClick={() => onImageScaleChange(undefined)}
+                onClick={() => setImageScale(undefined)}
               >
                 <Maximize className="size-3.5" />
               </Button>
@@ -179,12 +201,12 @@ export function FilePreviewDialog({
                   <Loader2 className="size-4 animate-spin" />
                 ) : copiedId === preview.id ? (
                   <Check className="size-4" />
-                ) : platform.revealPath ? (
+                ) : reveal ? (
                   <FolderOpen className="size-4" />
                 ) : (
                   <Copy className="size-4" />
                 )}
-                {platform.revealPath ? "打开所在目录" : copiedId === preview.id ? "已复制路径" : "复制文件路径"}
+                {reveal ? "打开所在目录" : copiedId === preview.id ? "已复制路径" : "复制文件路径"}
               </Button>
             )}
             {url && (

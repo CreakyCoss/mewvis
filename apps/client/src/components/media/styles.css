@@ -1,0 +1,54 @@
+@layer components {
+  .media-root {
+    --media-reveal-duration: var(--motion-fast);
+  }
+
+  .media-root .media-hover {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition:
+      opacity var(--media-reveal-duration) var(--ease-standard),
+      visibility var(--media-reveal-duration);
+  }
+
+  .media-root:is(:hover, :focus-within) .media-hover {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+  }
+
+  .media-root .media-kind {
+    transition: opacity var(--media-reveal-duration) var(--ease-standard);
+  }
+
+  .media-root:has(.media-overlay):is(:hover, :focus-within) .media-kind {
+    opacity: 0;
+  }
+
+  .media-action:hover {
+    background: color-mix(in srgb, currentColor 10%, transparent);
+  }
+
+  .media-root[data-media-kind="video"] video {
+    background: var(--muted);
+  }
+
+  @media (hover: none) {
+    .media-root .media-hover {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+    }
+
+    .media-root:has(.media-overlay) .media-kind {
+      opacity: 0;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .media-root {
+      --media-reveal-duration: 0ms;
+    }
+  }
+}
