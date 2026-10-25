@@ -26,7 +26,7 @@ export function AudioRenderer({
     <div
       data-slot="audio-player"
       aria-label={`${label}播放器`}
-      className="flex h-14 w-full min-w-0 items-center gap-3 px-3.5 text-primary"
+      className="flex h-[4.5rem] w-full min-w-0 items-center gap-3 px-4 text-primary"
     >
       <button
         type="button"
@@ -41,20 +41,23 @@ export function AudioRenderer({
           <PauseIcon aria-hidden="true" className="size-4 fill-current" />
         )}
       </button>
-      <input
-        type="range"
-        aria-label="音频播放进度"
-        className="h-1.5 min-w-0 flex-1 cursor-pointer accent-primary disabled:cursor-default"
-        min={0}
-        max={duration || 1}
-        step={0.1}
-        value={Math.min(currentTime, duration)}
-        disabled={disabled || !duration}
-        onChange={(event) => onSeek(Number(event.target.value))}
-      />
-      <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-        {formatMediaTime(currentTime)} / {formatMediaTime(duration)}
-      </span>
+      <div className="min-w-0 flex-1 space-y-2">
+        <input
+          type="range"
+          aria-label="音频播放进度"
+          className="block h-1.5 w-full min-w-0 cursor-pointer accent-primary disabled:cursor-default"
+          min={0}
+          max={duration || 1}
+          step={0.1}
+          value={Math.min(currentTime, duration)}
+          disabled={disabled || !duration}
+          onChange={(event) => onSeek(Number(event.target.value))}
+        />
+        <div className="flex items-center justify-between text-[11px] leading-none tabular-nums text-muted-foreground">
+          <span>{formatMediaTime(currentTime)}</span>
+          <span>{formatMediaTime(duration)}</span>
+        </div>
+      </div>
       {onMute && (
         <button
           type="button"
@@ -62,7 +65,7 @@ export function AudioRenderer({
           aria-pressed={muted}
           disabled={disabled}
           onClick={onMute}
-          className="flex size-7 shrink-0 items-center justify-center rounded-md outline-none hover:bg-primary/10 focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+          className="flex size-8 shrink-0 items-center justify-center rounded-md outline-none hover:bg-primary/10 focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
         >
           {muted ? (
             <VolumeXIcon aria-hidden="true" className="size-4" />

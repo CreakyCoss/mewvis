@@ -27,19 +27,23 @@ export function MediaInfo({
   onOpen(): void;
 }) {
   const { Icon } = getMediaType(type);
+  const audio = type === "audio";
   const extension = name.includes(".") ? name.split(".").at(-1)?.toUpperCase() : "";
   const metadata = [extension, formatFileSize(size)].filter(Boolean).join(" · ");
   return (
-    <div className={`flex min-w-0 items-center gap-2.5 ${stacked ? "h-12 px-3.5" : "min-h-10 px-2.5 py-1"}`}>
-      <Icon aria-hidden="true" className={`size-4 shrink-0 ${type === "audio" ? "text-primary" : "opacity-80"}`} />
+    <div
+      data-slot="media-info"
+      className={`flex min-w-0 gap-2.5 ${audio ? "items-start px-4 pt-3 pb-1" : stacked ? "h-12 items-center px-3.5" : "min-h-10 items-center px-2.5 py-1"}`}
+    >
+      {!audio && <Icon aria-hidden="true" className="size-4 shrink-0 opacity-80" />}
       <div className="min-w-0 flex-1">
-        <div className={`font-medium leading-5 ${stacked ? "text-sm" : "text-xs"}`}>
+        <div className={`font-medium leading-5 ${audio ? "text-[13px]" : stacked ? "text-sm" : "text-xs"}`}>
           <FileName name={name} />
         </div>
-        {stacked && <div className="h-4 truncate text-xs leading-4 text-muted-foreground">{metadata}</div>}
+        {stacked && <div className="mt-0.5 h-4 truncate text-[11px] leading-4 text-muted-foreground">{metadata}</div>}
       </div>
       {!stacked && <span className="shrink-0 text-[11px] tabular-nums opacity-80">{formatFileSize(size)}</span>}
-      <div className="flex shrink-0 items-center gap-0.5">
+      <div className={`flex shrink-0 items-center gap-0.5 ${audio ? "-mt-0.5 -mr-1" : ""}`}>
         <button
           type="button"
           title={copied ? "已复制路径" : canReveal ? "打开所在目录" : "复制文件路径"}

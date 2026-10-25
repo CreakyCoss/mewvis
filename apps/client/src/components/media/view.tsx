@@ -147,7 +147,7 @@ export function MediaView(props: MediaContentProps) {
           data-presentation={presentation}
           className={cn(
             "media-root relative min-w-0 max-w-full rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring",
-            audio ? "w-[28rem]" : layout === "contain" ? "h-full w-full" : "w-fit",
+            audio ? (inline ? "w-[28rem]" : "w-full") : layout === "contain" ? "h-full w-full" : "w-fit",
             imageScale !== undefined && "max-w-none shrink-0",
             props.className,
           )}
@@ -155,7 +155,7 @@ export function MediaView(props: MediaContentProps) {
             !media.visible && mediaSize
               ? { width: mediaSize.width, height: mediaSize.height }
               : media.loading || !mediaSize
-                ? { minWidth: "min(100%, 16rem)", minHeight: audio ? (inline ? 104 : 56) : 96 }
+                ? { minWidth: "min(100%, 16rem)", minHeight: audio ? (inline ? 120 : 72) : 96 }
                 : undefined
           }
           onFocusCapture={() => setInfoOpen(true)}
@@ -178,7 +178,8 @@ export function MediaView(props: MediaContentProps) {
             ref={stage}
             className={cn(
               "relative min-w-0 max-w-full",
-              audio ? "rounded-xl bg-primary/8" : "overflow-hidden rounded-lg",
+              audio ? "rounded-xl bg-primary/5" : "overflow-hidden rounded-lg",
+              audio && !inline && "border border-primary/10",
               type === "video" && inline && "border border-border/80 bg-muted/60",
               layout === "contain" && "h-full",
               imageScale !== undefined && "max-w-none",

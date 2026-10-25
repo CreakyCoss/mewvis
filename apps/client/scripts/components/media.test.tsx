@@ -273,6 +273,18 @@ async function run() {
         audioDialog.querySelector("h2")?.textContent === audio.name,
       "The same Media entry owns the complete audio dialog and its player",
     );
+    const playerBox = audioDialog.querySelector('[data-slot="audio-player"]')!.getBoundingClientRect();
+    const audioCardBox = audioDialog.querySelector('[data-media-kind="audio"]')!.getBoundingClientRect();
+    const descriptionBox = audioDialog.querySelector('[data-slot="dialog-description"]')!.getBoundingClientRect();
+    const audioViewportBox = audioDialog.querySelector('[data-slot="media-dialog-viewport"]')!.getBoundingClientRect();
+    assert(
+      Math.abs(audioCardBox.left - descriptionBox.left) < 1 &&
+        Math.abs(audioCardBox.right - (audioViewportBox.right - 20)) < 1 &&
+        Math.abs(
+          audioDialog.querySelector('[aria-label="播放音频"]')!.getBoundingClientRect().left - playerBox.left - 16,
+        ) < 1,
+      "The audio dialog card aligns with the footer and contains its controls with consistent padding",
+    );
     await act(async () =>
       Array.from(audioDialog.querySelectorAll("button"))
         .find((button) => button.textContent?.includes("打开所在目录"))!
@@ -297,9 +309,11 @@ async function run() {
     await act(async () =>
       document.querySelector<HTMLButtonElement>('[role="dialog"] [aria-label="放大图片"]')!.click(),
     );
-    await waitFor(() => document.querySelector('[role="dialog"] [title="以原始尺寸查看"]')?.textContent === "125%");
+    await waitFor(
+      () => document.querySelector('[role="dialog"] [data-slot="media-zoom-value"]')?.textContent === "125%",
+    );
     assert(
-      document.querySelector('[role="dialog"] [title="以原始尺寸查看"]')?.textContent === "125%",
+      document.querySelector('[role="dialog"] [data-slot="media-zoom-value"]')?.textContent === "125%",
       "Image zoom state is maintained inside the common Media dialog",
     );
     await waitFor(() => imageDialog.querySelector<HTMLImageElement>("img")?.style.width === "20px");
@@ -309,6 +323,47 @@ async function run() {
         fixedViewport.getBoundingClientRect().height === fixedViewportBox.height,
       "Zoom changes the image inside the viewport without resizing the dialog",
     );
+    const original = imageDialog.querySelector<HTMLButtonElement>('[aria-label="原始尺寸"]')!;
+    const fit = imageDialog.querySelector<HTMLButtonElement>('[aria-label="适应窗口"]')!;
+    await act(async () => original.click());
+    await waitFor(() => imageDialog.querySelector<HTMLImageElement>("img")?.style.width === "16px");
+    assert(original.getAttribute("aria-pressed") === "true", "The original-size shortcut selects 100% explicitly");
+    await act(async () => fit.click());
+    await waitFor(() => Boolean(imageDialog.querySelector<HTMLImageElement>("img")?.complete));
+    assert(
+      fit.getAttribute("aria-pressed") === "true" &&
+        imageDialog.querySelector<HTMLImageElement>("img")?.style.width === "",
+      "The visible fit shortcut restores automatic sizing after a manual zoom",
+    );
+    const largeImage = {
+      ...image,
+      id: "large",
+      resourceUrl:
+        'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000"><rect width="1600" height="1000" fill="purple"/></svg>',
+    };
+    await render({ presentation: "dialog", preview: largeImage, resource: largeImage, onClose: closeDialog });
+    await waitFor(() => Boolean(document.querySelector<HTMLImageElement>('[role="dialog"] img')?.naturalWidth));
+    const largeDialog = document.querySelector<HTMLElement>('[role="dialog"]')!;
+    const fittedImage = largeDialog.querySelector<HTMLImageElement>("img")!;
+    const fittedBox = fittedImage.getBoundingClientRect();
+    const fittedScale = fittedBox.width / fittedImage.naturalWidth;
+    await act(async () => largeDialog.querySelector<HTMLButtonElement>('[aria-label="放大图片"]')!.click());
+    const expectedScale = Math.round((fittedScale + 0.25) * 100) / 100;
+    await waitFor(
+      () => largeDialog.querySelector<HTMLImageElement>("img")?.style.width === `${1600 * expectedScale}px`,
+    );
+    assert(expectedScale < 1.25, "Zooming from fit starts at the displayed scale instead of jumping from 100%");
+    for (let attempt = 0; attempt < 2; attempt++) {
+      await act(async () => largeDialog.querySelector<HTMLButtonElement>('[aria-label="原始尺寸"]')!.click());
+      await waitFor(() => largeDialog.querySelector<HTMLImageElement>("img")?.style.width === "1600px");
+      await act(async () => largeDialog.querySelector<HTMLButtonElement>('[aria-label="适应窗口"]')!.click());
+      await waitFor(() => Boolean(largeDialog.querySelector<HTMLImageElement>("img")?.naturalWidth));
+      const restoredBox = largeDialog.querySelector("img")!.getBoundingClientRect();
+      assert(
+        Math.abs(restoredBox.width - fittedBox.width) < 1 && Math.abs(restoredBox.height - fittedBox.height) < 1,
+        "Repeated fit/original switches restore the complete large image within the fixed viewport",
+      );
+    }
     const nextImage = { ...image, id: "next-small" };
     await render({
       presentation: "dialog",
@@ -319,9 +374,11 @@ async function run() {
         throw new Error("授权已失效");
       },
     });
-    await waitFor(() => document.querySelector('[role="dialog"] [title="以原始尺寸查看"]')?.textContent === "适应");
+    await waitFor(
+      () => document.querySelector('[role="dialog"] [data-slot="media-zoom-value"]')?.textContent === "适应",
+    );
     assert(
-      document.querySelector('[role="dialog"] [title="以原始尺寸查看"]')?.textContent === "适应",
+      document.querySelector('[role="dialog"] [data-slot="media-zoom-value"]')?.textContent === "适应",
       "A new dialog request resets its internal zoom state",
     );
     await act(async () =>

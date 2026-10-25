@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from "react";
+import { useRef, useState, type CSSProperties } from "react";
 import {
   Check,
   Copy,
@@ -21,6 +21,7 @@ import {
   DialogTitle,
 } from "design-system/components/ui/dialog";
 import { Button } from "design-system/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "design-system/components/ui/tooltip";
 import { writeClipboardText } from "@mewvis/app-sdk/browser";
 import { MediaView } from "./view";
 import { errorText, FileName, formatFileSize } from "./util";
@@ -41,6 +42,12 @@ export function MediaDialog({
   const preview = resource ?? requested;
   const url = resource?.resourceUrl ?? "";
   const [imageScale, setImageScale] = useState<number>();
+  const imageViewport = useRef<HTMLDivElement>(null);
+  const zoomImage = (step: number) => {
+    const image = imageViewport.current?.querySelector("img");
+    const displayedScale = image?.naturalWidth ? image.getBoundingClientRect().width / image.naturalWidth : 1;
+    setImageScale((scale) => Math.min(4, Math.max(0.1, Math.round(((scale ?? displayedScale) + step) * 100) / 100)));
+  };
   const getRuntime = useMediaRuntime();
   let reveal = onReveal;
   if (!reveal && preview.filePath) {
@@ -87,6 +94,12 @@ export function MediaDialog({
     >
       <DialogContent
         className={`flex max-h-[90dvh] max-w-[calc(100vw-2rem)] flex-col gap-0 overflow-hidden rounded-xl p-0 ${kind === "image" ? "h-[min(86dvh,760px)]" : ""} ${kind === "audio" ? "sm:max-w-[560px]" : "sm:max-w-[900px]"}`}
+        onOpenAutoFocus={(event) => {
+          if (kind === "image") {
+            event.preventDefault();
+            imageViewport.current?.focus({ preventScroll: true });
+          }
+        }}
         onCloseAutoFocus={(event) => {
           if (onRestoreFocus) {
             event.preventDefault();
@@ -101,8 +114,12 @@ export function MediaDialog({
           </DialogTitle>
         </DialogHeader>
         <div
+          ref={imageViewport}
+          tabIndex={kind === "image" ? -1 : undefined}
+          role={kind === "image" ? "region" : undefined}
+          aria-label={kind === "image" ? "图片预览区域" : undefined}
           data-slot="media-dialog-viewport"
-          className={`relative min-h-0 ${kind === "image" ? "flex-1 overflow-hidden bg-muted/30" : kind === "audio" ? "flex items-center justify-center overflow-auto p-5" : media ? "flex-auto overflow-auto" : "h-[min(65dvh,720px)] overflow-auto"}`}
+          className={`relative min-h-0 outline-none ${kind === "image" ? "flex-1 overflow-hidden bg-muted/30" : kind === "audio" ? "flex items-center justify-center overflow-auto p-5" : media ? "flex-auto overflow-auto" : "h-[min(65dvh,720px)] overflow-auto"}`}
           style={{ "--file-preview-max-height": "calc(90dvh - 9rem)" } as CSSProperties}
         >
           <div
@@ -133,46 +150,72 @@ export function MediaDialog({
               <div
                 role="toolbar"
                 aria-label="图片缩放"
-                className="pointer-events-auto flex h-10 items-center gap-1 rounded-xl border border-border/40 bg-popover/95 px-1.5 shadow-sm backdrop-blur-md"
+                className="pointer-events-auto flex h-10 max-w-[calc(100%-1rem)] items-center gap-0.5 rounded-xl border border-border/40 bg-popover/95 px-1.5 shadow-sm backdrop-blur-md"
               >
                 <Button
                   variant="ghost"
                   size="icon"
                   className="size-8"
                   aria-label="缩小图片"
-                  disabled={imageScale !== undefined && imageScale <= 0.25}
-                  onClick={() => setImageScale(Math.max(0.25, (imageScale ?? 1) - 0.25))}
+                  disabled={loading || (imageScale !== undefined && imageScale <= 0.1)}
+                  onClick={() => zoomImage(-0.25)}
                 >
                   <Minus className="size-3.5" />
                 </Button>
-                <button
-                  type="button"
-                  className="min-w-12 rounded-md px-1 text-xs tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  title="以原始尺寸查看"
-                  onClick={() => setImageScale(1)}
+                <output
+                  data-slot="media-zoom-value"
+                  aria-live="polite"
+                  className="min-w-11 text-center text-xs tabular-nums text-muted-foreground"
                 >
                   {imageScale === undefined ? "适应" : `${Math.round(imageScale * 100)}%`}
-                </button>
+                </output>
                 <Button
                   variant="ghost"
                   size="icon"
                   className="size-8"
                   aria-label="放大图片"
-                  disabled={imageScale !== undefined && imageScale >= 3}
-                  onClick={() => setImageScale(Math.min(3, (imageScale ?? 1) + 0.25))}
+                  disabled={loading || (imageScale !== undefined && imageScale >= 4)}
+                  onClick={() => zoomImage(0.25)}
                 >
                   <Plus className="size-3.5" />
                 </Button>
                 <span aria-hidden="true" className="mx-1 h-4 w-px bg-border" />
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="size-8"
-                  aria-label="适应窗口"
-                  onClick={() => setImageScale(undefined)}
-                >
-                  <Maximize className="size-3.5" />
-                </Button>
+                <div className="flex items-center gap-1 p-0.5">
+                  <TooltipProvider delayDuration={250}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-7 rounded-md text-muted-foreground hover:bg-foreground/5 hover:text-foreground focus-visible:border-foreground/20 focus-visible:ring-1 focus-visible:ring-foreground/15 aria-pressed:text-foreground dark:hover:bg-foreground/5"
+                          aria-label="适应窗口"
+                          aria-pressed={imageScale === undefined}
+                          onClick={() => setImageScale(undefined)}
+                        >
+                          <Maximize aria-hidden="true" className="size-3.5" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>适应窗口 · 完整显示图片</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-7 rounded-md text-muted-foreground hover:bg-foreground/5 hover:text-foreground focus-visible:border-foreground/20 focus-visible:ring-1 focus-visible:ring-foreground/15 aria-pressed:text-foreground dark:hover:bg-foreground/5"
+                          aria-label="原始尺寸"
+                          aria-pressed={imageScale === 1}
+                          onClick={() => setImageScale(1)}
+                        >
+                          <span aria-hidden="true" className="text-[11px] font-medium tabular-nums">
+                            1:1
+                          </span>
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>原始尺寸 · 100% 显示</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
               </div>
             </div>
           )}
