@@ -14,6 +14,7 @@ test("missing capabilities and malformed responses fail explicitly", async () =>
     version: 1,
     request: async () => ({ ok: true, value: {} }),
   });
+  assert.equal(client.reveal, undefined);
   await assert.rejects(
     client.stat("/file.txt"),
     (e) => e.code === "INVALID_RESPONSE",
@@ -22,6 +23,24 @@ test("missing capabilities and malformed responses fail explicitly", async () =>
     client.writeBinary("/file.bin", "bad"),
     (e) => e.code === "INVALID_ARGUMENT",
   );
+});
+
+test("desktop reveal is optional, follows host capabilities, and validates paths", async () => {
+  const revealed = [];
+  const client = createApplicationFileClient({
+    version: 1,
+    request: async () => ({ ok: true, value: null }),
+    reveal: async (filePath) => {
+      revealed.push(filePath);
+    },
+  });
+  await client.reveal("/project/image.png");
+  assert.deepEqual(revealed, ["/project/image.png"]);
+  await assert.rejects(
+    client.reveal("bad\0path"),
+    (error) => error.code === "INVALID_ARGUMENT",
+  );
+  assert.equal(revealed.length, 1);
 });
 test("permission and transport failures retain stable codes and do not retry", async () => {
   let calls = 0;

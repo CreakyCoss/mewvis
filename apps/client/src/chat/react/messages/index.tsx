@@ -32,6 +32,7 @@ export const MessageView = ({
   displayOptions: ChatDisplayOptions;
 }) => {
   const isAssistant = message.role === "assistant";
+  const hasMedia = isAssistant && message.blocks.some((block) => block.type === "tool" && block.media?.outputs.length);
   const agentAvatar = isAssistant ? messageAvatarSource(message.agentAvatar, (id) => resolveAvatar(id).src) : undefined;
 
   return (
@@ -69,10 +70,12 @@ export const MessageView = ({
         <article
           aria-label={isAssistant ? `${message.agentName ?? "助手"}的消息` : "你的消息"}
           className={[
-            "relative min-w-0 max-w-full overflow-hidden rounded-xl px-4 py-3 text-sm leading-6",
+            "relative min-w-0 max-w-full rounded-xl text-sm leading-6",
             isAssistant
-              ? "app-message-surface w-full"
-              : "bg-primary text-primary-foreground shadow-[var(--shadow-card)]",
+              ? hasMedia
+                ? "w-full"
+                : "app-message-surface w-full overflow-hidden px-4 py-3"
+              : "overflow-hidden bg-primary px-4 py-3 text-primary-foreground shadow-[var(--shadow-card)]",
           ].join(" ")}
           data-role={message.role}
         >

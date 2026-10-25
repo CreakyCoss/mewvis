@@ -3,7 +3,11 @@ import { fileURLToPath } from "node:url";
 const adapter = fileURLToPath(new URL("../../../desktop/src/platform/tauri.ts", import.meta.url));
 
 /** Bundle the real desktop adapter while replacing only its OS bridge. */
-export function desktopPlatformFixture(globalName = "__platformFixture", titleBarStyle = "native") {
+export function desktopPlatformFixture(
+  globalName = "__platformFixture",
+  titleBarStyle = "native",
+  { realOpener = false } = {},
+) {
   const fixture = `globalThis[${JSON.stringify(globalName)}]`;
   return {
     name: "desktop-platform-fixture",
@@ -13,10 +17,10 @@ export function desktopPlatformFixture(globalName = "__platformFixture", titleBa
         __APP_TITLE_BAR_STYLE__: JSON.stringify(titleBarStyle),
       };
       build.onResolve({ filter: /^@platform-impl$/ }, () => ({ path: adapter }));
-      build.onResolve({ filter: /^@tauri-apps\/(api\/(core|window)|plugin-(dialog|opener))$/ }, ({ path }) => ({
-        path,
-        namespace: "native-fixture",
-      }));
+      build.onResolve({ filter: /^@tauri-apps\/(api\/(core|window)|plugin-(dialog|opener))$/ }, ({ path }) => {
+        if (realOpener && path === "@tauri-apps/plugin-opener") return;
+        return { path, namespace: "native-fixture" };
+      });
       build.onLoad({ filter: /.*/, namespace: "native-fixture" }, ({ path }) => ({
         contents: path.endsWith("/core")
           ? `export const invoke = (...args) => ${fixture}.invoke(...args);`

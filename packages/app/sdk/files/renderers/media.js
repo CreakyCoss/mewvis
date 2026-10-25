@@ -1,13 +1,20 @@
 export function renderMedia(
   root,
   resource,
-  { signal, onError, mediaControls = true, onMediaReady, onMediaStateChange },
+  {
+    signal,
+    onError,
+    mediaControls = true,
+    onMediaReady,
+    onMediaStateChange,
+    layout,
+  },
 ) {
   const media = root.ownerDocument.createElement(
     resource.kind === "audio" ? "audio" : "video",
   );
   media.controls = mediaControls;
-  media.muted = !mediaControls;
+  media.muted = !mediaControls && resource.kind === "video";
   media.preload = "metadata";
   let closed = false;
   const publish = () => {
@@ -17,6 +24,7 @@ export function renderMedia(
         duration: Number.isFinite(media.duration) ? media.duration : 0,
         paused: media.paused,
         ended: media.ended,
+        muted: media.muted,
       });
   };
   const events = [
@@ -27,13 +35,21 @@ export function renderMedia(
     "pause",
     "ended",
     "seeked",
+    "volumechange",
   ];
   for (const event of events) media.addEventListener(event, publish);
   Object.assign(
     media.style,
     resource.kind === "audio"
       ? { width: "100%", maxWidth: "576px" }
-      : { maxHeight: "100%", maxWidth: "100%" },
+      : {
+          display: "block",
+          maxHeight:
+            layout === "intrinsic"
+              ? "var(--file-preview-max-height, 28rem)"
+              : "100%",
+          maxWidth: "100%",
+        },
   );
   media.onerror = () => {
     if (!signal.aborted)
@@ -49,6 +65,12 @@ export function renderMedia(
     },
     pause() {
       if (!closed) media.pause();
+    },
+    setMuted(muted) {
+      if (!closed && !signal.aborted) {
+        media.muted = Boolean(muted);
+        publish();
+      }
     },
     seek(seconds) {
       if (

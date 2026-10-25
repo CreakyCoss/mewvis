@@ -46,6 +46,10 @@ test("preview playback controls synchronize state, clamp seeks and detach after 
   assert.equal(states.at(-1).paused, false);
   controls.pause();
   assert.equal(states.at(-1).paused, true);
+  controls.setMuted(true);
+  assert.equal(states.at(-1).muted, true);
+  controls.setMuted(false);
+  assert.equal(states.at(-1).muted, false);
   controls.seek(500);
   assert.equal(media.currentTime, 15);
   controls.seek(-5);

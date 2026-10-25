@@ -16,7 +16,7 @@ type Environment = {
   files?: (session: ChatSession) => ChatInputFile[];
   persistence?: (session: ChatSession, viewId: string) => ChatViewPersistence | undefined;
   renderBeforeComposer?: (session: ChatSession) => ReactNode;
-  filePreview?: Pick<ApplicationFileClient["preview"], "open" | "openDialog">;
+  filePreview?: Pick<ApplicationFileClient["preview"], "open" | "openDialog"> & Pick<ApplicationFileClient, "reveal">;
 };
 const EnvironmentContext = createContext<Environment>({});
 export function ChatEnvironment({ children, ...environment }: PropsWithChildren<Environment>) {

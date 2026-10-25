@@ -11,6 +11,7 @@ export type PreviewKind =
   "image" | "video" | "audio" | "pdf" | "text" | "unsupported";
 export type FilePreview = {
   id: string;
+  filePath: string;
   name: string;
   size: number;
   mimeType: string;

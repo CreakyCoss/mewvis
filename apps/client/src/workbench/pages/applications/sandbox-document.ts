@@ -71,6 +71,18 @@ const BRIDGE_SOURCE = String.raw`
     },
     files: Object.freeze({
       version: 1,
+      get reveal() {
+        if (!host?.capabilities?.revealFiles) return undefined;
+        return (filePath) => {
+          if (navigator.userActivation && !navigator.userActivation.isActive) return Promise.reject(new Error("打开目录需要用户操作"));
+          const id = String(nextId++);
+          return new Promise((resolve, reject) => {
+            const timer = setTimeout(() => { pending.delete(id); reject(new Error("打开目录超时")); }, 10000);
+            pending.set(id, { resolve: (value) => { clearTimeout(timer); resolve(value); }, reject: (error) => { clearTimeout(timer); reject(error); } });
+            send({ type: "files:reveal", id, filePath });
+          });
+        };
+      },
       subscribe(listener) { previewListeners.add(listener); return () => previewListeners.delete(listener); },
       request(request) {
         const id = String(nextId++);

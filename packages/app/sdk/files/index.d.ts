@@ -11,6 +11,8 @@ export type ApplicationFileRoots = Readonly<{
 }>;
 export type ApplicationFilePreview = Readonly<{
   id: string;
+  /** Canonical, authorized file location; older hosts may omit it. */
+  filePath?: string;
   name: string;
   size: number;
   mimeType: string;
@@ -23,15 +25,21 @@ export type FilePreviewMediaState = Readonly<{
   duration: number;
   paused: boolean;
   ended: boolean;
+  muted?: boolean;
 }>;
 /** Local playback controls; no file URLs or DOM elements are exposed. */
 export interface FilePreviewMediaControls {
   play(): Promise<void>;
   pause(): void;
   seek(seconds: number): void;
+  setMuted?(muted: boolean): void;
 }
 export interface FilePreviewOptions {
-  /** Hide native playback controls for a silent video thumbnail. */
+  /** Size to the media itself instead of filling the container. */
+  layout?: "contain" | "intrinsic";
+  /** Image pixel scale. Omit to fit the available space. */
+  imageScale?: number;
+  /** Hide native playback controls for custom playback UI or silent video thumbnails. */
   mediaControls?: boolean;
   onMediaReady?(controls: FilePreviewMediaControls | null): void;
   onMediaStateChange?(state: FilePreviewMediaState): void;
@@ -60,6 +68,8 @@ export type ApplicationFileWriteOptions = Readonly<{
   expectedModifiedAt?: number;
 }>;
 export interface ApplicationFileClient {
+  /** Desktop hosts only. Reveals an authorized file in the system file manager. */
+  readonly reveal?: (filePath: string) => Promise<void>;
   roots(): Promise<ApplicationFileRoots>;
   stat(filePath: string): Promise<ApplicationFileInfo>;
   /** Immediate ordinary children; symbolic links are never included. */
@@ -137,6 +147,7 @@ export type ApplicationFileResponse =
   | { ok: false; error: { code: string; message: string } };
 export interface ApplicationFileTransport {
   readonly version: 1;
+  readonly reveal?: (filePath: string) => Promise<void>;
   request(request: ApplicationFileRequest): Promise<ApplicationFileResponse>;
   subscribe?(listener: (event: { id: string }) => void): () => void;
 }

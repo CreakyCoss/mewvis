@@ -37,7 +37,9 @@ export const AssistantBlocks = ({
   }
 
   return (
-    <div className="min-w-0 max-w-full space-y-2 overflow-hidden">
+    <div
+      className={`min-w-0 max-w-full space-y-2 ${visibleBlocks.some((block) => block.type === "tool" && block.media?.outputs.length) ? "overflow-visible" : "overflow-hidden"}`}
+    >
       {visibleBlocks.map((block) => {
         if (block.type === "thinking") {
           return <ThinkingBlock key={block.id} block={block} isActive={block.id === activeBlockId} />;

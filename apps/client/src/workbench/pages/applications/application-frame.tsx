@@ -131,6 +131,7 @@ export const ApplicationFrame = ({
         type: "host:init",
         host: {
           application: { id: application.id, name: application.name, version: application.version },
+          capabilities: { revealFiles: Boolean(files.reveal) },
           ...readApplicationTheme(),
           viewport: viewportRef.current,
           tools: application.tools,
@@ -287,6 +288,33 @@ export const ApplicationFrame = ({
             },
           )
           .finally(() => chatRequests.delete(id));
+        return;
+      }
+      if (message.type === "files:reveal") {
+        const { id, filePath } = message;
+        if (typeof id !== "string" || !id || id.length > 128) return;
+        if (
+          !files.reveal ||
+          typeof filePath !== "string" ||
+          filePath.length > 32768 ||
+          (navigator.userActivation && !navigator.userActivation.isActive)
+        ) {
+          post({ type: "host:result", id, error: "当前环境无法打开此文件目录" });
+          return;
+        }
+        void fileRequests
+          .request(id, async () => {
+            await files.reveal!(filePath);
+            return { ok: true, value: null };
+          })
+          .then(
+            () => {
+              if (connected) post({ type: "host:result", id, result: null });
+            },
+            (error) => {
+              if (connected) post({ type: "host:result", id, error: String(error?.message ?? error) });
+            },
+          );
         return;
       }
       if (message.type === "files:request" || message.type === "media:request") {

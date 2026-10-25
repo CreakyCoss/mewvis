@@ -7,6 +7,7 @@ import type { DesktopChatService, DesktopSessionInput, DesktopRecordView, ReadOn
 import { useDesktopApprovals } from "./approvals";
 import { createApplicationFileClient } from "@mewvis/app-sdk/files";
 import { createBackendApplicationFileTransport } from "@/api/applications/files";
+import { platform } from "@/platform";
 
 const Context = createContext<DesktopChatService | null>(null);
 export function DesktopChatEnvironment({
@@ -23,6 +24,7 @@ export function DesktopChatEnvironment({
     const client = () =>
       createApplicationFileClient((fileTransport.current ??= createBackendApplicationFileTransport()));
     return {
+      reveal: platform.revealPath ? (filePath: string) => client().reveal!(filePath) : undefined,
       open: (...args: Parameters<ReturnType<typeof client>["preview"]["open"]>) => client().preview.open(...args),
       openDialog: (...args: Parameters<ReturnType<typeof client>["preview"]["openDialog"]>) =>
         client().preview.openDialog(...args),

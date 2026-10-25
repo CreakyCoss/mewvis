@@ -194,6 +194,8 @@ async function run() {
     });
   });
   const radios = Array.from(fixture.querySelectorAll<HTMLInputElement>('input[type="radio"]'));
+  const questionReply = () =>
+    Array.from(radios[0].closest("form")!.querySelectorAll("button")).find((button) => button.textContent === "回复")!;
   assert(
     radios.length === 6 && radios[2].value === "other",
     "Select questions always include a free-text Other option",
@@ -208,12 +210,11 @@ async function run() {
   assert(radios[1].checked && questionAnswers.length === 0, "Choosing an answer waits for explicit submission");
   await act(async () => radios[2].click());
   assert(
-    fixture.querySelector('textarea[aria-label="回复 Agent 的问题"]') &&
-      radios[0].closest("form")!.querySelector<HTMLButtonElement>('button[type="submit"]')!.disabled,
+    fixture.querySelector('textarea[aria-label="回复 Agent 的问题"]') && questionReply().disabled,
     "A custom choice shows the answer field and requires text before replying",
   );
   await act(async () => radios[1].click());
-  await act(async () => radios[0].closest("form")!.querySelector<HTMLButtonElement>('button[type="submit"]')!.click());
+  await act(async () => questionReply().click());
   assert(
     questionAnswers.length === 1 && questionAnswers[0] === "second value",
     "Reply submits the exact selected value once",
@@ -655,9 +656,13 @@ async function checkAudio() {
   };
   let released = 0;
   const filePreview = {
-    async open(container: Parameters<typeof renderFilePreview>[0], input: { filePath: string }) {
+    async open(
+      container: Parameters<typeof renderFilePreview>[0],
+      input: { filePath: string },
+      options?: Parameters<typeof renderFilePreview>[2],
+    ) {
       assert(input.filePath === filePath, "Generated audio preview uses its saved local file path");
-      const preview = renderFilePreview(container, resource);
+      const preview = renderFilePreview(container, resource, options);
       return {
         ready: preview.ready,
         close: async () => {
@@ -701,10 +706,13 @@ async function checkAudio() {
     for (let attempts = 0; attempts < 50 && !fixture.querySelector("audio"); attempts++)
       await act(async () => new Promise((resolve) => setTimeout(resolve, 20)));
     const audio = fixture.querySelector("audio")!;
-    assert(audio?.controls && !audio.autoplay, "Completed speech exposes playback controls without autoplay");
     assert(
-      fixture.textContent?.includes("音频已生成") && fixture.textContent?.includes("音频 1"),
-      "Audio cards display even when tool process is hidden",
+      audio && !audio.controls && !audio.autoplay && !audio.muted,
+      "Custom audio playback is audible, without native controls or autoplay",
+    );
+    assert(
+      fixture.querySelector('[aria-label="音频 1"]') && fixture.querySelector('[aria-label="播放音频"]'),
+      "Compact audio playback displays even when tool process is hidden",
     );
     for (let attempts = 0; attempts < 50 && audio.readyState < 1; attempts++)
       await new Promise((resolve) => setTimeout(resolve, 20));
@@ -817,11 +825,21 @@ async function checkApprovals() {
   });
   await session.close();
 }
-(new URLSearchParams(location.search).has("audio")
-  ? checkAudio().then(() => {
-      results.textContent = `PASS ${assertions.length} assertions\n${assertions.join("\n")}`;
-      results.style.whiteSpace = "pre-wrap";
+(new URLSearchParams(location.search).has("audio") || new URLSearchParams(location.search).has("manual")
+  ? new Promise<void>((resolve) => {
+      const start = document.createElement("button");
+      start.textContent = "运行交互测试";
+      start.onclick = () => {
+        start.remove();
+        resolve();
+      };
+      results.replaceChildren(start);
     })
+      .then(() => (new URLSearchParams(location.search).has("audio") ? checkAudio() : run()))
+      .then(() => {
+        results.textContent = `PASS ${assertions.length} assertions\n${assertions.join("\n")}`;
+        results.style.whiteSpace = "pre-wrap";
+      })
   : run()
 ).catch((error) => {
   results.textContent = `FAIL ${String(error.stack || error)}\n${assertions.join("\n")}`;

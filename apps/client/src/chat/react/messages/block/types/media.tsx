@@ -4,6 +4,7 @@ import {
   CircleAlertIcon,
   CircleHelpIcon,
   CopyIcon,
+  FolderOpenIcon,
   ExpandIcon,
   ImageIcon,
   Loader2Icon,
@@ -11,7 +12,13 @@ import {
   Volume2Icon,
 } from "lucide-react";
 import { writeClipboardText } from "@mewvis/app-sdk/browser";
-import { getApplicationFileClient, type FilePreviewView } from "@mewvis/app-sdk/files";
+import {
+  getApplicationFileClient,
+  type FilePreviewView,
+  type FilePreviewMediaControls,
+  type FilePreviewMediaState,
+} from "@mewvis/app-sdk/files";
+import { AudioPlayer } from "design-system/components/audio-player";
 import { Button } from "design-system/components/ui/button";
 import type { ChatMediaArtifact, ChatMediaResult } from "@/chat/core";
 import { useChatFilePreview } from "../../../provider";
@@ -27,25 +34,63 @@ const fileSize = (bytes?: number) =>
 function MediaArtifact({ artifact, index }: { artifact: ChatMediaArtifact; index: number }) {
   const preview = useChatFilePreview();
   const container = useRef<HTMLDivElement>(null);
+  const mediaElement = useRef<HTMLElement>(null);
+  const controls = useRef<FilePreviewMediaControls | null>(null);
+  const [playback, setPlayback] = useState<FilePreviewMediaState>({
+    currentTime: 0,
+    duration: 0,
+    paused: true,
+    ended: false,
+  });
   const [visible, setVisible] = useState(false);
+  const [mediaSize, setMediaSize] = useState<{ width: number; height: number }>();
   const [loading, setLoading] = useState(true);
   const [previewError, setPreviewError] = useState("");
   const [actionError, setActionError] = useState("");
   const [revision, setRevision] = useState(0);
   const [opening, setOpening] = useState(false);
+  const openingRequest = useRef(false);
   const [copied, setCopied] = useState(false);
   const title = `${artifact.type === "audio" ? "音频" : artifact.type === "video" ? "视频" : "图片"} ${index + 1}`;
+  const audio = artifact.type === "audio";
+  let reveal = preview?.reveal;
+  if (!preview) {
+    try {
+      reveal = getApplicationFileClient().reveal;
+    } catch {
+      /* The preview reports unavailable hosts. */
+    }
+  }
   const name = artifact.filePath.split(/[\\/]/).at(-1) || title;
 
   useEffect(() => {
-    if (!container.current || typeof IntersectionObserver === "undefined") {
+    if (!mediaElement.current || typeof IntersectionObserver === "undefined") {
       setVisible(true);
       return;
     }
-    const observer = new IntersectionObserver(([entry]) => setVisible(entry.isIntersecting), { rootMargin: "200px" });
-    observer.observe(container.current);
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) setLoading(true);
+        setVisible(entry.isIntersecting);
+      },
+      { rootMargin: "200px" },
+    );
+    observer.observe(mediaElement.current);
     return () => observer.disconnect();
   }, []);
+  useEffect(() => {
+    const element = mediaElement.current;
+    if (!visible || loading || !element || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() => {
+      const { width, height } = element.getBoundingClientRect();
+      if (width > 0 && height > 0)
+        setMediaSize((previous) =>
+          previous?.width === width && previous.height === height ? previous : { width, height },
+        );
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [visible, loading]);
   useEffect(() => {
     if (!visible || !container.current) return;
     const target = container.current;
@@ -54,7 +99,18 @@ function MediaArtifact({ artifact, index }: { artifact: ChatMediaArtifact; index
     setLoading(true);
     setPreviewError("");
     void (async () => {
-      view = await (preview ?? getApplicationFileClient().preview).open(target, { filePath: artifact.filePath });
+      view = await (preview ?? getApplicationFileClient().preview).open(
+        target,
+        { filePath: artifact.filePath },
+        {
+          layout: "intrinsic",
+          mediaControls: !audio,
+          onMediaReady: (value) => {
+            controls.current = value;
+          },
+          onMediaStateChange: setPlayback,
+        },
+      );
       if (disposed) {
         await view.close();
         return;
@@ -71,13 +127,15 @@ function MediaArtifact({ artifact, index }: { artifact: ChatMediaArtifact; index
       disposed = true;
       void view?.close();
     };
-  }, [artifact.filePath, preview, visible, revision]);
+  }, [artifact.filePath, preview, visible, revision, audio]);
   useEffect(() => {
     if (!copied) return;
     const timer = setTimeout(() => setCopied(false), 1200);
     return () => clearTimeout(timer);
   }, [copied]);
   const open = async () => {
+    if (openingRequest.current) return;
+    openingRequest.current = true;
     setOpening(true);
     setActionError("");
     try {
@@ -85,6 +143,7 @@ function MediaArtifact({ artifact, index }: { artifact: ChatMediaArtifact; index
     } catch (error) {
       setActionError(errorText(error));
     } finally {
+      openingRequest.current = false;
       setOpening(false);
     }
   };
@@ -97,26 +156,64 @@ function MediaArtifact({ artifact, index }: { artifact: ChatMediaArtifact; index
       setActionError(errorText(error));
     }
   };
+  const locate = async () => {
+    setActionError("");
+    try {
+      if (reveal) await reveal(artifact.filePath);
+      else await copy();
+    } catch (error) {
+      setActionError(errorText(error));
+    }
+  };
+  const toggleAudio = async () => {
+    setActionError("");
+    try {
+      if (playback.paused) await controls.current?.play();
+      else controls.current?.pause();
+    } catch (error) {
+      setActionError(errorText(error));
+    }
+  };
   return (
-    <figure className="min-w-0 overflow-hidden rounded-xl border border-border/60 bg-background/60">
-      <div className={`relative bg-muted/25 ${artifact.type === "audio" ? "h-28" : "h-64 sm:h-72"}`}>
+    <figure
+      ref={mediaElement}
+      tabIndex={0}
+      aria-label={title}
+      data-media-kind={artifact.type}
+      style={
+        !visible && mediaSize
+          ? { width: mediaSize.width, aspectRatio: `${mediaSize.width} / ${mediaSize.height}` }
+          : loading
+            ? { minWidth: "min(100%, 16rem)", minHeight: audio ? 56 : 96 }
+            : undefined
+      }
+      className={`app-chat-media relative isolate min-w-0 max-w-full rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring ${audio ? "w-[28rem]" : "w-fit"}`}
+    >
+      <div className="relative min-w-0 max-w-full overflow-hidden rounded-lg">
         <div
           ref={container}
           aria-label={`${title}预览`}
-          aria-hidden={Boolean(previewError)}
-          className="h-full w-full p-2"
+          aria-hidden={audio || Boolean(previewError)}
+          className={audio ? "hidden" : "w-fit max-w-full"}
         />
+        {audio && !previewError ? (
+          <AudioPlayer
+            label={name}
+            {...playback}
+            disabled={loading}
+            onToggle={() => void toggleAudio()}
+            onSeek={(seconds) => controls.current?.seek(seconds)}
+            onMute={() => controls.current?.setMuted?.(!playback.muted)}
+          />
+        ) : null}
         {visible && loading && !previewError ? (
-          <div
-            role="status"
-            className="pointer-events-none absolute inset-0 flex items-center justify-center gap-2 bg-background/80 text-xs text-muted-foreground"
-          >
+          <div role="status" className="flex min-h-14 items-center justify-center gap-2 text-xs text-muted-foreground">
             <Loader2Icon aria-hidden="true" className="size-4 animate-spin motion-reduce:animate-none" />
             加载预览
           </div>
         ) : null}
         {previewError ? (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-background p-4 text-center text-xs">
+          <div className="flex min-h-20 max-w-full flex-col items-start justify-center gap-2 rounded-lg bg-muted/40 p-3 text-xs">
             <p role="alert" className="break-words text-muted-foreground">
               {previewError}
             </p>
@@ -128,46 +225,59 @@ function MediaArtifact({ artifact, index }: { artifact: ChatMediaArtifact; index
           <button
             type="button"
             aria-label={`放大预览${title}`}
-            className="absolute inset-0 cursor-zoom-in rounded-t-xl outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+            className="absolute inset-0 cursor-zoom-in rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
             onClick={() => void open()}
-            disabled={opening}
+            aria-disabled={opening}
           />
         ) : null}
       </div>
-      <figcaption className="flex min-w-0 items-center gap-2 border-t border-border/50 px-3 py-2">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 text-xs font-medium">
-            <span>{title}</span>
-            <span className="font-normal text-muted-foreground">{fileSize(artifact.size)}</span>
-          </div>
-          <div className="truncate text-[11px] leading-5 text-muted-foreground" title={artifact.filePath}>
+      {!loading && !previewError ? (
+        <>
+          <figcaption
+            className={`app-media-details pointer-events-none absolute max-w-[calc(100%-1rem)] truncate rounded-md bg-black/65 px-2 py-1 text-[11px] leading-5 text-white backdrop-blur-sm ${audio ? "bottom-full left-0 max-w-[calc(100%-11rem)] bg-popover! text-popover-foreground! shadow-sm" : artifact.type === "video" ? "top-2 left-2" : "bottom-2 left-2"}`}
+            title={name}
+          >
             {name}
+            {artifact.size !== undefined ? ` · ${fileSize(artifact.size)}` : ""}
+          </figcaption>
+          <div
+            className={`app-media-details absolute z-10 flex items-center gap-0.5 rounded-lg p-1 text-xs shadow-sm backdrop-blur-md ${audio ? "right-0 bottom-full bg-popover text-popover-foreground" : "top-2 right-2 bg-black/65 text-white"}`}
+          >
+            <button
+              type="button"
+              title={reveal ? "在文件管理器中选中此文件" : "复制文件路径"}
+              aria-label={reveal ? `打开${title}所在目录` : `复制${title}文件路径`}
+              onClick={() => void locate()}
+              className="flex h-7 items-center gap-1.5 rounded-md px-2 outline-none hover:bg-white/15 focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              {copied ? (
+                <CheckIcon aria-hidden="true" className="size-3.5" />
+              ) : reveal ? (
+                <FolderOpenIcon aria-hidden="true" className="size-3.5" />
+              ) : (
+                <CopyIcon aria-hidden="true" className="size-3.5" />
+              )}
+              <span>{copied ? "已复制" : reveal ? "打开所在目录" : "复制路径"}</span>
+            </button>
+            <button
+              type="button"
+              aria-label={`预览${title}`}
+              title="放大预览"
+              onClick={() => void open()}
+              aria-disabled={opening}
+              className="flex size-7 items-center justify-center rounded-md outline-none hover:bg-white/15 focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+            >
+              {opening ? (
+                <Loader2Icon aria-hidden="true" className="size-3.5 animate-spin" />
+              ) : (
+                <ExpandIcon aria-hidden="true" className="size-3.5" />
+              )}
+            </button>
           </div>
-        </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="size-7 shrink-0"
-          aria-label={`预览${title}`}
-          title="预览与打开原文件"
-          onClick={() => void open()}
-          disabled={opening}
-        >
-          {opening ? <Loader2Icon className="size-3.5 animate-spin" /> : <ExpandIcon className="size-3.5" />}
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="size-7 shrink-0"
-          aria-label={`复制${title}文件路径`}
-          title={copied ? "已复制" : "复制文件路径"}
-          onClick={() => void copy()}
-        >
-          {copied ? <CheckIcon className="size-3.5" /> : <CopyIcon className="size-3.5" />}
-        </Button>
-      </figcaption>
+        </>
+      ) : null}
       {actionError ? (
-        <p role="alert" className="px-3 pb-2 text-xs text-destructive">
+        <p role="alert" className="mt-1 max-w-full break-words text-xs text-destructive">
           {actionError}
         </p>
       ) : null}
@@ -202,8 +312,14 @@ export function MediaResult({ result }: { result: ChatMediaResult }) {
               ? VideoIcon
               : ImageIcon;
   return (
-    <section aria-label="媒体生成结果" className="w-[36rem] min-w-0 max-w-full space-y-3 py-1">
-      <div className="flex items-center gap-2 text-xs text-muted-foreground" role="status">
+    <section
+      aria-label="媒体生成结果"
+      className={`${result.outputs.length > 1 && !audio ? "w-[36rem]" : "w-[28rem]"} min-w-0 max-w-full space-y-2 py-1`}
+    >
+      <div
+        className={`${result.status === "completed" && !result.error ? "sr-only" : "flex items-center gap-2 text-xs text-muted-foreground"}`}
+        role="status"
+      >
         <Icon
           aria-hidden="true"
           className={`size-3.5 shrink-0 ${result.status === "running" ? "animate-spin motion-reduce:animate-none" : ""}`}
@@ -221,7 +337,7 @@ export function MediaResult({ result }: { result: ChatMediaResult }) {
       ) : null}
       {result.outputs.length ? (
         <div
-          className={`grid min-w-0 gap-3 ${result.outputs.length > 1 && !audio ? "grid-cols-[repeat(auto-fit,minmax(min(100%,14rem),1fr))]" : "max-w-md grid-cols-1"}`}
+          className={`grid w-full min-w-0 max-w-full items-start justify-items-start gap-3 ${result.outputs.length > 1 && !audio ? "grid-cols-[repeat(auto-fit,minmax(min(100%,14rem),1fr))]" : "grid-cols-1"}`}
         >
           {result.outputs.map((artifact, index) => (
             <MediaArtifact key={artifact.filePath} artifact={artifact} index={index} />

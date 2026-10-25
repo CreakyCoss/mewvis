@@ -85,6 +85,11 @@ export function createApplicationFileClient(transport) {
     return response.value;
   };
   const client = {
+    get reveal() {
+      return transport.reveal
+        ? async (filePath) => transport.reveal(path(filePath))
+        : undefined;
+    },
     async roots() {
       const value = await request("roots");
       if (

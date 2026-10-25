@@ -12,6 +12,7 @@ export interface ApplicationViewport {
   }>;
 }
 export interface ApplicationHostInfo {
+  capabilities?: { revealFiles?: boolean };
   application: { id: string; name: string; version: string };
   theme: "light" | "dark";
   /** Resolved design-system CSS tokens, also applied to the sandbox root by the host. */

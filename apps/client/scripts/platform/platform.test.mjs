@@ -9,7 +9,7 @@ import { desktopPlatformFixture } from "./desktop-fixture.mjs";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
 let version = 0;
-async function bundle(desktop = false, titleBarStyle = "native") {
+async function bundle(desktop = false, titleBarStyle = "native", realOpener = false) {
   const result = await build({
     stdin: {
       contents:
@@ -22,7 +22,7 @@ async function bundle(desktop = false, titleBarStyle = "native") {
     format: "esm",
     platform: "browser",
     tsconfig: join(root, "tsconfig.json"),
-    plugins: desktop ? [desktopPlatformFixture("__platformFixture", titleBarStyle)] : [],
+    plugins: desktop ? [desktopPlatformFixture("__platformFixture", titleBarStyle, { realOpener })] : [],
   });
   const module = await import(
     `data:text/javascript;base64,${Buffer.from(result.outputFiles[0].text).toString("base64")}#${version++}`
@@ -62,7 +62,7 @@ test("desktop title bar follows the Tauri target rather than the build host", as
       { command: "build", mode: "production" },
       join(root, "../desktop/vite.config.ts"),
     );
-    const titleBarStyle = JSON.parse(config.define["import.meta.env.MEWVIS_TITLE_BAR_STYLE"]);
+    const titleBarStyle = JSON.parse(config.define.__APP_TITLE_BAR_STYLE__);
     assert.equal(titleBarStyle, expected, target);
     const desktop = await bundle(true, titleBarStyle);
     assert.equal(desktop.platform.window.titleBarStyle, expected, target);
@@ -162,6 +162,31 @@ test("desktop links and dialogs go through native capabilities; canceled selecti
   finish(["/selected"]);
   assert.equal(await selection, null);
   assert.deepEqual(options, [{ directory: true, multiple: true }]);
+});
+
+test("desktop reveal uses the installed opener SDK and sends the native paths array", async (t) => {
+  t.after(() => {
+    delete globalThis.__platformFixture;
+  });
+  const calls = [];
+  globalThis.__platformFixture = {
+    invoke: async (command, args) => {
+      calls.push({ command, args });
+      if (command !== "plugin:opener|reveal_item_in_dir" || !Array.isArray(args?.paths)) {
+        throw new Error("reveal_item_in_dir missing required key paths");
+      }
+    },
+  };
+  const desktop = await bundle(true, "native", true);
+  const paths = ["/workspace/创作 素材/午后窗边.png", String.raw`C:\Projects\创作 素材\午后窗边.png`];
+  for (const path of paths) await desktop.platform.revealPath(path);
+  assert.deepEqual(
+    calls,
+    paths.map((path) => ({
+      command: "plugin:opener|reveal_item_in_dir",
+      args: { paths: [path] },
+    })),
+  );
 });
 
 test("desktop close waits for saving, blocks duplicates and permits retry after a failed save", async (t) => {

@@ -81,6 +81,7 @@ export class FilePreviews {
     ];
     const info: FilePreview = {
       id: randomUUID(),
+      filePath: target,
       name: basename(target),
       size: stat.size,
       mimeType,

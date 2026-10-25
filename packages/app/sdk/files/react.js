@@ -14,6 +14,8 @@ export function FilePreview({
   className,
   style,
   mediaControls = true,
+  layout,
+  imageScale,
   onMediaReady,
   onMediaStateChange,
 }) {
@@ -33,6 +35,8 @@ export function FilePreview({
           },
           {
             mediaControls,
+            layout,
+            imageScale,
             onMediaReady: (controls) => {
               if (!disposed) callbacks.current.onMediaReady?.(controls);
             },
@@ -55,11 +59,15 @@ export function FilePreview({
       callbacks.current.onMediaReady?.(null);
       void view?.close();
     };
-  }, [filePath, mediaControls]);
+  }, [filePath, mediaControls, layout, imageScale]);
   return createElement("div", {
     ref: container,
     className,
-    style: { height: "100%", minHeight: 0, ...style },
+    style: {
+      height: layout === "intrinsic" ? "auto" : "100%",
+      minHeight: 0,
+      ...style,
+    },
     "aria-label": "文件预览",
   });
 }

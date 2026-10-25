@@ -47,7 +47,8 @@ type Environment = {
     viewId: string,
   ) => ChatViewPersistence | undefined;
   renderBeforeComposer?: (session: ChatSession) => ReactNode;
-  filePreview?: Pick<ApplicationFileClient["preview"], "open" | "openDialog">;
+  filePreview?: Pick<ApplicationFileClient["preview"], "open" | "openDialog"> &
+    Pick<ApplicationFileClient, "reveal">;
 };
 declare function ChatEnvironment({
   children,

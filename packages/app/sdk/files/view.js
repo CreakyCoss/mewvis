@@ -25,8 +25,9 @@ export function renderFilePreview(container, resource, options = {}) {
   Object.assign(root.style, {
     position: "relative",
     display: "flex",
-    width: "100%",
-    height: "100%",
+    width: options.layout === "intrinsic" ? "fit-content" : "100%",
+    maxWidth: options.imageScale === undefined ? "100%" : "none",
+    height: options.layout === "intrinsic" ? "auto" : "100%",
     minWidth: "0",
     minHeight: "0",
     alignItems: "center",

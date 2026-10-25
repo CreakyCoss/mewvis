@@ -54,6 +54,19 @@ export function createBackendApplicationFileTransport(
     .catch(() => {});
   return {
     version: 1,
+    reveal: platform.revealPath
+      ? async (filePath) => {
+          const response = await invoke<ApplicationFileResponse>("request_application_files", {
+            connection: await token(),
+            request: { version: 1, method: "stat", params: { filePath } },
+          });
+          if (!response.ok) throw new Error(response.error.message);
+          const info = response.value as { filePath: string; type: string };
+          if (disposed) throw new Error("文件连接已关闭");
+          if (typeof info.filePath !== "string" || info.type !== "file") throw new Error("文件位置无效");
+          await platform.revealPath!(info.filePath);
+        }
+      : undefined,
     media: {
       version: 1,
       request: async (request) =>

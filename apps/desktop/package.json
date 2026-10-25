@@ -20,7 +20,7 @@
     "@mewvis/client-platform": "workspace:*",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-dialog": "^2",
-    "@tauri-apps/plugin-opener": "^2",
+    "@tauri-apps/plugin-opener": "2.5.4",
     "@mewvis/product-config": "workspace:*"
   },
   "devDependencies": {

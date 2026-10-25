@@ -369,7 +369,7 @@ try {
       await frame.getByRole("button", { name: "预览文本" }).click();
       await page.getByRole("dialog").waitFor();
       await page.getByText("宿主统一文件保存与预览", { exact: true }).waitFor();
-      await page.getByRole("contentinfo").getByRole("button", { name: "关闭", exact: true }).click();
+      await page.getByRole("dialog").getByRole("button", { name: "关闭", exact: true }).click();
       await frame.getByRole("button", { name: "预览图片" }).click();
       const image = page.getByRole("img", { name: "image.svg" });
       await image.waitFor();
@@ -385,11 +385,11 @@ try {
       await page.keyboard.press("Escape");
       await page.getByRole("dialog").waitFor({ state: "hidden" });
       await frame.getByRole("button", { name: "预览音频" }).click();
-      await page.locator("audio").waitFor();
+      await page.locator("audio").waitFor({ state: "attached" });
       await page.waitForFunction(() => document.querySelector("audio")?.readyState >= 1);
       assert.ok(await page.locator("audio").evaluate((node) => node.duration > 0));
-      await page.locator("audio").click({ position: { x: 20, y: 20 } });
-      await page.getByRole("contentinfo").getByRole("button", { name: "关闭", exact: true }).click();
+      await page.getByRole("button", { name: "播放音频", exact: true }).click();
+      await page.getByRole("dialog").getByRole("button", { name: "关闭", exact: true }).click();
       await frame.getByRole("button", { name: "预览PDF" }).click();
       await page.getByRole("img", { name: "PDF 第 1 页" }).waitFor();
       await page.getByLabel("本页文字内容").filter({ hasText: "Mewvis PDF preview" }).waitFor({ state: "attached" });

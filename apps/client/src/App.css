@@ -3,6 +3,32 @@
 @import "@mewvis/extension-host/ui/styles.css";
 
 @layer components {
+  .app-chat-media .app-media-details {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--motion-fast) var(--ease-standard);
+  }
+
+  .app-chat-media:hover .app-media-details,
+  .app-chat-media:focus-visible .app-media-details,
+  .app-chat-media:has(:focus-visible) .app-media-details {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  @media (hover: none) {
+    .app-chat-media .app-media-details {
+      opacity: 1;
+      pointer-events: auto;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .app-chat-media .app-media-details {
+      transition: none;
+    }
+  }
+
   .knowledge-list-container {
     container-name: knowledge-list;
     container-type: inline-size;
