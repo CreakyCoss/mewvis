@@ -36,7 +36,13 @@ export default defineConfig({
           .replace(/[^\p{L}\p{N}\p{M}_\s-]/gu, "")
           .replace(/\s/g, "-") || "section",
     },
-    config: configureDocumentLinks,
+    config(md) {
+      configureDocumentLinks(md);
+      // Request-template examples in inline code are literal text, not Vue expressions.
+      const renderCode = md.renderer.rules.code_inline;
+      md.renderer.rules.code_inline = (...args) =>
+        renderCode(...args).replace("<code", "<code v-pre");
+    },
   },
   themeConfig: {
     logo: "/brand-mark.png",

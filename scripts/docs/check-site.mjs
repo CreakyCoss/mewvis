@@ -38,6 +38,17 @@ for (const entry of entries) {
   assert(pages.has(resolve(output, page)), `缺少文档页面：${entry.id}`);
 }
 
+for (const [page, example] of [
+  ["runtime/models.html", "{{input.image?}}"],
+  ["runtime/models.html", "{{model.id}}"],
+  ["runtime/media-generation.html", "{{result.file_id}}"],
+]) {
+  assert(
+    pages.get(resolve(output, page)).html.includes(example),
+    `请求模板示例未按原文呈现：${page} → ${example}`,
+  );
+}
+
 let checked = 0;
 for (const [file, { html }] of pages) {
   const pageUrl = new URL(
