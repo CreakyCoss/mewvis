@@ -17,6 +17,8 @@
 - [插件协议与能力映射](architecture/extensions.md)
 - [前端 Agent 契约](architecture/client-contracts.md)
 - [知识库与检索](architecture/rag.md)
+- [知识库服务 SDK](architecture/knowledge-sdk.md)
+- [知识库服务实现](architecture/knowledge-service.md)
 - [视觉系统](architecture/design-system.md)
 - [办公室中枢](guide/office.md)
 - [智能体头像](architecture/agent-avatars.md)

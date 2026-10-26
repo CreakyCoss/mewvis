@@ -1,0 +1,31 @@
+{
+  "name": "@mewvis/knowledge-service",
+  "version": "0.1.0",
+  "description": "Standalone knowledge service implementation with caller-owned storage.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "build": "pnpm --filter @mewvis/knowledge-sdk build && node scripts/build.mjs",
+    "check": "tsc -p tsconfig.json --noEmit",
+    "test": "pnpm build && node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "@mewvis/knowledge-sdk": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "~5.8.3"
+  },
+  "license": "MIT"
+}

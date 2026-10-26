@@ -36,6 +36,8 @@
     "test:server": "pnpm --filter @mewvis/server test",
     "test:server:runtime": "pnpm --filter @mewvis/server test:runtime",
     "test:server:interop": "pnpm --filter @mewvis/server test:interop",
+    "test:knowledge-sdk": "pnpm --filter @mewvis/knowledge-sdk test",
+    "test:knowledge-service": "pnpm --filter @mewvis/knowledge-service test",
     "test:web": "pnpm build:web && pnpm --filter client test:web",
     "test:extensions": "pnpm --filter @mewvis/extension-host test && pnpm --filter @mewvis/extension-adapters test && pnpm --filter @mewvis/extension-dev test && pnpm --filter @mewvis/agent-runtime test:extensions",
     "test:product-config": "node --test scripts/maintenance/product-config.test.mjs",

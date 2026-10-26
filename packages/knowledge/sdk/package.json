@@ -1,0 +1,37 @@
+{
+  "name": "@mewvis/knowledge-sdk",
+  "version": "0.1.0",
+  "description": "Transport-independent knowledge service contracts and client.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./contracts": {
+      "types": "./dist/contracts.d.ts",
+      "default": "./dist/contracts.js"
+    },
+    "./configuration": {
+      "types": "./dist/configuration.d.ts",
+      "default": "./dist/configuration.js"
+    },
+    "./http": {
+      "types": "./dist/http.d.ts",
+      "default": "./dist/http.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "check": "tsc -p tsconfig.json --noEmit",
+    "test": "pnpm build && tsc -p test/tsconfig.json && node --test test/*.test.mjs"
+  },
+  "devDependencies": {
+    "typescript": "~5.8.3"
+  },
+  "sideEffects": false,
+  "license": "MIT"
+}
