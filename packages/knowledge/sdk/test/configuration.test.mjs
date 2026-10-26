@@ -1,6 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { parseKnowledgeServiceConfiguration } from "@mewvis/knowledge-sdk/configuration";
+import {
+  parseKnowledgeServiceConfiguration,
+  parseKnowledgeAttachmentStorageConfiguration,
+} from "@mewvis/knowledge-sdk/configuration";
 
 test("caller-selected backends are explicit, isolated host configuration", () => {
   const configs = [
@@ -37,6 +40,96 @@ test("caller-selected backends are explicit, isolated host configuration", () =>
     assert.ok(Object.isFrozen(result.backend));
     assert.ok(!Object.isFrozen(config.backend));
   }
+});
+
+test("original storage is caller-selected independently from metadata storage and only references credentials", () => {
+  for (const attachmentStorage of [
+    {
+      kind: "local",
+      storageId: "originals-v1",
+      directory: "/caller/owned/originals",
+    },
+    {
+      kind: "object-storage",
+      storageId: "originals-v1",
+      provider: "aliyun-oss",
+      bucket: "originals",
+      region: "cn-hangzhou",
+      credentialRef: "oss-credentials",
+      prefix: "knowledge/",
+    },
+    {
+      kind: "object-storage",
+      storageId: "originals-v2",
+      provider: "s3-compatible",
+      bucket: "originals",
+      endpoint: "https://objects.example",
+      options: { forcePathStyle: true },
+    },
+    {
+      kind: "custom",
+      storageId: "originals-v3",
+      provider: "caller-storage",
+      credentialRef: "storage-credentials",
+      options: { namespace: "a" },
+    },
+  ]) {
+    const original =
+      parseKnowledgeAttachmentStorageConfiguration(attachmentStorage);
+    assert.deepEqual(original, attachmentStorage);
+    assert.ok(Object.isFrozen(original));
+    assert.notEqual(original, attachmentStorage);
+    const config = parseKnowledgeServiceConfiguration({
+      backend: { kind: "sqlite", directory: "/caller/metadata" },
+      attachmentStorage,
+    });
+    assert.deepEqual(config.attachmentStorage, attachmentStorage);
+    assert.ok(Object.isFrozen(config.attachmentStorage));
+  }
+  for (const config of [
+    {},
+    { kind: "local", directory: "/a" },
+    { kind: "local", storageId: "a", directory: " " },
+    { kind: "object-storage", storageId: "a", provider: "oss" },
+    {
+      kind: "object-storage",
+      storageId: "a",
+      provider: "oss",
+      bucket: "b",
+      accessKeySecret: "secret",
+    },
+    {
+      kind: "object-storage",
+      storageId: "a",
+      provider: "s3",
+      bucket: "b",
+      endpoint: "https://user:password@example.com",
+    },
+    {
+      kind: "object-storage",
+      storageId: "a",
+      provider: "s3",
+      bucket: "b",
+      endpoint: "file:///data",
+    },
+    { kind: "custom", storageId: "a", provider: " " },
+  ])
+    assert.throws(
+      () => parseKnowledgeAttachmentStorageConfiguration(config),
+      (error) => error.code === "INVALID_ARGUMENT",
+    );
+  assert.throws(
+    () =>
+      parseKnowledgeServiceConfiguration({
+        backend: {
+          kind: "remote",
+          provider: "mewvis-v1",
+          endpoint: "https://knowledge.example/rpc",
+        },
+        attachmentStorage: { kind: "local", storageId: "a", directory: "/a" },
+      }),
+    (error) => error.code === "INVALID_ARGUMENT",
+  );
 });
 
 test("configuration validation does not invent storage or accept secrets in public fields", () => {

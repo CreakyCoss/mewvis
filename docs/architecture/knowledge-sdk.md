@@ -4,6 +4,8 @@
 
 SDK 提供类型契约、运行时请求与响应校验、可注入 Transport 的客户端、本协议的 HTTP Transport，以及宿主启动配置的类型与结构校验。SDK 不导出 `createKnowledgeService`，也不包含数据库驱动。当前 SQLite、Embedding、文本入库、任务和可信访问视图的实现见[知识库服务实现](knowledge-service.md)；MongoDB、远端知识库与二进制解析仍未实现。配置类型不表示相应驱动已经可用。
 
+SDK 已增加原始附件的元数据、上传确认、下载授权、文档来源关联及可配置存储契约，见[原始附件存储契约](knowledge-attachments.md)。本地/OSS/S3/自定义存储的驱动、附件生命周期与字节网关尚未接入，SQLite 服务不声明附件能力。
+
 ## 接入边界
 
 调用链为“知识库服务 → 宿主装配 → 宿主授权的能力接口 → 子应用 SDK”。业务调用方依赖同一套 `KnowledgeClient`，宿主可以通过进程内、应用桥接或 HTTP Transport 接入。
@@ -14,11 +16,12 @@ packages/knowledge/sdk
   contracts.ts       公共实体、方法、消息、错误和调用选项
   client.ts          无存储、无全局实例的调用客户端
   protocol.ts        请求、响应和结果范围校验
+  attachment-protocol.ts 附件元数据、传输凭证与结果范围校验
   configuration.ts   宿主专用的启动配置
   http.ts            本协议的 HTTP Transport
 ```
 
-消费端从 `src/index.ts` 阅读：入口直接定义 `KnowledgeClient`，按服务检查、知识库、文档、片段、检索和任务分组展示全部能力，并提供 `createKnowledgeClient`。`contracts.ts` 保留数据与协议定义，`client.ts` 实现传输执行、超时和校验。`contracts` 子路径仍通过类型导出提供同一个 `KnowledgeClient`，不产生运行时反向依赖。
+消费端从 `src/index.ts` 阅读：入口直接定义 `KnowledgeClient`，按服务检查、知识库、文档、附件、片段、检索和任务分组展示全部能力，并提供 `createKnowledgeClient`。`contracts.ts` 保留数据与协议定义，`client.ts` 实现传输执行、超时和校验。`contracts` 子路径仍通过类型导出提供同一个 `KnowledgeClient`，不产生运行时反向依赖。
 
 每个逻辑服务实例绑定一个调用方指定的后端，可以管理多个知识库。A 的 SQLite 目录、B 的远端服务目标、C 的 MongoDB 数据库可以分别构成独立数据空间。指向同一目录、数据库或远端目标的实例会访问同一份数据；创建客户端本身不会创建或隔离数据库。
 
@@ -78,21 +81,24 @@ const remote = parseKnowledgeServiceConfiguration({
 
 ## 对外操作
 
-当前 v1 定义以下 19 个操作。所有资源 ID 都是服务数据空间内的不透明标识。
+当前 v1 定义以下 26 个操作，其中 7 个附件操作为新增契约，当前 SQLite 服务尚未实现。所有资源 ID 都是服务数据空间内的不透明标识。
 
-| 分组   | 方法                         | 返回及语义                                                  |
-| ------ | ---------------------------- | ----------------------------------------------------------- |
-| 服务   | `service.describe`           | 服务 ID、协议版本、后端类别、当前可用能力；不返回配置和凭据 |
-| 服务   | `service.probe`              | 存储、检索等检查项及 `ready / degraded / unavailable` 状态  |
-| 知识库 | `bases.list / get`           | 可访问的知识库及其能力                                      |
-| 知识库 | `bases.create / update`      | 创建知识库或更新名称、描述、元数据                          |
-| 知识库 | `bases.delete / reindex`     | 返回删除或全库重建任务                                      |
-| 文档   | `documents.list / get`       | 文档摘要列表，或包含标准文本的文档详情                      |
-| 文档   | `documents.import`           | 接受标准文本批次，返回导入任务                              |
-| 文档   | `documents.delete / reindex` | 处理显式指定的非空文档 ID 列表，返回任务                    |
-| 片段   | `chunks.list / get`          | 指定文档的分块预览及出处                                    |
-| 检索   | `search`                     | 最终排好序的证据片段和逐库诊断                              |
-| 任务   | `jobs.list / get / cancel`   | 查看或请求取消指定知识库的任务                              |
+| 分组   | 方法                                                      | 返回及语义                                                  |
+| ------ | --------------------------------------------------------- | ----------------------------------------------------------- |
+| 服务   | `service.describe`                                        | 服务 ID、协议版本、后端类别、当前可用能力；不返回配置和凭据 |
+| 服务   | `service.probe`                                           | 存储、检索等检查项及 `ready / degraded / unavailable` 状态  |
+| 知识库 | `bases.list / get`                                        | 可访问的知识库及其能力                                      |
+| 知识库 | `bases.create / update`                                   | 创建知识库或更新名称、描述、元数据                          |
+| 知识库 | `bases.delete / reindex`                                  | 返回删除或全库重建任务                                      |
+| 文档   | `documents.list / get`                                    | 文档摘要列表，或包含标准文本的文档详情                      |
+| 文档   | `documents.import`                                        | 接受标准文本批次，返回导入任务                              |
+| 文档   | `documents.delete / reindex`                              | 处理显式指定的非空文档 ID 列表，返回任务                    |
+| 附件   | `attachments.list / get`                                  | 原始附件元数据，不返回存储路径或字节                        |
+| 附件   | `attachments.createUpload / completeUpload / abortUpload` | 申请短期授权、确认完整性或放弃上传                          |
+| 附件   | `attachments.createDownload / delete`                     | 申请短期下载授权，或删除无引用附件                          |
+| 片段   | `chunks.list / get`                                       | 指定文档的分块预览及出处                                    |
+| 检索   | `search`                                                  | 最终排好序的证据片段和逐库诊断                              |
+| 任务   | `jobs.list / get / cancel`                                | 查看或请求取消指定知识库的任务                              |
 
 没有隐式“删除全部”参数。全库重建使用明确的 `bases.reindex`。列表使用不透明 `cursor` 和可选 `limit`；页结果始终包含 `nextCursor`，最后一页为 `null`。游标绑定同一操作、知识库和筛选条件，服务不能将它解释为调用方提供的 SQL。
 
@@ -110,7 +116,7 @@ const remote = parseKnowledgeServiceConfiguration({
 
 ## 标准文本导入与任务
 
-v1 导入的输入为 `KnowledgeTextDocument`：标题、纯文本、可选来源、元数据、稳定 `externalId`，以及文本范围到页码或章节的映射。输入不接受宿主路径、文件对象、Base64 或原始向量。文件选择、PDF/DOCX 解析和清洗由后续导入流程负责，产出标准文本后调用此接口。
+v1 导入的输入为 `KnowledgeTextDocument`：标题、纯文本、可选来源、元数据、稳定 `externalId`，以及文本范围到页码或章节的映射。输入不接受宿主路径、文件对象、Base64 或原始向量。来源可用 `source.attachmentId` 关联同库已完成上传的原件，当前 SQLite 会明确拒绝该未实现的关联。文件选择、PDF/DOCX 解析和清洗由后续导入流程负责，产出标准文本后调用此接口。
 
 ```ts
 const accepted = await knowledge.documents.import(

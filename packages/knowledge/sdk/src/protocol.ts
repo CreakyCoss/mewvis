@@ -10,6 +10,10 @@ import {
   type KnowledgeResponse,
 } from "./contracts.js";
 import * as s from "./validation.js";
+import {
+  attachmentDefinitions,
+  validateAttachmentResult,
+} from "./attachment-protocol.js";
 
 const opt = s.optional;
 const ids = s.array(s.text, 1, true);
@@ -27,7 +31,10 @@ const error = s.object(
   },
   true,
 );
-const source = s.object({ uri: opt(s.text), mediaType: opt(s.text) }, true);
+const source = s.object(
+  { uri: opt(s.text), mediaType: opt(s.text), attachmentId: opt(s.text) },
+  true,
+);
 const locationRule = (allowUnknown: boolean) =>
   s.object(
     {
@@ -87,6 +94,7 @@ const capabilities = s.object(
           maxPageSize: opt(s.positive),
           maxImportDocuments: opt(s.positive),
           maxDocumentCharacters: opt(s.positive),
+          maxAttachmentBytes: opt(s.positive),
         },
         true,
       ),
@@ -151,7 +159,13 @@ const textDocument = s.refine(
     externalId: opt(s.text),
     title: s.text,
     text: s.text,
-    source: opt(s.object({ uri: opt(s.text), mediaType: opt(s.text) })),
+    source: opt(
+      s.object({
+        uri: opt(s.text),
+        mediaType: opt(s.text),
+        attachmentId: opt(s.text),
+      }),
+    ),
     metadata: opt(s.metadata),
     locations: opt(
       s.array(
@@ -445,6 +459,7 @@ const definitions = {
     output: job,
     mutation: true,
   },
+  ...attachmentDefinitions,
   "chunks.list": {
     input: s.object({ ...documentId, ...pageInput }),
     output: page(chunk),
@@ -546,6 +561,10 @@ export function validateKnowledgeResult<M extends KnowledgeMethod>(
   const result = output as any;
   const isList = method.endsWith(".list");
   const fail = () => s.invalid("INVALID_RESPONSE", "response.scope");
+  if (method.startsWith("attachments.")) {
+    validateAttachmentResult(method, input, output);
+    return;
+  }
   if (method === "search") {
     const requested = new Set(params.knowledgeBaseIds);
     const targets = result.diagnostics.targets;

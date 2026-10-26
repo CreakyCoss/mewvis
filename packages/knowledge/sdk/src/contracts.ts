@@ -102,6 +102,7 @@ export interface KnowledgeCapabilities {
     readonly maxPageSize?: number;
     readonly maxImportDocuments?: number;
     readonly maxDocumentCharacters?: number;
+    readonly maxAttachmentBytes?: number;
   };
 }
 export interface KnowledgeServiceDescription {
@@ -158,6 +159,66 @@ export interface KnowledgeSource {
   /** Opaque provenance only: the SDK never reads files or fetches this URI. */
   readonly uri?: string;
   readonly mediaType?: string;
+  /** Managed original in the same knowledge base; independent of the provenance URI. */
+  readonly attachmentId?: string;
+}
+
+/** Original-file metadata only; never contains a local path, bucket, object key or durable storage credential. */
+export interface KnowledgeAttachment {
+  readonly id: string;
+  readonly knowledgeBaseId: string;
+  readonly fileName: string;
+  readonly mediaType: string;
+  readonly sizeBytes: number;
+  /** Lowercase hex SHA-256 of the complete original. A ready attachment has been verified by the service. */
+  readonly sha256: string;
+  /** Pending uploads cannot be used by documents or downloaded. */
+  readonly state: "pending" | "ready";
+  readonly createdAt: KnowledgeTimestamp;
+  readonly updatedAt: KnowledgeTimestamp;
+}
+export interface KnowledgeAttachmentReference {
+  readonly knowledgeBaseId: string;
+  readonly attachmentId: string;
+}
+/** Short-lived, scoped transfer authority. Treat URLs, headers and tokens as secrets; do not persist or log them. */
+export type KnowledgeAttachmentTransfer<
+  M extends "GET" | "PUT" = "GET" | "PUT",
+> =
+  | {
+      readonly kind: "http";
+      readonly url: string;
+      readonly method: M;
+      readonly headers?: Readonly<Record<string, string>>;
+      readonly expiresAt: KnowledgeTimestamp;
+    }
+  | {
+      /** The caller's authenticated binary bridge handles this opaque token; it is never a filesystem path. */
+      readonly kind: "host";
+      readonly token: string;
+      readonly expiresAt: KnowledgeTimestamp;
+    };
+export interface KnowledgeAttachmentCreateUploadInput {
+  readonly knowledgeBaseId: string;
+  /** Basename only, with no path separators or control characters. */
+  readonly fileName: string;
+  readonly mediaType: string;
+  readonly sizeBytes: number;
+  readonly sha256: string;
+}
+export interface KnowledgeAttachmentUpload {
+  readonly attachment: KnowledgeAttachment;
+  /** Transfer bytes outside JSON RPC, then call completeUpload. The SDK never follows the target automatically. */
+  readonly transfer: KnowledgeAttachmentTransfer<"PUT">;
+}
+export interface KnowledgeAttachmentDownload extends KnowledgeAttachmentReference {
+  readonly transfer: KnowledgeAttachmentTransfer<"GET">;
+}
+export interface KnowledgeAttachmentDeletion extends KnowledgeAttachmentReference {
+  readonly deleted: true;
+}
+export interface KnowledgeAttachmentAbort extends KnowledgeAttachmentReference {
+  readonly aborted: true;
 }
 /** Character offsets are zero-based, half-open Unicode code-point offsets. Lines/pages are one-based. */
 export interface KnowledgeLocation {
@@ -353,6 +414,34 @@ export interface KnowledgeMethodMap {
     };
     output: KnowledgeJob;
   };
+  "attachments.list": {
+    input: KnowledgePageInput & { readonly knowledgeBaseId: string };
+    output: KnowledgePage<KnowledgeAttachment>;
+  };
+  "attachments.get": {
+    input: KnowledgeAttachmentReference;
+    output: KnowledgeAttachment;
+  };
+  "attachments.createUpload": {
+    input: KnowledgeAttachmentCreateUploadInput;
+    output: KnowledgeAttachmentUpload;
+  };
+  "attachments.completeUpload": {
+    input: KnowledgeAttachmentReference;
+    output: KnowledgeAttachment;
+  };
+  "attachments.abortUpload": {
+    input: KnowledgeAttachmentReference;
+    output: KnowledgeAttachmentAbort;
+  };
+  "attachments.createDownload": {
+    input: KnowledgeAttachmentReference;
+    output: KnowledgeAttachmentDownload;
+  };
+  "attachments.delete": {
+    input: KnowledgeAttachmentReference;
+    output: KnowledgeAttachmentDeletion;
+  };
   "chunks.list": {
     input: KnowledgePageInput & {
       readonly knowledgeBaseId: string;
@@ -395,6 +484,10 @@ export type KnowledgeMutationMethod =
   | "documents.import"
   | "documents.delete"
   | "documents.reindex"
+  | "attachments.createUpload"
+  | "attachments.completeUpload"
+  | "attachments.abortUpload"
+  | "attachments.delete"
   | "jobs.cancel";
 /** No application identity, database connection, credentials or host paths in business requests. */
 export type KnowledgeRequest<M extends KnowledgeMethod = KnowledgeMethod> = {

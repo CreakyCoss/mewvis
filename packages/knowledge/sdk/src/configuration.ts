@@ -34,13 +34,53 @@ export interface KnowledgeEmbeddingConfiguration {
   /** Query/document input formats and provider parameters are adapter-owned. */
   readonly options?: KnowledgeMetadata;
 }
+
+export interface KnowledgeLocalAttachmentStorage {
+  readonly kind: "local";
+  /** Stable binding for persisted attachment records; changing the location requires an explicit move. */
+  readonly storageId: string;
+  /** Caller-owned original-file directory, independent of the metadata database directory. */
+  readonly directory: string;
+}
+export interface KnowledgeObjectAttachmentStorage {
+  readonly kind: "object-storage";
+  readonly storageId: string;
+  /** Adapter ID, e.g. "aliyun-oss" or "s3-compatible"; this is not a claim that a driver is bundled. */
+  readonly provider: string;
+  readonly bucket: string;
+  readonly endpoint?: string;
+  readonly region?: string;
+  readonly prefix?: string;
+  readonly credentialRef?: string;
+  readonly options?: KnowledgeMetadata;
+}
+export interface KnowledgeCustomAttachmentStorage {
+  readonly kind: "custom";
+  readonly storageId: string;
+  readonly provider: string;
+  readonly credentialRef?: string;
+  /** Non-secret adapter configuration; credentials are resolved by the caller. */
+  readonly options?: KnowledgeMetadata;
+}
+/** Original bytes and metadata storage are independently selected by the caller. No implicit local fallback. */
+export type KnowledgeAttachmentStorageConfiguration =
+  | KnowledgeLocalAttachmentStorage
+  | KnowledgeObjectAttachmentStorage
+  | KnowledgeCustomAttachmentStorage;
+
 /** Type/validation contract only. The SDK does not create databases, services or provider drivers. */
 export type KnowledgeServiceConfiguration =
   | {
       readonly backend: KnowledgeSqliteBackend | KnowledgeMongodbBackend;
       readonly embedding?: KnowledgeEmbeddingConfiguration;
+      readonly attachmentStorage?: KnowledgeAttachmentStorageConfiguration;
     }
-  | { readonly backend: KnowledgeRemoteBackend; readonly embedding?: never };
+  | {
+      readonly backend: KnowledgeRemoteBackend;
+      readonly embedding?: never;
+      /** A delegated knowledge service owns its attachment storage as well. */
+      readonly attachmentStorage?: never;
+    };
 
 const opt = s.optional;
 const endpoint = s.refine(s.text, (value) => {
@@ -84,6 +124,40 @@ const embedding = s.object({
   credentialRef: opt(s.text),
   options: opt(s.metadata),
 });
+const attachmentStorage = s.union(
+  s.object({
+    kind: s.literal("local"),
+    storageId: s.text,
+    directory: s.text,
+  }),
+  s.object({
+    kind: s.literal("object-storage"),
+    storageId: s.text,
+    provider: s.text,
+    bucket: s.text,
+    endpoint: opt(endpoint),
+    region: opt(s.text),
+    prefix: opt(s.string),
+    credentialRef: opt(s.text),
+    options: opt(s.metadata),
+  }),
+  s.object({
+    kind: s.literal("custom"),
+    storageId: s.text,
+    provider: s.text,
+    credentialRef: opt(s.text),
+    options: opt(s.metadata),
+  }),
+);
+
+/** Validates configuration only; resolving adapters/credentials and opening storage belong to the service runtime. */
+export function parseKnowledgeAttachmentStorageConfiguration(
+  value: unknown,
+): KnowledgeAttachmentStorageConfiguration {
+  const config = s.copyJson(value, "INVALID_ARGUMENT");
+  attachmentStorage.check(config, "attachmentStorage", "INVALID_ARGUMENT");
+  return s.freeze(config) as KnowledgeAttachmentStorageConfiguration;
+}
 
 /** Structural validation only; no network, filesystem access, credential resolution or service initialization. */
 export function parseKnowledgeServiceConfiguration(
@@ -91,7 +165,11 @@ export function parseKnowledgeServiceConfiguration(
 ): KnowledgeServiceConfiguration {
   const config = s.copyJson(value, "INVALID_ARGUMENT");
   s.union(
-    s.object({ backend: s.union(sqlite, mongodb), embedding: opt(embedding) }),
+    s.object({
+      backend: s.union(sqlite, mongodb),
+      embedding: opt(embedding),
+      attachmentStorage: opt(attachmentStorage),
+    }),
     s.object({ backend: remote }),
   ).check(config, "configuration", "INVALID_ARGUMENT");
   return s.freeze(config) as KnowledgeServiceConfiguration;

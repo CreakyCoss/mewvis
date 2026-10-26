@@ -10,13 +10,16 @@ import {
 } from "@mewvis/knowledge-sdk";
 import { fixture, importText, waitJob, rejectsCode } from "./helpers.mjs";
 
-test("caller-owned SQLite service implements the complete SDK lifecycle and survives restart", async (t) => {
+test("caller-owned SQLite service implements the text/index lifecycle and survives restart", async (t) => {
   const f = await fixture(t, {
     chunking: { maxCharacters: 18, overlapCharacters: 3 },
   });
   let service = f.service;
   const description = await service.service.describe();
-  assert.deepEqual(description.capabilities.methods, KNOWLEDGE_METHODS);
+  assert.deepEqual(
+    description.capabilities.methods,
+    KNOWLEDGE_METHODS.filter((method) => !method.startsWith("attachments.")),
+  );
   assert.deepEqual(description.capabilities.searchModes, ["keyword"]);
   assert.equal((await service.service.probe()).status, "ready");
   let base = await service.bases.create({
@@ -568,4 +571,87 @@ test("directory ownership and service lifecycle are explicit; unsupported backen
     (await f.service.service.describe()).serviceId,
     (await another.service.service.describe()).serviceId,
   );
+});
+
+test("attachment contracts are not advertised or silently accepted before SQLite lifecycle integration", async (t) => {
+  const { service, directory } = await fixture(t);
+  const base = await service.bases.create({ name: "base" });
+  const input = {
+    knowledgeBaseId: base.id,
+    fileName: "manual.pdf",
+    mediaType: "application/pdf",
+    sizeBytes: 128,
+    sha256: "a".repeat(64),
+  };
+  assert.ok(
+    !(
+      await service.bases.get({ knowledgeBaseId: base.id })
+    ).capabilities.methods.some((method) => method.startsWith("attachments.")),
+  );
+  await rejectsCode(service.attachments.createUpload(input), "NOT_SUPPORTED");
+  await rejectsCode(
+    service.documents.import({
+      knowledgeBaseId: base.id,
+      documents: [
+        {
+          title: "manual",
+          text: "manual",
+          source: { attachmentId: "original-a" },
+        },
+      ],
+    }),
+    "NOT_SUPPORTED",
+  );
+  assert.equal(
+    (await service.jobs.list({ knowledgeBaseId: base.id })).items.length,
+    0,
+  );
+  const restricted = createKnowledgeClient(
+    service.createTransport({
+      subjectId: "reader",
+      knowledgeBaseIds: [base.id],
+      methods: ["search"],
+    }),
+  );
+  await rejectsCode(
+    restricted.attachments.createUpload(input),
+    "PERMISSION_DENIED",
+  );
+  const scoped = createKnowledgeClient(
+    service.createTransport({
+      subjectId: "uploader",
+      knowledgeBaseIds: [base.id],
+      methods: ["attachments.createUpload"],
+    }),
+  );
+  await rejectsCode(
+    scoped.attachments.createUpload({ ...input, knowledgeBaseId: "other" }),
+    "PERMISSION_DENIED",
+  );
+  for (const attachmentStorage of [
+    {
+      kind: "local",
+      storageId: "originals",
+      directory: join(directory, "originals"),
+    },
+    {
+      kind: "object-storage",
+      storageId: "originals",
+      provider: "aliyun-oss",
+      bucket: "private-originals",
+    },
+    { kind: "custom", storageId: "originals", provider: "caller-store" },
+  ])
+    await rejectsCode(
+      createKnowledgeService({
+        backend: {
+          kind: "sqlite",
+          directory: join(directory, "attachment-db"),
+        },
+        attachmentStorage,
+      }),
+      "NOT_SUPPORTED",
+    );
+  assert.ok(!(await readdir(directory)).includes("attachment-db"));
+  assert.ok(!(await readdir(directory)).includes("originals"));
 });

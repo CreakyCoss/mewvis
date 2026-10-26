@@ -8,6 +8,7 @@
 packages/knowledge/service/src/
   service.ts                 公共工厂与后端选择
   types.ts                   服务生命周期、可信访问视图、运行选项
+  attachments/index.ts       原始附件存储、流式读写与传输授权的适配契约
   embeddings.ts              Embedding 适配与向量校验
   ingestion/text.ts          保留出处的分块及中英文索引规范化
   retrieval/ranking.ts       RRF 排名融合
@@ -25,6 +26,8 @@ packages/knowledge/service/src/
 公共工厂完成配置校验和后端选择后，通过 `providers/sqlite/index.ts` 创建 SQLite 实例。该入口定义 `SqliteKnowledgeServiceConfiguration` 与 `createSqliteKnowledgeService`，具体 SDK 操作保留在目录内的 `service.ts`。应用仍通过包的公共工厂接入。
 
 当前 `mongodb / remote` 配置类型仍可被 SDK 结构校验，但服务工厂会明确返回 `NOT_SUPPORTED`。二进制文件解析、远端知识库转发、HTTP 服务监听和应用 SDK 桥接尚未实现。
+
+原始附件新增了独立的[存储契约](knowledge-attachments.md)，调用方可以声明本地目录、OSS/S3 或其他适配器。当前仅完成 SDK、配置和服务端适配接口，尚未接入附件元数据表、驱动或字节网关。SQLite 的能力描述仍只包含已实现的 19 个操作，对附件调用、附件存储配置和文档附件引用返回 `NOT_SUPPORTED`。
 
 ## 创建和使用
 

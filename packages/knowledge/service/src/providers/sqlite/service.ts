@@ -63,6 +63,27 @@ const filterOperators = [
   "or",
   "not",
 ] as const;
+const supportedMethods = [
+  "service.describe",
+  "service.probe",
+  "bases.list",
+  "bases.get",
+  "bases.create",
+  "bases.update",
+  "bases.delete",
+  "bases.reindex",
+  "documents.list",
+  "documents.get",
+  "documents.import",
+  "documents.delete",
+  "documents.reindex",
+  "chunks.list",
+  "chunks.get",
+  "search",
+  "jobs.list",
+  "jobs.get",
+  "jobs.cancel",
+] as const satisfies readonly KnowledgeMethod[];
 
 /** Creates a trusted, in-process service. It never reads host configuration or registers network/UI endpoints. */
 export async function createSqliteService(
@@ -157,7 +178,7 @@ export async function createSqliteService(
     access: AccessView,
     base?: BaseRow,
   ): KnowledgeCapabilities => ({
-    methods: KNOWLEDGE_METHODS.filter((method) => access.methods.has(method)),
+    methods: supportedMethods.filter((method) => access.methods.has(method)),
     searchModes:
       embedding && (!base || base.embedding_signature === embedding.signature)
         ? ["keyword", "vector", "hybrid"]
@@ -256,6 +277,11 @@ export async function createSqliteService(
         capabilities: capabilities(access),
       };
     if (request.method === "service.probe") return probe(signal);
+    if (request.method.startsWith("attachments."))
+      fail(
+        "NOT_SUPPORTED",
+        "SQLite attachment operations are not implemented yet",
+      );
     if (request.method === "search") {
       if (request.params.knowledgeBaseIds.length > 64)
         fail(
@@ -363,6 +389,15 @@ export async function createSqliteService(
           );
         case "documents.import": {
           const input = request.params;
+          if (
+            input.documents.some(
+              (document) => document.source?.attachmentId !== undefined,
+            )
+          )
+            fail(
+              "NOT_SUPPORTED",
+              "SQLite attachment references are not implemented yet",
+            );
           store.base(input.knowledgeBaseId);
           jobs.assertProfile(input.knowledgeBaseId);
           if (
@@ -466,6 +501,7 @@ export async function createSqliteService(
             request.params.jobId,
           );
       }
+      fail("NOT_SUPPORTED", "Knowledge operation is not implemented by SQLite");
     };
     const result = isKnowledgeMutation(request.method)
       ? store.receipt(

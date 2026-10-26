@@ -1,5 +1,5 @@
 /**
- * 知识库 SDK 的消费端入口：服务检查、知识库管理、文本导入、片段读取、检索和任务控制。
+ * 知识库 SDK 的消费端入口：服务检查、知识库管理、附件、文本导入、片段读取、检索和任务控制。
  *
  * 调用方注入 Transport，宿主负责连接、身份和授权；同一接口适用于本地或远端服务。
  * 数据结构与消息协议定义在 contracts.ts，调用执行和校验由 client.ts 负责。
@@ -50,6 +50,20 @@ export interface KnowledgeClient {
     import: KnowledgeCall<"documents.import">;
     delete: KnowledgeCall<"documents.delete">;
     reindex: KnowledgeCall<"documents.reindex">;
+  };
+
+  /** 管理原始附件。先申请上传凭证、在独立通道传输字节，再确认上传；不通过 JSON 传文件。 */
+  readonly attachments: {
+    list: KnowledgeCall<"attachments.list">;
+    get: KnowledgeCall<"attachments.get">;
+    createUpload: KnowledgeCall<"attachments.createUpload">;
+    /** 校验完整文件的大小和 SHA-256 后才可用于文档。 */
+    completeUpload: KnowledgeCall<"attachments.completeUpload">;
+    abortUpload: KnowledgeCall<"attachments.abortUpload">;
+    /** 每次访问重新授权并申请短期凭证，SDK 不自动下载。 */
+    createDownload: KnowledgeCall<"attachments.createDownload">;
+    /** 仍被文档或待执行任务引用时返回 CONFLICT，不隐式级联删除文档。 */
+    delete: KnowledgeCall<"attachments.delete">;
   };
 
   /** 读取文档分块及出处，用于预览和核对引用。 */

@@ -7,6 +7,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./attachments": {
+      "types": "./dist/attachments/index.d.ts",
+      "default": "./dist/attachments/index.js"
     }
   },
   "files": [
@@ -18,7 +22,7 @@
   "scripts": {
     "build": "pnpm --filter @mewvis/knowledge-sdk build && node scripts/build.mjs",
     "check": "tsc -p tsconfig.json --noEmit",
-    "test": "pnpm build && node --test test/*.test.mjs"
+    "test": "pnpm build && tsc -p test/tsconfig.json && node --test test/*.test.mjs"
   },
   "dependencies": {
     "@mewvis/knowledge-sdk": "workspace:*"

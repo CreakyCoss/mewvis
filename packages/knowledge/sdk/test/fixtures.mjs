@@ -21,6 +21,45 @@ export const summary = {
   source: { uri: "urn:documents:star-chart", mediaType: "text/plain" },
 };
 export const document = { ...summary, text: "蓝鹭计划的档案存放于北塔。" };
+export const attachment = {
+  id: "attachment-a",
+  knowledgeBaseId: base.id,
+  fileName: "星图.pdf",
+  mediaType: "application/pdf",
+  sizeBytes: 128,
+  sha256: "a".repeat(64),
+  state: "ready",
+  createdAt: time,
+  updatedAt: time,
+};
+export const attachmentReference = {
+  knowledgeBaseId: base.id,
+  attachmentId: attachment.id,
+};
+export const attachmentInput = {
+  knowledgeBaseId: base.id,
+  fileName: attachment.fileName,
+  mediaType: attachment.mediaType,
+  sizeBytes: attachment.sizeBytes,
+  sha256: attachment.sha256,
+};
+export const upload = {
+  attachment: { ...attachment, state: "pending" },
+  transfer: {
+    kind: "host",
+    token: "scoped-upload-token",
+    expiresAt: "2026-10-26T00:05:00.000Z",
+  },
+};
+export const download = {
+  ...attachmentReference,
+  transfer: {
+    kind: "http",
+    url: "https://files.example/original?grant=short-lived",
+    method: "GET",
+    expiresAt: "2026-10-26T00:05:00.000Z",
+  },
+};
 export const chunk = {
   id: "chunk-a",
   knowledgeBaseId: base.id,

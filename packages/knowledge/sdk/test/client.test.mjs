@@ -19,6 +19,11 @@ import {
   success,
   failure,
   copy,
+  attachment,
+  attachmentReference,
+  attachmentInput,
+  upload,
+  download,
 } from "./fixtures.mjs";
 
 const rejectsCode = (promise, code) =>
@@ -91,6 +96,21 @@ test("public client covers the v1 operations using the same in-process/bridge en
       "documents.reindex",
       { ...scoped, documentIds: [document.id] },
       { ...job, kind: "reindex" },
+    ],
+    ["attachments.list", scoped, { items: [attachment], nextCursor: null }],
+    ["attachments.get", attachmentReference, attachment],
+    ["attachments.createUpload", attachmentInput, upload],
+    ["attachments.completeUpload", attachmentReference, attachment],
+    [
+      "attachments.abortUpload",
+      attachmentReference,
+      { ...attachmentReference, aborted: true },
+    ],
+    ["attachments.createDownload", attachmentReference, download],
+    [
+      "attachments.delete",
+      attachmentReference,
+      { ...attachmentReference, deleted: true },
     ],
     ["chunks.list", docId, { items: [chunk], nextCursor: null }],
     ["chunks.get", { ...docId, chunkId: chunk.id }, chunk],

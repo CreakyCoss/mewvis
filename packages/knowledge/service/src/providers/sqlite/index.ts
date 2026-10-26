@@ -7,6 +7,7 @@
 import type {
   KnowledgeEmbeddingConfiguration,
   KnowledgeSqliteBackend,
+  KnowledgeAttachmentStorageConfiguration,
 } from "@mewvis/knowledge-sdk/configuration";
 import type { KnowledgeService, KnowledgeServiceOptions } from "../../types.js";
 import { fail } from "../../util.js";
@@ -18,6 +19,8 @@ export interface SqliteKnowledgeServiceConfiguration {
   readonly backend: KnowledgeSqliteBackend;
   /** 可选；未配置且未注入 Embedding 时提供关键词检索。 */
   readonly embedding?: KnowledgeEmbeddingConfiguration;
+  /** 契约预留；SQLite 附件生命周期接入完成前显式返回 NOT_SUPPORTED。 */
+  readonly attachmentStorage?: KnowledgeAttachmentStorageConfiguration;
 }
 
 /** 由公共工厂完成配置校验后创建实例；调用方负责最终调用 close()。 */
@@ -27,5 +30,10 @@ export async function createSqliteKnowledgeService(
 ): Promise<KnowledgeService> {
   if (configuration.backend.kind !== "sqlite")
     fail("NOT_SUPPORTED", "The SQLite provider requires a SQLite backend");
+  if (configuration.attachmentStorage !== undefined)
+    fail(
+      "NOT_SUPPORTED",
+      "SQLite attachment storage integration is not implemented yet",
+    );
   return createSqliteService(configuration, options);
 }

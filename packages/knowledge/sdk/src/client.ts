@@ -157,6 +157,19 @@ export function createTransportClient(
       delete: (input, options) => call("documents.delete", input, options),
       reindex: (input, options) => call("documents.reindex", input, options),
     }),
+    attachments: Object.freeze({
+      list: (input, options) => call("attachments.list", input, options),
+      get: (input, options) => call("attachments.get", input, options),
+      createUpload: (input, options) =>
+        call("attachments.createUpload", input, options),
+      completeUpload: (input, options) =>
+        call("attachments.completeUpload", input, options),
+      abortUpload: (input, options) =>
+        call("attachments.abortUpload", input, options),
+      createDownload: (input, options) =>
+        call("attachments.createDownload", input, options),
+      delete: (input, options) => call("attachments.delete", input, options),
+    }),
     chunks: Object.freeze({
       list: (input, options) => call("chunks.list", input, options),
       get: (input, options) => call("chunks.get", input, options),
