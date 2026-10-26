@@ -1,0 +1,32 @@
+{
+  "name": "@mewvis/knowledge-server",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "HTTP transport and optional static UI for an injected knowledge service.",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "build": "pnpm --filter @mewvis/knowledge-sdk build && tsc -p tsconfig.json",
+    "check": "tsc -p tsconfig.json --noEmit",
+    "test": "pnpm --filter @mewvis/knowledge-service build && pnpm build && node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "@mewvis/knowledge-sdk": "workspace:*"
+  },
+  "devDependencies": {
+    "@mewvis/knowledge-service": "workspace:*",
+    "@types/node": "^22.0.0",
+    "typescript": "~5.8.3"
+  },
+  "license": "MIT"
+}

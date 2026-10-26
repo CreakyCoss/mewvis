@@ -19,6 +19,7 @@
 - [知识库与检索](architecture/rag.md)
 - [知识库服务 SDK](architecture/knowledge-sdk.md)
 - [知识库服务实现](architecture/knowledge-service.md)
+- [独立知识库应用与 HTTP 接入](architecture/knowledge-app.md)
 - [原始附件存储契约](architecture/knowledge-attachments.md)
 - [视觉系统](architecture/design-system.md)
 - [办公室中枢](guide/office.md)

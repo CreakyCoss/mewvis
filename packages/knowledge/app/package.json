@@ -1,0 +1,45 @@
+{
+  "name": "@mewvis/knowledge-app",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Standalone knowledge web application and headless service launcher.",
+  "exports": {
+    ".": {
+      "types": "./dist/server/index.d.ts",
+      "default": "./dist/server/index.js"
+    }
+  },
+  "bin": {
+    "mewvis-knowledge": "./dist/server/cli.js"
+  },
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "build": "pnpm --filter @mewvis/knowledge-service build && pnpm --filter @mewvis/knowledge-server build && pnpm --filter @mewvis/knowledge-ui build && node scripts/build.mjs",
+    "dev": "pnpm build && node dist/server/cli.js",
+    "start": "node dist/server/cli.js",
+    "check": "tsc -p tsconfig.json --noEmit && tsc -p web/tsconfig.json --noEmit",
+    "test": "pnpm build && node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "@mewvis/knowledge-sdk": "workspace:*",
+    "@mewvis/knowledge-service": "workspace:*",
+    "@mewvis/knowledge-server": "workspace:*",
+    "@mewvis/knowledge-ui": "workspace:*",
+    "design-system": "workspace:*",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "typescript": "~5.8.3",
+    "vite": "^7.0.4",
+    "@tailwindcss/vite": "^4.3.0",
+    "tailwindcss": "^4.3.0"
+  },
+  "license": "MIT"
+}

@@ -9,7 +9,12 @@ import { setTimeout as delay } from "node:timers/promises";
 import { createKnowledgeService } from "@mewvis/knowledge-service";
 import { importText, waitJob, rejectsCode } from "./helpers.mjs";
 
-async function setup(t, provider = "openai-compatible", extra = {}) {
+async function setup(
+  t,
+  provider = "openai-compatible",
+  extra = {},
+  endpointPath = provider === "ollama" ? "/api/" : "/v1/",
+) {
   const requests = [],
     control = { response: "normal" };
   const server = createServer(async (req, res) => {
@@ -66,7 +71,7 @@ async function setup(t, provider = "openai-compatible", extra = {}) {
       backend: { kind: "sqlite", directory },
       embedding: {
         provider,
-        endpoint: `http://127.0.0.1:${server.address().port}${provider === "ollama" ? "/api/" : "/v1/"}`,
+        endpoint: `http://127.0.0.1:${server.address().port}${endpointPath}`,
         model: "fixture-model",
         dimensions: 3,
         credentialRef: "embedding-credential",
@@ -148,6 +153,31 @@ for (const provider of ["openai-compatible", "ollama"])
       ),
     );
   });
+
+test("embedding endpoint roots and explicit operation paths avoid redirects and duplicate slashes", async (t) => {
+  for (const provider of ["ollama", "openai-compatible"]) {
+    const expected = provider === "ollama" ? "/api/embed" : "/v1/embeddings";
+    for (const path of [
+      "",
+      "/",
+      provider === "ollama" ? "/api/" : "/v1/",
+      `${expected}/`,
+    ]) {
+      await t.test(`${provider}: ${path || "bare origin"}`, async (t) => {
+        const { service, requests } = await setup(t, provider, {}, path);
+        const base = await service.bases.create({ name: "endpoint test" });
+        await importText(service, base, [{ title: "notes", text: "archive" }]);
+        await service.search({
+          knowledgeBaseIds: [base.id],
+          query: "archive",
+          mode: "vector",
+        });
+        assert.ok(requests.length >= 2);
+        assert.ok(requests.every((request) => request.url === expected));
+      });
+    }
+  }
+});
 
 test("HTTP failures and invalid vector responses cannot overwrite published documents", async (t) => {
   const { service, control } = await setup(t);

@@ -125,12 +125,16 @@ export function createEmbeddingProvider(
     queryTimeout = positive(settings.queryTimeoutMs, 10_000, 600_000);
   if (config.dimensions !== undefined) positive(config.dimensions, 1, 65_536);
   const endpoint = new URL(config.endpoint);
-  endpoint.pathname = endpoint.pathname.replace(/\/+$/, "");
+  // Keep the trimmed path outside URL: assigning "" to pathname restores "/".
+  const path = endpoint.pathname.replace(/\/+$/, "");
   const ollama = config.provider === "ollama";
-  if (ollama && !endpoint.pathname.endsWith("/api/embed"))
-    endpoint.pathname = endpoint.pathname.replace(/\/api$/, "") + "/api/embed";
-  if (!ollama && !endpoint.pathname.endsWith("/embeddings"))
-    endpoint.pathname = (endpoint.pathname || "/v1") + "/embeddings";
+  endpoint.pathname = ollama
+    ? path.endsWith("/api/embed")
+      ? path
+      : path.replace(/\/api$/, "") + "/api/embed"
+    : path.endsWith("/embeddings")
+      ? path
+      : (path || "/v1") + "/embeddings";
   const fetcher = options.fetch ?? globalThis.fetch;
   const signature = hash({
     provider: config.provider,

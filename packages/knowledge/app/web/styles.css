@@ -1,0 +1,33 @@
+@import "tailwindcss";
+@import "design-system/theme.css";
+@import "@mewvis/knowledge-ui/styles.css";
+@source "../../../ui/src";
+
+html,
+body,
+#root {
+  min-height: 100%;
+  margin: 0;
+}
+body {
+  overflow: hidden;
+}
+.knowledge-connect {
+  min-height: 100dvh;
+  display: grid;
+  place-content: center;
+  gap: 20px;
+  padding: 32px;
+}
+.knowledge-connect form {
+  width: min(400px, calc(100vw - 64px));
+  display: grid;
+  gap: 16px;
+}
+.knowledge-connect h1 {
+  font-size: 24px;
+  font-weight: 600;
+}
+.knowledge-connect p {
+  color: var(--muted-foreground);
+}
