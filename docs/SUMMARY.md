@@ -69,6 +69,7 @@
 - [故事工坊](apps/builtins/story.md)
 - [影视工坊](apps/builtins/film-workshop.md)
 - [口袋文明](apps/builtins/pocket-civilization.md)
+- [游戏沙盘](apps/builtins/gameplay-lab.md)
 - [设计画布](apps/builtins/design-studio.md)
 - [学习工坊](apps/builtins/learning.md)
 - [文档中心](apps/builtins/docs-reader.md)
