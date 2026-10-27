@@ -248,6 +248,10 @@
 .knowledge-reader-content {
   padding: 12px clamp(28px, 6vw, 84px) 56px;
 }
+.knowledge-reader-content > [data-slot="button"] {
+  margin-top: 16px;
+  margin-right: 8px;
+}
 .knowledge-document-heading h1 {
   font-size: 30px;
   line-height: 1.4;

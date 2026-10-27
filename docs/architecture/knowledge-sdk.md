@@ -2,9 +2,9 @@
 
 `packages/knowledge/sdk` 提供独立于宿主、数据库和供应商的知识库公共契约与客户端，包名为 `@mewvis/knowledge-sdk`。它与现有[知识库与检索](rag.md)实现并行存在，当前尚未接入宿主或应用 SDK，也不读写旧配置和索引。
 
-SDK 提供类型契约、运行时请求与响应校验、可注入 Transport 的客户端、本协议的 HTTP Transport，以及宿主启动配置的类型与结构校验。SDK 不导出 `createKnowledgeService`，也不包含数据库驱动。当前 SQLite、Embedding、文本入库、任务和可信访问视图的实现见[知识库服务实现](knowledge-service.md)；MongoDB、远端知识库与二进制解析仍未实现。配置类型不表示相应驱动已经可用。
+SDK 提供类型契约、运行时请求与响应校验、可注入 Transport 的客户端、本协议的 HTTP Transport，以及宿主启动配置的类型与结构校验。SDK 不导出 `createKnowledgeService`，也不包含数据库驱动。当前 SQLite、Embedding、文本入库、任务和可信访问视图的实现见[知识库服务实现](knowledge-service.md)；MongoDB 和远端知识库保留空适配入口；PDF 解析由[独立应用](knowledge-app.md)实现。配置类型不表示相应驱动已经可用。
 
-SDK 已增加原始附件的元数据、上传确认、下载授权、文档来源关联及可配置存储契约，见[原始附件存储契约](knowledge-attachments.md)。本地/OSS/S3/自定义存储的驱动、附件生命周期与字节网关尚未接入，SQLite 服务不声明附件能力。
+SDK 已增加原始附件的元数据、上传确认、下载授权、文档来源关联及可配置存储契约，见[原始附件存储契约](knowledge-attachments.md)。本地附件驱动、生命周期及字节网关已接入 SQLite 服务；OSS/S3 和自定义存储仅保留接口。SDK 本身不传输原始字节。
 
 ## 接入边界
 
@@ -81,7 +81,7 @@ const remote = parseKnowledgeServiceConfiguration({
 
 ## 对外操作
 
-当前 v1 定义以下 26 个操作，其中 7 个附件操作为新增契约，当前 SQLite 服务尚未实现。所有资源 ID 都是服务数据空间内的不透明标识。
+当前 v1 定义以下 26 个操作，其中 7 个附件操作由配置了本地附件存储的 SQLite 服务实现。所有资源 ID 都是服务数据空间内的不透明标识。
 
 | 分组   | 方法                                                      | 返回及语义                                                  |
 | ------ | --------------------------------------------------------- | ----------------------------------------------------------- |
@@ -116,7 +116,7 @@ const remote = parseKnowledgeServiceConfiguration({
 
 ## 标准文本导入与任务
 
-v1 导入的输入为 `KnowledgeTextDocument`：标题、纯文本、可选来源、元数据、稳定 `externalId`，以及文本范围到页码或章节的映射。输入不接受宿主路径、文件对象、Base64 或原始向量。来源可用 `source.attachmentId` 关联同库已完成上传的原件，当前 SQLite 会明确拒绝该未实现的关联。文件选择、PDF/DOCX 解析和清洗由后续导入流程负责，产出标准文本后调用此接口。
+v1 导入的输入为 `KnowledgeTextDocument`：标题、纯文本、可选来源、元数据、稳定 `externalId`，以及文本范围到页码或章节的映射。输入不接受宿主路径、文件对象、Base64 或原始向量。来源可用 `source.attachmentId` 关联同库已完成上传的原件，SQLite 服务在配置附件存储后校验此关联。文件选择、PDF 解析和清洗由独立应用负责，产出标准文本后调用此接口；DOCX 解析尚未实现。
 
 ```ts
 const accepted = await knowledge.documents.import(

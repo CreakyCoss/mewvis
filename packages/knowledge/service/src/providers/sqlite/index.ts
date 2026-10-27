@@ -19,7 +19,7 @@ export interface SqliteKnowledgeServiceConfiguration {
   readonly backend: KnowledgeSqliteBackend;
   /** 可选；未配置且未注入 Embedding 时提供关键词检索。 */
   readonly embedding?: KnowledgeEmbeddingConfiguration;
-  /** 契约预留；SQLite 附件生命周期接入完成前显式返回 NOT_SUPPORTED。 */
+  /** 当前实现本地存储；其他存储类型保留接口并返回 NOT_SUPPORTED。 */
   readonly attachmentStorage?: KnowledgeAttachmentStorageConfiguration;
 }
 
@@ -30,10 +30,5 @@ export async function createSqliteKnowledgeService(
 ): Promise<KnowledgeService> {
   if (configuration.backend.kind !== "sqlite")
     fail("NOT_SUPPORTED", "The SQLite provider requires a SQLite backend");
-  if (configuration.attachmentStorage !== undefined)
-    fail(
-      "NOT_SUPPORTED",
-      "SQLite attachment storage integration is not implemented yet",
-    );
   return createSqliteService(configuration, options);
 }

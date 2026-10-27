@@ -560,6 +560,58 @@ export function KnowledgeWorkbench({
                   查看原件
                 </Button>
               )}
+            {document.source?.attachmentId &&
+              w.props.onDownloadAttachment &&
+              w.can("attachments.createDownload") && (
+                <Button
+                  variant="outline"
+                  onClick={() =>
+                    invoke(async () =>
+                      w.props.onDownloadAttachment!({
+                        knowledgeBaseId: document.knowledgeBaseId,
+                        attachmentId: document.source!.attachmentId!,
+                      }),
+                    )
+                  }
+                >
+                  下载原件
+                </Button>
+              )}
+            {document.source?.attachmentId &&
+              document.externalId &&
+              w.props.onReparseDocument &&
+              w.can("documents.import") &&
+              w.can("attachments.createDownload") && (
+                <Button
+                  variant="outline"
+                  onClick={() =>
+                    w.setDialog({
+                      kind: "confirm",
+                      title: "重新解析原件",
+                      description:
+                        "从保存的原始文件重新提取正文并生成索引。成功前保留现有正文与索引。",
+                      action: async () => {
+                        const parsed =
+                          await w.props.onReparseDocument!(document);
+                        w.accepted(
+                          await w.client.documents.import(
+                            {
+                              knowledgeBaseId: document.knowledgeBaseId,
+                              duplicatePolicy: "replace",
+                              documents: [
+                                { ...parsed, externalId: document.externalId! },
+                              ],
+                            },
+                            w.mutationOptions(),
+                          ),
+                        );
+                      },
+                    })
+                  }
+                >
+                  重新解析
+                </Button>
+              )}
           </div>
         ) : (
           <KnowledgeEmpty
@@ -582,7 +634,7 @@ export function KnowledgeWorkbench({
             }
           >
             {w.can("documents.import")
-              ? "导入 TXT、Markdown，或粘贴一段文本。"
+              ? "导入文件，或粘贴一段文本。"
               : "可以切换其他知识库，或联系资料管理员。"}
           </KnowledgeEmpty>
         )}

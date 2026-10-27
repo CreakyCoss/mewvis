@@ -33,6 +33,8 @@ import {
 } from "../../embeddings.js";
 import { KnowledgeJobs } from "./jobs.js";
 import { KnowledgeRetriever } from "./search.js";
+import { createAttachmentStorage } from "../../attachments/factory.js";
+import { SqliteAttachments } from "./attachments.js";
 import {
   canonical,
   checkSignal,
@@ -119,7 +121,53 @@ export async function createSqliteService(
       128 * 1024 * 1024,
     ),
   };
-  const store = new SqliteKnowledgeStore(config.backend.directory);
+  const maxAttachmentBytes = positive(
+    options.attachments?.maxBytes,
+    32 * 1024 * 1024,
+    128 * 1024 * 1024,
+  );
+  const uploadExpiry = positive(
+    options.attachments?.uploadExpiryMs,
+    60 * 60_000,
+  );
+  const retention = positive(
+    options.attachments?.unreferencedRetentionMs,
+    24 * 60 * 60_000,
+  );
+  const storage = config.attachmentStorage
+    ? await createAttachmentStorage(config.attachmentStorage)
+    : undefined;
+  let store: SqliteKnowledgeStore;
+  try {
+    store = new SqliteKnowledgeStore(config.backend.directory);
+  } catch (error) {
+    await storage?.close();
+    throw error;
+  }
+  try {
+    store.bindAttachmentStorage(
+      storage
+        ? hash({
+            storageId: storage.storageId,
+            directory: storage.directory,
+            kind: "local",
+          })
+        : undefined,
+    );
+  } catch (error) {
+    store.close();
+    await storage?.close();
+    throw error;
+  }
+  const attachments = storage
+    ? new SqliteAttachments(
+        store,
+        storage,
+        maxAttachmentBytes,
+        uploadExpiry,
+        retention,
+      )
+    : undefined;
   const jobs = new KnowledgeJobs(
     store,
     embedding,
@@ -139,6 +187,13 @@ export async function createSqliteService(
     }
   }, 5000);
   heartbeat.unref();
+  const cleanupTimer = attachments
+    ? setInterval(() => {
+        void attachments.cleanup().catch(() => {});
+      }, 30_000)
+    : undefined;
+  cleanupTimer?.unref();
+  if (attachments) void attachments.cleanup().catch(() => {});
 
   const view = (access: KnowledgeAccess): AccessView => {
     if (
@@ -178,7 +233,14 @@ export async function createSqliteService(
     access: AccessView,
     base?: BaseRow,
   ): KnowledgeCapabilities => ({
-    methods: supportedMethods.filter((method) => access.methods.has(method)),
+    methods: [
+      ...supportedMethods,
+      ...(attachments
+        ? KNOWLEDGE_METHODS.filter((method) =>
+            method.startsWith("attachments."),
+          )
+        : []),
+    ].filter((method) => access.methods.has(method)),
     searchModes:
       embedding && (!base || base.embedding_signature === embedding.signature)
         ? ["keyword", "vector", "hybrid"]
@@ -190,6 +252,7 @@ export async function createSqliteService(
       maxPageSize: 100,
       maxImportDocuments: limits.maxImportDocuments,
       maxDocumentCharacters: limits.maxDocumentCharacters,
+      ...(attachments ? { maxAttachmentBytes } : {}),
     },
   });
   const baseValue = (row: BaseRow, access: AccessView) =>
@@ -213,6 +276,10 @@ export async function createSqliteService(
       { name: "fts5", status: "ok" },
     ];
     store.one("SELECT 1 FROM kb_fts LIMIT 1");
+    if (storage) {
+      const originalStorage = await storage.probe({ signal });
+      checks.push(...originalStorage.checks);
+    }
     if (jobs.fault)
       checks.push({
         name: "worker",
@@ -277,11 +344,14 @@ export async function createSqliteService(
         capabilities: capabilities(access),
       };
     if (request.method === "service.probe") return probe(signal);
-    if (request.method.startsWith("attachments."))
-      fail(
-        "NOT_SUPPORTED",
-        "SQLite attachment operations are not implemented yet",
-      );
+    if (request.method.startsWith("attachments.")) {
+      if (!attachments)
+        fail("NOT_SUPPORTED", "Attachment storage is not configured");
+      const result = await attachments.execute(request, access, signal);
+      if (isKnowledgeMutation(request.method))
+        void attachments.cleanup().catch(() => {});
+      return result;
+    }
     if (request.method === "search") {
       if (request.params.knowledgeBaseIds.length > 64)
         fail(
@@ -389,15 +459,15 @@ export async function createSqliteService(
           );
         case "documents.import": {
           const input = request.params;
-          if (
-            input.documents.some(
-              (document) => document.source?.attachmentId !== undefined,
-            )
-          )
-            fail(
-              "NOT_SUPPORTED",
-              "SQLite attachment references are not implemented yet",
-            );
+          for (const document of input.documents)
+            if (document.source?.attachmentId !== undefined) {
+              if (!attachments)
+                fail("NOT_SUPPORTED", "Attachment storage is not configured");
+              attachments.assertReference(
+                input.knowledgeBaseId,
+                document.source.attachmentId,
+              );
+            }
           store.base(input.knowledgeBaseId);
           jobs.assertProfile(input.knowledgeBaseId);
           if (
@@ -576,13 +646,26 @@ export async function createSqliteService(
     ...client,
     transport,
     createTransport,
+    createAttachmentGateway(context: KnowledgeAccess) {
+      if (!attachments)
+        fail("NOT_SUPPORTED", "Attachment storage is not configured");
+      const access = view(context);
+      if (closing || shutdown.signal.aborted)
+        fail("UNAVAILABLE", "Knowledge service is closed");
+      return attachments.gateway(access, shutdown.signal);
+    },
     close() {
       closing ??= (async () => {
         shutdown.abort();
         clearInterval(heartbeat);
+        clearInterval(cleanupTimer);
         await jobs.stop();
         await Promise.allSettled([...inflight]);
-        store.close();
+        try {
+          await attachments?.close();
+        } finally {
+          store.close();
+        }
       })();
       return closing;
     },

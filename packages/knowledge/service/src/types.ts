@@ -3,6 +3,7 @@ import type {
   KnowledgeMethod,
   KnowledgeTextDocument,
   KnowledgeTransport,
+  KnowledgeAttachmentByteGateway,
 } from "@mewvis/knowledge-sdk";
 
 export interface KnowledgeEmbeddingProvider {
@@ -33,6 +34,11 @@ export interface KnowledgeServiceOptions {
     readonly maxVectorSearchChunks?: number;
     readonly maxVectorSearchBytes?: number;
   };
+  readonly attachments?: {
+    readonly maxBytes?: number;
+    readonly uploadExpiryMs?: number;
+    readonly unreferencedRetentionMs?: number;
+  };
 }
 /** Created by the trusted host, never decoded from business request params. */
 export interface KnowledgeAccess {
@@ -44,6 +50,9 @@ export interface KnowledgeAccess {
 export interface KnowledgeService extends KnowledgeClient {
   readonly transport: KnowledgeTransport;
   createTransport(access: KnowledgeAccess): KnowledgeTransport;
+  createAttachmentGateway(
+    access: KnowledgeAccess,
+  ): KnowledgeAttachmentByteGateway;
   /** Stops the worker, requeues interrupted work, and releases caller-owned database resources. */
   close(): Promise<void>;
 }

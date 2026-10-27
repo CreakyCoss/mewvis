@@ -1,4 +1,4 @@
-import { rm } from "node:fs/promises";
+import { rm, cp } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
 import { build } from "vite";
@@ -25,3 +25,14 @@ const web = spawnSync(
 );
 if (web.status !== 0) process.exit(web.status ?? 1);
 await build({ configFile: new URL("vite.config.ts", root).pathname });
+const pdfRoot = new URL("../", import.meta.resolve("pdfjs-dist/build/pdf.mjs"));
+await cp(
+  new URL("cmaps/", pdfRoot),
+  new URL("dist/client/assets/pdf-cmaps/", root),
+  { recursive: true },
+);
+await cp(
+  new URL("standard_fonts/", pdfRoot),
+  new URL("dist/client/assets/pdf-fonts/", root),
+  { recursive: true },
+);

@@ -1,7 +1,9 @@
 /** 独立应用入口：装配服务、HTTP 和可选网页；业务实现仍由 knowledge/service 提供。 */
 import { timingSafeEqual } from "node:crypto";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { KnowledgeError } from "@mewvis/knowledge-sdk";
+import { KnowledgeError, createKnowledgeClient } from "@mewvis/knowledge-sdk";
+import { parseOriginal } from "./parsing/index.js";
 import type { KnowledgeServiceConfiguration } from "@mewvis/knowledge-sdk/configuration";
 import {
   createKnowledgeService,
@@ -54,15 +56,42 @@ export async function startKnowledgeApplication(
       message:
         "A knowledge access token is required for non-loopback listeners",
     });
+  const configuration =
+    options.configuration.backend.kind === "sqlite" &&
+    !options.configuration.attachmentStorage
+      ? {
+          backend: options.configuration.backend,
+          ...(options.configuration.embedding
+            ? { embedding: options.configuration.embedding }
+            : {}),
+          attachmentStorage: {
+            kind: "local" as const,
+            storageId: "standalone-originals",
+            directory: join(
+              options.configuration.backend.directory,
+              "originals",
+            ),
+          },
+        }
+      : options.configuration;
   const service = await createKnowledgeService(
-    options.configuration,
+    configuration,
     options.serviceOptions,
   );
   try {
-    const transport = service.createTransport(
-      options.access ?? { subjectId: "standalone" },
-    );
+    const access = options.access ?? { subjectId: "standalone" };
+    const transport = service.createTransport(access);
+    const gateway = service.createAttachmentGateway(access);
     const expected = token ? Buffer.from(`Bearer ${token}`) : undefined;
+    const authenticated = (request: {
+      headers: { authorization?: string | undefined };
+    }) => {
+      if (!expected) return true;
+      const actual = Buffer.from(request.headers.authorization ?? "");
+      return (
+        actual.length === expected.length && timingSafeEqual(actual, expected)
+      );
+    };
     const server = await createKnowledgeHttpServer({
       host,
       ...(options.port !== undefined ? { port: options.port } : {}),
@@ -78,12 +107,53 @@ export async function startKnowledgeApplication(
         ? { allowedOrigins: options.allowedOrigins }
         : {}),
       resolveTransport(request) {
-        if (!expected) return transport;
-        const actual = Buffer.from(request.headers.authorization ?? "");
-        return actual.length === expected.length &&
-          timingSafeEqual(actual, expected)
-          ? transport
-          : null;
+        return authenticated(request) ? transport : null;
+      },
+      resolveAttachments(request) {
+        return authenticated(request) ? gateway : null;
+      },
+      async parseAttachment(input, authorizedTransport, signal) {
+        const client = createKnowledgeClient(authorizedTransport);
+        const attachment = await client.attachments.get(input, { signal });
+        if (attachment.state !== "ready")
+          throw new KnowledgeError({
+            code: "NOT_READY",
+            message: "原件尚未完成上传。",
+          });
+        const download = await client.attachments.createDownload(input, {
+          signal,
+        });
+        if (download.transfer.kind !== "host")
+          throw new KnowledgeError({
+            code: "NOT_SUPPORTED",
+            message: "当前解析入口只支持本地原件。",
+          });
+        const file = await gateway.download(download.transfer.token, {
+          signal,
+        });
+        const chunks: Uint8Array[] = [];
+        let size = 0;
+        for await (const chunk of file.body) {
+          size += chunk.byteLength;
+          if (size > 32 * 1024 * 1024)
+            throw new KnowledgeError({
+              code: "INVALID_ARGUMENT",
+              message: "原件超过解析大小限制。",
+            });
+          chunks.push(chunk);
+        }
+        const document = await parseOriginal(
+          file.fileName,
+          Buffer.concat(chunks),
+          signal,
+        );
+        return {
+          ...document,
+          source: {
+            attachmentId: attachment.id,
+            mediaType: attachment.mediaType,
+          },
+        };
       },
     });
     let closing: Promise<void> | undefined;

@@ -8,7 +8,7 @@
 packages/knowledge/service/src/
   service.ts                 公共工厂与后端选择
   types.ts                   服务生命周期、可信访问视图、运行选项
-  attachments/index.ts       原始附件存储、流式读写与传输授权的适配契约
+  attachments/               原始附件契约、工厂与本地不可变文件存储
   embeddings.ts              Embedding 适配与向量校验
   ingestion/text.ts          保留出处的分块及中英文索引规范化
   retrieval/ranking.ts       RRF 排名融合
@@ -19,15 +19,18 @@ packages/knowledge/service/src/
     jobs.ts                  持久化任务及原子发布
     search.ts                范围内检索与降级诊断
     filter.ts                元数据过滤到绑定参数 SQL 的映射
+    attachments.ts           附件元数据、短期授权、引用检查与持久化清理
+  providers/mongodb/         MongoDB 空适配入口
+  providers/remote/          远端服务空适配入口
 ```
 
-后端实现以同一 `KnowledgeService / KnowledgeTransport` 接口交付。SQL、队列持久化和查询方式集中在 SQLite 适配目录；文本分块、Embedding 和排名融合组件独立维护。新增数据库后端需要实现对应存储与检索语义，公共工厂不能把不支持的数据库悄悄替换为 SQLite。
+后端实现以同一 `KnowledgeService / KnowledgeTransport` 接口交付。SQL、队列持久化和查询方式集中在 SQLite 适配目录；文本分块、Embedding 和排名融合组件独立维护。新增数据库后端需要实现对应存储与检索语义，公共工厂不能把不支持的数据库悄悄替换为 SQLite。当前数据库格式为 v2；旧格式明确拒绝打开，不迁移、不清空。
 
 公共工厂完成配置校验和后端选择后，通过 `providers/sqlite/index.ts` 创建 SQLite 实例。该入口定义 `SqliteKnowledgeServiceConfiguration` 与 `createSqliteKnowledgeService`，具体 SDK 操作保留在目录内的 `service.ts`。应用仍通过包的公共工厂接入。
 
-当前 `mongodb / remote` 配置类型仍可被 SDK 结构校验，但服务工厂会明确返回 `NOT_SUPPORTED`。二进制文件解析、远端知识库转发和应用 SDK 桥接尚未实现。HTTP 监听与独立网页由[独立应用和 HTTP 接入层](knowledge-app.md)提供，服务包本身不监听端口。
+当前 `mongodb / remote` 配置类型仍可被 SDK 结构校验，但服务工厂会明确返回 `NOT_SUPPORTED`。PDF 解析由独立应用负责；远端知识库转发和应用 SDK 桥接尚未实现。HTTP 监听与独立网页由[独立应用和 HTTP 接入层](knowledge-app.md)提供，服务包本身不监听端口。
 
-原始附件新增了独立的[存储契约](knowledge-attachments.md)，调用方可以声明本地目录、OSS/S3 或其他适配器。当前仅完成 SDK、配置和服务端适配接口，尚未接入附件元数据表、驱动或字节网关。SQLite 的能力描述仍只包含已实现的 19 个操作，对附件调用、附件存储配置和文档附件引用返回 `NOT_SUPPORTED`。
+原始附件新增了独立的[存储契约](knowledge-attachments.md)，调用方可以声明本地目录、OSS/S3 或其他适配器。SQLite 已实现本地附件元数据、上传确认、下载授权、引用检查与清理。配置本地 `attachmentStorage` 后声明全部 26 个操作；未配置时附件操作返回 `NOT_SUPPORTED`。OSS/S3 与自定义存储保留适配接口并明确返回 `NOT_SUPPORTED`。独立应用默认装配本地原件目录，服务工厂本身仍要求显式配置。
 
 ## 创建和使用
 
@@ -99,7 +102,7 @@ SQLite 后端在指定目录创建 `knowledge.sqlite`，运行时可能出现 `-
 
 输入沿用 SDK 的标准文本契约，不直接读取 `source.uri`，也不从业务请求接受本机路径。服务保留原始标准文本，以保证 Unicode 码点偏移、页码/章节映射和引用可复核。清洗后的搜索表示与正文分开保存。
 
-默认分块最长 1200 个 Unicode 码点、重叠 160 个码点，优先在句子、换行和空白边界分割。可通过 `chunking.maxCharacters / overlapCharacters` 调整。每个片段保留标准文本中的半开字符范围和行号；提供 `locations` 时附带对应页码、章节等原始位置。跨页片段以起点匹配的映射描述来源，不表示服务已实现 PDF 页面解析。
+默认分块最长 1200 个 Unicode 码点、重叠 160 个码点，优先在句子、换行和空白边界分割。可通过 `chunking.maxCharacters / overlapCharacters` 调整。每个片段保留标准文本中的半开字符范围和行号；提供 `locations` 时附带对应页码、章节等原始位置。提供页码范围时，分块在页面边界停止，不跨页重叠；PDF 逐页提取由独立应用完成，服务不直接解析文件。
 
 索引文本采用 NFKC、小写及 CJK 单字/双字组合，查询使用相同规则并排除部分常见中文功能字。原文、元数据值和出处不随检索规范化改变。这提供中文自然问句与短名称的基本词法召回；当前不包含专业分词词典、同义词扩展、查询改写或 reranker。
 

@@ -2,11 +2,11 @@
 
 知识库元数据数据库和原始附件存储分别由接入方选择。例如，SQLite 可以搭配本地文件、阿里云 OSS、S3 兼容对象存储或自定义存储；更换数据库不应改变业务端的附件接口。
 
-本次交付的是 **SDK 契约、客户端、运行时协议校验、配置结构校验和服务端适配接口**。尚未实现附件元数据表、SQLite 附件生命周期、文件存储驱动、上传下载网关、清理任务或文件解析器。配置供应商名称不代表驱动已安装。现有 SQLite 服务不声明附件能力，对附件调用、附件引用和附件存储配置明确返回 `NOT_SUPPORTED`，不忽略配置或回退存储。
+已实现 SDK 契约、协议校验、SQLite 附件生命周期、本地存储驱动、上传下载网关及清理机制。独立应用支持 PDF/TXT/Markdown 的上传、解析、入库、原件查看和重新解析。OSS/S3 与自定义存储只保留接口，指定这些供应商会明确返回 `NOT_SUPPORTED`，不会回退到本地存储。
 
 ## 配置与接入边界
 
-宿主启动配置新增可选 `attachmentStorage`，与 `backend`、`embedding` 并列。未配置时不隐式使用 SQLite 目录保存文件。业务请求不接受目录、Bucket、对象 Key、供应商配置或长期凭据。
+宿主启动配置新增可选 `attachmentStorage`，与 `backend`、`embedding` 并列。服务工厂未配置时不隐式保存文件；独立应用会默认注入 `<data>/originals` 本地存储。业务请求不接受目录、Bucket、对象 Key、供应商配置或长期凭据。
 
 ```ts
 import {
@@ -51,11 +51,11 @@ const custom = parseKnowledgeAttachmentStorageConfiguration({
 
 const configuration = parseKnowledgeServiceConfiguration({
   backend: { kind: "sqlite", directory: "/caller/owned/metadata" },
-  attachmentStorage: oss,
+  attachmentStorage: local,
 });
 ```
 
-`storageId` 是持久化存储绑定，不是业务授权。未来运行时需要记录并核对绑定，禁止更改目录、Bucket 或前缀后把旧附件悄悄指向另一个位置；切换位置需要明确的数据移动流程。`options` 只保存非秘密参数，凭据通过 `credentialRef` 交给调用方解析。
+`storageId` 是持久化存储绑定，不是业务授权。SQLite 已记录并核对本地 `storageId` 和规范化目录的绑定，禁止更改目录、Bucket 或前缀后把旧附件悄悄指向另一个位置；切换位置需要明确的数据移动流程。`options` 只保存非秘密参数，凭据通过 `credentialRef` 交给调用方解析。
 
 `remote` 表示委托给完整的远端知识库服务，其附件存储和 Embedding 均由远端负责，因此不能同时传入本地 `attachmentStorage` 或 `embedding`。远端是否支持原件上传、下载，由能力发现决定。
 
@@ -83,7 +83,7 @@ const configuration = parseKnowledgeServiceConfiguration({
 
 流程为：导入层计算原件摘要与大小 → 申请上传凭证 → 独立通道传输 → `completeUpload` 校验发布 → 解析出标准文本 → `source.attachmentId` 关联同库 ready 原件 → 标准文本入库。
 
-以下是**目标协议调用示意**，需要支持附件的服务和调用方二进制通道，不能直接用于当前 SQLite 服务：
+以下示例适用于配置本地附件存储的 SQLite 服务；`transferBytes` 由接入方通过 `createAttachmentGateway(access)` 或独立应用的 HTTP 文件入口实现：
 
 ```ts
 import type {
@@ -140,7 +140,7 @@ const job = await knowledge.documents.import({
 
 协议拒绝非 HTTP(S) URL、URL 内嵌用户名密码、错误传输方向，以及带控制字符或 Cookie 的传输请求头。
 
-预签名上传必须指向暂存对象，不能指向 ready 原件，否则校验完成后仍可能被覆盖。未来服务需将暂存字节发布为独立、不可变的最终对象，在写入过程中校验大小和摘要，再提交 ready 元数据。仅相信客户端声明、对象自定义元数据或 ETag 不足以完成 SHA-256 校验。
+预签名上传必须指向暂存对象，不能指向 ready 原件，否则校验完成后仍可能被覆盖。本地服务将暂存字节发布为独立、不可变的最终对象，在写入过程中校验大小和摘要，再提交 ready 元数据。仅相信客户端声明、对象自定义元数据或 ETag 不足以完成 SHA-256 校验。
 
 ## 服务端适配接口
 
@@ -154,18 +154,19 @@ const job = await knowledge.documents.import({
 
 Key 由服务生成，不来自原始文件名或业务请求。适配器负责字节完整性、未完成写入不可见、同 Key 的不可变语义和取消资源释放；删除不存在对象是幂等成功。提供方错误需转换为知识库错误，不回传上游正文、密钥或真实路径。`close()` 只释放实例资源，不删除数据。
 
-元数据、引用、权限、会话和清理重试由知识库服务负责。工厂类型是运行时装配契约，本次尚未作为可执行的 `createKnowledgeService` 选项接入。
+元数据、引用、权限、会话和清理重试由知识库服务负责。运行时工厂目前仅装配本地驱动，其他配置明确拒绝；`KnowledgeAttachmentStorageFactory` 为后续扩展保留类型约定。
 
-## 后续实现要求
+## 生命周期与清理
 
 - pending 附件不可下载或关联文档；完成上传需可幂等重试，完成与放弃的竞态需要明确终态。
 - 导入入队时固定附件引用，删除同时检查已发布文档和待执行任务，防止后台入库期间原件被清除。
 - 文档替换成功后释放旧引用。无引用原件是否保留由独立策略决定，不能删除其他文档仍在使用的附件。
 - 数据库和对象存储不能假装在同一原子事务中提交，需要持久化清理与恢复记录，处理上传失败、对象已写入但元数据未提交、删除失败和进程退出。
-- 取消、过期上传及解析失败产生的无引用对象需要清理策略；本次没有自动清理功能。
+- 默认上传会话 1 小时过期；ready 原件无引用满 24 小时后清理。可通过 `serviceOptions.attachments` 调整大小、会话期限和保留时间。服务每 30 秒及启动、关闭、附件变更时检查清理；删除失败的对象 Key 持久化，后续重试。
+- 弹窗移除、取消和解析失败时主动放弃或删除待导入原件；崩溃、断网、导入失败或跳过重复资料遗留的无引用原件由保留策略回收。
 - 删除只处理模块保存的原件副本，不能跟随 `source.uri` 删除调用方原始来源。
-- 驱动、二进制网关及附件元数据生命周期完成后，才可声明对应能力，并开始 UI/宿主接入。
+- 删除知识库会级联删除附件元数据并记录字节清理任务；删除文档或替换后无引用的原件遵循保留策略。宿主接入暂未实现。
 
 ## 验证
 
-运行 `pnpm test:knowledge-sdk` 与 `pnpm test:knowledge-service`。测试覆盖客户端方法、配置、传输授权格式、来源关联、跨库/跨附件响应拒绝、不可用能力的明确错误和适配接口类型契约，不代表已经联调 OSS/S3 或本地附件驱动。
+运行 `pnpm test:knowledge`。测试覆盖 SDK 协议、本地字节完整性、身份与知识库授权、不可变写入、引用保护、删除清理、重启持久化、PDF 分页提取与重新解析、无文字/加密/损坏文件及 HTTP 权限。OSS/S3 和其他存储未实现或联调。

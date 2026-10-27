@@ -1,6 +1,11 @@
 /** HTTP 接入入口。调用方提供已授权的 Transport；本包不创建数据库或读取宿主配置。 */
 import type { IncomingMessage } from "node:http";
-import type { KnowledgeTransport } from "@mewvis/knowledge-sdk";
+import type {
+  KnowledgeTransport,
+  KnowledgeAttachmentByteGateway,
+  KnowledgeAttachmentReference,
+  KnowledgeTextDocument,
+} from "@mewvis/knowledge-sdk";
 import { startHttpServer } from "./http.js";
 
 export interface KnowledgeHttpServerOptions {
@@ -20,6 +25,18 @@ export interface KnowledgeHttpServerOptions {
   /** 反向代理等额外可信 Host / Origin；不支持通配符。 */
   readonly allowedHosts?: readonly string[];
   readonly allowedOrigins?: readonly string[];
+  readonly resolveAttachments?: (
+    request: IncomingMessage,
+    context: { readonly signal: AbortSignal },
+  ) =>
+    | KnowledgeAttachmentByteGateway
+    | null
+    | Promise<KnowledgeAttachmentByteGateway | null>;
+  readonly parseAttachment?: (
+    input: KnowledgeAttachmentReference,
+    transport: KnowledgeTransport,
+    signal: AbortSignal,
+  ) => Promise<KnowledgeTextDocument>;
 }
 
 export interface KnowledgeHttpServer {

@@ -44,7 +44,7 @@ export function splitDocument(
   chunking: Chunking,
 ): { revision: string; chunks: KnowledgeChunk[] } {
   const revision = hash(document),
-    chunkRevision = hash({ revision, chunking, pipeline: 1 }).slice(0, 24);
+    chunkRevision = hash({ revision, chunking, pipeline: 2 }).slice(0, 24);
   const chars = Array.from(document.text),
     chunks: KnowledgeChunk[] = [];
   const lineOffsets = [0];
@@ -62,7 +62,23 @@ export function splitDocument(
     return left;
   };
   for (let start = 0; start < chars.length;) {
-    let end = Math.min(chars.length, start + chunking.maxCharacters);
+    const pageStart =
+      document.locations?.find(
+        (range) => range.start > start && range.location.page !== undefined,
+      )?.start ?? chars.length;
+    const pageEnd =
+      document.locations?.find(
+        (range) =>
+          range.start <= start &&
+          start < range.end &&
+          range.location.page !== undefined,
+      )?.end ?? pageStart;
+    const boundaryEnd = Math.min(pageStart, pageEnd);
+    let end = Math.min(
+      chars.length,
+      start + chunking.maxCharacters,
+      boundaryEnd,
+    );
     if (end < chars.length) {
       const minimum = start + Math.floor(chunking.maxCharacters * 0.6);
       for (const boundary of ["\n\r。！？；.!?;", " \t"]) {
@@ -106,7 +122,10 @@ export function splitDocument(
       });
     }
     if (end === chars.length) break;
-    start = Math.max(start + 1, end - chunking.overlapCharacters);
+    start =
+      end === boundaryEnd
+        ? end
+        : Math.max(start + 1, end - chunking.overlapCharacters);
   }
   return { revision, chunks };
 }

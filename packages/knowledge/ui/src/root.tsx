@@ -367,6 +367,15 @@ export function KnowledgeRoot(props: KnowledgeApplicationProps) {
           pending={w.busy}
           idempotency={w.description?.capabilities.idempotency ?? false}
           {...(props.parseFile ? { parseFile: props.parseFile } : {})}
+          {...(props.acceptedFileTypes
+            ? { acceptedFileTypes: props.acceptedFileTypes }
+            : {})}
+          {...(props.fileFormatLabel
+            ? { fileFormatLabel: props.fileFormatLabel }
+            : {})}
+          {...(props.onDiscardDocument
+            ? { onDiscardDocument: props.onDiscardDocument }
+            : {})}
           onClose={() => w.setDialog(undefined)}
           onSubmit={w.importDocuments}
         />

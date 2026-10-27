@@ -24,6 +24,7 @@
     "test": "pnpm build && node --test test/*.test.mjs"
   },
   "dependencies": {
+    "pdfjs-dist": "6.4.299",
     "@mewvis/knowledge-sdk": "workspace:*",
     "@mewvis/knowledge-service": "workspace:*",
     "@mewvis/knowledge-server": "workspace:*",

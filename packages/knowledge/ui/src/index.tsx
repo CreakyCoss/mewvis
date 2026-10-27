@@ -2,6 +2,7 @@
 import type {
   KnowledgeClient,
   KnowledgeTextDocument,
+  KnowledgeDocument,
 } from "@mewvis/knowledge-sdk";
 import { KnowledgeRoot } from "./root.js";
 
@@ -20,7 +21,21 @@ export interface KnowledgeApplicationProps {
   readonly parseFile?: (
     file: File,
     signal: AbortSignal,
+    knowledgeBaseId: string,
   ) => Promise<KnowledgeTextDocument>;
+  readonly acceptedFileTypes?: string;
+  readonly fileFormatLabel?: string;
+  readonly onDiscardDocument?: (
+    document: KnowledgeTextDocument,
+    knowledgeBaseId: string,
+  ) => Promise<void>;
+  readonly onReparseDocument?: (
+    document: KnowledgeDocument,
+  ) => Promise<KnowledgeTextDocument>;
+  readonly onDownloadAttachment?: (reference: {
+    readonly knowledgeBaseId: string;
+    readonly attachmentId: string;
+  }) => Promise<void>;
   readonly onOpenAttachment?: (reference: {
     readonly knowledgeBaseId: string;
     readonly attachmentId: string;

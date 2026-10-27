@@ -10,6 +10,7 @@ import type {
   KnowledgeProbeResult,
 } from "@mewvis/knowledge-sdk";
 import type { KnowledgeAttachmentStorageConfiguration } from "@mewvis/knowledge-sdk/configuration";
+export { createAttachmentStorage } from "./factory.js";
 
 export interface KnowledgeAttachmentStorageContext {
   readonly signal?: AbortSignal;

@@ -22,7 +22,7 @@ pnpm build:knowledge
 pnpm start:knowledge --data /absolute/path/to/knowledge
 ```
 
-默认访问 `http://127.0.0.1:4317`，API 为 `POST /api/knowledge`。数据目录必须显式提供；它存放 `knowledge.sqlite` 及 SQLite 的伴随文件。
+默认访问 `http://127.0.0.1:4317`，API 为 `POST /api/knowledge`。数据目录必须显式提供；它存放 `knowledge.sqlite`、SQLite 的伴随文件及默认的 `originals/` 原件目录。旧格式数据库会被明确拒绝，不迁移或删除旧数据；升级试用时请指定新目录。
 
 ```bash
 # 只提供 API，不托管网页
@@ -43,15 +43,18 @@ pnpm start:knowledge --config /absolute/path/to/knowledge.json --port 4318
 
 - 工作台：最左侧工具栏控制文档导航，选择知识库和文档，阅读正文或片段，在右侧测试检索。
 - 管理知识库：单栏列表、名称搜索、新建、打开、侧滑编辑及更多菜单中的维护操作。
-- 导入：TXT、Markdown 或粘贴文本，核对预览后提交；成功接受任务后可以关闭弹窗，从任务中心查看结果。
+- 导入：PDF、UTF-8 TXT、Markdown 或粘贴文本。文件先上传到本地原件存储，再解析并预览；确认后提交入库任务。支持移除失败文件、取消未提交资料，并从任务中心查看处理结果。
+- 原件：查看 PDF 原始排版并翻页，下载保存的文件，或重新解析原件并替换正文与索引；重新解析失败时保留已有内容。
 - 任务：按知识库查看处理进度、逐文档结果、错误信息，并取消未完成任务。
 - 检索：只展示服务和当前知识库可用的方式；保留无结果、失败与降级诊断。定位原文会校验文档修订、文本与 Unicode 码点范围，拒绝错误的高亮位置。
 
 独立网页在本机浏览器保存知识库选择与文档导航状态，不保存访问令牌。任务由服务持久化，刷新网页后仍可查看。
 
-当前文件解析只接受 UTF-8 TXT/Markdown，不读取 `source.uri`，不上传本机路径。文件和粘贴文本使用标准文本的 SHA-256 作为重复标识，同名不同内容不会自动覆盖。替换已有文档应从文档的「替换文档」入口操作，沿用该文档的稳定标识。
+文件解析支持可提取文字的 PDF 及 UTF-8 TXT/Markdown，不读取 `source.uri`，不上传本机路径。文件使用原始字节的 SHA-256，粘贴文本使用文本的 SHA-256 作为重复标识；同名不同内容不会自动覆盖。替换已有文档应从文档的「替换文档」入口操作，沿用该文档的稳定标识。
 
-标准文本会保存在服务中；当前不会保存原始文件副本。原件驱动和字节传输、PDF/DOCX/OCR、重新解析、第三方知识库适配器仍需后续实现。附件契约见[原始附件存储](knowledge-attachments.md)。
+独立应用默认将原件保存在 `<data>/originals`，也可在配置中显式指定本地 `attachmentStorage` 目录。标准文本、分页映射和索引保存在 SQLite。PDF 在独立工作线程中逐页解析，片段不跨页，检索证据保留页码与 Unicode 码点范围。
+
+单文件上限 32 MiB，每批文件总量 64 MiB；PDF 上限 500 页、200 万字、30 秒。受密码保护、损坏、无可提取文字的 PDF 会给出具体提示；部分空白或扫描页会在预览中警告。OCR、DOCX 等解析器、MongoDB、远端知识库及第三方存储仅保留扩展入口，未实现时返回明确错误。附件生命周期见[原始附件存储](knowledge-attachments.md)。
 
 ## 嵌入 UI
 
@@ -71,7 +74,7 @@ import "@mewvis/knowledge-ui/styles.css";
 
 也可以使用 `useKnowledgeWorkspace` 配合 `KnowledgeWorkbench`、`KnowledgeManagerPage` 和 `KnowledgeTasksPage`，或单独引用 `KnowledgeDocumentView`、`KnowledgeSearchPanel`、`KnowledgeImportDialog` 和 `KnowledgeBaseDialog`。
 
-`parseFile(file, signal)` 可替换默认文件解析器，并返回 SDK 标准文本。`onOpenAttachment` 配合已授权的附件能力提供原件访问。页面依据服务及知识库能力显示操作，实际权限仍由服务检查。
+`parseFile(file, signal, knowledgeBaseId)` 可替换默认文件解析器，并返回 SDK 标准文本；`acceptedFileTypes / fileFormatLabel` 声明当前支持的格式。`onDiscardDocument` 清理取消或移除的待导入原件；`onOpenAttachment / onDownloadAttachment / onReparseDocument` 配合已授权的附件能力提供预览、下载和重新解析。页面依据服务及知识库能力显示操作，实际权限仍由服务检查。
 
 ## HTTP 与认证
 
@@ -83,7 +86,9 @@ HTTP 层校验协议、UTF-8 JSON、请求体大小、Host 与 Origin，并设�
 
 默认只允许实际监听地址与本机别名的 Host/Origin；反向代理需要在程序装配中显式传入 `allowedHosts` 和 `allowedOrigins`。这些选项不启用跨域 CORS；浏览器应通过同源代理接入。`/healthz` 只表示 HTTP 进程可用，业务状态通过 `service.probe` 获取。
 
-静态托管只读取网页入口和 `assets` 文件；不托管数据目录。静态页面与健康检查不要求令牌，所有 RPC 请求均经过认证。页面设置 CSP，并禁止第三方框架嵌入。
+静态托管只读取网页入口和 `assets` 文件；不托管数据目录。静态页面与健康检查不要求令牌，所有 RPC、文件传输和解析请求均经过认证。页面设置 CSP，并禁止第三方框架嵌入。
+
+原件上传与下载使用 `PUT / GET /api/knowledge/files`，通过 `x-knowledge-transfer` 携带短期授权；授权绑定身份、知识库、附件、方向和期限。`POST /api/knowledge/parse` 接收附件引用，通过已授权的 Transport 检查读取与下载权限后解析，返回标准文本，不直接创建入库任务。
 
 ## 验证
 

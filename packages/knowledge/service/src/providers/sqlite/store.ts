@@ -73,7 +73,11 @@ CREATE TABLE kb_jobs(seq INTEGER PRIMARY KEY AUTOINCREMENT,id TEXT NOT NULL UNIQ
 CREATE INDEX kb_jobs_queue ON kb_jobs(state,created_at,id);
 CREATE INDEX kb_jobs_base ON kb_jobs(base_id,id);
 CREATE TABLE kb_receipts(subject_id TEXT NOT NULL,key TEXT NOT NULL,fingerprint TEXT NOT NULL,value_json TEXT NOT NULL,PRIMARY KEY(subject_id,key));
-PRAGMA user_version=1;`;
+CREATE TABLE kb_attachments(id TEXT PRIMARY KEY,base_id TEXT NOT NULL REFERENCES kb_bases(id) ON DELETE CASCADE,owner_id TEXT NOT NULL,file_name TEXT NOT NULL,media_type TEXT NOT NULL,size_bytes INTEGER NOT NULL,sha256 TEXT NOT NULL,state TEXT NOT NULL,created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
+CREATE INDEX kb_attachments_base ON kb_attachments(base_id,id);
+CREATE TABLE kb_attachment_cleanup(key TEXT PRIMARY KEY);
+CREATE TRIGGER kb_attachment_delete BEFORE DELETE ON kb_attachments BEGIN INSERT OR IGNORE INTO kb_attachment_cleanup VALUES('staging/'||old.id); INSERT OR IGNORE INTO kb_attachment_cleanup VALUES('objects/'||old.id); END;
+PRAGMA user_version=2;`;
 
 /** A single owned database makes publishing documents, indexes and terminal jobs one atomic transaction. */
 export class SqliteKnowledgeStore {
@@ -99,10 +103,10 @@ export class SqliteKnowledgeStore {
         const version = this.one<{ user_version: number }>(
           "PRAGMA user_version",
         )!.user_version;
-        if (version > 1)
+        if (version !== 0 && version !== 2)
           fail(
             "NOT_SUPPORTED",
-            "Knowledge database schema is newer than this service",
+            "Knowledge database format is unsupported; select a new data directory. Legacy data is not migrated or deleted.",
           );
         if (version === 0) {
           if (
@@ -368,8 +372,67 @@ export class SqliteKnowledgeStore {
       return value;
     });
   }
+  cachedReceipt<T>(
+    subjectId: string,
+    key: string | undefined,
+    fingerprint: string,
+  ): { value: T } | undefined {
+    if (!key) return;
+    const row = this.one<{ fingerprint: string; value_json: string }>(
+      "SELECT * FROM kb_receipts WHERE subject_id=? AND key=?",
+      subjectId,
+      key,
+    );
+    if (!row) return;
+    if (row.fingerprint !== fingerprint)
+      fail("CONFLICT", "Idempotency key was used for a different operation");
+    return { value: json<T>(row.value_json) };
+  }
+  bindAttachmentStorage(binding: string | undefined) {
+    const previous = this.meta("attachment_storage");
+    if (previous && previous !== binding)
+      fail(
+        "CONFLICT",
+        "Attachment storage binding cannot be changed or removed",
+      );
+    if (binding && !previous)
+      this.transaction(() => this.setMeta("attachment_storage", binding));
+  }
+  signAttachment(value: unknown): string {
+    const body = Buffer.from(JSON.stringify(value)).toString("base64url");
+    return (
+      body +
+      "." +
+      createHmac("sha256", this.cursorSecret)
+        .update("attachment:" + body)
+        .digest("base64url")
+    );
+  }
+  verifyAttachment<T>(token: string): T {
+    try {
+      const [body, signature, extra] = token.split(".");
+      if (!body || !signature || extra || token.length > 4096)
+        throw new Error();
+      const expected = createHmac("sha256", this.cursorSecret)
+        .update("attachment:" + body)
+        .digest();
+      const actual = Buffer.from(signature, "base64url");
+      if (
+        expected.length !== actual.length ||
+        !timingSafeEqual(expected, actual)
+      )
+        throw new Error();
+      return json<T>(Buffer.from(body, "base64url").toString("utf8"));
+    } catch {
+      return fail(
+        "PERMISSION_DENIED",
+        "Attachment transfer is invalid or expired",
+      );
+    }
+  }
   page<T>(
-    table: "kb_bases" | "kb_documents" | "kb_chunks" | "kb_jobs",
+    table:
+      "kb_bases" | "kb_documents" | "kb_chunks" | "kb_jobs" | "kb_attachments",
     where: string,
     params: SQLInputValue[],
     input: KnowledgePageInput,

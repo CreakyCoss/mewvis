@@ -573,7 +573,7 @@ test("directory ownership and service lifecycle are explicit; unsupported backen
   );
 });
 
-test("attachment contracts are not advertised or silently accepted before SQLite lifecycle integration", async (t) => {
+test("attachments require explicit storage and unsupported drivers never fall back", async (t) => {
   const { service, directory } = await fixture(t);
   const base = await service.bases.create({ name: "base" });
   const input = {
@@ -629,11 +629,6 @@ test("attachment contracts are not advertised or silently accepted before SQLite
     "PERMISSION_DENIED",
   );
   for (const attachmentStorage of [
-    {
-      kind: "local",
-      storageId: "originals",
-      directory: join(directory, "originals"),
-    },
     {
       kind: "object-storage",
       storageId: "originals",

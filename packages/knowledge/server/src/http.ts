@@ -4,6 +4,8 @@ import {
   type ServerResponse,
 } from "node:http";
 import { randomUUID } from "node:crypto";
+import { Readable } from "node:stream";
+import { pipeline } from "node:stream/promises";
 import { realpath, readFile } from "node:fs/promises";
 import { resolve, relative, extname, isAbsolute } from "node:path";
 import {
@@ -38,6 +40,10 @@ const statuses: Partial<Record<KnowledgeErrorCode, number>> = {
 const statusFor = (code: KnowledgeErrorCode): number => statuses[code] ?? 500;
 const json = (response: ServerResponse, status: number, value: unknown) => {
   if (response.destroyed || response.writableEnded) return;
+  if (response.headersSent) {
+    response.destroy();
+    return;
+  }
   response.writeHead(status, {
     "content-type": "application/json; charset=utf-8",
     "cache-control": "no-store",
@@ -124,7 +130,7 @@ export async function startHttpServer(
     if (
       path !== "/" &&
       path !== "/index.html" &&
-      !/^\/assets\/[a-z0-9._-]+$/i.test(path)
+      !/^\/assets\/(?:[a-z0-9._-]+\/)*[a-z0-9._-]+$/i.test(path)
     )
       return false;
     let file: string;
@@ -146,6 +152,10 @@ export async function startHttpServer(
     const mime: Record<string, string> = {
       ".html": "text/html; charset=utf-8",
       ".js": "text/javascript; charset=utf-8",
+      ".mjs": "text/javascript; charset=utf-8",
+      ".bcmap": "application/octet-stream",
+      ".pfb": "application/octet-stream",
+      ".ttf": "font/ttf",
       ".css": "text/css; charset=utf-8",
       ".woff2": "font/woff2",
       ".woff": "font/woff",
@@ -163,7 +173,7 @@ export async function startHttpServer(
         ? "public, max-age=3600"
         : "no-store",
       "content-security-policy":
-        "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+        "default-src 'self'; script-src 'self'; worker-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' blob:; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
     });
     response.end(request.method === "HEAD" ? undefined : content);
     return true;
@@ -200,6 +210,70 @@ export async function startHttpServer(
       }
       if (path === "/healthz" && request.method === "GET") {
         json(response, 200, { status: "ok" });
+        return;
+      }
+      if (path === `${rpcPath}/files` || path === `${rpcPath}/parse`) {
+        const transport = await options.resolveTransport(request, {
+          signal: controller.signal,
+        });
+        if (!transport)
+          failure("UNAUTHENTICATED", "Knowledge request is not authenticated");
+        if (path.endsWith("/parse")) {
+          if (request.method !== "POST" || !options.parseAttachment)
+            failure("NOT_SUPPORTED", "Attachment parsing is unavailable");
+          if (
+            !/^application\/json(?:\s*;.*)?$/i.test(
+              request.headers["content-type"] ?? "",
+            )
+          )
+            failure("INVALID_ARGUMENT", "Parsing requires application/json");
+          const input = await body(request, 16_384, controller.signal);
+          json(
+            response,
+            200,
+            await options.parseAttachment(
+              input as Parameters<
+                NonNullable<typeof options.parseAttachment>
+              >[0],
+              transport,
+              controller.signal,
+            ),
+          );
+          return;
+        }
+        const gateway = await options.resolveAttachments?.(request, {
+          signal: controller.signal,
+        });
+        if (!gateway)
+          failure("NOT_SUPPORTED", "Attachment byte transfer is unavailable");
+        const token = request.headers["x-knowledge-transfer"];
+        if (typeof token !== "string")
+          failure(
+            "PERMISSION_DENIED",
+            "Attachment transfer authority is required",
+          );
+        if (request.method === "PUT") {
+          await gateway.upload(
+            token,
+            request.iterator({ destroyOnReturn: false }),
+            { signal: controller.signal },
+          );
+          json(response, 200, { uploaded: true });
+        } else if (request.method === "GET") {
+          const file = await gateway.download(token, {
+            signal: controller.signal,
+          });
+          response.writeHead(200, {
+            "content-type": file.mediaType,
+            "content-length": file.sizeBytes,
+            "cache-control": "no-store",
+            "content-disposition": `attachment; filename*=UTF-8''${encodeURIComponent(file.fileName)}`,
+          });
+          await pipeline(Readable.from(file.body), response, {
+            signal: controller.signal,
+          });
+        } else
+          failure("INVALID_ARGUMENT", "Use PUT or GET for attachment bytes");
         return;
       }
       if (path !== rpcPath) {

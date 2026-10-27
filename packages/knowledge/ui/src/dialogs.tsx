@@ -143,7 +143,14 @@ export interface KnowledgeImportDialogProps {
   readonly parseFile?: (
     file: File,
     signal: AbortSignal,
+    knowledgeBaseId: string,
   ) => Promise<KnowledgeTextDocument>;
+  readonly acceptedFileTypes?: string;
+  readonly fileFormatLabel?: string;
+  readonly onDiscardDocument?: (
+    document: KnowledgeTextDocument,
+    knowledgeBaseId: string,
+  ) => Promise<void>;
   readonly onClose: () => void;
   readonly onSubmit: (
     input: KnowledgeImportInput,
@@ -173,7 +180,23 @@ export function KnowledgeImportDialog(props: KnowledgeImportDialogProps) {
   const receipt = useRef<{ fingerprint: string; key: string } | undefined>(
     undefined,
   );
-  useEffect(() => () => controller.current.abort(), []);
+  const prepared = useRef(
+    new Map<string, { document: KnowledgeTextDocument; baseId: string }>(),
+  );
+  const removed = useRef(new Set<string>());
+  const submitted = useRef(new Set<KnowledgeTextDocument>());
+  const discard = useRef(props.onDiscardDocument);
+  discard.current = props.onDiscardDocument;
+  useEffect(
+    () => () => {
+      controller.current.abort();
+      for (const { document, baseId } of prepared.current.values())
+        if (!submitted.current.has(document))
+          void discard.current?.(document, baseId).catch(() => {});
+      prepared.current.clear();
+    },
+    [],
+  );
   const chosenBase = props.bases.find((base) => base.id === target);
   const maximum = Math.min(
     100,
@@ -206,9 +229,9 @@ export function KnowledgeImportDialog(props: KnowledgeImportDialogProps) {
         (total, file) => total + file.size,
         entries.reduce((total, entry) => total + entry.bytes, 0),
       ) >
-      16 * 1024 * 1024
+      64 * 1024 * 1024
     ) {
-      setError("本次文件总大小最多 16 MiB，请分批导入。");
+      setError("本次文件总大小最多 64 MiB，请分批导入。");
       return;
     }
     const pending = files.map((file) => ({ file, id: crypto.randomUUID() }));
@@ -227,7 +250,13 @@ export function KnowledgeImportDialog(props: KnowledgeImportDialogProps) {
         const document = await (props.parseFile ?? parseTextFile)(
           file,
           controller.current.signal,
+          target,
         );
+        if (controller.current.signal.aborted || removed.current.has(id)) {
+          void discard.current?.(document, target).catch(() => {});
+          continue;
+        }
+        prepared.current.set(id, { document, baseId: target });
         const limit =
           chosenBase?.capabilities.limits?.maxDocumentCharacters ?? 2_000_000;
         if (!document.text.trim() || Array.from(document.text).length > limit)
@@ -243,6 +272,13 @@ export function KnowledgeImportDialog(props: KnowledgeImportDialogProps) {
             ),
           );
       } catch (reason) {
+        const abandoned = prepared.current.get(id);
+        if (abandoned) {
+          prepared.current.delete(id);
+          void discard
+            .current?.(abandoned.document, abandoned.baseId)
+            .catch(() => {});
+        }
         if (!controller.current.signal.aborted)
           setEntries((old) =>
             old.map((entry) =>
@@ -310,11 +346,15 @@ export function KnowledgeImportDialog(props: KnowledgeImportDialogProps) {
         throw new Error("本次选择了相同内容，请移除重复文件后再导入。");
       if (receipt.current?.fingerprint !== fingerprint)
         receipt.current = { fingerprint, key: crypto.randomUUID() };
+      submitted.current = new Set(
+        tab === "files" ? ready.map((entry) => entry.document!) : [],
+      );
       await props.onSubmit(
         payload,
         props.idempotency ? { idempotencyKey: receipt.current.key } : {},
       );
     } catch (reason) {
+      submitted.current.clear();
       if (!controller.current.signal.aborted) setError(errorText(reason));
     } finally {
       if (!controller.current.signal.aborted) setSubmitting(false);
@@ -355,7 +395,7 @@ export function KnowledgeImportDialog(props: KnowledgeImportDialogProps) {
           <select
             id="knowledge-import-base"
             value={target}
-            disabled={busy || Boolean(props.replacement)}
+            disabled={busy || Boolean(props.replacement) || entries.length > 0}
             onChange={(event) => setTarget(event.target.value)}
           >
             {props.bases
@@ -398,15 +438,19 @@ export function KnowledgeImportDialog(props: KnowledgeImportDialogProps) {
                   <Upload size={30} />
                   <p>拖入文件，或选择文件</p>
                   <span className="knowledge-muted">
-                    {props.parseFile
-                      ? "按当前导入器支持的格式选择资料"
-                      : "支持 TXT、Markdown · UTF-8"}
+                    {props.fileFormatLabel ??
+                      (props.parseFile
+                        ? "按当前导入器支持的格式选择资料"
+                        : "支持 TXT、Markdown · UTF-8")}
                   </span>
                   <input
                     ref={input}
                     type="file"
                     multiple={!props.replacement}
-                    accept={props.parseFile ? undefined : ".txt,.md,.markdown"}
+                    accept={
+                      props.acceptedFileTypes ??
+                      (props.parseFile ? undefined : ".txt,.md,.markdown")
+                    }
                     hidden
                     onChange={fileChange}
                     disabled={busy}
@@ -460,11 +504,19 @@ export function KnowledgeImportDialog(props: KnowledgeImportDialogProps) {
                         size="icon"
                         aria-label={`移除 ${entry.name}`}
                         disabled={busy}
-                        onClick={() =>
+                        onClick={() => {
+                          removed.current.add(entry.id);
+                          const abandoned = prepared.current.get(entry.id);
+                          if (abandoned) {
+                            prepared.current.delete(entry.id);
+                            void discard
+                              .current?.(abandoned.document, abandoned.baseId)
+                              .catch(() => {});
+                          }
                           setEntries((old) =>
                             old.filter((item) => item.id !== entry.id),
-                          )
-                        }
+                          );
+                        }}
                       >
                         <X size={16} />
                       </Button>
@@ -555,6 +607,16 @@ export function KnowledgeImportDialog(props: KnowledgeImportDialogProps) {
                 预览显示前 20,000 字，导入时保留完整正文。
               </p>
             )}
+            {tab === "files" &&
+              typeof selectedEntry?.document?.metadata?.emptyPages ===
+                "number" &&
+              selectedEntry.document.metadata.emptyPages > 0 && (
+                <p className="knowledge-warning">
+                  有 {selectedEntry.document.metadata.emptyPages}{" "}
+                  页未提取到文字，可能为空白页或扫描页，请核对原件。OCR
+                  尚未实现。
+                </p>
+              )}
           </div>
         </div>
         <div className="knowledge-import-footer">

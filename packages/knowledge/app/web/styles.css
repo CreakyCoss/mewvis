@@ -31,3 +31,38 @@ body {
 .knowledge-connect p {
   color: var(--muted-foreground);
 }
+.knowledge-original-dialog {
+  width: min(960px, calc(100vw - 32px));
+  max-width: 960px;
+  height: min(900px, calc(100dvh - 32px));
+  display: flex;
+  flex-direction: column;
+  padding: 24px;
+  gap: 10px;
+}
+.knowledge-original-toolbar {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  padding: 12px 0;
+  flex-wrap: wrap;
+}
+.knowledge-original-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  background: #f0f2f8;
+  padding: 20px;
+  border-radius: 8px;
+}
+.knowledge-original-body canvas {
+  display: block;
+  margin: auto;
+  background: #fff;
+}
+.knowledge-original-body pre {
+  background: #fff;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  padding: 24px;
+}

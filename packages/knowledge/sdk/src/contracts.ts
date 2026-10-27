@@ -181,6 +181,23 @@ export interface KnowledgeAttachmentReference {
   readonly knowledgeBaseId: string;
   readonly attachmentId: string;
 }
+/** Trusted byte channel; separate from the JSON business transport. */
+export interface KnowledgeAttachmentByteGateway {
+  upload(
+    token: string,
+    body: AsyncIterable<Uint8Array>,
+    context?: { readonly signal?: AbortSignal },
+  ): Promise<void>;
+  download(
+    token: string,
+    context?: { readonly signal?: AbortSignal },
+  ): Promise<{
+    readonly body: AsyncIterable<Uint8Array>;
+    readonly fileName: string;
+    readonly mediaType: string;
+    readonly sizeBytes: number;
+  }>;
+}
 /** Short-lived, scoped transfer authority. Treat URLs, headers and tokens as secrets; do not persist or log them. */
 export type KnowledgeAttachmentTransfer<
   M extends "GET" | "PUT" = "GET" | "PUT",

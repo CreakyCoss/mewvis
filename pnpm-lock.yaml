@@ -1455,6 +1455,9 @@ importers:
       design-system:
         specifier: workspace:*
         version: link:../../design-system
+      pdfjs-dist:
+        specifier: 6.4.299
+        version: 6.4.299
       react:
         specifier: ^19.1.0
         version: 19.1.0
