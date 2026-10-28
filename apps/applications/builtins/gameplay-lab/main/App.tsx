@@ -8,6 +8,8 @@ import {
   CircleHelp,
   Copy,
   FileText,
+  FolderOpen,
+  Settings2,
   Flag,
   FlaskConical,
   GitBranch,
@@ -22,11 +24,13 @@ import {
   X,
 } from "lucide-react";
 import { Graph, kindNames } from "./Graph";
+import { ApplicationForm } from "./Form";
 import { ProjectLibrary } from "./ProjectLibrary";
+import { ProjectCreateForm, ProjectSettings } from "./ProjectForms";
 import appIcon from "../assets/icon-sandbox.png";
 import { Inspector } from "./Inspector";
 import { copy, uid, validateModel, type Model, type NodeKind } from "./model";
-import { templates, makeTemplate } from "./fixtures";
+import { type TemplateId } from "./fixtures";
 import {
   actor,
   actionReason,
@@ -43,11 +47,14 @@ import {
   initialWorkspace,
   loadWorkspace,
   saveWorkspace,
+  projectRepository,
+  type Project,
   type Workspace,
 } from "./storage";
 import "./styles.css";
 
-type View = "library" | "model" | "strategy" | "runs" | "versions" | "run";
+type View =
+  "library" | "model" | "strategy" | "runs" | "versions" | "run" | "settings";
 type Trial = { id: string; projectId: string; run: Run };
 type Experiment = {
   id: string;
@@ -72,6 +79,7 @@ const nav = [
   { id: "strategy", name: "策略与场景", icon: FileText },
   { id: "runs", name: "实验记录", icon: History },
   { id: "versions", name: "版本", icon: Layers3 },
+  { id: "settings", name: "项目设置", icon: Settings2 },
 ] as const;
 const number = (v: string, minimum = 0) =>
   Math.min(1_000_000, Math.max(minimum, Math.round(Number(v) || 0)));
@@ -80,10 +88,12 @@ function Modal({
   title,
   close,
   children,
+  busy = false,
 }: {
   title: string;
   close(): void;
   children: ReactNode;
+  busy?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
@@ -96,12 +106,20 @@ function Modal({
     <dialog
       ref={ref}
       className="lab-modal"
-      onCancel={close}
+      onCancel={(event) => {
+        if (busy) event.preventDefault();
+        else close();
+      }}
       aria-labelledby="lab-dialog-title"
     >
       <header>
         <h2 id="lab-dialog-title">{title}</h2>
-        <button className="icon-button" aria-label="关闭弹窗" onClick={close}>
+        <button
+          className="icon-button"
+          aria-label="关闭弹窗"
+          onClick={close}
+          disabled={busy}
+        >
           <X size={20} />
         </button>
       </header>
@@ -109,6 +127,27 @@ function Modal({
     </dialog>
   );
 }
+
+const emptyProject: Project = {
+  id: "",
+  workspaceId: "",
+  path: "",
+  templateId: null,
+  createdAt: "",
+  versions: [],
+  model: {
+    format: "gameplay-model-v1",
+    id: "empty",
+    name: "",
+    description: "",
+    fields: [],
+    capabilities: [],
+    actions: [],
+    goals: [],
+    collections: [],
+    flow: { actionsPerTurn: 2, maxRounds: 15, income: [] },
+  },
+};
 
 export default function App() {
   const [workspace, setWorkspace] = useState<Workspace>(initialWorkspace);
@@ -123,8 +162,8 @@ export default function App() {
     "project" | "definition" | "version" | "help" | null
   >(null);
   const [label, setLabel] = useState(""),
-    [template, setTemplate] = useState("development"),
     [kind, setKind] = useState<NodeKind>("state");
+  const [busy, setBusy] = useState(false);
   const [policy, setPolicy] = useState<Policy>("goal"),
     [seed, setSeed] = useState(42),
     [players, setPlayers] = useState(1);
@@ -137,10 +176,12 @@ export default function App() {
   const cancelled = useRef(false),
     saveSequence = useRef(0);
   const project =
-    workspace.projects.find((p) => p.id === workspace.active) ??
-    workspace.projects[0];
+    workspace.projects.find((p) => p.id === workspace.active) ?? emptyProject;
   const model = project.model;
-  const issues = useMemo(() => validateModel(model), [model]);
+  const issues = useMemo(
+    () => (project.id ? validateModel(model) : []),
+    [model, project.id],
+  );
   const trial = trials.find((t) => t.id === activeTrial);
   const run = trial?.run,
     state = run ? current(run) : null;
@@ -184,15 +225,15 @@ export default function App() {
     };
   }, []);
   useEffect(() => {
-    if (!ready) return;
-    if (workspace.projects.some((p) => validateModel(p.model, true).length)) {
+    if (!ready || !project.id || busy) return;
+    if (validateModel(project.model, true).length) {
       setSaveStatus("结构待修复");
       return;
     }
     const sequence = ++saveSequence.current;
     setSaveStatus("保存中");
     const timer = setTimeout(() => {
-      void saveWorkspace(workspace)
+      void saveWorkspace({ ...workspace, projects: [project] })
         .then(() => {
           if (sequence === saveSequence.current) setSaveStatus("已保存");
         })
@@ -202,7 +243,7 @@ export default function App() {
         });
     }, 350);
     return () => clearTimeout(timer);
-  }, [workspace, ready]);
+  }, [project, ready, busy]);
   useEffect(() => {
     if (!notice) return;
     const timer = setTimeout(() => setNotice(""), 4000);
@@ -225,12 +266,92 @@ export default function App() {
       }),
     }));
   }
-  function selectProject(id: string) {
-    const p = workspace.projects.find((p) => p.id === id)!;
-    setWorkspace((w) => ({ ...w, active: id }));
-    setSelected(p.model.actions[0]?.id ?? p.model.fields[0]?.id ?? "");
-    setView("model");
+  async function selectProject(id: string) {
+    const pending = workspace.projects.find((item) => item.id === id);
+    if (!pending || busy) return;
+    setBusy(true);
     setError("");
+    try {
+      if (project.id)
+        await saveWorkspace({ ...workspace, projects: [project] });
+      const value = await projectRepository().reload(pending);
+      setWorkspace((w) => ({
+        ...w,
+        active: id,
+        projects: w.projects.map((item) => (item.id === id ? value : item)),
+      }));
+      setSelected(
+        value.model.actions[0]?.id ?? value.model.fields[0]?.id ?? "",
+      );
+      setView("model");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause));
+    } finally {
+      setBusy(false);
+    }
+  }
+  function acceptProject(value: Project) {
+    setWorkspace((w) => ({
+      ...w,
+      active: value.id,
+      projects: [...w.projects.filter((p) => p.id !== value.id), value],
+    }));
+    setSelected(value.model.actions[0]?.id ?? value.model.fields[0]?.id ?? "");
+    setView("model");
+    setModal(null);
+    setError("");
+  }
+  async function openProject() {
+    setBusy(true);
+    setError("");
+    try {
+      if (project.id)
+        await saveWorkspace({ ...workspace, projects: [project] });
+      const value = await projectRepository().open();
+      if (value) acceptProject(value);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause));
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function reloadProject() {
+    setBusy(true);
+    try {
+      await projectRepository()
+        .flush()
+        .catch(() => {});
+      const value = await projectRepository().reload(project);
+      setWorkspace((w) => ({
+        ...w,
+        projects: w.projects.map((p) => (p.id === value.id ? value : p)),
+      }));
+      setError("");
+      setNotice("已从项目 JSON 重新读取。");
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function resetProject(templateId: TemplateId) {
+    setBusy(true);
+    try {
+      const result = await projectRepository().reset(project, templateId);
+      setWorkspace((w) => ({
+        ...w,
+        projects: w.projects.map((p) =>
+          p.id === project.id ? result.project : p,
+        ),
+      }));
+      setSelected(
+        result.project.model.actions[0]?.id ??
+          result.project.model.fields[0]?.id ??
+          "",
+      );
+      setError("");
+      setNotice(`模板已应用，原规则备份于 ${result.backup}`);
+    } finally {
+      setBusy(false);
+    }
   }
   function inspect(id: string) {
     setSelected(id);
@@ -272,35 +393,6 @@ export default function App() {
     } catch (e) {
       setError((e as Error).message);
     }
-  }
-  function addProject(event: React.FormEvent) {
-    event.preventDefault();
-    if (workspace.projects.length >= 20) {
-      setError("首版最多保存 20 个项目。");
-      return;
-    }
-    const m =
-      template === "blank"
-        ? {
-            ...makeTemplate(),
-            fields: [],
-            capabilities: [],
-            actions: [],
-            goals: [],
-            flow: { actionsPerTurn: 2, maxRounds: 15, income: [] },
-          }
-        : makeTemplate(template);
-    m.id = uid("model");
-    m.name = label.trim() || "新的策略模型";
-    const id = uid("project");
-    setWorkspace((w) => ({
-      ...w,
-      active: id,
-      projects: [...w.projects, { id, model: m, versions: [] }],
-    }));
-    setSelected(m.actions[0]?.id ?? "");
-    setView("model");
-    setModal(null);
   }
   function addDefinition(event: React.FormEvent) {
     event.preventDefault();
@@ -464,7 +556,7 @@ export default function App() {
           {view !== "library" && (
             <button
               className="button primary"
-              disabled={!ready || !!issues.length}
+              disabled={!ready || busy || !!issues.length}
               onClick={begin}
             >
               <Play size={17} />
@@ -476,11 +568,19 @@ export default function App() {
       <div className="lab-shell">
         {view !== "library" && (
           <aside className="lab-sidebar">
-            <button className="back-button" onClick={() => setView("library")}>
+            <button
+              className="back-button"
+              disabled={busy}
+              onClick={() => setView("library")}
+            >
               <ArrowLeft size={17} />
               返回项目库
             </button>
-            <button className="project-name" onClick={() => setView("library")}>
+            <button
+              className="project-name"
+              disabled={busy}
+              onClick={() => setView("library")}
+            >
               <span className="project-symbol">
                 <Boxes size={18} />
               </span>
@@ -489,6 +589,7 @@ export default function App() {
             <nav aria-label="项目导航">
               <button
                 className="library-nav"
+                disabled={busy}
                 aria-label="项目库"
                 onClick={() => setView("library")}
               >
@@ -498,6 +599,7 @@ export default function App() {
               {nav.map((item) => (
                 <button
                   key={item.id}
+                  disabled={busy}
                   className={
                     view === item.id || (view === "run" && item.id === "model")
                       ? "active"
@@ -518,7 +620,7 @@ export default function App() {
             </div>
           </aside>
         )}
-        <main className={`lab-main view-${view}`}>
+        <main className={`lab-main view-${view}`} inert={busy}>
           {error && (
             <div className="error-banner" role="alert">
               <Info size={18} />
@@ -610,12 +712,28 @@ export default function App() {
           {view === "library" && (
             <ProjectLibrary
               projects={workspace.projects}
-              ready={ready}
+              ready={ready && !busy}
+              errors={workspace.errors}
+              attach={() => void openProject()}
               create={() => {
                 setLabel("");
                 setModal("project");
               }}
-              open={selectProject}
+              open={(id) => void selectProject(id)}
+            />
+          )}
+          {view === "settings" && project.id && (
+            <ProjectSettings
+              key={project.id + ":" + project.templateId}
+              project={project}
+              busy={busy}
+              rename={(name) =>
+                update((m) => {
+                  m.name = name;
+                })
+              }
+              reload={reloadProject}
+              reset={resetProject}
             />
           )}
           {view === "strategy" && (
@@ -729,7 +847,7 @@ export default function App() {
               </div>
               <button
                 className="button primary"
-                disabled={!ready || !!issues.length}
+                disabled={!ready || busy || !!issues.length}
                 onClick={begin}
               >
                 <Play size={17} />
@@ -1085,7 +1203,7 @@ export default function App() {
                 </div>
                 <button
                   className="button primary"
-                  disabled={!!issues.length || !ready}
+                  disabled={!!issues.length || !ready || busy}
                   onClick={() => {
                     setLabel(`版本 ${project.versions.length + 1}`);
                     setModal("version");
@@ -1136,50 +1254,21 @@ export default function App() {
         </main>
       </div>
       {modal === "project" && (
-        <Modal title="新建策略项目" close={() => setModal(null)}>
-          <form onSubmit={addProject}>
-            <label className="form-field">
-              项目名称
-              <input
-                autoFocus
-                required
-                maxLength={60}
-                value={label}
-                onChange={(e) => setLabel(e.target.value)}
-                placeholder="你想验证什么想法？"
-              />
-            </label>
-            <label className="form-field">
-              起点
-              <select
-                value={template}
-                onChange={(e) => setTemplate(e.target.value)}
-              >
-                <option value="blank">空白核心模型</option>
-                {templates.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name} · 参考模型
-                  </option>
-                ))}
-              </select>
-            </label>
-            <p className="hint">此时无需选择卡牌、棋盘或其他游戏载体。</p>
-            <footer>
-              <button
-                type="button"
-                className="button"
-                onClick={() => setModal(null)}
-              >
-                取消
-              </button>
-              <button className="button primary">创建项目</button>
-            </footer>
-          </form>
+        <Modal title="新建策略项目" busy={busy} close={() => setModal(null)}>
+          <ProjectCreateForm
+            created={acceptProject}
+            close={() => setModal(null)}
+            busyChanged={setBusy}
+            beforeCreate={async () => {
+              if (project.id)
+                await saveWorkspace({ ...workspace, projects: [project] });
+            }}
+          />
         </Modal>
       )}
       {modal === "definition" && (
         <Modal title="添加模型定义" close={() => setModal(null)}>
-          <form onSubmit={addDefinition}>
+          <ApplicationForm onSubmit={addDefinition}>
             <label className="form-field">
               定义类型
               <select
@@ -1213,6 +1302,7 @@ export default function App() {
                 取消
               </button>
               <button
+                type="submit"
                 className="button primary"
                 disabled={
                   (kind === "action" || kind === "goal") && !model.fields.length
@@ -1221,12 +1311,12 @@ export default function App() {
                 添加定义
               </button>
             </footer>
-          </form>
+          </ApplicationForm>
         </Modal>
       )}
       {modal === "version" && (
         <Modal title="保存模型版本" close={() => setModal(null)}>
-          <form onSubmit={saveVersion}>
+          <ApplicationForm onSubmit={saveVersion}>
             <label className="form-field">
               版本名称
               <input
@@ -1246,9 +1336,11 @@ export default function App() {
               >
                 取消
               </button>
-              <button className="button primary">保存版本</button>
+              <button type="submit" className="button primary">
+                保存版本
+              </button>
             </footer>
-          </form>
+          </ApplicationForm>
         </Modal>
       )}
       {modal === "help" && (
@@ -1264,9 +1356,9 @@ export default function App() {
               “多路径发展”和“组合计分”共用同一个运行器，首版支持整数状态、能力前置、数值效果、组合计分和阈值目标。
             </p>
             <p>
-              项目与命名版本由应用数据 SDK
-              保存。独立开发预览使用隔离内存，整页刷新会清空；在 Mewvis
-              中启用后使用宿主存储。实验结果目前仅保留本次页面会话。
+              新建项目时选择策略模板和父目录。规则及命名版本保存在项目的
+              models/core.json，
+              后续编辑只保存这份文件。项目设置支持切换模板和重置，替换前自动备份；实验结果目前仅保留本次页面会话。
             </p>
             <button className="button primary" onClick={() => setModal(null)}>
               开始探索

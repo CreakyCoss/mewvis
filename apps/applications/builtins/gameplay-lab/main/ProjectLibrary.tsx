@@ -1,5 +1,5 @@
 import { useId } from "react";
-import { ArrowRight, Layers3, Network, Plus } from "lucide-react";
+import { ArrowRight, FolderOpen, Layers3, Network, Plus } from "lucide-react";
 import type { Project } from "./storage";
 
 function ProjectRow({
@@ -33,6 +33,9 @@ function ProjectRow({
           <span className="project-row-description" id={`${id}-description`}>
             {model.description || "从核心规则开始建立策略模型。"}
           </span>
+          <span className="project-row-path" title={project.path}>
+            {project.path}
+          </span>
         </span>
         <span className="project-row-details" id={`${id}-details`}>
           <span>{model.actions.length} 个行动</span>
@@ -54,11 +57,15 @@ export function ProjectLibrary({
   ready,
   create,
   open,
+  attach,
+  errors,
 }: {
   projects: Project[];
   ready: boolean;
   create(): void;
   open(id: string): void;
+  attach(): void;
+  errors: string[];
 }) {
   return (
     <section
@@ -68,11 +75,32 @@ export function ProjectLibrary({
     >
       <header className="library-heading">
         <h1 id="project-library-title">我的项目</h1>
-        <button className="button primary" disabled={!ready} onClick={create}>
-          <Plus size={16} aria-hidden="true" />
-          新建项目
-        </button>
+        <div className="library-actions">
+          <button className="button" disabled={!ready} onClick={attach}>
+            <FolderOpen size={16} />
+            打开项目
+          </button>
+          <button className="button primary" disabled={!ready} onClick={create}>
+            <Plus size={16} aria-hidden="true" />
+            新建项目
+          </button>
+        </div>
       </header>
+      {errors.length > 0 && (
+        <div className="form-error" role="alert">
+          {errors.map((error) => (
+            <p key={error}>{error}</p>
+          ))}
+          <p>原文件和记录已保留，可修复后重新打开项目。</p>
+        </div>
+      )}
+      {ready && !projects.length && (
+        <div className="empty library-empty">
+          <FolderOpen size={32} />
+          <h2>创建你的第一个项目</h2>
+          <p>选择策略模板和项目目录，开始验证自己的模型。</p>
+        </div>
+      )}
       <ul className="project-list">
         {projects.map((project) => (
           <ProjectRow

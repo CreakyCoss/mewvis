@@ -133,17 +133,30 @@ test("overflow and malformed effects reject without committing", () => {
   missing.actions[1].costs[0].field = "missing";
   assert.throws(() => f.startRun(missing), /引用/);
 });
-test("unfinished drafts persist structurally, while malformed storage is rejected", () => {
-  const workspace = f.initialWorkspace();
-  workspace.projects[0].model.fields = [];
-  workspace.projects[0].model.capabilities = [];
-  workspace.projects[0].model.actions = [];
-  workspace.projects[0].model.goals = [];
-  workspace.projects[0].model.flow.income = [];
-  assert.doesNotThrow(() => f.parseWorkspace(workspace));
-  assert.throws(() => f.startRun(workspace.projects[0].model), /至少/);
-  const bad = f.initialWorkspace();
-  bad.projects[0].model.actions[0].description = {};
-  assert.throws(() => f.parseWorkspace(bad), /格式|无法读取/);
-  assert.throws(() => f.parseWorkspace({ format: "other" }), /格式/);
+test("unfinished project JSON persists structurally, while malformed data is rejected", () => {
+  const project = {
+    id: "test-project",
+    workspaceId: "test-workspace",
+    path: "/test/project",
+    templateId: "development",
+    createdAt: new Date().toISOString(),
+    versions: [],
+    model: f.makeTemplate(),
+  };
+  project.model.fields = [];
+  project.model.capabilities = [];
+  project.model.actions = [];
+  project.model.goals = [];
+  project.model.flow.income = [];
+  const document = f.projectDocument(project);
+  assert.doesNotThrow(() => f.parseProjectDocument(document, project));
+  assert.throws(() => f.startRun(project.model), /至少/);
+  document.project.versions = [
+    { id: "v", name: "bad", createdAt: "now", model: {} },
+  ];
+  assert.throws(
+    () => f.parseProjectDocument(document, project),
+    /格式|无法读取/,
+  );
+  assert.deepEqual(f.initialWorkspace().projects, []);
 });

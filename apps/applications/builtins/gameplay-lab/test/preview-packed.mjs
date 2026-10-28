@@ -1,9 +1,10 @@
 import { build } from "esbuild";
-import { readFile, writeFile, mkdtemp, rm } from "node:fs/promises";
+import { readFile, writeFile, mkdtemp, rm, readdir } from "node:fs/promises";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, relative, isAbsolute } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { createProjectHost } from "./host-fixture.mjs";
 
 // Isolated QA host using the production sandbox bridge. No real application data.
 const root = fileURLToPath(new URL("../../../../../", import.meta.url));
@@ -50,9 +51,10 @@ const document = sandboxDocument({
   script: await readFile(join(app, "dist/mewvis/app-ui.js"), "utf8"),
   style: await readFile(join(app, "dist/mewvis/app-ui.css"), "utf8"),
 });
+const services = await createProjectHost();
 const html = `<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>游戏沙盘 · 沉浸式沙盒验收</title>
 <style>html,body{height:100%;margin:0;overflow:hidden;background:#f7f8fc}iframe{position:absolute;inset:0;border:0;width:100%;height:100%}header{position:absolute;inset:0 0 auto;height:40px;z-index:2;display:flex;align-items:center;justify-content:space-between;box-sizing:border-box;padding:0 10px;background:#f0f2f8dd;color:#656978;font:12px sans-serif}button{font:inherit;padding:5px 9px;background:#fff;border:1px solid #dde0e9;border-radius:6px;color:#23232d}</style>
-<header><span>宿主顶部区域 · 隔离验收样本</span><button id="layout">切换普通布局</button></header><iframe id="app" title="游戏沙盘" sandbox="allow-scripts"></iframe>
+<header><span>隔离文件验收 · 选择目录使用临时父目录</span><button id="layout">切换普通布局</button></header><iframe id="app" title="游戏沙盘" sandbox="allow-scripts"></iframe>
 <script type="module">
 const frame=document.getElementById('app'), toggle=document.getElementById('layout'), channel='mewvis-app-ui-v1';
 const theme=new URLSearchParams(location.search).get('theme')==='dark'?'dark':'light';
@@ -65,15 +67,14 @@ addEventListener('message',async event=>{
   const message=event.data;
   try{
     if(message.type==='application:ready')post({type:'host:init',host:{applicationId:'@mewvis/gameplay-lab',name:'游戏沙盘',theme,tools:[],viewport:viewport()}});
-    else if(message.type==='data:request'){
-      const response=await fetch('/data',{method:'POST',body:JSON.stringify(message.request)});
+    else if(message.type==='data:request'||message.type==='files:request'){
+      const response=await fetch(message.type==='data:request'?'/data':'/files',{method:'POST',body:JSON.stringify(message.request)});
       post({type:'host:result',id:message.id,result:await response.json()});
     }else if(message.type==='application:error')console.error(message.message);
   }catch(error){post({type:'host:result',id:message.id,error:error.message})}
 });
 frame.srcdoc=${JSON.stringify(document).replaceAll("<", "\\u003c")};
 </script></html>`;
-const values = new Map();
 const server = createServer(async (request, response) => {
   try {
     if (
@@ -89,7 +90,10 @@ const server = createServer(async (request, response) => {
       response.end();
       return;
     }
-    if (request.url !== "/data" || request.method !== "POST") {
+    if (
+      !["/data", "/files"].includes(request.url) ||
+      request.method !== "POST"
+    ) {
       response.writeHead(404);
       response.end();
       return;
@@ -99,14 +103,31 @@ const server = createServer(async (request, response) => {
       body += chunk;
       if (body.length > 2_000_000) throw new Error("QA data too large");
     }
-    const { method, params } = JSON.parse(body);
-    let value = null;
-    if (method === "storage.getItem") value = values.get(params.key) ?? null;
-    else if (method === "storage.setItem")
-      values.set(params.key, structuredClone(params.value));
-    else throw new Error("Unsupported QA storage method");
+    const input = JSON.parse(body);
+    if (request.url === "/data") {
+      if (input.method === "workspaces.create" && input.params?.path) {
+        const child = relative(services.projectsPath, input.params.path);
+        if (child.startsWith("..") || isAbsolute(child))
+          throw new Error("验收预览只使用临时父目录，请点击“选择”。");
+      }
+      if (input.method === "workspaces.selectDirectory")
+        services.chooseDirectory(services.projectsPath);
+      else if (input.method === "workspaces.create" && !input.params?.path) {
+        const directories = (
+          await readdir(services.projectsPath, { withFileTypes: true })
+        ).filter((entry) => entry.isDirectory());
+        services.chooseDirectory(
+          directories.length
+            ? join(services.projectsPath, directories[0].name)
+            : null,
+        );
+      }
+    }
+    const result = await (request.url === "/data"
+      ? services.dataRequest(input)
+      : services.fileRequest(input));
     response.writeHead(200, { "content-type": "application/json" });
-    response.end(JSON.stringify({ ok: true, value }));
+    response.end(JSON.stringify(result));
   } catch (error) {
     response.writeHead(500, { "content-type": "application/json" });
     response.end(
@@ -118,5 +139,12 @@ const server = createServer(async (request, response) => {
   }
 });
 server.listen(5193, "127.0.0.1", () =>
-  process.stdout.write("Packed gameplay sandbox: http://127.0.0.1:5193/\n"),
+  process.stdout.write(
+    `Packed gameplay sandbox: http://127.0.0.1:5193/\nIsolated project parent: ${services.projectsPath}\n`,
+  ),
 );
+process.once("SIGINT", () => {
+  server.close(() => {
+    void services.close().finally(() => process.exit(0));
+  });
+});

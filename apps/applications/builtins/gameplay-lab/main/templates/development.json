@@ -1,0 +1,123 @@
+{
+  "format": "gameplay-model-v1",
+  "id": "development",
+  "name": "多路径发展",
+  "description": "研究专精，还是先建立更强的产能？比较不同投入顺序。",
+  "fields": [
+    {
+      "id": "materials",
+      "name": "材料库存",
+      "description": "当前拥有的材料数量",
+      "initial": 40,
+      "role": "stock"
+    },
+    {
+      "id": "production",
+      "name": "产能每周期",
+      "description": "每轮结算时获得的材料",
+      "initial": 2,
+      "role": "rate"
+    },
+    {
+      "id": "research",
+      "name": "科研进度",
+      "description": "当前研究进度指标",
+      "initial": 0,
+      "role": "progress"
+    }
+  ],
+  "capabilities": [
+    {
+      "id": "factory",
+      "name": "生产设施",
+      "description": "通过投资建立生产基础",
+      "initial": false
+    },
+    {
+      "id": "laboratory",
+      "name": "研究能力",
+      "description": "允许执行研究行动",
+      "initial": true
+    }
+  ],
+  "actions": [
+    {
+      "id": "build",
+      "name": "发展产能",
+      "description": "投入材料，提高后续每周期产出。",
+      "costs": [
+        {
+          "field": "materials",
+          "value": 12
+        }
+      ],
+      "requires": [],
+      "effects": [
+        {
+          "type": "add",
+          "field": "production",
+          "value": 2
+        },
+        {
+          "type": "grant",
+          "capability": "factory"
+        }
+      ]
+    },
+    {
+      "id": "study",
+      "name": "推进研究",
+      "description": "消耗材料，推进当前玩家的科研进度。",
+      "costs": [
+        {
+          "field": "materials",
+          "value": 8
+        }
+      ],
+      "requires": ["laboratory"],
+      "effects": [
+        {
+          "type": "add",
+          "field": "research",
+          "value": 15
+        }
+      ]
+    },
+    {
+      "id": "trade",
+      "name": "交换资源",
+      "description": "用一次行动获得材料，放慢当前研究节奏。",
+      "costs": [],
+      "requires": [],
+      "effects": [
+        {
+          "type": "add",
+          "field": "materials",
+          "value": 10
+        }
+      ]
+    }
+  ],
+  "goals": [
+    {
+      "id": "science",
+      "name": "科研目标",
+      "description": "达到设定进度，率先完成目标。",
+      "field": "research",
+      "threshold": 90
+    }
+  ],
+  "collections": [],
+  "flow": {
+    "actionsPerTurn": 2,
+    "maxRounds": 15,
+    "income": [
+      {
+        "type": "add",
+        "field": "materials",
+        "value": 1,
+        "from": "production"
+      }
+    ]
+  }
+}
