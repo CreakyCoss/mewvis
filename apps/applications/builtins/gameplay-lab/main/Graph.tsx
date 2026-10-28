@@ -18,7 +18,7 @@ export const kindNames: Record<NodeKind, string> = {
 };
 export const KindIcon = ({
   kind,
-  size = 19,
+  size = 16,
 }: {
   kind: NodeKind;
   size?: number;
@@ -79,7 +79,7 @@ export function Graph({
         <div className="lab-graph-scroll">
           <div
             className="lab-graph"
-            style={{ minWidth: `${Math.round(730 * zoom)}px` }}
+            style={{ minWidth: `${Math.round(640 * zoom)}px` }}
           >
             <div className="graph-columns">
               {Object.values(kindNames).map((name) => (
@@ -155,7 +155,7 @@ export function Graph({
                 aria-pressed={selected === n.id}
                 aria-label={`${kindNames[n.kind]}：${n.name}`}
               >
-                <KindIcon kind={n.kind} size={22} />
+                <KindIcon kind={n.kind} size={18} />
                 <span>
                   <strong>{n.name}</strong>
                   <small>{n.description || kindNames[n.kind]}</small>

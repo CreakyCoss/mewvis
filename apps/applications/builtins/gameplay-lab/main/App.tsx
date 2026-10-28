@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   ArrowLeft,
-  ArrowRight,
   Boxes,
   Check,
   CheckCircle2,
@@ -23,6 +22,7 @@ import {
   X,
 } from "lucide-react";
 import { Graph, kindNames } from "./Graph";
+import { ProjectLibrary } from "./ProjectLibrary";
 import appIcon from "../assets/icon-sandbox.png";
 import { Inspector } from "./Inspector";
 import { copy, uid, validateModel, type Model, type NodeKind } from "./model";
@@ -426,7 +426,7 @@ export default function App() {
   }
 
   return (
-    <div className="lab-app">
+    <div className={`lab-app${view === "library" ? " library-home" : ""}`}>
       <header className="lab-header">
         <div className="lab-brand">
           <img
@@ -439,11 +439,13 @@ export default function App() {
           />
           <strong>游戏沙盘</strong>
         </div>
-        <div className="lab-breadcrumb">
-          <span>项目</span>
-          <span>/</span>
-          <strong>{view === "library" ? "项目库" : model.name}</strong>
-        </div>
+        {view !== "library" && (
+          <div className="lab-breadcrumb">
+            <span>项目</span>
+            <span>/</span>
+            <strong>{model.name}</strong>
+          </div>
+        )}
         {view !== "library" && (
           <span className="save-status" role="status">
             <i />
@@ -472,66 +474,50 @@ export default function App() {
         </div>
       </header>
       <div className="lab-shell">
-        <aside className="lab-sidebar">
-          {view === "library" ? (
-            <nav aria-label="工作区导航">
-              <button className="active" aria-current="page">
-                <LayoutGrid size={20} />
+        {view !== "library" && (
+          <aside className="lab-sidebar">
+            <button className="back-button" onClick={() => setView("library")}>
+              <ArrowLeft size={17} />
+              返回项目库
+            </button>
+            <button className="project-name" onClick={() => setView("library")}>
+              <span className="project-symbol">
+                <Boxes size={18} />
+              </span>
+              <strong>{model.name}</strong>
+            </button>
+            <nav aria-label="项目导航">
+              <button
+                className="library-nav"
+                aria-label="项目库"
+                onClick={() => setView("library")}
+              >
+                <LayoutGrid size={16} />
                 项目库
               </button>
-            </nav>
-          ) : (
-            <>
-              <button
-                className="back-button"
-                onClick={() => setView("library")}
-              >
-                <ArrowLeft size={17} />
-                返回项目库
-              </button>
-              <button
-                className="project-name"
-                onClick={() => setView("library")}
-              >
-                <span className="project-symbol">
-                  <Boxes size={21} />
-                </span>
-                <strong>{model.name}</strong>
-              </button>
-              <nav aria-label="项目导航">
+              {nav.map((item) => (
                 <button
-                  className="library-nav"
-                  aria-label="项目库"
-                  onClick={() => setView("library")}
+                  key={item.id}
+                  className={
+                    view === item.id || (view === "run" && item.id === "model")
+                      ? "active"
+                      : ""
+                  }
+                  onClick={() => setView(item.id)}
                 >
-                  <LayoutGrid size={20} />
-                  项目库
+                  <item.icon size={16} />
+                  {item.name}
                 </button>
-                {nav.map((item) => (
-                  <button
-                    key={item.id}
-                    className={
-                      view === item.id ||
-                      (view === "run" && item.id === "model")
-                        ? "active"
-                        : ""
-                    }
-                    onClick={() => setView(item.id)}
-                  >
-                    <item.icon size={20} />
-                    {item.name}
-                  </button>
-                ))}
-              </nav>
-              <div className="stage-label">
-                <FlaskConical size={17} />
-                <span>
-                  当前阶段：<strong>核心验证</strong>
-                </span>
-              </div>
-            </>
-          )}
-        </aside>
+              ))}
+            </nav>
+            <div className="stage-label">
+              <FlaskConical size={17} />
+              <span>
+                当前阶段：<strong>核心验证</strong>
+              </span>
+            </div>
+          </aside>
+        )}
         <main className={`lab-main view-${view}`}>
           {error && (
             <div className="error-banner" role="alert">
@@ -622,49 +608,15 @@ export default function App() {
             </div>
           )}
           {view === "library" && (
-            <section className="page-content">
-              <div className="page-heading">
-                <div>
-                  <h1>项目库</h1>
-                  <p>先验证一个想法，再决定用什么方式玩。</p>
-                </div>
-                <button
-                  className="button primary"
-                  disabled={!ready}
-                  onClick={() => {
-                    setLabel("");
-                    setModal("project");
-                  }}
-                >
-                  <Plus size={18} />
-                  新建项目
-                </button>
-              </div>
-              <div className="project-grid">
-                {workspace.projects.map((p) => (
-                  <button
-                    className="project-card"
-                    key={p.id}
-                    onClick={() => selectProject(p.id)}
-                  >
-                    <span className="project-symbol">
-                      <Boxes size={24} />
-                    </span>
-                    <h2>{p.model.name}</h2>
-                    <p>
-                      {p.model.description || "从核心规则开始建立策略模型。"}
-                    </p>
-                    <footer>
-                      <span>
-                        {p.model.actions.length} 个行动 · {p.model.goals.length}{" "}
-                        个目标
-                      </span>
-                      <ArrowRight size={18} />
-                    </footer>
-                  </button>
-                ))}
-              </div>
-            </section>
+            <ProjectLibrary
+              projects={workspace.projects}
+              ready={ready}
+              create={() => {
+                setLabel("");
+                setModal("project");
+              }}
+              open={selectProject}
+            />
           )}
           {view === "strategy" && (
             <section className="page-content">

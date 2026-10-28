@@ -55,6 +55,7 @@ const html = `<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name
 <header><span>宿主顶部区域 · 隔离验收样本</span><button id="layout">切换普通布局</button></header><iframe id="app" title="游戏沙盘" sandbox="allow-scripts"></iframe>
 <script type="module">
 const frame=document.getElementById('app'), toggle=document.getElementById('layout'), channel='mewvis-app-ui-v1';
+const theme=new URLSearchParams(location.search).get('theme')==='dark'?'dark':'light';
 let immersive=true;
 const viewport=()=>({fullscreen:true,immersive,safeArea:{top:immersive?40:0,left:immersive?80:0,right:immersive?88:0,bottom:0}});
 const post=message=>frame.contentWindow.postMessage({channel,...message},'*');
@@ -63,7 +64,7 @@ addEventListener('message',async event=>{
   if(event.source!==frame.contentWindow||event.data?.channel!==channel)return;
   const message=event.data;
   try{
-    if(message.type==='application:ready')post({type:'host:init',host:{applicationId:'@mewvis/gameplay-lab',name:'游戏沙盘',theme:'light',tools:[],viewport:viewport()}});
+    if(message.type==='application:ready')post({type:'host:init',host:{applicationId:'@mewvis/gameplay-lab',name:'游戏沙盘',theme,tools:[],viewport:viewport()}});
     else if(message.type==='data:request'){
       const response=await fetch('/data',{method:'POST',body:JSON.stringify(message.request)});
       post({type:'host:result',id:message.id,result:await response.json()});
@@ -75,7 +76,10 @@ frame.srcdoc=${JSON.stringify(document).replaceAll("<", "\\u003c")};
 const values = new Map();
 const server = createServer(async (request, response) => {
   try {
-    if (request.method === "GET" && request.url === "/") {
+    if (
+      request.method === "GET" &&
+      new URL(request.url, "http://127.0.0.1").pathname === "/"
+    ) {
       response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
       response.end(html);
       return;
