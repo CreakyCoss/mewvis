@@ -1,3 +1,5 @@
+import { EffectsEditor } from "./EffectsEditor";
+import { DefinitionActions } from "./DefinitionActions";
 import { CheckCircle2, ChevronRight, Plus, X } from "lucide-react";
 import { KindIcon, kindNames } from "./Graph";
 import {
@@ -16,10 +18,14 @@ export function Inspector({
   selected,
   select,
   update,
+  duplicate,
+  remove,
 }: {
   model: Model;
   selected: string;
   select(id: string): void;
+  duplicate(id: string): void;
+  remove(id: string): void;
   update(change: (model: Model) => void): void;
 }) {
   const nodes = nodesOf(model),
@@ -203,66 +209,38 @@ export function Inspector({
             ))}
             <button
               className="text-button"
+              disabled={!model.fields.length || action.costs.length >= 20}
               onClick={() =>
                 patch((a) => {
-                  a.costs.push({ field: model.fields[0].id, value: 1 });
+                  if (model.fields.length)
+                    a.costs.push({ field: model.fields[0].id, value: 1 });
                 })
               }
             >
               <Plus size={14} />
               添加消耗
             </button>
-            {action.effects.map((e, i) => (
-              <div className="effect-editor" key={i}>
-                {e.type === "add" ? (
-                  <label className="form-field">
-                    数值效果
-                    {fieldSelect(
-                      e.field,
-                      (id) =>
-                        patch((a) => {
-                          const effect = a.effects[i];
-                          if (effect.type === "add") effect.field = id;
-                        }),
-                      `效果状态 ${i + 1}`,
-                    )}
-                  </label>
-                ) : (
-                  <p>{e.type === "grant" ? "授予能力" : "组合计分机制"}</p>
-                )}
-                <button
-                  className="text-button muted"
-                  onClick={() =>
-                    patch((a) => {
-                      a.effects.splice(i, 1);
-                    })
-                  }
-                >
-                  移除此效果
-                </button>
-              </div>
-            ))}
-            <button
-              className="text-button"
-              onClick={() =>
+            <EffectsEditor
+              model={model}
+              effects={action.effects}
+              scoring
+              label="行动效果"
+              change={(effects) =>
                 patch((a) => {
-                  a.effects.push({
-                    type: "add",
-                    field: model.fields[0].id,
-                    value: 1,
-                  });
+                  a.effects = effects;
                 })
               }
-            >
-              <Plus size={14} />
-              添加数值效果
-            </button>
+            />
             <h3 className="section-gap">前置能力</h3>
             {model.capabilities.map((c) => (
               <label className="check-row" key={c.id}>
                 <input
                   type="checkbox"
                   checked={action.requires.includes(c.id)}
+                  disabled={
+                    !action.requires.includes(c.id) &&
+                    action.requires.length >= 20
+                  }
                   onChange={(e) =>
                     patch((a) => {
                       a.requires = e.target.checked
@@ -407,6 +385,13 @@ export function Inspector({
         ))}
         {!related.length && <p className="hint">暂时没有关联定义。</p>}
       </section>
+      <DefinitionActions
+        key={selected}
+        model={model}
+        id={selected}
+        duplicate={() => duplicate(selected)}
+        remove={() => remove(selected)}
+      />
       <div className={`validation-status ${issues.length ? "has-issues" : ""}`}>
         <CheckCircle2 size={29} />
         <div>

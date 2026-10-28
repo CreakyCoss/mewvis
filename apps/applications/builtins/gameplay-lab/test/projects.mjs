@@ -20,7 +20,7 @@ const temp = await mkdtemp(join(tmpdir(), "gameplay-repository-test-"));
 await build({
   stdin: {
     contents:
-      'export * from "./main/storage.ts";export * from "./main/fixtures.ts";export * from "./main/engine.ts";',
+      'export * from "./main/storage.ts";export * from "./main/fixtures.ts";export * from "./main/engine.ts";export * from "./main/history.ts";export * from "./main/records.ts";',
     resolveDir: root,
   },
   bundle: true,
@@ -282,4 +282,104 @@ test("project paths handle Unix, Windows drive roots and invalid names", () => {
   );
   assert.throws(() => f.projectDirectory("relative/path", "项目"), /绝对路径/);
   assert.throws(() => f.projectDirectory("/projects", "..."), /文件夹名称/);
+});
+
+test("run and experiment files survive a host restart, keep frozen rules, and resume remaining samples", async (t) => {
+  const host = await createProjectHost();
+  t.after(() => rm(host.root, { recursive: true, force: true }));
+  const repo = f.createProjectRepository(host.data, host.files),
+    history = f.createHistoryRepository(host.data, host.files);
+  const p = await repo.create({
+    name: "持久记录",
+    parent: host.projectsPath,
+    templateId: "combination",
+  });
+  const trial = f.newTrial(p.id, p.model, 51, 2);
+  for (let i = 0; i < 3; i++) {
+    trial.run = f.step(trial.run, f.choose(trial.run, "goal"));
+    trial.drivers.push("goal");
+  }
+  await history.save(p, trial);
+  const e = f.newExperiment(p.id, p.model, 71, 1, "growth");
+  e.count = 2;
+  e.samples.push(f.nextSample(e));
+  await history.save(p, e);
+  const trialFile = join(p.path, "runs", trial.id + ".json"),
+    experimentFile = join(p.path, "experiments", e.id + ".json");
+  const document = JSON.parse(await readFile(trialFile, "utf8"));
+  assert.equal(document.format, "gameplay-run-v1");
+  assert.equal(document.log.choices.length, 3);
+  assert.equal(document.log.events[1].state, undefined);
+  const originalModel = structuredClone(p.model);
+  await repo.reset(p, "development");
+  await host.close(false);
+  const restarted = await createProjectHost(host.root);
+  t.after(() => restarted.close());
+  const project = (
+    await f.createProjectRepository(restarted.data, restarted.files).list()
+  ).projects[0];
+  const history2 = f.createHistoryRepository(restarted.data, restarted.files),
+    restored = await history2.list(project);
+  assert.deepEqual(restored.errors, []);
+  assert.deepEqual(restored.trials[0], trial);
+  assert.deepEqual(restored.trials[0].run.model, originalModel);
+  assert.notDeepEqual(project.model, originalModel);
+  const resumed = restored.experiments[0];
+  assert.equal(resumed.status, "interrupted");
+  assert.equal(resumed.samples.length, 1);
+  while (resumed.samples.length < 4) {
+    resumed.samples.push(f.nextSample(resumed));
+    await history2.save(project, resumed);
+  }
+  resumed.status = "completed";
+  await history2.save(project, resumed);
+  assert.equal((await history2.list(project)).experiments[0].samples.length, 4);
+  assert.equal(
+    new Set(resumed.samples.map((s) => `${s.policy}:${s.index}`)).size,
+    4,
+  );
+  assert.equal(
+    JSON.parse(await readFile(experimentFile, "utf8")).status,
+    "completed",
+  );
+  const next = {
+    ...trial,
+    run: f.step(trial.run, f.choose(trial.run, "random")),
+    drivers: [...trial.drivers, "random"],
+  };
+  await history2.save(project, next);
+  assert.deepEqual((await history2.list(project)).trials[0], next);
+});
+
+test("history protects externally edited files and isolates corrupted records", async (t) => {
+  const env = await fixture(t),
+    p = await create(env, "记录保护"),
+    history = f.createHistoryRepository(env.data, env.files);
+  const trial = f.newTrial(p.id, p.model, 42, 1);
+  await history.save(p, trial);
+  const path = join(p.path, "runs", trial.id + ".json"),
+    external = JSON.parse(await readFile(path, "utf8"));
+  external.updatedAt = "2026-10-01T00:00:00.000Z";
+  await externalWrite(path, external);
+  const next = {
+    ...trial,
+    run: f.step(trial.run, { action: "study" }),
+    drivers: ["manual"],
+  };
+  await assert.rejects(history.save(p, next), /外部修改/);
+  assert.equal(JSON.parse(await readFile(path, "utf8")).log.choices.length, 0);
+  // Explicitly reloading authorizes continued editing of a valid external record.
+  assert.equal((await history.list(p)).trials.length, 1);
+  await history.save(p, next);
+  const broken = join(p.path, "runs", "broken.json");
+  await writeFile(broken, "{broken");
+  const loaded = await history.list(p);
+  assert.equal(loaded.trials.length, 1);
+  assert.equal(loaded.errors.length, 1);
+  assert.equal(await readFile(broken, "utf8"), "{broken");
+  const rogue = f.newTrial(p.id, p.model, 2, 1);
+  await writeFile(join(p.path, "runs", rogue.id + ".json"), "keep");
+  await assert.rejects(history.save(p, rogue), /存在|exist/i);
+  const other = await create(env, "其他项目");
+  await assert.rejects(history.save(other, next), /不匹配/);
 });

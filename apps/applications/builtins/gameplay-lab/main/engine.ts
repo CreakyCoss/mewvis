@@ -166,7 +166,11 @@ export function actionReason(model: Model, state: State, action: Action) {
       return `${model.fields.find((f) => f.id === id)?.name ?? id}不足，需要 ${amount}`;
   return "";
 }
-export function combinationScore(cards: Card[], multiplier: number) {
+export function combinationScore(
+  cards: Card[],
+  multiplier: number,
+  pairBonus = 15,
+) {
   const counts = new Map<string, number>();
   for (const card of cards)
     counts.set(card.group, (counts.get(card.group) ?? 0) + 1);
@@ -175,7 +179,11 @@ export function combinationScore(cards: Card[], multiplier: number) {
     (sum, n) => sum + Math.floor(n / 2),
     0,
   );
-  return { base, bonus: pairs * 15, score: (base + pairs * 15) * multiplier };
+  return {
+    base,
+    bonus: pairs * pairBonus,
+    score: (base + pairs * pairBonus) * multiplier,
+  };
 }
 function change(
   player: PlayerState,
@@ -234,7 +242,11 @@ function applyEffect(
         `请选择当前集合内 1–${definition.maxSelect} 个不同对象。`,
       );
     const selected = ids.map((id) => pile.hand.find((c) => c.id === id)!);
-    const result = combinationScore(selected, player.values[effect.multiplier]);
+    const result = combinationScore(
+      selected,
+      player.values[effect.multiplier],
+      effect.pairBonus,
+    );
     notes.push(
       `组合：${selected.map((c) => c.name).join("、")}；（基础 ${result.base} + 同类奖励 ${result.bonus}）× 倍率 ${player.values[effect.multiplier]} = ${result.score}`,
     );
@@ -309,12 +321,13 @@ export function bestCards(
   cards: Card[],
   limit: number,
   multiplier: number,
+  pairBonus = 15,
 ): string[] {
   let best: string[] = [],
     score = -1;
   const visit = (at: number, chosen: Card[]) => {
     if (chosen.length) {
-      const value = combinationScore(chosen, multiplier).score;
+      const value = combinationScore(chosen, multiplier, pairBonus).score;
       if (value > score) {
         best = chosen.map((c) => c.id);
         score = value;
@@ -370,6 +383,7 @@ export function choose(run: Run, policy: Policy): Choice {
         p.collections[c.id].hand,
         c.maxSelect,
         p.values[e.multiplier],
+        e.pairBonus,
       ),
     };
   }

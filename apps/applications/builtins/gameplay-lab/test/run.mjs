@@ -12,7 +12,7 @@ const entry = join(temporary, "model.mjs");
 await build({
   stdin: {
     contents:
-      'export * from "./main/model.ts"; export * from "./main/engine.ts"; export * from "./main/fixtures.ts"; export * from "./main/storage.ts";',
+      'export * from "./main/model.ts"; export * from "./main/engine.ts"; export * from "./main/fixtures.ts"; export * from "./main/storage.ts"; export * from "./main/definitions.ts"; export * from "./main/records.ts";',
     resolveDir: root,
   },
   bundle: true,
@@ -159,4 +159,115 @@ test("unfinished project JSON persists structurally, while malformed data is rej
     /格式|无法读取/,
   );
   assert.deepEqual(f.initialWorkspace().projects, []);
+});
+
+test("pair bonus is a project rule used by scoring and the policy card selection", () => {
+  const cards = [
+    { id: "a", name: "A", group: "same", value: 1 },
+    { id: "b", name: "B", group: "same", value: 1 },
+    { id: "c", name: "C", group: "other", value: 20 },
+  ];
+  assert.equal(f.combinationScore(cards.slice(0, 2), 2, 7).score, 18);
+  const model = f.makeTemplate("combination");
+  model.collections[0].cards = cards;
+  model.collections[0].handSize = 3;
+  model.collections[0].maxSelect = 2;
+  const effect = model.actions
+    .find((a) => a.id === "play")
+    .effects.find((e) => e.type === "combination");
+  effect.pairBonus = 0;
+  const low = f.choose(f.startRun(model), "goal");
+  assert.ok(low.cards.includes("c"));
+  effect.pairBonus = 100;
+  const run = f.startRun(model),
+    high = f.choose(run, "goal");
+  assert.deepEqual(high.cards.slice().sort(), ["a", "b"]);
+  assert.match(
+    f.step(run, high).entries.at(-1).notes.join(" "),
+    /同类奖励 100/,
+  );
+  effect.pairBonus = -1;
+  assert.ok(f.validateModel(model).length);
+});
+test("definition deletion checks costs, sources, grants, goals and collection scoring; copies are isolated", () => {
+  const model = f.makeTemplate();
+  assert.ok(f.referencesTo(model, "production").includes("周期结算"));
+  const original = structuredClone(model);
+  assert.throws(() => f.removeDefinition(model, "production"), /周期结算/);
+  assert.deepEqual(model, original);
+  const id = f.duplicateDefinition(model, "study");
+  model.actions.find((a) => a.id === id).costs[0].value = 999;
+  assert.equal(model.actions.find((a) => a.id === "study").costs[0].value, 8);
+  f.removeDefinition(model, id);
+  assert.equal(model.actions.length, original.actions.length);
+  const combo = f.makeTemplate("combination");
+  assert.ok(f.referencesTo(combo, "hand").some((r) => r.includes("行动")));
+  assert.throws(() => f.removeDefinition(combo, "hand"), /解除引用/);
+  model.flow.income.push({ type: "grant", capability: "factory" });
+  assert.ok(f.referencesTo(model, "factory").includes("周期结算"));
+});
+test("unfinished collection edits remain savable drafts but cannot run", () => {
+  const model = f.makeTemplate("combination");
+  model.collections[0].cards = [];
+  model.collections[0].maxSelect = 8;
+  assert.deepEqual(f.validateModel(model, true), []);
+  assert.ok(f.validateModel(model).length);
+  assert.throws(() => f.startRun(model));
+});
+test("compact records preserve events and exact deterministic state; tampering is rejected", () => {
+  const trial = f.newTrial(
+    "project-test",
+    f.makeTemplate("combination"),
+    55,
+    2,
+  );
+  for (let i = 0; i < 4; i++) {
+    trial.run = f.step(trial.run, f.choose(trial.run, "growth"));
+    trial.drivers.push("growth");
+  }
+  const doc = f.trialDocument(trial);
+  assert.equal(doc.log.events.length, 5);
+  assert.equal(doc.log.events[0].state, undefined);
+  const restored = f.parseRecord(
+    JSON.parse(JSON.stringify(doc)),
+    trial.projectId,
+  );
+  assert.deepEqual(restored, trial);
+  doc.log.final.round = 999;
+  assert.throws(() => f.parseRecord(doc, trial.projectId), /不一致/);
+  doc.engine = 999;
+  assert.throws(() => f.parseRecord(doc, trial.projectId), /引擎版本/);
+});
+test("interrupted experiments resume the missing cells exactly once and retain failures", () => {
+  let e = f.newExperiment("project-test", f.makeTemplate(), 42, 2, "goal");
+  e.count = 2;
+  e.samples.push(f.nextSample(e));
+  e = f.parseRecord(JSON.parse(JSON.stringify(e)), e.projectId);
+  assert.equal(e.status, "interrupted");
+  while (e.samples.length < 4) e.samples.push(f.nextSample(e));
+  assert.equal(f.nextSample(e), null);
+  assert.equal(new Set(e.samples.map((s) => `${s.policy}:${s.seed}`)).size, 4);
+  e.status = "completed";
+  assert.deepEqual(f.parseRecord(e, e.projectId), e);
+  assert.equal(
+    f.experimentRows(e).reduce((n, r) => n + r.completed, 0),
+    4,
+  );
+  const invalid = structuredClone(e);
+  invalid.samples[1] = invalid.samples[0];
+  assert.throws(() => f.parseRecord(invalid, e.projectId));
+  const broken = f.newExperiment(
+    "project-test",
+    f.makeTemplate(),
+    1,
+    1,
+    "goal",
+  );
+  broken.model.actions[1].effects = [
+    { type: "add", field: "research", value: 1000000, from: "materials" },
+  ];
+  broken.samples.push(f.nextSample(broken));
+  assert.match(broken.samples[0].error, /数值范围/);
+  assert.equal(f.experimentRows(broken)[0].error, 1);
+  assert.doesNotThrow(() => f.parseRecord(broken, broken.projectId));
 });

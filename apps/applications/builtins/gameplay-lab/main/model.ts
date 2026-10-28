@@ -24,6 +24,7 @@ export type Effect =
       collection: string;
       field: string;
       multiplier: string;
+      pairBonus?: number;
     };
 export interface Action {
   id: string;
@@ -180,6 +181,11 @@ export function validateModel(input: unknown, draft = false): Issue[] {
         ref(e.collection, collections, path);
         ref(e.field, fields, path);
         ref(e.multiplier, fields, path);
+        if (
+          e.pairBonus !== undefined &&
+          (!isNumber(e.pairBonus) || e.pairBonus < 0)
+        )
+          add(path, "同类配对奖励需为非负整数。");
       } else add(path, "此阶段不支持该效果类型。");
     }
   };
@@ -219,12 +225,13 @@ export function validateModel(input: unknown, draft = false): Issue[] {
       c.handSize > 10 ||
       !isNumber(c.maxSelect) ||
       c.maxSelect < 1 ||
-      c.maxSelect > c.handSize
+      c.maxSelect > 10 ||
+      (!draft && c.maxSelect > c.handSize)
     )
       add(c.id, "集合容量需为 1–10，选择上限不能超过容量。");
     if (
       !Array.isArray(c.cards) ||
-      c.cards.length < c.handSize ||
+      (!draft && c.cards.length < c.handSize) ||
       c.cards.length > 100
     ) {
       add(c.id, "集合需要足够的初始对象，最多 100 个。");
@@ -235,8 +242,8 @@ export function validateModel(input: unknown, draft = false): Issue[] {
       if (
         !object(card) ||
         !text(card.id) ||
-        !text(card.name) ||
-        !text(card.group) ||
+        !name(card.name) ||
+        !name(card.group) ||
         !isNumber(card.value) ||
         card.value < 0
       )
@@ -283,7 +290,10 @@ export function edgesOf(m: Model): ModelEdge[] {
     a.costs.forEach((c) => add(c.field, a.id, `消耗 ${c.value}`));
     a.requires.forEach((id) => add(id, a.id, "允许"));
     a.effects.forEach((e) => {
-      if (e.type === "add") add(a.id, e.field, `增加 ${e.value}`);
+      if (e.type === "add") {
+        add(a.id, e.field, `增加 ${e.value}`);
+        if (e.from) add(e.from, a.id, "按状态计算");
+      }
       if (e.type === "grant") add(a.id, e.capability, "建立");
       if (e.type === "combination") add(a.id, e.field, "组合计分");
     });

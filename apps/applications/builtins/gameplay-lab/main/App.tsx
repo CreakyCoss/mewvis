@@ -1,3 +1,16 @@
+import { RulesEditor } from "./RulesEditor";
+import { duplicateDefinition, removeDefinition } from "./definitions";
+import { historyRepository } from "./history";
+import {
+  newTrial,
+  newExperiment,
+  nextSample,
+  experimentRows,
+  restoreLog,
+  type Trial,
+  type Experiment,
+  type Sample,
+} from "./records";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   ArrowLeft,
@@ -37,11 +50,8 @@ import {
   choose,
   current,
   policyNames,
-  simulate,
-  startRun,
   step,
   type Policy,
-  type Run,
 } from "./engine";
 import {
   initialWorkspace,
@@ -54,28 +64,17 @@ import {
 import "./styles.css";
 
 type View =
-  "library" | "model" | "strategy" | "runs" | "versions" | "run" | "settings";
-type Trial = { id: string; projectId: string; run: Run };
-type Experiment = {
-  id: string;
-  projectId: string;
-  seed: number;
-  players: number;
-  errors: string[];
-  name: string;
-  model: Model;
-  rows: {
-    policy: Policy;
-    completed: number;
-    reached: number;
-    limited: number;
-    average: number;
-    error: number;
-  }[];
-  cancelled: boolean;
-};
+  | "library"
+  | "model"
+  | "rules"
+  | "strategy"
+  | "runs"
+  | "versions"
+  | "run"
+  | "settings";
 const nav = [
   { id: "model", name: "模型", icon: Boxes },
+  { id: "rules", name: "规则与集合", icon: Settings2 },
   { id: "strategy", name: "策略与场景", icon: FileText },
   { id: "runs", name: "实验记录", icon: History },
   { id: "versions", name: "版本", icon: Layers3 },
@@ -173,6 +172,12 @@ export default function App() {
     [cards, setCards] = useState<string[]>([]);
   const [experiments, setExperiments] = useState<Experiment[]>([]),
     [progress, setProgress] = useState("");
+  const [previewTrial, setPreviewTrial] = useState<Trial | null>(null);
+  const [historyReady, setHistoryReady] = useState("");
+  const [historyError, setHistoryError] = useState("");
+  const [historyRevision, setHistoryRevision] = useState(0);
+  const mainRef = useRef<HTMLElement>(null);
+  const experimentRunning = useRef(false);
   const cancelled = useRef(false),
     saveSequence = useRef(0);
   const project =
@@ -182,7 +187,7 @@ export default function App() {
     () => (project.id ? validateModel(model) : []),
     [model, project.id],
   );
-  const trial = trials.find((t) => t.id === activeTrial);
+  const trial = previewTrial ?? trials.find((t) => t.id === activeTrial);
   const run = trial?.run,
     state = run ? current(run) : null;
   const entry = run
@@ -192,6 +197,43 @@ export default function App() {
           : run.entries.length - 1
       ]
     : null;
+
+  useEffect(() => {
+    mainRef.current?.scrollTo({ top: 0 });
+  }, [view, workspace.active]);
+
+  useEffect(() => {
+    if (!project.id) return;
+    let active = true;
+    setHistoryReady("");
+    setHistoryError("");
+    setPreviewTrial(null);
+    setActiveTrial("");
+    void historyRepository()
+      .list(project)
+      .then((result) => {
+        if (!active) return;
+        setTrials((ts) => [
+          ...ts.filter((t) => t.projectId !== project.id),
+          ...result.trials,
+        ]);
+        setExperiments((es) => [
+          ...es.filter((e) => e.projectId !== project.id),
+          ...result.experiments,
+        ]);
+        setHistoryError(result.errors.join("；"));
+        setHistoryReady(project.id);
+      })
+      .catch((cause) => {
+        if (active)
+          setHistoryError(
+            `记录加载失败：${cause instanceof Error ? cause.message : String(cause)}`,
+          );
+      });
+    return () => {
+      active = false;
+    };
+  }, [project.id, project.path, historyRevision]);
 
   useEffect(() => {
     const query = matchMedia("(max-width: 600px)");
@@ -266,6 +308,28 @@ export default function App() {
       }),
     }));
   }
+  function duplicate(id: string) {
+    try {
+      const next = copy(model),
+        selectedId = duplicateDefinition(next, id);
+      update((m) => Object.assign(m, next));
+      setSelected(selectedId);
+      setNotice("已复制定义，引用保持指向原定义。");
+    } catch (cause) {
+      setError((cause as Error).message);
+    }
+  }
+  function remove(id: string) {
+    try {
+      const next = copy(model);
+      removeDefinition(next, id);
+      update((m) => Object.assign(m, next));
+      setSelected(next.actions[0]?.id ?? next.fields[0]?.id ?? "");
+      setNotice("定义已删除。");
+    } catch (cause) {
+      setError((cause as Error).message);
+    }
+  }
   async function selectProject(id: string) {
     const pending = workspace.projects.find((item) => item.id === id);
     if (!pending || busy) return;
@@ -283,6 +347,7 @@ export default function App() {
       setSelected(
         value.model.actions[0]?.id ?? value.model.fields[0]?.id ?? "",
       );
+      setHistoryRevision((n) => n + 1);
       setView("model");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
@@ -297,6 +362,7 @@ export default function App() {
       projects: [...w.projects.filter((p) => p.id !== value.id), value],
     }));
     setSelected(value.model.actions[0]?.id ?? value.model.fields[0]?.id ?? "");
+    setHistoryRevision((n) => n + 1);
     setView("model");
     setModal(null);
     setError("");
@@ -327,6 +393,7 @@ export default function App() {
         projects: w.projects.map((p) => (p.id === value.id ? value : p)),
       }));
       setError("");
+      setHistoryRevision((n) => n + 1);
       setNotice("已从项目 JSON 重新读取。");
     } finally {
       setBusy(false);
@@ -363,35 +430,43 @@ export default function App() {
       );
     }
   }
-  function begin() {
+  async function begin() {
+    if (busy || historyReady !== project.id) return;
+    setBusy(true);
     try {
-      const run = startRun(model, seed, players),
-        id = uid("run");
-      setTrials((ts) =>
-        [{ id, projectId: project.id, run }, ...ts].slice(0, 8),
-      );
-      setActiveTrial(id);
+      const trial = newTrial(project.id, model, seed, players);
+      await saveWorkspace({ ...workspace, projects: [project] });
+      await historyRepository().save(project, trial);
+      setTrials((ts) => [trial, ...ts]);
+      setPreviewTrial(null);
+      setActiveTrial(trial.id);
       setCursor(-1);
       setView("run");
       setError("");
-    } catch (e) {
-      setError((e as Error).message);
+    } catch (cause) {
+      setError((cause as Error).message);
+    } finally {
+      setBusy(false);
     }
   }
-  function execute(action: string, automatic = false) {
-    if (!run) return;
+  async function execute(action: string, automatic = false) {
+    if (!run || !trial || previewTrial || busy) return;
+    setBusy(true);
     try {
-      const next = step(
-        run,
-        automatic ? choose(run, policy) : { action, cards },
-      );
-      setTrials((ts) =>
-        ts.map((t) => (t.id === activeTrial ? { ...t, run: next } : t)),
-      );
+      const next = {
+        ...trial,
+        run: step(run, automatic ? choose(run, policy) : { action, cards }),
+        drivers: [...trial.drivers, automatic ? policy : ("manual" as const)],
+        updatedAt: new Date().toISOString(),
+      };
+      await historyRepository().save(project, next);
+      setTrials((ts) => ts.map((t) => (t.id === next.id ? next : t)));
       setCursor(-1);
       setError("");
-    } catch (e) {
-      setError((e as Error).message);
+    } catch (cause) {
+      setError((cause as Error).message);
+    } finally {
+      setBusy(false);
     }
   }
   function addDefinition(event: React.FormEvent) {
@@ -400,6 +475,18 @@ export default function App() {
     if (!name) return;
     if ((kind === "action" || kind === "goal") && !model.fields.length) {
       setError("先添加一个状态，再定义行动或目标。");
+      return;
+    }
+    const group =
+      kind === "state"
+        ? model.fields
+        : kind === "capability"
+          ? model.capabilities
+          : kind === "action"
+            ? model.actions
+            : model.goals;
+    if (group.length >= 80) {
+      setError("同类定义最多 80 项。");
       return;
     }
     const id = uid(kind);
@@ -461,60 +548,83 @@ export default function App() {
     setModal(null);
     setNotice("模型版本已保存，后续编辑不会覆盖它。");
   }
-  async function experiment() {
-    if (issues.length) {
+  async function experiment(existing?: Experiment) {
+    if (experimentRunning.current || historyReady !== project.id) return;
+    if (!existing && issues.length) {
       setError("请先修复模型问题。");
       return;
     }
+    experimentRunning.current = true;
     cancelled.current = false;
-    const snapshot = copy(model),
-      policies: Policy[] = [policy, policy === "random" ? "goal" : "random"];
-    const result: Experiment = {
-      id: uid("experiment"),
-      projectId: project.id,
-      seed,
-      players,
-      errors: [],
-      name: snapshot.name,
-      model: snapshot,
-      rows: [],
-      cancelled: false,
-    };
-    for (const p of policies) {
-      let completed = 0,
-        reached = 0,
-        limited = 0,
-        steps = 0,
-        error = 0;
-      for (let i = 0; i < 12 && !cancelled.current; i++) {
-        setProgress(`${policyNames[p]} · ${i + 1}/12`);
-        try {
-          const r = simulate(snapshot, (seed + i) >>> 0, p, players);
-          completed++;
-          steps += r.entries.length - 1;
-          if (current(r).outcome?.kind === "won") reached++;
-          else limited++;
-        } catch (cause) {
-          error++;
-          const reason = cause instanceof Error ? cause.message : String(cause);
-          if (!result.errors.includes(reason)) result.errors.push(reason);
-        }
+    const location = copy(project);
+    let result = existing
+      ? { ...copy(existing), status: "running" as const }
+      : newExperiment(project.id, model, seed, players, policy);
+    const display = (value: Experiment) =>
+      setExperiments((es) => [value, ...es.filter((e) => e.id !== value.id)]);
+    try {
+      if (!existing)
+        await saveWorkspace({ ...workspace, projects: [location] });
+      await historyRepository().save(location, result);
+      display(result);
+      setView("runs");
+      while (!cancelled.current) {
+        setProgress(
+          `${result.samples.length}/${result.count * result.policies.length} 局`,
+        );
         await new Promise((resolve) => setTimeout(resolve, 0));
+        if (cancelled.current) break;
+        const sample = nextSample(result);
+        if (!sample) break;
+        const next = {
+          ...result,
+          samples: [...result.samples, sample],
+          updatedAt: new Date().toISOString(),
+        };
+        await historyRepository().save(location, next);
+        result = next;
+        display(result);
       }
-      result.rows.push({
-        policy: p,
-        completed,
-        reached,
-        limited,
-        average: completed ? Math.round((steps / completed) * 10) / 10 : 0,
-        error,
-      });
-      if (cancelled.current) break;
+      result = {
+        ...result,
+        status:
+          result.samples.length === result.count * result.policies.length
+            ? "completed"
+            : "cancelled",
+        updatedAt: new Date().toISOString(),
+      };
+      await historyRepository().save(location, result);
+      display(result);
+    } catch (cause) {
+      display({ ...result, status: "interrupted" });
+      setError(`实验已暂停，已写入的样本仍可查看。${(cause as Error).message}`);
+    } finally {
+      setProgress("");
+      experimentRunning.current = false;
     }
-    result.cancelled = cancelled.current;
-    setExperiments((es) => [result, ...es].slice(0, 10));
-    setProgress("");
-    setView("runs");
+  }
+  function previewSample(experiment: Experiment, sample: Sample) {
+    try {
+      const run = restoreLog(
+        experiment.model,
+        sample.seed,
+        experiment.players,
+        sample.log,
+      );
+      setPreviewTrial({
+        id: `${experiment.id}-${sample.policy}-${sample.index}`,
+        projectId: experiment.projectId,
+        createdAt: experiment.createdAt,
+        updatedAt: experiment.updatedAt,
+        drivers: [],
+        run,
+      });
+      setCursor(0);
+      setView("run");
+      setError("");
+    } catch (cause) {
+      setError((cause as Error).message);
+    }
   }
 
   return (
@@ -556,7 +666,9 @@ export default function App() {
           {view !== "library" && (
             <button
               className="button primary"
-              disabled={!ready || busy || !!issues.length}
+              disabled={
+                !ready || busy || !!issues.length || historyReady !== project.id
+              }
               onClick={begin}
             >
               <Play size={17} />
@@ -620,7 +732,18 @@ export default function App() {
             </div>
           </aside>
         )}
-        <main className={`lab-main view-${view}`} inert={busy}>
+        <main ref={mainRef} className={`lab-main view-${view}`} inert={busy}>
+          {project.id &&
+            historyError &&
+            historyReady !== project.id &&
+            view !== "runs" && (
+              <div className="error-banner" role="alert">
+                {historyError}
+                <button className="text-button" onClick={() => setView("runs")}>
+                  查看与重新加载记录
+                </button>
+              </div>
+            )}
           {error && (
             <div className="error-banner" role="alert">
               <Info size={18} />
@@ -706,6 +829,8 @@ export default function App() {
                 selected={selected}
                 select={inspect}
                 update={update}
+                duplicate={duplicate}
+                remove={remove}
               />
             </div>
           )}
@@ -734,6 +859,14 @@ export default function App() {
               }
               reload={reloadProject}
               reset={resetProject}
+            />
+          )}
+          {view === "rules" && (
+            <RulesEditor
+              model={model}
+              update={update}
+              duplicate={duplicate}
+              remove={remove}
             />
           )}
           {view === "strategy" && (
@@ -806,48 +939,19 @@ export default function App() {
                       <option value="2">2 位 · 轮流竞争</option>
                     </select>
                   </label>
-                  <label className="form-field">
-                    每阶段行动数
-                    <input
-                      type="number"
-                      min="1"
-                      max="10"
-                      value={model.flow.actionsPerTurn}
-                      onChange={(e) =>
-                        update((m) => {
-                          m.flow.actionsPerTurn = Math.min(
-                            10,
-                            number(e.target.value, 1),
-                          );
-                        })
-                      }
-                    />
-                  </label>
-                  <label className="form-field">
-                    轮数上限
-                    <input
-                      type="number"
-                      min="1"
-                      max="100"
-                      value={model.flow.maxRounds}
-                      onChange={(e) =>
-                        update((m) => {
-                          m.flow.maxRounds = Math.min(
-                            100,
-                            number(e.target.value, 1),
-                          );
-                        })
-                      }
-                    />
-                  </label>
                   <p className="hint">
-                    行动数与轮数是规则的一部分；修改会进入新的运行快照。
+                    行动数、轮数和周期结算在“规则与集合”中编辑。
                   </p>
                 </section>
               </div>
               <button
                 className="button primary"
-                disabled={!ready || busy || !!issues.length}
+                disabled={
+                  !ready ||
+                  busy ||
+                  !!issues.length ||
+                  historyReady !== project.id
+                }
                 onClick={begin}
               >
                 <Play size={17} />
@@ -943,15 +1047,20 @@ export default function App() {
                   )}
                 </section>
                 <section>
-                  <h2>{cursor >= 0 ? "历史快照" : "选择下一步"}</h2>
-                  {cursor >= 0 ? (
+                  <h2>
+                    {cursor >= 0 || previewTrial ? "历史快照" : "选择下一步"}
+                  </h2>
+                  {cursor >= 0 || previewTrial ? (
                     <div className="notice-banner">
-                      正在查看第 {cursor} 步。
+                      正在查看第 {cursor >= 0 ? cursor : run.entries.length - 1}{" "}
+                      步。{previewTrial && "实验样本只读。"}
                       <button
                         className="text-button"
-                        onClick={() => setCursor(-1)}
+                        onClick={() =>
+                          previewTrial ? setView("runs") : setCursor(-1)
+                        }
                       >
-                        回到最新
+                        {previewTrial ? "返回实验记录" : "回到最新"}
                       </button>
                     </div>
                   ) : (
@@ -1085,19 +1194,46 @@ export default function App() {
                   <h1>实验记录</h1>
                   <p>在相同初始条件下，比较所选策略与一个简单基线。</p>
                 </div>
-                <button
-                  className="button primary"
-                  disabled={!!progress || !!issues.length || !ready}
-                  onClick={() => void experiment()}
-                >
-                  <FlaskConical size={17} />
-                  运行对照实验
-                </button>
+                <div className="settings-actions">
+                  <button
+                    className="button"
+                    disabled={!!progress || busy}
+                    onClick={() => setHistoryRevision((n) => n + 1)}
+                  >
+                    重新加载记录
+                  </button>
+                  <button
+                    className="button primary"
+                    disabled={
+                      !!progress ||
+                      !!issues.length ||
+                      !ready ||
+                      busy ||
+                      historyReady !== project.id
+                    }
+                    onClick={() => void experiment()}
+                  >
+                    <FlaskConical size={17} />
+                    运行对照实验
+                  </button>
+                </div>
               </div>
               <p className="hint">
                 每种策略运行 12
                 个种子。没有随机机制的模型会得到重复局面；结果仅描述本次样例，不能单独证明平衡或有趣。
               </p>
+              <p className="record-state" role="status">
+                {historyReady === project.id
+                  ? "对局与实验自动保存到项目目录，每次决策和每局样本完成后写入。"
+                  : historyError
+                    ? "记录读取失败，可重新加载。"
+                    : "正在读取项目记录…"}
+              </p>
+              {historyError && (
+                <div className="error-banner" role="alert">
+                  {historyError}
+                </div>
+              )}
               {progress && (
                 <div className="notice-banner" role="status">
                   正在运行：{progress}
@@ -1123,9 +1259,16 @@ export default function App() {
                 .map((e) => (
                   <article className="experiment-record" key={e.id}>
                     <div className="section-title">
-                      <h2>{e.name} · 策略对照</h2>
+                      <h2>{e.model.name} · 策略对照</h2>
                       <span className="muted">
-                        {e.cancelled ? "已取消，保留部分样本" : "已完成"}
+                        {
+                          {
+                            completed: "已完成",
+                            cancelled: "已取消，保留部分样本",
+                            interrupted: "已中断，可继续",
+                            running: "运行中",
+                          }[e.status]
+                        }
                       </span>
                     </div>
                     <table className="data-table">
@@ -1133,14 +1276,14 @@ export default function App() {
                         <tr>
                           <th>策略</th>
                           <th>完成局数</th>
-                          <th>达成目标</th>
+                          <th>本局有人达标</th>
                           <th>截断</th>
                           <th>平均步数</th>
                           <th>异常</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {e.rows.map((r) => (
+                        {experimentRows(e).map((r) => (
                           <tr key={r.policy}>
                             <td>{policyNames[r.policy]}</td>
                             <td>{r.completed}</td>
@@ -1153,20 +1296,62 @@ export default function App() {
                       </tbody>
                     </table>
                     <p className="hint">
-                      起始种子 {e.seed} · {e.players} 位参与者 · 每策略最多 12
-                      局
+                      起始种子 {e.seed} · {e.players} 位参与者 · 每策略最多{" "}
+                      {e.count} 局 · {new Date(e.createdAt).toLocaleString()}
                     </p>
-                    {e.errors.length > 0 && (
+                    {e.samples.some((s) => s.error) && (
                       <p className="error-banner" role="alert">
-                        {e.errors.join("；")}
+                        {[
+                          ...new Set(
+                            e.samples.flatMap((s) =>
+                              s.error ? [s.error] : [],
+                            ),
+                          ),
+                        ].join("；")}
                       </p>
                     )}
                     <p className="hint">
-                      本次实验绑定运行时的规则快照，后续草稿变化不会改写结果。
+                      结果使用实验创建时的规则快照。“本局有人达标”统计任一参与者达到目标的局数。
                     </p>
+                    {(e.status === "cancelled" || e.status === "interrupted") &&
+                      e.samples.length < e.count * e.policies.length && (
+                        <button
+                          className="button"
+                          disabled={
+                            !!progress || busy || historyReady !== project.id
+                          }
+                          onClick={() => void experiment(e)}
+                        >
+                          继续剩余样本
+                        </button>
+                      )}
+                    <details className="sample-list">
+                      <summary>逐局样本与回放（{e.samples.length}）</summary>
+                      {e.samples.map((sample) => (
+                        <button
+                          className="history-row"
+                          key={`${sample.policy}:${sample.index}`}
+                          onClick={() => previewSample(e, sample)}
+                        >
+                          <Play size={15} />
+                          <span>
+                            {policyNames[sample.policy]} · 种子 {sample.seed}
+                            <small className="history-meta">
+                              {sample.log.choices.length} 步 ·{" "}
+                              {sample.error
+                                ? `异常：${sample.error}`
+                                : sample.log.final.outcome?.kind === "won"
+                                  ? "目标已达成"
+                                  : "已截断"}
+                            </small>
+                          </span>
+                          <ChevronRight size={15} />
+                        </button>
+                      ))}
+                    </details>
                   </article>
                 ))}
-              <h2 className="section-gap">本次会话的对局</h2>
+              <h2 className="section-gap">已保存的对局</h2>
               {trials
                 .filter((t) => t.projectId === project.id)
                 .map((t) => (
@@ -1174,6 +1359,7 @@ export default function App() {
                     className="history-row"
                     key={t.id}
                     onClick={() => {
+                      setPreviewTrial(null);
                       setActiveTrial(t.id);
                       setCursor(-1);
                       setView("run");
@@ -1182,6 +1368,10 @@ export default function App() {
                     <Play size={18} />
                     <span>
                       {t.run.model.name} · {t.run.entries.length - 1} 步
+                      <small className="history-meta">
+                        {new Date(t.updatedAt).toLocaleString()} · 种子{" "}
+                        {t.run.seed}
+                      </small>
                     </span>
                     <span className="muted">
                       {current(t.run).outcome ? "已结束" : "可继续"}
@@ -1190,7 +1380,8 @@ export default function App() {
                   </button>
                 ))}
               <p className="hint">
-                试运行与实验结果暂保留在本次页面会话中；项目和命名版本通过宿主保存。
+                记录保存在项目的 runs/ 和 experiments/
+                中，包含规则快照、种子、决策、事件和最终状态。重新打开项目后可继续对局或逐步回放。
               </p>
             </section>
           )}
@@ -1350,6 +1541,9 @@ export default function App() {
               在模型中定义状态、能力、行动和目标。点击节点可编辑，连线来自实际的消耗、效果和依赖。
             </p>
             <p>
+              “规则与集合”编辑周期效果、集合容量与对象素材；行动的高级规则可设置计分集合、倍率和同类配对奖励。删除定义前需先解除引用。
+            </p>
+            <p>
               “试运行”会建立独立快照。你可以手动选择行动，或让样例策略执行一步，再通过事件与回放查明原因。
             </p>
             <p>
@@ -1358,7 +1552,7 @@ export default function App() {
             <p>
               新建项目时选择策略模板和父目录。规则及命名版本保存在项目的
               models/core.json，
-              后续编辑只保存这份文件。项目设置支持切换模板和重置，替换前自动备份；实验结果目前仅保留本次页面会话。
+              后续编辑只保存这份文件。项目设置支持切换模板和重置，替换前自动备份。对局和实验保存到项目目录，重开后可继续对局、逐步回放或补跑剩余实验样本。
             </p>
             <button className="button primary" onClick={() => setModal(null)}>
               开始探索

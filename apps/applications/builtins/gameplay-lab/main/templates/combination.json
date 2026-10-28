@@ -30,7 +30,7 @@
     {
       "id": "scoring",
       "name": "组合识别",
-      "description": "基础值之和，加上每对同类的 15 点奖励，再乘倍率。",
+      "description": "基础值之和，加上行动中配置的同类配对奖励，再乘倍率。",
       "initial": true
     }
   ],
@@ -44,6 +44,7 @@
       "effects": [
         {
           "type": "combination",
+          "pairBonus": 15,
           "collection": "hand",
           "field": "score",
           "multiplier": "multiplier"
