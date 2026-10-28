@@ -7,14 +7,16 @@ export function DefinitionActions({
   id,
   duplicate,
   remove,
+  extraReferences = [],
 }: {
   model: Model;
   id: string;
   duplicate(): void;
   remove(): void;
+  extraReferences?: string[];
 }) {
   const [confirm, setConfirm] = useState(false);
-  const refs = referencesTo(model, id);
+  const refs = [...new Set([...referencesTo(model, id), ...extraReferences])];
   return (
     <div className="definition-actions">
       <div className="settings-actions">

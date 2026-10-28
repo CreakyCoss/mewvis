@@ -1,3 +1,19 @@
+import {
+  NativeSelect,
+  NativeSelectOption,
+} from "design-system/components/ui/native-select";
+import { DirectionPicker } from "./DirectionPicker";
+import {
+  gameTypes,
+  directionForSimulator,
+  type GameTypeId,
+  type DirectionId,
+} from "./catalog";
+import {
+  exampleSimulator,
+  simulatorName,
+  type SimulatorRef,
+} from "./simulators";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { ApplicationForm } from "./Form";
 import { FolderOpen, RotateCcw } from "lucide-react";
@@ -7,6 +23,7 @@ import {
   projectFile,
   projectRepository,
   type Project,
+  type AnyProject,
 } from "./storage";
 
 const message = (error: unknown) =>
@@ -17,14 +34,32 @@ export function ProjectCreateForm({
   busyChanged,
   beforeCreate,
 }: {
-  created(project: Project): void;
+  created(project: AnyProject): void;
   close(): void;
   busyChanged(busy: boolean): void;
   beforeCreate(): Promise<void>;
 }) {
   const [name, setName] = useState("");
+  const [gameType, setGameType] = useState<GameTypeId>("card");
+  const [direction, setDirection] = useState<DirectionId | null>(null);
+  const availableExamples = templates.filter(
+    (t) => (t.id === "combination" ? "card" : "systems") === gameType,
+  );
+  function chooseType(id: GameTypeId) {
+    setGameType(id);
+    setDirection(null);
+    setSimulator(null);
+    setSource("blank");
+    setTemplateId(id === "card" ? "combination" : "development");
+  }
+  function chooseRuntime(ref: SimulatorRef | null, id: DirectionId | null) {
+    setSimulator(ref);
+    setDirection(id);
+  }
+  const [source, setSource] = useState<"blank" | "example">("blank");
+  const [simulator, setSimulator] = useState<SimulatorRef | null>(null);
   const [parent, setParent] = useState("");
-  const [templateId, setTemplateId] = useState<TemplateId>("development");
+  const [exampleId, setTemplateId] = useState<TemplateId>("combination");
   const [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   const setWorking = (value: boolean) => {
@@ -56,7 +91,11 @@ export function ProjectCreateForm({
       const project = await projectRepository().create({
         name,
         parent,
-        templateId,
+        source,
+        gameType,
+        direction,
+        ...(source === "example" ? { exampleId } : {}),
+        simulator,
       });
       if (project) created(project);
     } catch (cause) {
@@ -80,27 +119,91 @@ export function ProjectCreateForm({
             maxLength={60}
             value={name}
             onChange={(event) => setName(event.target.value)}
-            placeholder="例如：资源与科研策略验证"
+            placeholder="为你的游戏策划命名"
           />
         </label>
         <label className="form-field">
-          策略模板
-          <select
-            value={templateId}
-            onChange={(event) =>
-              setTemplateId(event.target.value as TemplateId)
-            }
+          游戏类型
+          <NativeSelect
+            aria-label="游戏类型"
+            value={gameType}
+            onChange={(event) => chooseType(event.target.value as GameTypeId)}
+            size="sm"
           >
-            {templates.map((item) => (
-              <option value={item.id} key={item.id}>
-                {item.name}
-              </option>
+            {gameTypes.map((t) => (
+              <NativeSelectOption key={t.id} value={t.id}>
+                {t.name}
+              </NativeSelectOption>
             ))}
-          </select>
-          <span className="hint">
-            {templates.find((item) => item.id === templateId)?.description}
-          </span>
+            <NativeSelectOption disabled>
+              棋盘经济 · 尚未提供
+            </NativeSelectOption>
+            <NativeSelectOption disabled>塔防 · 尚未提供</NativeSelectOption>
+          </NativeSelect>
         </label>
+        <label className="form-field">
+          创建方式
+          <NativeSelect
+            aria-label="创建方式"
+            value={source}
+            onChange={(event) => {
+              const value = event.target.value as "blank" | "example";
+              setSource(value);
+              if (value === "example") {
+                const id = availableExamples[0]?.id as TemplateId | undefined;
+                if (id) {
+                  setTemplateId(id);
+                  chooseRuntime(
+                    exampleSimulator(id),
+                    directionForSimulator(exampleSimulator(id)),
+                  );
+                }
+              }
+            }}
+            size="sm"
+          >
+            <NativeSelectOption value="blank">从零开始</NativeSelectOption>
+            <NativeSelectOption
+              value="example"
+              disabled={!availableExamples.length}
+            >
+              从示例创建{!availableExamples.length ? " · 当前类型暂无示例" : ""}
+            </NativeSelectOption>
+          </NativeSelect>
+        </label>
+        {source === "example" && (
+          <label className="form-field">
+            示例方案
+            <NativeSelect
+              aria-label="示例方案"
+              value={exampleId}
+              onChange={(event) => {
+                const id = event.target.value as TemplateId;
+                setTemplateId(id);
+                chooseRuntime(
+                  exampleSimulator(id),
+                  directionForSimulator(exampleSimulator(id)),
+                );
+              }}
+              size="sm"
+            >
+              {availableExamples.map((item) => (
+                <NativeSelectOption key={item.id} value={item.id}>
+                  {item.name}
+                </NativeSelectOption>
+              ))}
+            </NativeSelect>
+            <span className="hint">
+              {templates.find((item) => item.id === exampleId)?.description}
+            </span>
+          </label>
+        )}
+        <DirectionPicker
+          gameType={gameType}
+          value={direction}
+          simulator={simulator}
+          change={chooseRuntime}
+        />
         <div className="form-field">
           <label htmlFor="project-parent">项目父目录</label>
           <div className="path-input">
@@ -127,7 +230,9 @@ export function ProjectCreateForm({
           </p>
         )}
         <p className="hint">
-          所选模板将复制为项目自己的 JSON，之后的修改保存在项目目录。
+          {source === "blank"
+            ? "创建当前类型的空白策划，内容与规则由你自行定义。"
+            : "示例方案将复制为自己的规则，之后的修改保存在项目目录。"}
         </p>
         <footer>
           <button type="button" className="button" onClick={close}>
@@ -152,21 +257,26 @@ export function ProjectSettings({
   rename,
   reload,
   reset,
+  selectSimulator,
 }: {
   project: Project;
   busy: boolean;
   rename(name: string): void;
   reload(): Promise<void>;
-  reset(templateId: TemplateId): Promise<void>;
+  reset(exampleId: TemplateId): Promise<void>;
+  selectSimulator(
+    ref: SimulatorRef | null,
+    direction: DirectionId | null,
+  ): void;
 }) {
-  const [templateId, setTemplateId] = useState<TemplateId | "">(
-    project.templateId ?? "",
+  const [exampleId, setTemplateId] = useState<TemplateId | "">(
+    project.exampleId ?? "",
   );
   const [confirm, setConfirm] = useState<"switch" | "reset" | "reload" | null>(
     null,
   );
   const [error, setError] = useState("");
-  const selected = templates.find((item) => item.id === templateId);
+  const selected = templates.find((item) => item.id === exampleId);
   const confirmation = useRef<HTMLElement>(null);
   useEffect(() => {
     if (confirm) confirmation.current?.scrollIntoView({ block: "nearest" });
@@ -176,8 +286,8 @@ export function ProjectSettings({
     try {
       if (confirm === "reload") await reload();
       else {
-        const target = confirm === "reset" ? project.templateId : templateId;
-        if (!target) throw new Error("请先选择一个策略模板。");
+        const target = confirm === "reset" ? project.exampleId : exampleId;
+        if (!target) throw new Error("请先选择一个示例方案。");
         await reset(target);
       }
       setConfirm(null);
@@ -190,7 +300,7 @@ export function ProjectSettings({
       <div className="page-heading">
         <div>
           <h1>项目设置</h1>
-          <p>管理项目名称、文件和策略模板。</p>
+          <p>管理项目名称、文件、示例来源和玩法模拟器。</p>
         </div>
       </div>
       {error && (
@@ -224,50 +334,72 @@ export function ProjectSettings({
           </button>
         </section>
         <section className="settings-section">
-          <h2>策略模板</h2>
+          <h2>玩法方向与兼容模拟器</h2>
+          <DirectionPicker
+            gameType={project.gameType}
+            value={project.direction}
+            simulator={project.simulator}
+            change={selectSimulator}
+          />
           <p className="hint">
-            当前模板：
-            {templates.find((item) => item.id === project.templateId)?.name ??
-              "自定义"}
+            更换模拟器保留当前规则；不兼容项会在策划概览中提示。已有运行保留原模拟器快照。
+          </p>
+        </section>
+        <section className="settings-section">
+          <h2>示例方案</h2>
+          <p className="hint">
+            示例来源：
+            {templates.find((item) => item.id === project.exampleId)?.name ??
+              "从零开始"}
           </p>
           <label className="form-field">
-            选择模板
-            <select
-              value={templateId}
+            选择示例
+            <NativeSelect
+              value={exampleId}
               onChange={(event) => {
                 setTemplateId(event.target.value as TemplateId);
                 setConfirm(null);
               }}
+              aria-label="选择示例"
+              size="sm"
             >
-              {!project.templateId && <option value="">请选择策略模板</option>}
-              {templates.map((item) => (
-                <option value={item.id} key={item.id}>
-                  {item.name}
-                </option>
-              ))}
-            </select>
+              {!project.exampleId && (
+                <NativeSelectOption value="">请选择示例方案</NativeSelectOption>
+              )}
+              {templates
+                .filter(
+                  (t) =>
+                    (t.id === "combination" ? "card" : "systems") ===
+                    project.gameType,
+                )
+                .map((item) => (
+                  <NativeSelectOption value={item.id} key={item.id}>
+                    {item.name}
+                  </NativeSelectOption>
+                ))}
+            </NativeSelect>
           </label>
           {selected && <p className="hint">{selected.description}</p>}
           <div className="settings-actions">
             <button
               className="button"
-              disabled={!templateId || templateId === project.templateId}
+              disabled={!exampleId || exampleId === project.exampleId}
               onClick={() => setConfirm("switch")}
             >
-              切换到所选模板
+              应用所选示例
             </button>
             <button
               className="button"
-              disabled={!project.templateId}
+              disabled={!project.exampleId}
               onClick={() => setConfirm("reset")}
             >
               <RotateCcw size={15} />
-              重置当前模板
+              重置当前示例
             </button>
           </div>
           <p className="hint">
             切换和重置会替换当前规则，并先备份到项目的 backups
-            文件夹；项目名称和命名版本保留。
+            文件夹，并选择示例配套的模拟器；项目名称和命名版本保留。
           </p>
         </section>
         {confirm && (
@@ -276,13 +408,13 @@ export function ProjectSettings({
               {confirm === "reload"
                 ? "重新读取项目文件？"
                 : confirm === "switch"
-                  ? `切换为“${selected?.name}”？`
-                  : "重置当前模板？"}
+                  ? `应用“${selected?.name}”及其 ${simulatorName(exampleSimulator(exampleId as TemplateId))} 模拟器？`
+                  : "重置当前示例？"}
             </h3>
             <p>
               {confirm === "reload"
                 ? "将使用磁盘上的 JSON 替换当前编辑内容，尚未保存的修改会舍弃。"
-                : "当前规则会先保存备份，再替换为内置模板的初始规则。已开始的对局继续使用原快照。"}
+                : "当前规则会先保存备份，再替换为内置示例的初始规则。已开始的对局继续使用原快照。"}
             </p>
             <div className="settings-actions">
               <button className="button" onClick={() => setConfirm(null)}>

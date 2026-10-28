@@ -1,3 +1,8 @@
+import {
+  NativeSelect,
+  NativeSelectOption,
+} from "design-system/components/ui/native-select";
+import { useState } from "react";
 import { EffectsEditor } from "./EffectsEditor";
 import { DefinitionActions } from "./DefinitionActions";
 import { CheckCircle2, ChevronRight, Plus, X } from "lucide-react";
@@ -20,17 +25,24 @@ export function Inspector({
   update,
   duplicate,
   remove,
+  references = [],
+  defaultAdvanced = false,
 }: {
   model: Model;
   selected: string;
   select(id: string): void;
   duplicate(id: string): void;
   remove(id: string): void;
+  references?: string[];
+  defaultAdvanced?: boolean;
   update(change: (model: Model) => void): void;
 }) {
   const nodes = nodesOf(model),
     node = nodes.find((n) => n.id === selected),
     action = model.actions.find((a) => a.id === selected);
+  const [advanced, setAdvanced] = useState(
+    defaultAdvanced || action?.effects.length === 0,
+  );
   const issues = validateModel(model);
   if (!node)
     return (
@@ -48,17 +60,18 @@ export function Inspector({
     change: (value: string) => void,
     label: string,
   ) => (
-    <select
+    <NativeSelect
       aria-label={label}
       value={value}
-      onChange={(e) => change(e.target.value)}
+      onChange={(event) => change(event.target.value)}
+      size="sm"
     >
       {model.fields.map((f) => (
-        <option key={f.id} value={f.id}>
+        <NativeSelectOption key={f.id} value={f.id}>
           {f.name}
-        </option>
+        </NativeSelectOption>
       ))}
-    </select>
+    </NativeSelect>
   );
   const nameField = (
     <label className="form-field">
@@ -167,7 +180,11 @@ export function Inspector({
               ),
             )}
           </div>
-          <details className="advanced-editor">
+          <details
+            className="advanced-editor"
+            open={advanced}
+            onToggle={(e) => setAdvanced(e.currentTarget.open)}
+          >
             <summary>高级规则</summary>
             {nameField}
             <h3>消耗与效果</h3>
@@ -280,19 +297,27 @@ export function Inspector({
               </label>
               <label className="form-field">
                 状态用途
-                <select
+                <NativeSelect
                   value={f.role}
-                  onChange={(e) =>
+                  onChange={(event) =>
                     update((m) => {
-                      m.fields.find((f) => f.id === selected)!.role = e.target
-                        .value as typeof f.role;
+                      m.fields.find((f) => f.id === selected)!.role = event
+                        .target.value as typeof f.role;
                     })
                   }
+                  aria-label="状态用途"
+                  size="sm"
                 >
-                  <option value="stock">库存 · 可消费</option>
-                  <option value="rate">速率 · 产出能力</option>
-                  <option value="progress">进度 · 目标指标</option>
-                </select>
+                  <NativeSelectOption value="stock">
+                    库存 · 可消费
+                  </NativeSelectOption>
+                  <NativeSelectOption value="rate">
+                    速率 · 产出能力
+                  </NativeSelectOption>
+                  <NativeSelectOption value="progress">
+                    进度 · 目标指标
+                  </NativeSelectOption>
+                </NativeSelect>
               </label>
             </>
           );
@@ -389,6 +414,7 @@ export function Inspector({
         key={selected}
         model={model}
         id={selected}
+        extraReferences={references}
         duplicate={() => duplicate(selected)}
         remove={() => remove(selected)}
       />

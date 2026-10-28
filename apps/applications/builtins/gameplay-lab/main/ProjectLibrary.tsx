@@ -1,19 +1,20 @@
+import { gameTypeName, directionDefinition } from "./catalog";
 import { useId } from "react";
 import { ArrowRight, FolderOpen, Layers3, Network, Plus } from "lucide-react";
-import type { Project } from "./storage";
+import type { AnyProject } from "./storage";
 
 function ProjectRow({
   project,
   disabled,
   open,
 }: {
-  project: Project;
+  project: AnyProject;
   disabled: boolean;
   open(id: string): void;
 }) {
   const id = useId();
   const { model } = project;
-  const Icon = model.collections.length ? Layers3 : Network;
+  const Icon = project.simulator?.id === "card-combination" ? Layers3 : Network;
   return (
     <li>
       <button
@@ -31,16 +32,29 @@ function ProjectRow({
             {model.name.trim() || "未命名项目"}
           </span>
           <span className="project-row-description" id={`${id}-description`}>
-            {model.description || "从核心规则开始建立策略模型。"}
+            {model.description || "从类型专属的内容与规则开始策划。"}
           </span>
           <span className="project-row-path" title={project.path}>
             {project.path}
           </span>
         </span>
         <span className="project-row-details" id={`${id}-details`}>
-          <span>{model.actions.length} 个行动</span>
+          <span>
+            {gameTypeName(project.gameType)} ·{" "}
+            {directionDefinition(project.direction)?.name ?? "待选方向"}
+          </span>
           <span aria-hidden="true">·</span>
-          <span>{model.goals.length} 个目标</span>
+          <span>
+            {model.format === "gameplay-narrative-v1"
+              ? `${model.nodes.length} 段剧情`
+              : `${model.actions.length} 个行动`}
+          </span>
+          <span aria-hidden="true">·</span>
+          <span>
+            {model.format === "gameplay-narrative-v1"
+              ? `${model.characters.length} 位人物`
+              : `${model.goals.length} 个目标`}
+          </span>
         </span>
         <ArrowRight
           className="project-row-arrow"
@@ -60,7 +74,7 @@ export function ProjectLibrary({
   attach,
   errors,
 }: {
-  projects: Project[];
+  projects: AnyProject[];
   ready: boolean;
   create(): void;
   open(id: string): void;
@@ -98,7 +112,9 @@ export function ProjectLibrary({
         <div className="empty library-empty">
           <FolderOpen size={32} />
           <h2>创建你的第一个项目</h2>
-          <p>选择策略模板和项目目录，开始验证自己的模型。</p>
+          <p>
+            从零建立自己的策划，或复制示例方案；所有内容保存在你选择的项目目录。
+          </p>
         </div>
       )}
       <ul className="project-list">

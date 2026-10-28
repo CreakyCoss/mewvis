@@ -584,6 +584,9 @@ importers:
       '@mewvis/product-config':
         specifier: workspace:*
         version: link:../../../../packages/product-config
+      design-system:
+        specifier: workspace:*
+        version: link:../../../../packages/design-system
       lucide-react:
         specifier: ^0.500.0
         version: 0.500.0(react@19.1.0)

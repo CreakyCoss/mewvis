@@ -20,7 +20,7 @@ const temp = await mkdtemp(join(tmpdir(), "gameplay-repository-test-"));
 await build({
   stdin: {
     contents:
-      'export * from "./main/storage.ts";export * from "./main/fixtures.ts";export * from "./main/engine.ts";export * from "./main/history.ts";export * from "./main/records.ts";',
+      'export * from "./main/storage.ts";export * from "./main/fixtures.ts";export * from "./main/engine.ts";export * from "./main/history.ts";export * from "./main/records.ts";export * from "./main/playtest.ts";export * from "./main/configured-policy.ts";export * from "./main/playtest-storage.ts";export * from "./main/comparison.ts";export * from "./main/comparison-project.ts";export * from "./main/simulators.ts";export * from "./main/catalog.ts";export * from "./main/compatibility.ts";export * from "./main/narrative.ts";export * from "./main/narrative-storage.ts";',
     resolveDir: root,
   },
   bundle: true,
@@ -41,8 +41,8 @@ const workspace = (project) => ({
   active: project.id,
   projects: [project],
 });
-const create = (env, name = "测试项目", templateId = "development") =>
-  env.repo.create({ name, parent: env.projectsPath, templateId });
+const create = (env, name = "测试项目", exampleId = "development") =>
+  env.repo.create({ name, parent: env.projectsPath, exampleId });
 async function externalWrite(path, value) {
   await writeFile(path, JSON.stringify(value, null, 2) + "\n");
   const future = new Date(Date.now() + 5000);
@@ -63,7 +63,7 @@ test("first launch stays empty and only explicit creation copies a template JSON
     const p = await create(e, id, id);
     const saved = JSON.parse(await readFile(f.projectFile(p.path), "utf8"));
     assert.deepEqual(saved.fields, f.makeTemplate(id).fields);
-    assert.equal(saved.project.templateId, id);
+    assert.equal(saved.project.exampleId, id);
     assert.equal(saved.project.id, p.id);
     assert.equal(
       f.current(f.simulate(p.model, 42, "goal")).outcome.kind,
@@ -91,12 +91,12 @@ test("project edits and named versions survive a host restart without modifying 
   const a = await repo.create({
     name: "甲",
     parent: e.projectsPath,
-    templateId: "development",
+    exampleId: "development",
   });
   const b = await repo.create({
     name: "乙",
     parent: e.projectsPath,
-    templateId: "combination",
+    exampleId: "combination",
   });
   const untouched = await readFile(f.projectFile(b.path), "utf8");
   a.model.actions[0].costs[0].value = 17;
@@ -145,11 +145,11 @@ test("switch and reset back up the user's JSON and preserve project identity and
   const switched = await e.repo.reset(p, "combination");
   const backup = JSON.parse(await readFile(switched.backup, "utf8"));
   assert.equal(backup.actions[0].costs[0].value, 27);
-  assert.equal(backup.project.templateId, "development");
+  assert.equal(backup.project.exampleId, "development");
   assert.equal(switched.project.id, p.id);
   assert.equal(switched.project.model.name, p.model.name);
   assert.equal(switched.project.versions.length, 1);
-  assert.equal(switched.project.templateId, "combination");
+  assert.equal(switched.project.exampleId, "combination");
   assert.equal(oldRun.model.actions[0].costs[0].value, 27);
   switched.project.model.fields[0].initial = 99;
   const reset = await e.repo.reset(switched.project, "combination");
@@ -251,7 +251,7 @@ test("cancelled pickers create no projects and failed initialization cleans up o
     failed.create({
       name: "未完成项目",
       parent: e.projectsPath,
-      templateId: "development",
+      exampleId: "development",
     }),
     /write failure/,
   );
@@ -292,7 +292,7 @@ test("run and experiment files survive a host restart, keep frozen rules, and re
   const p = await repo.create({
     name: "持久记录",
     parent: host.projectsPath,
-    templateId: "combination",
+    exampleId: "combination",
   });
   const trial = f.newTrial(p.id, p.model, 51, 2);
   for (let i = 0; i < 3; i++) {
@@ -382,4 +382,618 @@ test("history protects externally edited files and isolates corrupted records", 
   await assert.rejects(history.save(p, rogue), /存在|exist/i);
   const other = await create(env, "其他项目");
   await assert.rejects(history.save(other, next), /不匹配/);
+});
+
+test("playtest settings and configured histories survive restart and template changes without rewriting snapshots", async (t) => {
+  const host = await createProjectHost();
+  t.after(() => rm(host.root, { recursive: true, force: true }));
+  const repo = f.createProjectRepository(host.data, host.files),
+    settings = f.createPlaytestRepository(host.data, host.files),
+    history = f.createHistoryRepository(host.data, host.files);
+  const p = await repo.create({
+      name: "场景与策略",
+      exampleId: "development",
+      parent: host.projectsPath,
+    }),
+    config = await settings.load(p);
+  const s = config.scenarios[0];
+  s.name = "资源不对称";
+  s.seedCount = 2;
+  s.participants.push(f.initialPlayer(1));
+  s.participants[0].values.materials = 70;
+  s.participants[1].values.materials = 20;
+  const strategy = {
+    ...structuredClone(f.builtinStrategies[0]),
+    id: "strategy-dev",
+    name: "自定义发展",
+    rules: [
+      {
+        action: "build",
+        priority: 30,
+        conditions: [{ field: "production", op: "lt", value: 6 }],
+      },
+      { action: "study", priority: 10, conditions: [] },
+    ],
+  };
+  config.strategies.push(strategy);
+  s.participants[0].strategyId = strategy.id;
+  config.comparedStrategies = [strategy.id, "goal"];
+  await settings.save(p, config);
+  const file = join(p.path, f.PLAYTEST_FILE),
+    saved = await readFile(file, "utf8");
+  assert.equal(JSON.parse(saved).format, "gameplay-playtest-v1");
+  assert.deepEqual(await host.data.storage.keys(), [f.LIBRARY_KEY]);
+  const trial = f.newTrial(
+    p.id,
+    p.model,
+    s.seedStart,
+    2,
+    f.selectedSetup(config, p.model),
+  );
+  for (let i = 0; i < 3; i++) {
+    const d = f.trialChoice(trial);
+    trial.run = f.step(trial.run, d.choice);
+    trial.drivers.push(d.driver);
+  }
+  assert.deepEqual(trial.drivers, [strategy.id, strategy.id, "random"]);
+  await history.save(p, trial);
+  const experiment = f.newConfiguredExperiment(
+    p.id,
+    p.model,
+    f.selectedSetup(config, p.model, true),
+  );
+  experiment.samples.push(f.nextSample(experiment));
+  await history.save(p, experiment);
+  const next = await repo.reset(p, "combination");
+  assert.equal(await readFile(file, "utf8"), saved);
+  await host.close(false);
+  const restarted = await createProjectHost(host.root);
+  t.after(() => restarted.close());
+  const project = (
+      await f.createProjectRepository(restarted.data, restarted.files).list()
+    ).projects[0],
+    loaded = await f
+      .createPlaytestRepository(restarted.data, restarted.files)
+      .load(project);
+  assert.deepEqual(loaded, config);
+  assert.equal(project.id, next.project.id);
+  assert.throws(() => f.selectedSetup(loaded, project.model), /无效|初始状态/);
+  const h2 = f.createHistoryRepository(restarted.data, restarted.files),
+    records = await h2.list(project);
+  assert.deepEqual(records.errors, []);
+  assert.deepEqual(records.trials[0], trial);
+  const resumed = records.experiments[0];
+  assert.equal(resumed.status, "interrupted");
+  while (resumed.samples.length < 4) {
+    resumed.samples.push(f.nextSample(resumed));
+    await h2.save(project, resumed);
+  }
+  resumed.status = "completed";
+  await h2.save(project, resumed);
+  const final = (await h2.list(project)).experiments[0];
+  assert.equal(final.samples.length, 4);
+  assert.deepEqual(final.setup, experiment.setup);
+  assert.notDeepEqual(final.model, project.model);
+});
+test("configuration writes protect external edits, exclusive creation and corrupt reloads", async (t) => {
+  const env = await fixture(t),
+    p = await create(env, "配置保护"),
+    settings = f.createPlaytestRepository(env.data, env.files),
+    config = await settings.load(p),
+    file = join(p.path, f.PLAYTEST_FILE);
+  await settings.save(p, config);
+  const external = structuredClone(config);
+  external.scenarios[0].name = "外部版本";
+  await externalWrite(file, external);
+  config.scenarios[0].name = "页面版本";
+  await assert.rejects(settings.save(p, config), /外部修改/);
+  assert.deepEqual(await settings.load(p), external);
+  await settings.save(p, config);
+  await writeFile(file, "{broken");
+  await assert.rejects(settings.load(p));
+  await assert.rejects(settings.save(p, config), /重新加载/);
+  assert.equal(await readFile(file, "utf8"), "{broken");
+  const other = await create(env, "新配置"),
+    fresh = await settings.load(other),
+    otherFile = join(other.path, f.PLAYTEST_FILE);
+  await env.files.mkdir(join(other.path, "configs"));
+  await writeFile(otherFile, JSON.stringify(fresh));
+  await assert.rejects(settings.save(other, fresh), /存在|exist/i);
+  await settings.load(other);
+  await settings.save(other, fresh);
+  const document = JSON.parse(
+    await readFile(f.projectFile(other.path), "utf8"),
+  );
+  document.project.id = "project-replaced";
+  await externalWrite(f.projectFile(other.path), document);
+  fresh.scenarios[0].name = "stale";
+  await assert.rejects(settings.save(other, fresh), /标识/);
+});
+
+test("version and parameter comparisons persist, resume and replay their own rule variants after restart", async (t) => {
+  const host = await createProjectHost();
+  t.after(() => rm(host.root, { recursive: true, force: true }));
+  const repo = f.createProjectRepository(host.data, host.files),
+    history = f.createHistoryRepository(host.data, host.files),
+    settings = f.createPlaytestRepository(host.data, host.files);
+  const project = await repo.create({
+      name: "规则对照",
+      exampleId: "development",
+      parent: host.projectsPath,
+    }),
+    config = await settings.load(project);
+  config.scenarios[0].seedCount = 2;
+  config.comparedStrategies = ["goal"];
+  await settings.save(project, config);
+  project.versions.push({
+    id: "version-baseline",
+    name: "研究成本 8",
+    model: structuredClone(project.model),
+    createdAt: new Date().toISOString(),
+  });
+  project.model.actions[1].costs[0].value = 16;
+  await repo.saveWorkspace(workspace(project));
+  const core = await readFile(f.projectFile(project.path), "utf8"),
+    settingsText = await readFile(join(project.path, f.PLAYTEST_FILE), "utf8");
+  const versions = f.prepareComparison(project, config, {
+    mode: "versions",
+    baseline: "version-baseline",
+    candidate: "draft",
+  });
+  const scan = f.prepareComparison(project, config, {
+    mode: "parameter",
+    baseline: "version-baseline",
+    scan: {
+      parameter: { kind: "cost", action: "study", index: 0 },
+      from: 4,
+      to: 12,
+      step: 4,
+    },
+  });
+  for (const e of [versions, scan]) {
+    e.samples.push(f.nextSample(e));
+    e.samples.push(f.nextSample(e));
+    await history.save(project, e);
+  }
+  assert.equal(await readFile(f.projectFile(project.path), "utf8"), core);
+  assert.equal(
+    await readFile(join(project.path, f.PLAYTEST_FILE), "utf8"),
+    settingsText,
+  );
+  const replaced = await repo.reset(project, "combination");
+  await host.close(false);
+  const restarted = await createProjectHost(host.root);
+  t.after(() => restarted.close());
+  const reopened = (
+    await f.createProjectRepository(restarted.data, restarted.files).list()
+  ).projects[0];
+  assert.equal(reopened.id, replaced.project.id);
+  const h2 = f.createHistoryRepository(restarted.data, restarted.files),
+    loaded = await h2.list(reopened);
+  assert.deepEqual(loaded.errors, []);
+  assert.equal(loaded.experiments.length, 2);
+  for (const e of loaded.experiments) {
+    assert.equal(e.status, "interrupted");
+    let sample;
+    while ((sample = f.nextSample(e))) {
+      e.samples.push(sample);
+      await h2.save(reopened, e);
+    }
+    e.status = "completed";
+    await h2.save(reopened, e);
+    assert.equal(e.samples.length, f.experimentTotal(e));
+    assert.equal(
+      new Set(e.samples.map((s) => `${s.variant}:${s.policy}:${s.seed}`)).size,
+      e.samples.length,
+    );
+    for (const s of e.samples)
+      assert.deepEqual(
+        f.runLog(
+          f.restoreLog(
+            f.sampleModel(e, s),
+            s.seed,
+            e.players,
+            s.log,
+            f.initialOf(e.setup.scenario),
+          ),
+        ),
+        s.log,
+      );
+    assert.ok(
+      f.pairedDifference(e, e.comparison.variants[1].id, "goal").count === 2,
+    );
+    assert.notDeepEqual(f.sampleModel(e, e.samples[0]), reopened.model);
+  }
+  const final = await h2.list(reopened);
+  assert.equal(
+    final.experiments.filter((e) => e.status === "completed").length,
+    2,
+  );
+  assert.equal(
+    await readFile(join(reopened.path, f.PLAYTEST_FILE), "utf8"),
+    settingsText,
+  );
+});
+
+test("blank project creation writes no example content and unfinished drafts reopen normally", async (t) => {
+  const env = await fixture(t),
+    project = await env.repo.create({
+      name: "空白策划",
+      parent: env.projectsPath,
+      source: "blank",
+    });
+  assert.equal(project.exampleId, null);
+  assert.equal(project.simulator, null);
+  for (const key of [
+    "fields",
+    "capabilities",
+    "actions",
+    "goals",
+    "collections",
+  ])
+    assert.deepEqual(project.model[key], []);
+  project.brief = { coreLoop: "尝试自己的循环", question: "最短几步结束？" };
+  project.model.description = "自己定义目标";
+  await env.repo.saveWorkspace(workspace(project));
+  const document = JSON.parse(
+    await readFile(f.projectFile(project.path), "utf8"),
+  );
+  assert.equal(document.project.format, "gameplay-project-v4");
+  assert.equal(document.project.exampleId, null);
+  assert.equal(document.project.templateId, undefined);
+  const listed = await env.repo.list();
+  assert.deepEqual(listed.errors, []);
+  assert.deepEqual(listed.projects[0], project);
+  assert.ok(f.modelReadiness(project.model, project.simulator).length);
+  const legacy = structuredClone(document);
+  legacy.project.format = "gameplay-project-v2";
+  legacy.project.templateId = null;
+  delete legacy.project.exampleId;
+  delete legacy.project.simulator;
+  delete legacy.project.brief;
+  assert.doesNotThrow(() => f.parseProjectDocument(legacy, project));
+});
+test("hand-authored blank games persist simulator-aware runs and experiments across host restarts", async (t) => {
+  const host = await createProjectHost();
+  t.after(() => rm(host.root, { recursive: true, force: true }));
+  const repo = f.createProjectRepository(host.data, host.files),
+    history = f.createHistoryRepository(host.data, host.files),
+    settings = f.createPlaytestRepository(host.data, host.files),
+    ids = [];
+  for (const id of ["resource-turns", "card-combination"]) {
+    const project = await repo.create({
+      name: id,
+      parent: host.projectsPath,
+      source: "blank",
+      simulator: { id, version: 1 },
+    });
+    project.model.fields.push({
+      id: "my-score",
+      name: "心愿",
+      description: "",
+      initial: 0,
+      role: "progress",
+    });
+    project.model.actions.push({
+      id: "my-action",
+      name: "实现心愿",
+      description: "",
+      costs: [],
+      requires: [],
+      effects: [{ type: "add", field: "my-score", value: 3 }],
+    });
+    project.model.goals.push({
+      id: "my-goal",
+      name: "满足心愿",
+      description: "",
+      field: "my-score",
+      threshold: 6,
+    });
+    if (id === "card-combination") {
+      project.model.collections.push({
+        id: "my-deck",
+        name: "心愿牌",
+        handSize: 1,
+        maxSelect: 1,
+        cards: [
+          { id: "my-one", name: "远行", group: "旅行", value: 2 },
+          { id: "my-two", name: "相遇", group: "相识", value: 4 },
+        ],
+      });
+      project.model.actions[0].effects = [
+        {
+          type: "combination",
+          collection: "my-deck",
+          field: "my-score",
+          multiplierValue: 1,
+          pairBonus: 0,
+        },
+      ];
+    }
+    project.versions.push({
+      id: "version-original",
+      name: "初始规则",
+      model: structuredClone(project.model),
+      simulator: structuredClone(project.simulator),
+      createdAt: project.createdAt,
+    });
+    await repo.saveWorkspace(workspace(project));
+    const config = await settings.load(project);
+    config.scenarios[0].seedCount = 1;
+    config.comparedStrategies = ["goal"];
+    await settings.save(project, config);
+    const trial = f.newTrial(
+      project.id,
+      project.model,
+      42,
+      1,
+      f.selectedSetup(config, project.model),
+      project.simulator,
+    );
+    trial.run = f.advanceSimulatedRun(trial.run, f.trialChoice(trial).choice);
+    trial.drivers.push("manual");
+    await history.save(project, trial);
+    // Changing the current selection is a draft edit; old runs keep the recorded simulator.
+    project.simulator = {
+      id: id === "resource-turns" ? "card-combination" : "resource-turns",
+      version: 1,
+    };
+    await repo.saveWorkspace(workspace(project));
+    ids.push({ project: project.id, simulator: id });
+  }
+  await host.close(false);
+  const restarted = await createProjectHost(host.root);
+  t.after(() => restarted.close());
+  const repo2 = f.createProjectRepository(restarted.data, restarted.files),
+    h2 = f.createHistoryRepository(restarted.data, restarted.files),
+    cfg2 = f.createPlaytestRepository(restarted.data, restarted.files),
+    workspace2 = await repo2.list();
+  assert.deepEqual(workspace2.errors, []);
+  assert.equal(workspace2.projects.length, 2);
+  for (const project of workspace2.projects) {
+    const record = ids.find((i) => i.project === project.id),
+      hist = await h2.list(project);
+    assert.deepEqual(hist.errors, []);
+    let trial = hist.trials[0];
+    assert.equal(trial.run.simulator.id, record.simulator);
+    assert.notEqual(project.simulator.id, record.simulator);
+    assert.ok(f.modelReadiness(project.model, project.simulator).length);
+    trial = {
+      ...trial,
+      run: f.advanceSimulatedRun(trial.run, f.trialChoice(trial).choice),
+      drivers: [...trial.drivers, "manual"],
+    };
+    await h2.save(project, trial);
+    assert.equal(f.current(trial.run).outcome.kind, "won");
+    const config = await cfg2.load(project),
+      experiment = f.prepareComparison(project, config, {
+        mode: "parameter",
+        baseline: "version-original",
+        scan: {
+          parameter: {
+            kind: "effect",
+            action: "my-action",
+            index: 0,
+            property:
+              record.simulator === "card-combination"
+                ? "multiplierValue"
+                : "value",
+          },
+          from: 1,
+          to: 2,
+          step: 1,
+        },
+      });
+    let sample;
+    while ((sample = f.nextSample(experiment))) experiment.samples.push(sample);
+    experiment.status = "completed";
+    await h2.save(project, experiment);
+    const reloaded = await h2.list(project);
+    assert.deepEqual(reloaded.errors, []);
+    assert.equal(reloaded.experiments[0].format, "gameplay-experiment-v4");
+    assert.equal(reloaded.experiments[0].simulator.id, record.simulator);
+    assert.equal(project.exampleId, null);
+  }
+});
+
+test("game types create different editable schemas and reject incompatible sources before touching files", async (t) => {
+  const e = await fixture(t);
+  const p = await e.repo.create({
+    name: "空白叙事",
+    parent: e.projectsPath,
+    gameType: "narrative",
+    direction: null,
+    source: "blank",
+  });
+  assert.equal(p.model.format, "gameplay-narrative-v1");
+  assert.equal(p.model.fields, undefined);
+  assert.deepEqual(p.model.nodes, []);
+  assert.equal(p.simulator, null);
+  assert.equal(p.direction, null);
+  assert.deepEqual((await e.repo.reload(p)).model, p.model);
+  await assert.rejects(
+    e.repo.create({
+      name: "错误来源",
+      parent: e.projectsPath,
+      gameType: "narrative",
+      source: "example",
+      exampleId: "combination",
+    }),
+    /不兼容/,
+  );
+  await assert.rejects(
+    e.repo.create({
+      name: "错误方向",
+      parent: e.projectsPath,
+      gameType: "card",
+      direction: "branching-story",
+    }),
+    /不兼容/,
+  );
+  assert.deepEqual((await readdir(e.projectsPath)).sort(), ["空白叙事"]);
+});
+test("narrative rules, versions, and independent run history survive production host restarts", async (t) => {
+  const host = await createProjectHost();
+  t.after(() => rm(host.root, { recursive: true, force: true }));
+  const repo = f.createProjectRepository(host.data, host.files),
+    history = f.createNarrativeHistory(host.data, host.files);
+  const p = await repo.create({
+    name: "原创剧情",
+    parent: host.projectsPath,
+    gameType: "narrative",
+    direction: "branching-story",
+  });
+  p.model.characters.push({
+    id: "guide",
+    name: "向导",
+    description: "知道出口",
+  });
+  p.model.variables.push({
+    id: "key",
+    name: "持有钥匙",
+    type: "boolean",
+    initial: false,
+  });
+  p.model.startNode = "start";
+  p.model.nodes = [
+    {
+      id: "start",
+      title: "门前",
+      text: "向导递给你钥匙。",
+      speaker: "guide",
+      ending: false,
+      choices: [
+        {
+          id: "take",
+          label: "收下钥匙",
+          target: "exit",
+          conditions: [],
+          effects: [{ variable: "key", operation: "set", value: true }],
+        },
+      ],
+    },
+    {
+      id: "exit",
+      title: "离开",
+      text: "你推开了门。",
+      speaker: "",
+      ending: true,
+      choices: [],
+    },
+  ];
+  p.versions.push({
+    id: "story-v1",
+    name: "初稿",
+    createdAt: "now",
+    model: structuredClone(p.model),
+    gameType: p.gameType,
+    direction: p.direction,
+    simulator: p.simulator,
+    brief: structuredClone(p.brief),
+  });
+  await repo.saveWorkspace(workspace(p));
+  let r = f.newStoryRecord(p.id, p.model);
+  await history.save(p, r);
+  p.model.nodes[1].text = "新的草稿结局";
+  await repo.saveWorkspace(workspace(p));
+  await host.close(false);
+  const restarted = await createProjectHost(host.root);
+  t.after(() => restarted.close());
+  const next = f.createProjectRepository(restarted.data, restarted.files),
+    h = f.createNarrativeHistory(restarted.data, restarted.files),
+    loaded = (await next.list()).projects[0];
+  assert.equal(loaded.model.nodes[1].text, "新的草稿结局");
+  assert.equal(loaded.versions[0].model.nodes[1].text, "你推开了门。");
+  const records = await h.list(loaded);
+  assert.deepEqual(records.errors, []);
+  r = f.chooseStory(records.records[0], "take");
+  await h.save(loaded, r);
+  assert.equal(r.final.outcome, "ending");
+  assert.equal(r.final.values.key, true);
+  assert.equal(r.model.nodes[1].text, "你推开了门。");
+  assert.equal((await h.list(loaded)).records[0].decisions.length, 1);
+  const text = JSON.parse(await readFile(f.projectFile(loaded.path), "utf8"));
+  assert.equal(text.project.gameType, "narrative");
+  assert.equal(text.project.direction, "branching-story");
+  assert.equal(text.flow, undefined);
+  const index = await restarted.data.storage.getItem(f.LIBRARY_KEY);
+  assert.equal(JSON.stringify(index).includes("characters"), false);
+});
+test("narrative history protects external changes and isolates corrupted or unsupported records", async (t) => {
+  const e = await fixture(t),
+    p = await e.repo.create({
+      name: "记录检查",
+      parent: e.projectsPath,
+      gameType: "narrative",
+      direction: "branching-story",
+    });
+  p.model.startNode = "start";
+  p.model.nodes = [
+    {
+      id: "start",
+      title: "结局",
+      text: "故事结束。",
+      speaker: "",
+      ending: true,
+      choices: [],
+    },
+  ];
+  await e.repo.saveWorkspace(workspace(p));
+  const h = f.createNarrativeHistory(e.data, e.files),
+    r = f.newStoryRecord(p.id, p.model);
+  await h.save(p, r);
+  const path = join(p.path, "runs", r.id + ".json");
+  const external = structuredClone(r);
+  external.updatedAt = "外部变更";
+  await externalWrite(path, external);
+  r.updatedAt = "旧页面的新日期";
+  await assert.rejects(h.save(p, r), /外部修改|FILE_CHANGED/);
+  assert.equal(JSON.parse(await readFile(path, "utf8")).updatedAt, "外部变更");
+  await writeFile(join(p.path, "runs", "broken.json"), "broken");
+  const unsupported = structuredClone(r);
+  unsupported.id = "unsupported";
+  unsupported.simulator.version = 2;
+  await writeFile(
+    join(p.path, "runs", "unsupported.json"),
+    JSON.stringify(unsupported),
+  );
+  const result = await h.list(p);
+  assert.equal(result.records.length, 1);
+  assert.equal(result.errors.length, 2);
+  assert.equal(
+    await readFile(join(p.path, "runs", "broken.json"), "utf8"),
+    "broken",
+  );
+});
+
+test("oversized narrative version collections cannot make the project unreadable", async (t) => {
+  const e = await fixture(t),
+    p = await e.repo.create({
+      name: "容量边界",
+      parent: e.projectsPath,
+      gameType: "narrative",
+      direction: "branching-story",
+    }),
+    before = await readFile(f.projectFile(p.path), "utf8");
+  p.model.startNode = "scene-0";
+  p.model.nodes = Array.from({ length: 80 }, (_, i) => ({
+    id: `scene-${i}`,
+    title: `剧情${i}`,
+    text: "文".repeat(7500),
+    speaker: "",
+    ending: true,
+    choices: [],
+  }));
+  p.versions = Array.from({ length: 3 }, (_, i) => ({
+    id: `v-${i}`,
+    name: `版本${i}`,
+    createdAt: "now",
+    model: structuredClone(p.model),
+    gameType: "narrative",
+    direction: "branching-story",
+    simulator: p.simulator,
+  }));
+  await assert.rejects(e.repo.saveWorkspace(workspace(p)), /4 MiB/);
+  assert.equal(await readFile(f.projectFile(p.path), "utf8"), before);
+  assert.deepEqual((await e.repo.reload(p)).model.nodes, []);
 });

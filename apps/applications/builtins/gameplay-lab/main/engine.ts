@@ -1,3 +1,4 @@
+import type { SimulatorRef } from "./simulators";
 import {
   copy,
   isNumber,
@@ -7,13 +8,15 @@ import {
   type Effect,
   type Model,
 } from "./model";
+import {
+  basePolicyNames,
+  initialIssues,
+  type BasePolicy,
+  type InitialPlayer,
+} from "./playtest";
 
-export type Policy = "goal" | "growth" | "random";
-export const policyNames: Record<Policy, string> = {
-  goal: "目标优先",
-  growth: "先发展再推进",
-  random: "随机合法",
-};
+export type Policy = BasePolicy;
+export const policyNames = basePolicyNames;
 export interface Pile {
   draw: Card[];
   hand: Card[];
@@ -51,9 +54,11 @@ export interface Entry {
   state: State;
 }
 export interface Run {
+  simulator?: SimulatorRef;
   model: Model;
   seed: number;
   entries: Entry[];
+  initial?: InitialPlayer[];
 }
 export const current = (run: Run) => run.entries[run.entries.length - 1].state;
 export const actor = (state: State) => state.players[state.actor];
@@ -94,7 +99,12 @@ function checkGoals(model: Model, state: State) {
       reason: "已达到目标。相同检查点同时达成时记录共同结果。",
     };
 }
-export function startRun(input: Model, seed = 42, playerCount = 1): Run {
+export function startRun(
+  input: Model,
+  seed = 42,
+  playerCount = 1,
+  initial?: InitialPlayer[],
+): Run {
   const issues = validateModel(input);
   if (issues.length) throw new Error(issues.map((i) => i.message).join(" "));
   if (
@@ -105,6 +115,11 @@ export function startRun(input: Model, seed = 42, playerCount = 1): Run {
   )
     throw new Error("种子或参与者数量无效。");
   const model = copy(input);
+  if (
+    initial &&
+    (initial.length !== playerCount || initialIssues(initial, model).length)
+  )
+    throw new Error("参与者的初始配置与规则不匹配。");
   const state: State = {
     players: [],
     actor: 0,
@@ -123,6 +138,17 @@ export function startRun(input: Model, seed = 42, playerCount = 1): Run {
         .map((c) => c.id),
       collections: {},
     };
+    if (initial) {
+      player.name = initial[i].name;
+      Object.assign(player.values, initial[i].values);
+      player.capabilities = model.capabilities
+        .filter((c) =>
+          Object.hasOwn(initial[i].capabilities, c.id)
+            ? initial[i].capabilities[c.id]
+            : c.initial,
+        )
+        .map((c) => c.id);
+    }
     for (const c of model.collections) {
       const pile: Pile = {
         draw: shuffle(copy(c.cards), state),
@@ -138,6 +164,7 @@ export function startRun(input: Model, seed = 42, playerCount = 1): Run {
   return {
     model,
     seed,
+    ...(initial ? { initial: copy(initial) } : {}),
     entries: [
       {
         choice: null,
@@ -184,6 +211,14 @@ export function combinationScore(
     bonus: pairs * pairBonus,
     score: (base + pairs * pairBonus) * multiplier,
   };
+}
+export function effectMultiplier(
+  effect: Extract<Effect, { type: "combination" }>,
+  player: PlayerState,
+) {
+  return effect.multiplier !== undefined
+    ? player.values[effect.multiplier]
+    : (effect.multiplierValue ?? 1);
 }
 function change(
   player: PlayerState,
@@ -244,11 +279,11 @@ function applyEffect(
     const selected = ids.map((id) => pile.hand.find((c) => c.id === id)!);
     const result = combinationScore(
       selected,
-      player.values[effect.multiplier],
+      effectMultiplier(effect, player),
       effect.pairBonus,
     );
     notes.push(
-      `组合：${selected.map((c) => c.name).join("、")}；（基础 ${result.base} + 同类奖励 ${result.bonus}）× 倍率 ${player.values[effect.multiplier]} = ${result.score}`,
+      `组合：${selected.map((c) => c.name).join("、")}；（基础 ${result.base} + 同类奖励 ${result.bonus}）× 倍率 ${effectMultiplier(effect, player)} = ${result.score}`,
     );
     change(player, effect.field, result.score, model, notes);
     pile.hand = pile.hand.filter((c) => !ids.includes(c.id));
@@ -382,7 +417,7 @@ export function choose(run: Run, policy: Policy): Choice {
       cards: bestCards(
         p.collections[c.id].hand,
         c.maxSelect,
-        p.values[e.multiplier],
+        effectMultiplier(e, p),
         e.pairBonus,
       ),
     };
@@ -390,10 +425,14 @@ export function choose(run: Run, policy: Policy): Choice {
   return { action: action.id };
 }
 export function replay(run: Run, choices: Choice[]): Run {
-  return choices.reduce(
-    step,
-    startRun(run.model, run.seed, run.entries[0].state.players.length),
+  const initial = startRun(
+    run.model,
+    run.seed,
+    run.entries[0].state.players.length,
+    run.initial,
   );
+  if (run.simulator) initial.simulator = copy(run.simulator);
+  return choices.reduce(step, initial);
 }
 export function simulate(
   model: Model,

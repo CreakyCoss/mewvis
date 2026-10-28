@@ -1,3 +1,7 @@
+import {
+  NativeSelect,
+  NativeSelectOption,
+} from "design-system/components/ui/native-select";
 import { ArrowUp, ArrowDown, Plus, X } from "lucide-react";
 import { type Effect, type Model } from "./model";
 export const amount = (value: string, min = 0, max = 1_000_000) =>
@@ -25,12 +29,12 @@ export function EffectsEditor({
   const options = (items: { id: string; name: string }[], value: string) => (
     <>
       {!items.some((i) => i.id === value) && (
-        <option value={value}>请选择定义</option>
+        <NativeSelectOption value={value}>请选择定义</NativeSelectOption>
       )}
       {items.map((i) => (
-        <option key={i.id} value={i.id}>
+        <NativeSelectOption key={i.id} value={i.id}>
           {i.name}
-        </option>
+        </NativeSelectOption>
       ))}
     </>
   );
@@ -75,13 +79,16 @@ export function EffectsEditor({
             <>
               <label className="form-field">
                 增加到
-                <select
+                <NativeSelect
                   aria-label={`${label} ${i + 1} 目标状态`}
                   value={e.field}
-                  onChange={(ev) => patch(i, { ...e, field: ev.target.value })}
+                  onChange={(event) =>
+                    patch(i, { ...e, field: event.target.value })
+                  }
+                  size="sm"
                 >
                   {options(model.fields, e.field)}
-                </select>
+                </NativeSelect>
               </label>
               <label className="form-field">
                 数量 / 系数
@@ -98,79 +105,115 @@ export function EffectsEditor({
               </label>
               <label className="form-field">
                 乘以状态
-                <select
+                <NativeSelect
                   aria-label={`${label} ${i + 1} 来源状态`}
                   value={e.from ?? ""}
-                  onChange={(ev) => {
+                  onChange={(event) => {
                     const { from: _, ...base } = e;
                     patch(
                       i,
-                      ev.target.value
-                        ? { ...base, from: ev.target.value }
+                      event.target.value
+                        ? { ...base, from: event.target.value }
                         : base,
                     );
                   }}
+                  size="sm"
                 >
-                  <option value="">固定数量</option>
+                  <NativeSelectOption value="">固定数量</NativeSelectOption>
                   {model.fields.map((f) => (
-                    <option key={f.id} value={f.id}>
+                    <NativeSelectOption key={f.id} value={f.id}>
                       {f.name}
-                    </option>
+                    </NativeSelectOption>
                   ))}
-                </select>
+                </NativeSelect>
               </label>
             </>
           )}
           {e.type === "grant" && (
             <label className="form-field">
               获得能力
-              <select
+              <NativeSelect
                 aria-label={`${label} ${i + 1} 能力`}
                 value={e.capability}
-                onChange={(ev) =>
-                  patch(i, { ...e, capability: ev.target.value })
+                onChange={(event) =>
+                  patch(i, { ...e, capability: event.target.value })
                 }
+                size="sm"
               >
                 {options(model.capabilities, e.capability)}
-              </select>
+              </NativeSelect>
             </label>
           )}
           {e.type === "combination" && (
             <>
               <label className="form-field">
-                使用集合
-                <select
-                  aria-label="计分集合"
+                使用牌池
+                <NativeSelect
+                  aria-label="计分牌池"
                   value={e.collection}
-                  onChange={(ev) =>
-                    patch(i, { ...e, collection: ev.target.value })
+                  onChange={(event) =>
+                    patch(i, { ...e, collection: event.target.value })
                   }
+                  size="sm"
                 >
                   {options(model.collections, e.collection)}
-                </select>
+                </NativeSelect>
               </label>
               <label className="form-field">
                 分数写入
-                <select
+                <NativeSelect
                   aria-label="计分目标状态"
                   value={e.field}
-                  onChange={(ev) => patch(i, { ...e, field: ev.target.value })}
+                  onChange={(event) =>
+                    patch(i, { ...e, field: event.target.value })
+                  }
+                  size="sm"
                 >
                   {options(model.fields, e.field)}
-                </select>
+                </NativeSelect>
               </label>
               <label className="form-field">
                 倍率状态
-                <select
+                <NativeSelect
                   aria-label="计分倍率状态"
-                  value={e.multiplier}
-                  onChange={(ev) =>
-                    patch(i, { ...e, multiplier: ev.target.value })
-                  }
+                  value={e.multiplier ?? ""}
+                  onChange={(event) => {
+                    const { multiplier: _, multiplierValue: __, ...base } = e;
+                    patch(
+                      i,
+                      event.target.value
+                        ? { ...base, multiplier: event.target.value }
+                        : { ...base, multiplierValue: 1 },
+                    );
+                  }}
+                  size="sm"
                 >
-                  {options(model.fields, e.multiplier)}
-                </select>
+                  <NativeSelectOption value="">固定倍率</NativeSelectOption>
+                  {model.fields.map((f) => (
+                    <NativeSelectOption key={f.id} value={f.id}>
+                      {f.name}
+                    </NativeSelectOption>
+                  ))}
+                </NativeSelect>
               </label>
+              {e.multiplier === undefined && (
+                <label className="form-field">
+                  固定倍率
+                  <input
+                    aria-label="固定倍率"
+                    type="number"
+                    min="0"
+                    max="1000000"
+                    value={e.multiplierValue ?? 1}
+                    onChange={(ev) =>
+                      patch(i, {
+                        ...e,
+                        multiplierValue: amount(ev.target.value),
+                      })
+                    }
+                  />
+                </label>
+              )}
               <label className="form-field">
                 每对同类奖励
                 <input
@@ -235,10 +278,8 @@ export function EffectsEditor({
                   type: "combination",
                   collection: model.collections[0].id,
                   field: model.fields[0].id,
-                  multiplier:
-                    model.fields.find((f) => f.role === "rate")?.id ??
-                    model.fields[0].id,
-                  pairBonus: 15,
+                  multiplierValue: 1,
+                  pairBonus: 0,
                 },
               ])
             }

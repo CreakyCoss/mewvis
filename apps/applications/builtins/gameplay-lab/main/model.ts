@@ -23,7 +23,8 @@ export type Effect =
       type: "combination";
       collection: string;
       field: string;
-      multiplier: string;
+      multiplier?: string;
+      multiplierValue?: number;
       pairBonus?: number;
     };
 export interface Action {
@@ -180,7 +181,14 @@ export function validateModel(input: unknown, draft = false): Issue[] {
       else if (e.type === "combination" && scoring) {
         ref(e.collection, collections, path);
         ref(e.field, fields, path);
-        ref(e.multiplier, fields, path);
+        if (e.multiplier !== undefined) ref(e.multiplier, fields, path);
+        if (
+          e.multiplierValue !== undefined &&
+          (!isNumber(e.multiplierValue) ||
+            e.multiplierValue < 0 ||
+            e.multiplier !== undefined)
+        )
+          add(path, "固定倍率需为非负整数，并且只能选择一种倍率来源。");
         if (
           e.pairBonus !== undefined &&
           (!isNumber(e.pairBonus) || e.pairBonus < 0)
