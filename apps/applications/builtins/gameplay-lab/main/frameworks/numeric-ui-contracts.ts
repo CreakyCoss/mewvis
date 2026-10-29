@@ -7,6 +7,8 @@ import type { ReadinessIssue } from "../shared/contracts";
 import type { Trial } from "../validation/records/records";
 /** Only numerical workspaces use this adapter; unrelated games have their own workspace and state. */
 export type NumericView =
+  | "composition"
+  | `module/${string}`
   | "cards"
   | "decks"
   | "scoring"
@@ -31,7 +33,9 @@ export interface NumericSceneProps {
   newGameDisabled: boolean;
 }
 export interface NumericFrameworkUi {
-  navigation: readonly { id: NumericView; name: string; icon: LucideIcon }[];
+  navigation(
+    model: Model,
+  ): readonly { id: NumericView; name: string; icon: LucideIcon }[];
   contentView(model: Model, location: ContentLocation): NumericView | null;
   issueView(issue: ReadinessIssue): NumericView;
   renderDesign(props: {

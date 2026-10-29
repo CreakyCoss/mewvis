@@ -18,6 +18,7 @@ export interface SimulatorDefinition {
   validate(model: Model): ReadinessIssue[];
   initialize: typeof startRun;
   advance: typeof step;
+  prepareDecision?(run: Run): Run;
 }
 export const simulators: readonly SimulatorDefinition[] = [resource, cardV2];
 export const simulatorDefinition = (ref: SimulatorRef | null | undefined) =>
@@ -108,3 +109,5 @@ export function advanceSimulatedRun(run: Run, choice: Choice): Run {
   if (!simulator) throw new Error("本局使用的模拟器版本不可用，原记录已保留。");
   return simulator.advance(run, choice);
 }
+export const prepareDecisionRun = (run: Run): Run =>
+  simulatorDefinition(run.simulator)?.prepareDecision?.(run) ?? run;

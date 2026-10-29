@@ -22,7 +22,7 @@ import { type AnyProject, type Project } from "../model";
 import { projectDirectory, projectFile } from "../paths";
 import { projectRepository } from "../repository";
 import { FrameworkPicker } from "./FrameworkPicker";
-import { doudizhuPresets } from "../../../frameworks/doudizhu/composition/presets";
+import { frameworkCreation } from "../../../frameworks/creation";
 
 const message = (error: unknown) =>
   error instanceof Error ? error.message : String(error);
@@ -38,11 +38,15 @@ export function ProjectCreateForm({
   beforeCreate(): Promise<void>;
 }) {
   const [name, setName] = useState("");
-  const [presetId, setPresetId] = useState("classic-doudizhu");
+  const [presetId, setPresetId] = useState("");
   const [gameType, setGameType] = useState<GameTypeId>("card");
   const [direction, setDirection] = useState<FrameworkId | null>(
     "card-scoring",
   );
+  const creation = frameworkCreation(direction);
+  const selectedPreset = creation?.presets.some((p) => p.id === presetId)
+    ? presetId
+    : creation?.presets[0]?.id;
   const availableExamples = templates.filter(
     (t) =>
       frameworkForSimulator(exampleSimulator(t.id as TemplateId)) === direction,
@@ -103,7 +107,9 @@ export function ProjectCreateForm({
         direction,
         ...(source === "example" ? { exampleId } : {}),
         simulator,
-        ...(direction === "doudizhu" ? { presetId } : {}),
+        ...(source === "blank" && selectedPreset
+          ? { presetId: selectedPreset }
+          : {}),
       });
       if (project) created(project);
     } catch (cause) {
@@ -212,23 +218,27 @@ export function ProjectCreateForm({
           simulator={simulator}
           change={chooseRuntime}
         />
-        {direction === "doudizhu" && (
+        {source === "blank" && !!creation?.presets.length && (
           <label className="form-field">
             起点预设
             <NativeSelect
               aria-label="起点预设"
-              value={presetId}
+              value={selectedPreset}
               onChange={(event) => setPresetId(event.target.value)}
               size="sm"
             >
-              {doudizhuPresets.map((preset) => (
+              {creation.presets.map((preset) => (
                 <NativeSelectOption key={preset.id} value={preset.id}>
                   {preset.name}
                 </NativeSelectOption>
               ))}
             </NativeSelect>
             <span className="hint">
-              经典预设与自定义组合使用同一套结构。创建后可在“玩法组合”中增减兼容模块、调整内容。
+              {
+                creation.presets.find((preset) => preset.id === selectedPreset)
+                  ?.description
+              }{" "}
+              创建后可调整规则、模块与自己的内容。
             </span>
           </label>
         )}
@@ -259,9 +269,7 @@ export function ProjectCreateForm({
         )}
         <p className="hint">
           {source === "blank"
-            ? direction === "doudizhu"
-              ? "保留固定 54 张牌和叫分流程，直接调整自己的出牌及结算规则。"
-              : "保留框架所需结构，从自己的内容开始设计，不添加示例卡牌或剧情。"
+            ? (creation?.hint ?? "保留框架所需结构，从自己的内容开始设计。")
             : "示例方案将复制为自己的规则，之后的修改保存在项目目录。"}
         </p>
         <footer>

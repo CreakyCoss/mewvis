@@ -39,7 +39,7 @@ export function CardScoringEditor({
           <div>
             <h1>卡牌</h1>
             <p>
-              设计牌名、分组与基础分。相同分组按两张组成一对，配对奖励在“计分与回合”中设置。
+              设计牌名、分组与基础分。相同分组按两张组成一对，配对奖励在启用模块后出现的“配对奖励”中设置。
             </p>
           </div>
         </div>
@@ -150,21 +150,6 @@ export function CardScoringEditor({
                   </NativeSelectOption>
                 ))}
               </NativeSelect>
-            </label>
-            <label className="form-field">
-              每对同组卡牌奖励
-              <input
-                aria-label={`配对奖励 ${index + 1}`}
-                type="number"
-                min={0}
-                max={1000000}
-                value={rule.effect.pairBonus ?? 15}
-                onChange={(event) =>
-                  patchRule(rule.action.id, (rule) => {
-                    rule.effect.pairBonus = amount(event.target.value);
-                  })
-                }
-              />
             </label>
             <label className="form-field">
               倍率来源

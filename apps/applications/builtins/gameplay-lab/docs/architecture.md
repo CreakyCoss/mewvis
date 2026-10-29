@@ -13,7 +13,8 @@ main/
       NumericWorkspace.tsx          # 数值方案保存、导航、版本与试玩会话协调
       turn/                         # 通用高级定义编辑与数值记录页面
   frameworks/
-    composition/                    # 通用组合契约、兼容性解析、运行与界面装配
+    creation.ts                     # 框架创建、预设与示例准备的统一注册
+    composition/                    # 通用组合契约、兼容性解析、运行与界面装配及组合编辑页
     contracts.ts / catalog.ts       # 类型与框架登记，不依赖 React
     runtime-contracts.ts            # 各框架保留自身模型、状态、命令和玩家视图
     workspaces.tsx                  # 框架工作区登记，应用入口不分派玩法页面
@@ -21,6 +22,8 @@ main/
     numeric-ui-contracts.ts          # 数值工作区的专属页面/场景适配约定
     numeric-ui.ts                   # 数值框架界面登记
     card-scoring/
+      composition/                  # 计分骨架、预设、运行、私有视图及界面装配
+      extensions/pair-reward/        # 配对奖励的规则贡献、编辑与牌桌区域
       definition.ts                 # 组合计分范围及模型、模拟器绑定
       structure.ts                  # 必要得分/出牌/目标结构，不含示例卡牌
       editor/                       # 专属概览、卡牌、牌库、计分与回合配置
@@ -41,7 +44,7 @@ main/
       Workspace.tsx                 # 保存与对局会话协调
     branching-story/                # 条件叙事的模型、执行、编辑、阅读及记录
   domains/
-    card/                           # 卡牌定义、牌库、实体牌、选牌与校验
+    card/                           # 卡牌定义、牌库、实体牌、选牌、共享洗牌与校验
     turn/                           # 数值状态、行动、目标、结算及引用索引
   validation/
     playtest/                       # 场景、自动玩家、配置与编辑
@@ -67,7 +70,7 @@ main/
 - 普通表单直接使用宿主 `NativeSelect`。不修改宿主或设计系统组件；游戏场景的样式限制在自身命名空间内。
 - `styles/index.css` 是唯一样式入口，显式引入框架和共享窗口样式。运行窗口处理宿主安全区，窄屏保留 44px 操作高度。斗地主在关闭窗口、历史回放、检查面板或操作失败时暂停自动对手。
 
-斗地主拥有独立的 `DoudizhuModel / DoudizhuState / DoudizhuCommand / DoudizhuView`，实现 `GameRuntime`。组合计分和资源发展继续使用数值能力，界面通过数值适配器接入。条件叙事使用既有独立模型、执行与阅读工作区。
+斗地主拥有独立的 `DoudizhuModel / DoudizhuState / DoudizhuCommand / DoudizhuView`，实现 `GameRuntime`。组合计分通过通用装配器接入数值核心，配对奖励按注册模块贡献有效规则，界面通过数值适配器装配；资源发展继续使用已有数值能力。条件叙事使用既有独立模型、执行与阅读工作区。
 
 `GameRuntime` 约定创建、校验、推进、玩家视图、合法候选和自动决策，不要求不同框架共享状态字段。数值验证、策略参数扫描仍只服务数值框架，斗地主当前提供人工试玩、基础自动对手及历史回放。
 
@@ -103,3 +106,5 @@ pnpm --filter @mewvis/gameplay-lab preview:packed
 ```
 
 隔离预览使用生产 SDK、文件与数据库服务，目录选择器为测试替身，不访问真实用户项目。基础编辑能力与剩余缺口见[能力盘点](foundations.md)。
+
+创建表单只读取 `frameworks/creation.ts` 的预设与描述，项目仓库通过相同注册创建或准备示例。斗地主和组合计分共用 `composition/Editor.tsx`，各自提供 `CompositionDesign`。

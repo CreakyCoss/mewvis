@@ -1,22 +1,16 @@
-import { blankNarrative } from "./branching-story/model";
-import { createCardScoringModel } from "./card-scoring/structure";
 import type { FrameworkId } from "./contracts";
-import { createDoudizhuModel } from "./doudizhu/model";
-import { blankModel } from "./numeric-runtime";
-
+import { frameworkCreation } from "./creation";
 export function createFrameworkModel(
   id: FrameworkId,
   name: string,
   presetId?: string,
 ) {
-  switch (id) {
-    case "doudizhu":
-      return createDoudizhuModel(name, presetId);
-    case "card-scoring":
-      return createCardScoringModel(name);
-    case "resource-development":
-      return blankModel(name);
-    case "branching-story":
-      return blankNarrative(name);
-  }
+  const registration = frameworkCreation(id);
+  if (!registration) throw new Error("玩法框架不受支持。");
+  if (
+    presetId !== undefined &&
+    !registration.presets.some((preset) => preset.id === presetId)
+  )
+    throw new Error("预设不受支持或与玩法框架不兼容。");
+  return registration.create(name, presetId);
 }

@@ -1,3 +1,4 @@
+import { effectiveCardScoringRules } from "../composition/runtime";
 import type { CardModel } from "../../../domains/card/model";
 import {
   actionReason,
@@ -15,7 +16,9 @@ export function scoringPreview(
   actionId: string,
   selected: string[],
 ) {
-  const rule = scoringRules(model).find((rule) => rule.action.id === actionId);
+  const rule = scoringRules(effectiveCardScoringRules(model)).find(
+    (rule) => rule.action.id === actionId,
+  );
   if (!rule || !rule.deck) return null;
   const player = actor(state),
     pile = player.collections[rule.deck.id];

@@ -66,3 +66,5 @@ pnpm --filter @mewvis/gameplay-lab preview:packed
 本轮证据见 `output/gameplay-lab/typed-design-qa/`，此前场景、比较和从零建项证据分别保留在对应QA目录。
 
 斗地主框架支持固定 54 张牌、三人叫分、可配置牌型与结算、基础自动对手、独立牌桌及冻结对局回放，使用独立规则模型。经典斗地主、英雄斗地主和用户自定义组合共用骨架、模块与布局装配流程。在“玩法组合”启用兼容模块后，对应编辑页与牌桌区域一起出现；对局冻结骨架、模块、布局版本与配置。详情见应用内的[玩法组合说明](../../../apps/applications/builtins/gameplay-lab/docs/composition.md)和[斗地主说明](../../../apps/applications/builtins/gameplay-lab/docs/doudizhu.md)。
+
+组合计分提供基础计分与配对计分预设，并与斗地主共用创建、组合管理及模块装配协议。配对奖励作为可选模块，同时参与奖励编辑、牌桌公式、自动选牌和结算；对局与实验样本冻结组合及模块状态。新建和明确重置示例时使用注册的组合方案，读取既有项目不补写文件。

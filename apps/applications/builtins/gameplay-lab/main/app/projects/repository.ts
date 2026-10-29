@@ -1,3 +1,5 @@
+import { frameworkCreation } from "../../frameworks/creation";
+import type { Model } from "../../domains/turn/model";
 import {
   getApplicationDataClient,
   type ApplicationDataClient,
@@ -361,11 +363,19 @@ export function createProjectRepository(
             frameworkForSimulator(exampleSimulator(input.exampleId!))
         )
           throw new Error("示例与玩法框架不兼容。");
-        if (input.presetId !== undefined && direction !== "doudizhu")
-          throw new Error("该预设与玩法框架不兼容。");
+        if (
+          input.presetId !== undefined &&
+          (source !== "blank" ||
+            !frameworkCreation(direction)?.presets.some(
+              (preset) => preset.id === input.presetId,
+            ))
+        )
+          throw new Error("预设不受支持或与玩法框架不兼容。");
         const model =
           source === "example"
-            ? exampleModel(input.exampleId!)
+            ? (frameworkCreation(direction)?.prepareExample?.(
+                exampleModel(input.exampleId!),
+              ) ?? exampleModel(input.exampleId!))
             : direction
               ? createFrameworkModel(direction, name, input.presetId)
               : gameType === "narrative"
@@ -461,7 +471,13 @@ export function createProjectRepository(
         const backup = `${snapshot.path}/backups/${new Date().toISOString().replaceAll(":", "-")}-${uid("rules")}.json`;
         await files.mkdir(`${snapshot.path}/backups`);
         await files.writeText(backup, json(projectDocument(snapshot)));
-        const model = exampleModel(exampleId);
+        const example = exampleModel(exampleId);
+        const selectedFramework = frameworkForSimulator(
+          exampleSimulator(exampleId),
+        );
+        const model = (frameworkCreation(selectedFramework)?.prepareExample?.(
+          example,
+        ) ?? example) as Model;
         model.id = snapshot.model.id;
         model.name = snapshot.model.name;
         const next = {

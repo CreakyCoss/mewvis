@@ -12,6 +12,8 @@ export interface ModulePlayProps<M, C, V> {
   readOnly: boolean;
   execute(command: C): void;
   seat?: number;
+  selected?: string[];
+  actionId?: string;
 }
 export interface ModulePresentation<M, C, V> {
   id: string;

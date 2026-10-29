@@ -9,10 +9,20 @@ import {
 import type { NumericFrameworkUi } from "../numeric-ui-contracts";
 import { CardScoringEditor } from "./editor/CardScoringEditor";
 import { CardScoringOverview } from "./editor/CardScoringOverview";
-import { CardTable } from "./play/CardTable";
+import { ComposedCardTable, cardScoringModuleEditors } from "./composition/ui";
+import { CompositionEditor } from "../composition/Editor";
+import { cardScoringDesign } from "./composition/design";
 import { scoringRules } from "./structure";
 export const cardScoringUi: NumericFrameworkUi = {
-  navigation: [
+  navigation: (model) => [
+    { id: "composition", name: "玩法组合", icon: Boxes },
+    ...(model.format === "gameplay-card-v1"
+      ? cardScoringModuleEditors(model).map((entry) => ({
+          id: `module/${entry.id}` as const,
+          name: entry.name,
+          icon: Boxes,
+        }))
+      : []),
     { id: "overview", name: "玩法概览", icon: LayoutGrid },
     { id: "cards", name: "卡牌", icon: Layers3 },
     { id: "decks", name: "牌库", icon: Boxes },
@@ -55,11 +65,23 @@ export const cardScoringUi: NumericFrameworkUi = {
       update((model) => {
         if (model.format === "gameplay-card-v1") fn(model);
       });
+    if (view === "composition")
+      return (
+        <CompositionEditor
+          model={model}
+          update={change}
+          definition={cardScoringDesign}
+        />
+      );
+    const ModuleEditor = cardScoringModuleEditors(model).find(
+      (entry) => view === "module/" + entry.id,
+    )?.Editor;
+    if (ModuleEditor) return <ModuleEditor model={model} update={change} />;
     if (view === "overview")
       return <CardScoringOverview model={model} update={change} {...props} />;
     if (view === "cards" || view === "decks" || view === "scoring")
       return <CardScoringEditor model={model} tab={view} update={change} />;
     return null;
   },
-  renderScene: (props) => <CardTable {...props} />,
+  renderScene: (props) => <ComposedCardTable {...props} />,
 };

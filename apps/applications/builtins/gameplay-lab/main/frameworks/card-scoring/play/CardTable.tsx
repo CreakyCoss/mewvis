@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import {
   NativeSelect,
   NativeSelectOption,
@@ -26,6 +27,7 @@ export function CardTable({
   execute,
   newGame,
   newGameDisabled,
+  slots = {},
 }: {
   trial: Trial;
   cursor: number;
@@ -37,6 +39,7 @@ export function CardTable({
   execute(action: string, automatic?: boolean): void;
   newGame(): void;
   newGameDisabled: boolean;
+  slots?: { scoreDetail?(actionId: string): ReactNode };
 }) {
   const [selectedAction, setSelectedAction] = useState("");
   const run = trial.run,
@@ -255,8 +258,11 @@ export function CardTable({
                 {preview.result.score} <span>分</span>
               </strong>
               <p>
-                （基础 {preview.result.base} + 配对奖励 {preview.result.bonus}
-                ）× {preview.multiplier}
+                {slots.scoreDetail?.(rule.action.id) ?? (
+                  <>
+                    基础 {preview.result.base} × {preview.multiplier}
+                  </>
+                )}
               </p>
             </div>
             <div>

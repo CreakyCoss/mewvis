@@ -1,3 +1,7 @@
+import {
+  nextCardRandom,
+  shuffleCardItems,
+} from "../../../../domains/card/primitives";
 import type { DoudizhuModel, PokerCard } from "../../model";
 import type { DoudizhuView } from "../../runtime/contracts";
 
@@ -39,12 +43,12 @@ export function revealHeroCards(
   count: number,
   seed: number,
 ): PokerCard[] {
-  const cards = [...hand].sort((a, b) => a.id.localeCompare(b.id));
   let random = seed >>> 0;
-  for (let i = cards.length - 1; i > 0; i--) {
-    random = (Math.imul(random, 1664525) + 1013904223) >>> 0;
-    const j = Math.floor((random / 4294967296) * (i + 1));
-    [cards[i], cards[j]] = [cards[j], cards[i]];
-  }
-  return cards.slice(0, count);
+  return shuffleCardItems(
+    [...hand].sort((a, b) => a.id.localeCompare(b.id)),
+    () => {
+      random = nextCardRandom(random);
+      return random / 4294967296;
+    },
+  ).slice(0, count);
 }

@@ -96,6 +96,15 @@ export default function TurnWorkspace({
     [kind, setKind] = useState<NodeKind>("state");
   const [busy, setBusy] = useState(false);
   const [playOpen, setPlayOpen] = useState(false);
+  useEffect(() => {
+    if (
+      view.startsWith("module/") &&
+      !numericFrameworkUi(project)
+        ?.navigation(project.model)
+        .some((entry) => entry.id === view)
+    )
+      setView("composition");
+  }, [project.model, view]);
   const {
     config,
     setConfig,
@@ -547,7 +556,7 @@ export default function TurnWorkspace({
               <LayoutGrid size={16} />
               项目库
             </button>
-            {(frameworkUi?.navigation ?? nav).map((item) => (
+            {(frameworkUi?.navigation(model) ?? nav).map((item) => (
               <button
                 key={item.id}
                 disabled={busy}

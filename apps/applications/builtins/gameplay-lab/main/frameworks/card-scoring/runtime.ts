@@ -1,6 +1,13 @@
 import { cardSimulator } from "../../domains/card/model";
 import { startRun, step } from "../../domains/turn/engine";
 import type { SimulatorDefinition } from "../numeric-runtime";
+import { copy } from "../../shared/utils";
+import { sameJson } from "../composition/resolve";
+import { resolveCardScoringComposition } from "./composition/catalog";
+import {
+  cardScoringDecisionRun,
+  createCardScoringRuntime,
+} from "./composition/runtime";
 export const cardScoringSimulator: SimulatorDefinition = {
   ref: cardSimulator,
   name: "卡牌组合",
@@ -14,19 +21,50 @@ export const cardScoringSimulator: SimulatorDefinition = {
           view: "simulator",
         },
       ];
-    return model.actions.some((action) =>
-      action.effects.some((effect) => effect.type === "combination"),
-    )
-      ? []
-      : [
-          {
-            path: "计分行动",
-            message: "为一个行动添加组合计分效果，选择牌库和得分状态。",
-            view: "model",
-            nodeId: model.actions[0]?.id,
-          },
-        ];
+    const compositionIssues = resolveCardScoringComposition(model).issues.map(
+      (issue) => ({ ...issue, view: "rules" as const }),
+    );
+    return [
+      ...compositionIssues,
+      ...(model.actions.some((action) =>
+        action.effects.some((effect) => effect.type === "combination"),
+      )
+        ? []
+        : [
+            {
+              path: "计分行动",
+              message: "为一个行动添加组合计分效果，选择牌库和得分状态。",
+              view: "model" as const,
+              nodeId: model.actions[0]?.id,
+            },
+          ]),
+    ];
   },
-  initialize: startRun,
-  advance: step,
+  initialize: (model, seed = 42, players = 1, initial) => {
+    if (model.format !== "gameplay-card-v1" || !model.composition)
+      return startRun(model, seed, players, initial);
+    const run = createCardScoringRuntime(players, initial).initialize(
+      model,
+      seed,
+    );
+    return {
+      ...run,
+      model: copy(model),
+      composition: copy(resolveCardScoringComposition(model).snapshot),
+    };
+  },
+  advance: (run, choice) => {
+    if (run.model.format !== "gameplay-card-v1" || !run.model.composition)
+      return step(run, choice);
+    const expected = resolveCardScoringComposition(run.model).snapshot;
+    if (!sameJson(run.composition, expected))
+      throw new Error("对局组合快照与冻结规则不一致。");
+    const next = createCardScoringRuntime().advance(run.model, run, {
+      type: "action",
+      player: run.entries.at(-1)!.state.actor,
+      choice,
+    }).state;
+    return { ...next, model: copy(run.model), composition: copy(expected) };
+  },
+  prepareDecision: cardScoringDecisionRun,
 };

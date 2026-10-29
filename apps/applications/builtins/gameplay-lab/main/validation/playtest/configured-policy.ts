@@ -10,6 +10,7 @@ import {
   type Run,
 } from "../../domains/turn/engine";
 import { type Condition, type Strategy } from "./config";
+import { prepareDecisionRun } from "../../frameworks/numeric-runtime";
 export function conditionMatches(c: Condition, value: number) {
   return c.op === "gte"
     ? value >= c.value
@@ -31,7 +32,8 @@ function roll(run: Run, salt = 0) {
   n ^= n >>> 16;
   return (n >>> 0) / 4294967296;
 }
-export function chooseConfigured(run: Run, strategy: Strategy): Choice {
+export function chooseConfigured(input: Run, strategy: Strategy): Choice {
+  const run = prepareDecisionRun(input);
   const state = current(run),
     player = actor(state);
   const available = run.model.actions.filter((a) => {

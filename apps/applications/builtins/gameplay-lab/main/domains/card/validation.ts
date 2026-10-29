@@ -7,6 +7,7 @@ import {
   MAX_DECK_SIZE,
   type CardModel,
 } from "./model";
+import { resolveCardScoringComposition } from "../../frameworks/card-scoring/composition/catalog";
 
 const object = (value: unknown): value is Record<string, unknown> =>
   !!value && typeof value === "object" && !Array.isArray(value);
@@ -50,6 +51,8 @@ export function validateCardModel(input: unknown, draft = false): Issue[] {
       "cards",
       "decks",
       "flow",
+      "composition",
+      "extensions",
     ],
     "卡牌模型",
   );
@@ -186,6 +189,9 @@ export function validateCardModel(input: unknown, draft = false): Issue[] {
   // Do not allocate or follow untrusted deck references until their shapes are safe.
   if (issues.length) return issues;
   const model = input as unknown as CardModel;
+  if (model.extensions !== undefined && model.composition === undefined)
+    add("玩法组合", "模块配置需要明确的玩法组合。");
+  issues.push(...resolveCardScoringComposition(model, draft).issues);
   issues.push(...validateTurnRules(model, draft, model.decks));
   if (issues.length) return issues;
   if (!draft && !model.decks.length)

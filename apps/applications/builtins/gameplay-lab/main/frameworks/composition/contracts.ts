@@ -7,6 +7,12 @@ export interface GameComposition {
   layout: ComponentRef;
   modules: ComponentRef[];
 }
+export interface PresetSummary {
+  id: string;
+  version: number;
+  name: string;
+  description: string;
+}
 export interface SkeletonDefinition extends ComponentRef {
   name: string;
   capabilities: readonly string[];
@@ -34,6 +40,8 @@ export interface ModuleRuntime<M, S, C, E, V> {
   commandTypes: readonly string[];
   createConfig(): unknown;
   validate(config: unknown, draft?: boolean): Issue[];
+  /** Deterministic contribution to effective rules; the source design remains frozen. */
+  projectRules?(context: { model: M; rules: M; config: unknown }): M;
   initialize(context: { model: M; state: S; config: unknown }): unknown;
   observe(context: {
     model: M;

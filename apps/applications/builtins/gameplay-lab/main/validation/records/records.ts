@@ -14,6 +14,7 @@ import {
   advanceSimulatedRun,
   assertSimulator,
   createSimulatedRun,
+  prepareDecisionRun,
 } from "../../frameworks/numeric-runtime";
 import { isSimulatorRef, type SimulatorRef } from "../../shared/contracts";
 import { copy, uid } from "../../shared/utils";
@@ -39,8 +40,12 @@ import {
   type RunSetup,
 } from "../playtest/config";
 import { chooseConfigured } from "../playtest/configured-policy";
+import type { GameComposition } from "../../frameworks/composition/contracts";
+import { cardScoringRunSnapshot } from "../../frameworks/card-scoring/composition/runtime";
 export const ENGINE_VERSION = 1;
 export interface RunLog {
+  composition?: GameComposition;
+  moduleStates?: Record<string, unknown>;
   choices: Choice[];
   events: Omit<Entry, "state" | "choice">[];
   final: State;
@@ -107,6 +112,7 @@ const seedValid = (v: unknown) =>
   Number.isInteger(v) && Number(v) >= 0 && Number(v) <= 0xffffffff;
 export function runLog(run: Run): RunLog {
   return copy({
+    ...cardScoringRunSnapshot(run),
     choices: run.entries.slice(1).map((e) => e.choice!),
     events: run.entries.map(({ actor, title, notes }) => ({
       actor,
@@ -131,8 +137,13 @@ export function restoreLog(
       Array.isArray(log.events) &&
       log.events.length === log.choices.length + 1,
   );
-  let run = simulator
-    ? createSimulatedRun(simulator, model, seed, players, initial)
+  const selectedSimulator =
+    simulator ??
+    (model.format === "gameplay-card-v1" && model.composition
+      ? cardSimulator
+      : undefined);
+  let run = selectedSimulator
+    ? createSimulatedRun(selectedSimulator, model, seed, players, initial)
     : startRun(model, seed, players, initial);
   for (const c of log.choices) {
     assert(
@@ -191,20 +202,21 @@ export function newTrial(
     createdAt: now,
     updatedAt: now,
     drivers: [],
-    run: simulator
-      ? createSimulatedRun(
-          simulator,
-          model,
-          seed,
-          players,
-          setup ? initialOf(setup.scenario) : undefined,
-        )
-      : startRun(
-          model,
-          seed,
-          players,
-          setup ? initialOf(setup.scenario) : undefined,
-        ),
+    run:
+      simulator || (model.format === "gameplay-card-v1" && model.composition)
+        ? createSimulatedRun(
+            simulator ?? cardSimulator,
+            model,
+            seed,
+            players,
+            setup ? initialOf(setup.scenario) : undefined,
+          )
+        : startRun(
+            model,
+            seed,
+            players,
+            setup ? initialOf(setup.scenario) : undefined,
+          ),
   };
 }
 export function newExperiment(
@@ -287,7 +299,7 @@ export function trialChoice(trial: Trial) {
     driver: strategy?.id ?? "goal",
     choice: strategy
       ? chooseConfigured(trial.run, strategy)
-      : choose(trial.run, "goal"),
+      : choose(prepareDecisionRun(trial.run), "goal"),
   };
 }
 export function experimentPolicyName(e: Experiment, id: string) {

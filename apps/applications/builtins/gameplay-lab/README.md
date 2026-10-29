@@ -29,7 +29,7 @@ pnpm --filter @mewvis/gameplay-lab preview:packed
 
 `main/frameworks/catalog.ts` 定义游戏类型、玩法框架、模型格式、验证模拟器和支持范围；`compatibility.ts` 检查这些信息是否一致。组合计分使用独立 `gameplay-card-v1`，与经营复用数值结算基础；斗地主使用独立 `gameplay-doudizhu-v1` 与专属执行器；叙事使用独立模型和执行器。卡牌规则及从零建项步骤见[组合计分说明](docs/card-scoring.md)和[斗地主说明](docs/doudizhu.md)。一个玩法框架目前对应一个内置模拟器，不提供任意跨类型自动转换。
 
-内置示例“多路径发展”和“组合计分”分别位于 `main/app/projects/templates/development.json` 和 `main/app/projects/templates/combination.json`，只在用户明确选择示例创建、应用或重置时复制内容。示例不会随项目编辑而变化，应用升级也不会自动覆盖项目规则。经营空白项目使用 `blankModel`，叙事使用 `blankNarrative`；组合计分框架使用 `createCardScoringModel`，准备必要计分结构及空牌库，不插入示例卡牌。纯类型建模仍可使用 `blankCardModel`。卡牌示例 JSON 直接使用独立卡牌结构，创建时原样复制规则内容。
+内置示例“多路径发展”和“组合计分”分别位于 `main/app/projects/templates/development.json` 和 `main/app/projects/templates/combination.json`，只在用户明确选择示例创建、应用或重置时复制内容。示例不会随项目编辑而变化，应用升级也不会自动覆盖项目规则。经营空白项目使用 `blankModel`，叙事使用 `blankNarrative`；组合计分框架使用 `createCardScoringModel`，准备必要计分结构及空牌库，不插入示例卡牌。纯类型建模仍可使用 `blankCardModel`。卡牌示例 JSON 直接使用独立卡牌结构，新建或明确重置时由框架注册补充组合声明，卡牌与规则内容保持示例定义。
 
 `main/frameworks/numeric-runtime.ts` 登记 `resource-turns@1`（回合发展）和 `card-combination@2`（卡牌组合），分别提供兼容性检查、初始化和推进入口；公共事务结算复用纯引擎。模拟器通过定义引用执行规则，不读取示例来源。卡牌组合要求牌库与计分行动；回合发展拒绝卡牌规则，防止静默忽略。
 
@@ -143,4 +143,4 @@ pnpm --filter @mewvis/gameplay-lab preview:packed
 
 本地设计证据与验收记录见 `design-qa.md` 和 `qa/`；目录流程验收位于 `output/gameplay-lab/project-flow-qa/`，规则编辑与记录持久化验收位于 `output/gameplay-lab/rules-history-qa/`，场景与策略配置验收位于 `output/gameplay-lab/playtest-config-qa/`，版本与参数对照验收位于 `output/gameplay-lab/comparison-qa/`。从零建项与模拟器验收位于 `output/gameplay-lab/blank-project-qa/`。类型化与从零叙事验收位于 `output/gameplay-lab/typed-design-qa/`。这些探索与验收产物独立保留。
 
-斗地主提供三人叫分、十四种牌型配置、手动出牌、基础自动对手、阵营结算、规则版本及冻结对局回放。经典斗地主、英雄斗地主预设与用户自定义组合共用骨架、模块和布局装配流程；在“玩法组合”管理兼容模块，侧栏与牌桌按启用项装配。详见[玩法组合与模块接入](docs/composition.md)。当前完整接入的是斗地主和洞察模块，其他框架仍使用已有入口，斗地主批量实验尚未提供。
+斗地主提供三人叫分、十四种牌型配置、手动出牌、基础自动对手、阵营结算、规则版本及冻结对局回放。经典斗地主、英雄斗地主预设与用户自定义组合共用骨架、模块和布局装配流程；在“玩法组合”管理兼容模块，侧栏与牌桌按启用项装配。详见[玩法组合与模块接入](docs/composition.md)。组合计分也已接入相同协议，基础计分和配对计分预设共用运行与界面装配。关闭配对奖励会同步影响自动选牌、预估与结算；金额保留，对局与实验冻结组合和模块状态。资源发展和叙事仍使用已有入口，斗地主批量实验尚未提供。

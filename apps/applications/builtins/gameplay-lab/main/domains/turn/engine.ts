@@ -1,3 +1,9 @@
+import {
+  nextCardRandom,
+  shuffleCardItems,
+  ownedCardSelection,
+} from "../card/primitives";
+import type { GameComposition } from "../../frameworks/composition/contracts";
 import type { SimulatorRef } from "../../shared/contracts";
 import { copy } from "../../shared/utils";
 import {
@@ -60,6 +66,7 @@ export interface Entry {
   state: State;
 }
 export interface Run {
+  composition?: GameComposition;
   simulator: SimulatorRef;
   model: Model;
   seed: number;
@@ -70,16 +77,11 @@ export const current = (run: Run) => run.entries[run.entries.length - 1].state;
 export const actor = (state: State) => state.players[state.actor];
 
 function random(state: State) {
-  state.random = (Math.imul(state.random, 1664525) + 1013904223) >>> 0;
+  state.random = nextCardRandom(state.random);
   return state.random / 4294967296;
 }
 function shuffle<T>(items: T[], state: State) {
-  const result = [...items];
-  for (let i = result.length - 1; i > 0; i--) {
-    const j = Math.floor(random(state) * (i + 1));
-    [result[i], result[j]] = [result[j], result[i]];
-  }
-  return result;
+  return shuffleCardItems(items, () => random(state));
 }
 function refill(
   pile: Pile,
@@ -333,7 +335,7 @@ function applyEffect(
       throw new Error(
         `请选择当前集合内 ${definition.minSelect}–${definition.maxSelect} 个不同对象。`,
       );
-    const selected = ids.map((id) => pile.hand.find((c) => c.id === id)!);
+    const selected = ownedCardSelection(pile.hand, ids)!;
     const result = combinationScore(
       selected,
       effectMultiplier(effect, player),

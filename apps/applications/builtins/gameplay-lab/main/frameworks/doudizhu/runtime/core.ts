@@ -1,3 +1,8 @@
+import {
+  nextCardRandom,
+  shuffleCardItems,
+  ownedCardSelection,
+} from "../../../domains/card/primitives";
 import { copy } from "../../../shared/utils";
 import {
   pokerDeck,
@@ -16,12 +21,10 @@ import type {
 } from "./contracts";
 function dealPoker(seed: number, deal: number): DoudizhuState {
   let random = (seed + Math.imul(deal + 1, 2654435761)) >>> 0;
-  const cards = pokerDeck();
-  for (let i = cards.length - 1; i > 0; i--) {
-    random = (Math.imul(random, 1664525) + 1013904223) >>> 0;
-    const j = Math.floor((random / 4294967296) * (i + 1));
-    [cards[i], cards[j]] = [cards[j], cards[i]];
-  }
+  const cards = shuffleCardItems(pokerDeck(), () => {
+    random = nextCardRandom(random);
+    return random / 4294967296;
+  });
   return {
     seed,
     deal,
@@ -148,10 +151,9 @@ export function advanceDoudizhuCore(
     )
       throw new Error("请选择不同的手牌。");
     const hand = next.hands[player],
-      cards = command.cards.map((id) => hand.find((card) => card.id === id));
-    if (cards.some((c) => !c))
-      throw new Error("出牌中包含不属于当前玩家的牌。");
-    const played = cards as PokerCard[],
+      cards = ownedCardSelection(hand, command.cards);
+    if (!cards) throw new Error("出牌中包含不属于当前玩家的牌。");
+    const played = cards,
       pattern = recognizePoker(model, played);
     if (!pattern || !beatsPoker(pattern, next.last?.pattern ?? null))
       throw new Error("牌型未启用、组合无效或不能压过当前出牌。");

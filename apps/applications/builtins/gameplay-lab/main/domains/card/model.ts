@@ -1,6 +1,7 @@
 import type { SimulatorRef } from "../../shared/contracts";
 import { uid } from "../../shared/utils";
 import type { NumericModel } from "../turn/model";
+import type { GameComposition } from "../../frameworks/composition/contracts";
 
 export interface CardDefinition {
   id: string;
@@ -32,6 +33,8 @@ export interface CardModel extends Omit<
   format: "gameplay-card-v1";
   cards: CardDefinition[];
   decks: DeckDefinition[];
+  composition?: GameComposition;
+  extensions?: Record<string, unknown>;
 }
 export const cardSimulator: SimulatorRef = {
   id: "card-combination",

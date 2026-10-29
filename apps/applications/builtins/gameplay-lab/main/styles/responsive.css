@@ -102,6 +102,9 @@
   .header-actions .button:first-child span {
     display: none;
   }
+  .header-actions .button[aria-label="使用指南"] span {
+    display: none;
+  }
   .lab-sidebar {
     width: 48px;
     flex-basis: 48px;

@@ -25,6 +25,7 @@ export function assembleGameRuntime<
   registry: readonly ModuleRuntime<M, S, C, E, V>[];
   resolve(model: M, draft?: boolean): ResolvedComposition<M, S, C, E, V>;
   configs(model: M): Record<string, unknown>;
+  prepareCoreRules?(model: M): M;
   commandPlayer(command: C): number;
   timings(view: V): readonly string[];
   assertCommand(state: S, command: C): void;
@@ -38,6 +39,21 @@ export function assembleGameRuntime<
       throw new Error(result.issues.map((i) => i.message).join(" "));
     return result;
   }
+  function projectRules(model: M): M {
+    let rules = options.prepareCoreRules
+      ? options.prepareCoreRules(copy(model))
+      : resolved(model).modules.some((module) => module.projectRules)
+        ? copy(model)
+        : model;
+    for (const module of resolved(model).modules)
+      if (module.projectRules)
+        rules = module.projectRules({
+          model,
+          rules,
+          config: configs(model)[module.definition.id],
+        });
+    return rules;
+  }
   const validate = (model: M, draft = false) => [
     ...core.validate(model, draft),
     ...resolve(model, draft).issues,
@@ -45,7 +61,7 @@ export function assembleGameRuntime<
   function initialize(model: M, seed: number): S {
     const issues = validate(model);
     if (issues.length) throw new Error(issues.map((i) => i.message).join(" "));
-    let state = core.initialize(model, seed);
+    let state = core.initialize(projectRules(model), seed);
     for (const module of resolved(model).modules)
       state = withModuleValue(
         state,
@@ -62,7 +78,7 @@ export function assembleGameRuntime<
     const base = copy(state);
     for (const module of options.registry)
       delete (base as Record<string, unknown>)[module.stateKey];
-    let view = core.observe(model, base, player);
+    let view = core.observe(projectRules(model), base, player);
     for (const module of resolved(model).modules)
       view = withModuleValue(
         view,
@@ -96,7 +112,7 @@ export function assembleGameRuntime<
   function commands(model: M, view: V): C[] {
     return [
       ...resolved(model).modules.flatMap((m) => moduleCommands(m, model, view)),
-      ...core.commands(model, view),
+      ...core.commands(projectRules(model), view),
     ];
   }
   function advance(model: M, state: S, command: C): { state: S; events: E[] } {
@@ -126,7 +142,7 @@ export function assembleGameRuntime<
         events: result.events,
       };
     }
-    const result = core.advance(model, state, command);
+    const result = core.advance(projectRules(model), state, command);
     if (options.resetModules(state, result.state))
       for (const item of modules)
         withModuleValue(
@@ -157,7 +173,15 @@ export function assembleGameRuntime<
           return command;
         }
       }
-    return core.choose(model, view);
+    return core.choose(projectRules(model), view);
   }
-  return { validate, initialize, observe, advance, commands, choose };
+  return {
+    validate,
+    initialize,
+    observe,
+    advance,
+    commands,
+    choose,
+    projectRules,
+  };
 }
