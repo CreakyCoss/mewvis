@@ -109,3 +109,91 @@ test("examples and explicit sample reset use the registered assembly without cha
   );
   assert.deepEqual(await readdir(host.projectsPath), dirs);
 });
+
+test("shared insight config and private checkpoints survive file restart, frozen-rule edits and failed saves", async (t) => {
+  let host = await createProjectHost();
+  t.after(() => host.close());
+  let repo = f.createProjectRepository(host.data, host.files);
+  let project = await repo.create({
+    name: "双人洞察",
+    parent: host.projectsPath,
+    exampleId: "combination",
+  });
+  f.setCardScoringModuleEnabled(project.model, "heroes", true);
+  project.model.extensions.heroes.seats[0].name = "洞察验证";
+  project.model.extensions.heroes.seats[0].skill.count = 2;
+  await repo.saveProject(project);
+  let history = f.createHistoryRepository(host.data, host.files);
+  let trial = f.newTrial(
+    project.id,
+    project.model,
+    42,
+    2,
+    undefined,
+    project.simulator,
+  );
+  await history.save(project, trial);
+  const next = {
+    ...trial,
+    run: f.advanceSimulatedRun(trial.run, {
+      action: "__module",
+      command: { type: "skill", player: 0, target: 1, skillId: "insight" },
+    }),
+    drivers: ["manual"],
+  };
+  // The session publishes a new trial only after persistence succeeds.
+  const failing = f.createHistoryRepository(host.data, {
+    ...host.files,
+    writeText: async () => {
+      throw new Error("disk unavailable");
+    },
+  });
+  await assert.rejects(failing.save(project, next));
+  assert.deepEqual((await history.list(project)).trials, [trial]);
+  assert.equal(trial.run.heroes.used[0], 0);
+  await history.save(project, next);
+  trial = next;
+  f.setCardScoringModuleEnabled(project.model, "heroes", false);
+  project.model.extensions.heroes.seats[0].name = "新配置";
+  await repo.saveProject(project);
+  const root = host.root;
+  await host.close(false);
+  host = await createProjectHost(root);
+  repo = f.createProjectRepository(host.data, host.files);
+  history = f.createHistoryRepository(host.data, host.files);
+  project = (await repo.list()).projects[0];
+  assert.equal(project.model.extensions.heroes.enabled, false);
+  assert.equal(project.model.extensions.heroes.seats[0].name, "新配置");
+  const saved = await history.list(project);
+  assert.deepEqual(saved.errors, []);
+  assert.deepEqual(saved.trials, [trial]);
+  const restored = saved.trials[0].run;
+  assert.equal(restored.model.extensions.heroes.seats[0].name, "洞察验证");
+  assert.equal(
+    f.cardScoringRuntime.observe(restored.model, restored, 0).heroes.reveals[0]
+      .cards.length,
+    2,
+  );
+  assert.deepEqual(
+    f.cardScoringRuntime.observe(restored.model, restored, 1).heroes.reveals,
+    [],
+  );
+  assert.deepEqual(
+    f.cardScoringRuntime.observe(
+      restored.model,
+      f.cardScoringRunAtStep(restored, 0),
+      0,
+    ).heroes.reveals,
+    [],
+  );
+  assert.equal(
+    f.advanceSimulatedRun(restored, { action: "__end_turn" }).heroes.used[0],
+    1,
+  );
+  const path = join(project.path, "runs", trial.id + ".json");
+  const tampered = JSON.parse(await readFile(path, "utf8"));
+  tampered.log.choices[0].command.target = 0;
+  await writeFile(path, JSON.stringify(tampered));
+  assert.equal((await history.list(project)).incompatible.length, 1);
+  assert.deepEqual(JSON.parse(await readFile(path, "utf8")), tampered);
+});

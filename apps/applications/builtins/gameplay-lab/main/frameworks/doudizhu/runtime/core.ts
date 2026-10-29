@@ -2,6 +2,7 @@ import {
   nextCardRandom,
   shuffleCardItems,
   ownedCardSelection,
+  moveOwnedCards,
 } from "../../../domains/card/primitives";
 import { copy } from "../../../shared/utils";
 import {
@@ -157,9 +158,7 @@ export function advanceDoudizhuCore(
       pattern = recognizePoker(model, played);
     if (!pattern || !beatsPoker(pattern, next.last?.pattern ?? null))
       throw new Error("牌型未启用、组合无效或不能压过当前出牌。");
-    next.hands[player] = hand.filter(
-      (card) => !command.cards.includes(card.id),
-    );
+    next.hands[player] = moveOwnedCards(hand, [], command.cards).source;
     next.last = { player, cards: sortPoker(played), pattern };
     next.passes = 0;
     next.actions[player] = { text: "已出牌", cards: sortPoker(played) };

@@ -114,7 +114,7 @@ export function resolveGameComposition<M, S, C, E, V>(
       config.version !== definition.version
     )
       add("模块选择与配置开关或版本不一致：" + definition.name);
-    if (!sameRef(definition.skeleton, skeleton))
+    if (definition.skeleton && !sameRef(definition.skeleton, skeleton))
       add("模块不支持当前骨架：" + definition.name);
     if (
       definition.requires.some(

@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { type Project } from "../../app/projects/model";
 import { projectRepository } from "../../app/projects/repository";
 import { selectionForAction } from "../../domains/card/selection";
-import { choose, current } from "../../domains/turn/engine";
+import { choose, current, type Choice } from "../../domains/turn/engine";
 import { advanceSimulatedRun } from "../../frameworks/numeric-runtime";
 import { copy } from "../../shared/utils";
 import { experimentVariants, sampleModel } from "../experiments/comparison";
@@ -97,7 +97,11 @@ export function useRunSession({
       setBusy(false);
     }
   }
-  async function execute(action: string, automatic = false) {
+  async function execute(
+    action: string,
+    automatic = false,
+    moduleChoice?: Choice,
+  ) {
     if (!run || !trial || previewTrial || cursor >= 0 || busy) return;
     setBusy(true);
     try {
@@ -105,7 +109,7 @@ export function useRunSession({
         ? trialChoice(trial)
         : {
             driver: "manual",
-            choice: {
+            choice: moduleChoice ?? {
               action,
               cards:
                 run.model.format === "gameplay-card-v1"
@@ -185,6 +189,7 @@ export function useRunSession({
     setCards,
     begin,
     execute,
+    executeChoice: (choice: Choice) => execute("", false, choice),
     previewSample,
     clearSession: () => {
       setPreviewTrial(null);

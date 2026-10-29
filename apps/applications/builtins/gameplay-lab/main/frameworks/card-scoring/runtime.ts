@@ -1,3 +1,4 @@
+import type { CardScoringCommand } from "./composition/contracts";
 import { cardSimulator } from "../../domains/card/model";
 import { startRun, step } from "../../domains/turn/engine";
 import type { SimulatorDefinition } from "../numeric-runtime";
@@ -6,6 +7,8 @@ import { sameJson } from "../composition/resolve";
 import { resolveCardScoringComposition } from "./composition/catalog";
 import {
   cardScoringDecisionRun,
+  checkpointCardScoringRun,
+  cardScoringModuleChoice,
   createCardScoringRuntime,
 } from "./composition/runtime";
 export const cardScoringSimulator: SimulatorDefinition = {
@@ -47,11 +50,11 @@ export const cardScoringSimulator: SimulatorDefinition = {
       model,
       seed,
     );
-    return {
+    return checkpointCardScoringRun({
       ...run,
       model: copy(model),
       composition: copy(resolveCardScoringComposition(model).snapshot),
-    };
+    });
   },
   advance: (run, choice) => {
     if (run.model.format !== "gameplay-card-v1" || !run.model.composition)
@@ -59,12 +62,31 @@ export const cardScoringSimulator: SimulatorDefinition = {
     const expected = resolveCardScoringComposition(run.model).snapshot;
     if (!sameJson(run.composition, expected))
       throw new Error("对局组合快照与冻结规则不一致。");
-    const next = createCardScoringRuntime().advance(run.model, run, {
-      type: "action",
-      player: run.entries.at(-1)!.state.actor,
-      choice,
-    }).state;
-    return { ...next, model: copy(run.model), composition: copy(expected) };
+    if (
+      (choice.command && choice.action !== "__module") ||
+      (choice.command && choice.cards !== undefined)
+    )
+      throw new Error("模块命令格式无效。");
+    const command = choice.command
+      ? (choice.command as CardScoringCommand)
+      : {
+          type: "action" as const,
+          player: run.entries.at(-1)!.state.actor,
+          choice,
+        };
+    if (choice.command && command.type === "action")
+      throw new Error("模块命令不能代替普通行动。");
+    const next = createCardScoringRuntime().advance(
+      run.model,
+      run,
+      command,
+    ).state;
+    return checkpointCardScoringRun({
+      ...next,
+      model: copy(run.model),
+      composition: copy(expected),
+    });
   },
   prepareDecision: cardScoringDecisionRun,
+  chooseModule: cardScoringModuleChoice,
 };

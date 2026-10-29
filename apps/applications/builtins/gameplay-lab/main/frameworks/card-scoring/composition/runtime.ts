@@ -1,3 +1,4 @@
+import { visibleCardZone } from "../../../domains/card/primitives";
 import type { CardModel } from "../../../domains/card/model";
 import {
   actionReason,
@@ -27,8 +28,8 @@ export function cardScoringPlayerView(state: State, player: number): State {
   const view = copy(state);
   view.players.forEach((p, seat) =>
     Object.values(p.collections).forEach((pile) => {
-      pile.draw = [];
-      if (seat !== player) pile.hand = [];
+      pile.draw = visibleCardZone(pile.draw, "hidden", seat, player);
+      pile.hand = visibleCardZone(pile.hand, "owner", seat, player);
     }),
   );
   return view;
@@ -155,7 +156,8 @@ export function createCardScoringRuntime(
       if (
         !command ||
         command.player !== current(run).actor ||
-        current(run).outcome
+        current(run).outcome ||
+        run.entries.length >= 201
       )
         throw new Error("当前玩家不能执行操作。");
     },
@@ -173,11 +175,23 @@ export function cardScoringDecisionRun(run: Run): Run {
   if (run.model.format !== "gameplay-card-v1" || !run.model.composition)
     return run;
   const player = current(run).actor;
+  const safe = copy(run);
+  const view = cardScoringRuntime.observe(run.model, run, player);
+  for (const module of cardScoringModules) {
+    delete (safe as unknown as Record<string, unknown>)[module.stateKey];
+    if (Object.hasOwn(view, module.stateKey))
+      Object.assign(safe, {
+        [module.stateKey]: copy(
+          (view as unknown as Record<string, unknown>)[module.stateKey],
+        ),
+      });
+  }
   return {
-    ...run,
+    ...safe,
     model: effectiveCardScoringRules(run.model),
     entries: run.entries.map((entry) => ({
       ...entry,
+      moduleStates: undefined,
       notes: [],
       choice: null,
       state: cardScoringPlayerView(entry.state, player),
@@ -204,3 +218,40 @@ export function cardScoringRunSnapshot(run: Run) {
     ),
   };
 }
+
+/** Checkpoints are derived during replay, rather than trusting stored intermediate state. */
+export function checkpointCardScoringRun(run: Run): Run {
+  const snapshot = cardScoringRunSnapshot(run);
+  if (
+    !snapshot.moduleStates ||
+    run.model.format !== "gameplay-card-v1" ||
+    !resolveCardScoringComposition(run.model).modules.some(
+      (m) => m.commandTypes.length,
+    )
+  )
+    return run;
+  return {
+    ...run,
+    entries: [
+      ...run.entries.slice(0, -1),
+      { ...run.entries.at(-1)!, moduleStates: snapshot.moduleStates },
+    ],
+  };
+}
+export function cardScoringRunAtStep(run: Run, index: number): Run {
+  const entries = run.entries.slice(0, index + 1);
+  return Object.assign(
+    { ...run, entries },
+    copy(entries.at(-1)?.moduleStates ?? {}),
+  );
+}
+export const cardScoringModuleChoice = (run: Run) => {
+  if (run.model.format !== "gameplay-card-v1" || !run.model.composition)
+    return undefined;
+  if (current(run).outcome) return undefined;
+  const view = cardScoringRuntime.observe(run.model, run, current(run).actor);
+  const command = cardScoringRuntime.chooseModule(run.model, view);
+  return command && command.type !== "action"
+    ? { action: "__module", command }
+    : undefined;
+};

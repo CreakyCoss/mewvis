@@ -39,7 +39,11 @@ export function CardTable({
   execute(action: string, automatic?: boolean): void;
   newGame(): void;
   newGameDisabled: boolean;
-  slots?: { scoreDetail?(actionId: string): ReactNode };
+  slots?: {
+    scoreDetail?(actionId: string): ReactNode;
+    beforeHand?: ReactNode;
+    opponent?(seat: number): ReactNode;
+  };
 }) {
   const [selectedAction, setSelectedAction] = useState("");
   const run = trial.run,
@@ -100,6 +104,7 @@ export function CardTable({
                     `${model.fields.find((field) => field.id === goal.field)?.name ?? goal.name} ${p.values[goal.field]}`,
                 )
                 .join(" / ")}
+              {slots.opponent?.(i)}
             </span>
           ))}
         </div>
@@ -181,6 +186,7 @@ export function CardTable({
           <small>弃牌区</small>
         </div>
       </div>
+      {slots.beforeHand}
       {preview && (
         <>
           <div className="card-table-hand-heading">

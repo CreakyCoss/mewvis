@@ -156,24 +156,29 @@ export function assembleGameRuntime<
         );
     return result;
   }
-  function choose(model: M, view: V, useModules = true): C {
-    if (useModules)
-      for (const module of resolved(model).modules) {
-        const legal = moduleCommands(module, model, view),
-          command = module.choose?.({
-            model,
-            view,
-            config: configs(model)[module.definition.id],
-            value: moduleValue(view, module.stateKey),
-            commands: legal,
-          });
-        if (command) {
-          if (!legal.some((candidate) => sameJson(candidate, command)))
-            throw new Error("模块自动玩家返回了非法命令。");
-          return command;
-        }
+  function chooseModule(model: M, view: V): C | undefined {
+    for (const module of resolved(model).modules) {
+      const legal = moduleCommands(module, model, view),
+        command = module.choose?.({
+          model,
+          view,
+          config: configs(model)[module.definition.id],
+          value: moduleValue(view, module.stateKey),
+          commands: legal,
+        });
+      if (command) {
+        if (!legal.some((candidate) => sameJson(candidate, command)))
+          throw new Error("模块自动玩家返回了非法命令。");
+        return command;
       }
-    return core.choose(projectRules(model), view);
+    }
+    return undefined;
+  }
+  function choose(model: M, view: V, useModules = true): C {
+    return (
+      (useModules ? chooseModule(model, view) : undefined) ??
+      core.choose(projectRules(model), view)
+    );
   }
   return {
     validate,
@@ -182,6 +187,7 @@ export function assembleGameRuntime<
     advance,
     commands,
     choose,
+    chooseModule,
     projectRules,
   };
 }

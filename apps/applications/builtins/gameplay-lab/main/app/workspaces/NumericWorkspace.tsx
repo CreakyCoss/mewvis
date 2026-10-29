@@ -134,6 +134,7 @@ export default function TurnWorkspace({
     setCards,
     begin,
     execute,
+    executeChoice,
     previewSample,
     clearSession,
     openTrial,
@@ -826,6 +827,7 @@ export default function TurnWorkspace({
                   setCards,
                   execute: (action, automatic) =>
                     void execute(action, automatic),
+                  executeChoice: (choice) => void executeChoice(choice),
                   newGame: () => void begin(),
                   newGameDisabled:
                     !!issues.length ||

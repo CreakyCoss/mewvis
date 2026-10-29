@@ -4,6 +4,7 @@ import type {
   LayoutDefinition,
 } from "../../composition/contracts";
 import { resolveGameComposition } from "../../composition/resolve";
+import { cardHeroesModule } from "../extensions/heroes/module";
 import { pairRewardModule } from "../extensions/pair-reward/module";
 export const cardScoringSkeleton: SkeletonDefinition = {
   id: "card-scoring",
@@ -14,6 +15,8 @@ export const cardScoringSkeleton: SkeletonDefinition = {
     "turns",
     "player-observation",
     "deterministic-random",
+    "hand-zones",
+    "opponent-target",
   ],
   timings: ["rule-compile", "before-play"],
   commandTypes: ["action"],
@@ -31,9 +34,9 @@ export const cardScoringLayout: LayoutDefinition = {
   version: 1,
   name: "组合计分牌桌",
   skeleton: { id: "card-scoring", version: 1 },
-  slots: ["score-detail"],
+  slots: ["score-detail", "before-hand", "opponent"],
 };
-export const cardScoringModules = [pairRewardModule] as const;
+export const cardScoringModules = [pairRewardModule, cardHeroesModule] as const;
 export function cardScoringConfigs(model: CardModel): Record<string, unknown> {
   if (model.extensions !== undefined) return model.extensions;
   if (model.composition !== undefined) return {};

@@ -69,7 +69,11 @@ export function setCardScoringModuleEnabled(
 }
 export function matchingCardScoringPreset(model: CardModel): string {
   const resolved = resolveCardScoringComposition(model, true);
-  if (resolved.issues.length) return "custom";
+  if (
+    resolved.issues.length ||
+    resolved.snapshot.modules.some((m) => m.id !== "pair-reward")
+  )
+    return "custom";
   // A preset is only a mechanism starting point; authored content always remains the user's.
   if (
     resolved.modules.length &&

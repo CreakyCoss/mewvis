@@ -1,0 +1,64 @@
+.ability-opponent-hero {
+  display: block;
+  margin-top: 4px;
+}
+.ability-heroes {
+  max-width: 1000px;
+  margin: 0 auto 16px;
+  padding: 12px 16px;
+  border: 1px solid #efd18f50;
+  border-radius: 10px;
+  background: #ffffff08;
+  font-size: 13px;
+}
+.ability-hero-heading,
+.ability-skill-controls,
+.ability-skill-controls > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+.ability-hero-heading p,
+.ability-hero-reveals {
+  color: #c4d2c8;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.ability-skill-controls {
+  margin-top: 12px;
+}
+.ability-skill-controls > div {
+  justify-content: flex-start;
+  gap: 8px;
+}
+.ability-skill-controls .button {
+  min-height: 40px;
+}
+.ability-skill-controls .button[aria-pressed="true"] {
+  border-color: #efd18f;
+  background: #efd18f25;
+}
+.ability-skill-controls button:focus-visible {
+  outline: 3px solid #efd18f;
+  outline-offset: 2px;
+}
+.ability-hero-reveals p {
+  margin-top: 8px;
+}
+.ability-hero-reveals strong {
+  color: #efd18f;
+}
+@media (max-width: 700px) {
+  .ability-heroes {
+    padding: 12px;
+  }
+  .ability-skill-controls .button {
+    min-height: 44px;
+  }
+}
+
+.ability-play-button {
+  min-height: 44px;
+}

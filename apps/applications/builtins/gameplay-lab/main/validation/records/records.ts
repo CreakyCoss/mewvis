@@ -12,6 +12,7 @@ import {
 import { validateModel, type Model } from "../../domains/turn/model";
 import {
   advanceSimulatedRun,
+  chooseSimulatedModule,
   assertSimulator,
   createSimulatedRun,
   prepareDecisionRun,
@@ -149,6 +150,12 @@ export function restoreLog(
     assert(
       c &&
         typeof c.action === "string" &&
+        (c.command === undefined ||
+          (c.action === "__module" &&
+            typeof c.command === "object" &&
+            c.command !== null &&
+            typeof c.command.type === "string" &&
+            Number.isInteger(c.command.player))) &&
         (c.cards === undefined ||
           (Array.isArray(c.cards) &&
             c.cards.length <= 10 &&
@@ -297,9 +304,11 @@ export function trialChoice(trial: Trial) {
   if (trial.setup && !strategy) throw new Error("本局快照中的策略不存在。");
   return {
     driver: strategy?.id ?? "goal",
-    choice: strategy
-      ? chooseConfigured(trial.run, strategy)
-      : choose(prepareDecisionRun(trial.run), "goal"),
+    choice:
+      chooseSimulatedModule(trial.run) ??
+      (strategy
+        ? chooseConfigured(trial.run, strategy)
+        : choose(prepareDecisionRun(trial.run), "goal")),
   };
 }
 export function experimentPolicyName(e: Experiment, id: string) {

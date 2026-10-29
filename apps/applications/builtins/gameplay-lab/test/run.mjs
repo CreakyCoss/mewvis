@@ -10,3 +10,5 @@ import "./domain/doudizhu.test.mjs";
 import "./domain/heroes.test.mjs";
 import "./domain/composition.test.mjs";
 import "./domain/card-composition.test.mjs";
+
+import "./domain/shared-abilities.test.mjs";

@@ -28,7 +28,8 @@ export interface LayoutDefinition extends ComponentRef {
 export interface ModuleDefinition extends ComponentRef {
   name: string;
   description: string;
-  skeleton: ComponentRef;
+  /** Omit only for modules implemented against the required capabilities. */
+  skeleton?: ComponentRef;
   requires: readonly string[];
   dependsOn: readonly ComponentRef[];
   timings: readonly string[];

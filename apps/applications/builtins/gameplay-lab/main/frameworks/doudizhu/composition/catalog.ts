@@ -15,6 +15,7 @@ export const doudizhuSkeleton: SkeletonDefinition = {
     "player-observation",
     "opponent-target",
     "deterministic-random",
+    "hand-zones",
   ],
   timings: ["before-play"],
   commandTypes: ["bid", "play", "pass"],

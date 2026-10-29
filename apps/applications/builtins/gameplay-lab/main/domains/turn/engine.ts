@@ -2,6 +2,7 @@ import {
   nextCardRandom,
   shuffleCardItems,
   ownedCardSelection,
+  moveOwnedCards,
 } from "../card/primitives";
 import type { GameComposition } from "../../frameworks/composition/contracts";
 import type { SimulatorRef } from "../../shared/contracts";
@@ -57,8 +58,10 @@ export interface State {
 export interface Choice {
   action: string;
   cards?: string[];
+  command?: { type: string; player: number };
 }
 export interface Entry {
+  moduleStates?: Record<string, unknown>;
   choice: Choice | null;
   actor: string;
   title: string;
@@ -345,8 +348,9 @@ function applyEffect(
       `组合：${selected.map((card) => instanceLabel(card)).join("、")}；（基础 ${result.base} + 同类奖励 ${result.bonus}）× 倍率 ${effectMultiplier(effect, player)} = ${result.score}`,
     );
     change(player, effect.field, result.score, model, notes);
-    pile.hand = pile.hand.filter((c) => !ids.includes(c.id));
-    pile.discard.push(...selected);
+    const moved = moveOwnedCards(pile.hand, pile.discard, ids);
+    pile.hand = moved.source;
+    pile.discard = moved.destination;
     notes.push(
       `${definition.name}：${selected.map(instanceLabel).join("、")}从手牌进入弃牌区。`,
     );
@@ -362,6 +366,8 @@ function applyEffect(
   }
 }
 export function step(run: Run, choice: Choice): Run {
+  if (choice.command !== undefined)
+    throw new Error("基础执行器不支持模块命令。");
   const previous = current(run);
   if (previous.outcome) throw new Error("本局已经结束，请创建新一局。");
   const state = copy(previous),

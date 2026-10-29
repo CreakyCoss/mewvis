@@ -19,6 +19,7 @@ export interface SimulatorDefinition {
   initialize: typeof startRun;
   advance: typeof step;
   prepareDecision?(run: Run): Run;
+  chooseModule?(run: Run): Choice | undefined;
 }
 export const simulators: readonly SimulatorDefinition[] = [resource, cardV2];
 export const simulatorDefinition = (ref: SimulatorRef | null | undefined) =>
@@ -111,3 +112,6 @@ export function advanceSimulatedRun(run: Run, choice: Choice): Run {
 }
 export const prepareDecisionRun = (run: Run): Run =>
   simulatorDefinition(run.simulator)?.prepareDecision?.(run) ?? run;
+
+export const chooseSimulatedModule = (run: Run): Choice | undefined =>
+  simulatorDefinition(run.simulator)?.chooseModule?.(run);

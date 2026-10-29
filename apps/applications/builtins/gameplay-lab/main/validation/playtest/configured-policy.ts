@@ -10,7 +10,10 @@ import {
   type Run,
 } from "../../domains/turn/engine";
 import { type Condition, type Strategy } from "./config";
-import { prepareDecisionRun } from "../../frameworks/numeric-runtime";
+import {
+  chooseSimulatedModule,
+  prepareDecisionRun,
+} from "../../frameworks/numeric-runtime";
 export function conditionMatches(c: Condition, value: number) {
   return c.op === "gte"
     ? value >= c.value
@@ -33,6 +36,8 @@ function roll(run: Run, salt = 0) {
   return (n >>> 0) / 4294967296;
 }
 export function chooseConfigured(input: Run, strategy: Strategy): Choice {
+  const moduleChoice = chooseSimulatedModule(input);
+  if (moduleChoice) return moduleChoice;
   const run = prepareDecisionRun(input);
   const state = current(run),
     player = actor(state);

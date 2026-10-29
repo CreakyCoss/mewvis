@@ -1,3 +1,4 @@
+import type { Choice } from "../domains/turn/engine";
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import type { DesignBrief } from "../app/projects/model";
@@ -29,6 +30,7 @@ export interface NumericSceneProps {
   setCursor(cursor: number): void;
   setCards(ids: string[]): void;
   execute(action: string, automatic?: boolean): void;
+  executeChoice(choice: Choice): void;
   newGame(): void;
   newGameDisabled: boolean;
 }
