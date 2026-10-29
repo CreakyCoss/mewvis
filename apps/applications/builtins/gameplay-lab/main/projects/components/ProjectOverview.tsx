@@ -1,4 +1,5 @@
 import { CheckCircle2, Circle, Play, Plus } from "lucide-react";
+import { collectionsOf } from "../../card/collections";
 import { type ReadinessIssue, type SimulatorRef } from "../../shared/contracts";
 import type { Model, NodeKind } from "../../turn/model";
 import { gameTypeName, type DirectionId } from "../catalog";
@@ -38,7 +39,7 @@ export function ProjectOverview({
       ...project.model.capabilities,
       ...project.model.actions,
       ...project.model.goals,
-      ...project.model.collections,
+      ...collectionsOf(project.model),
     ].find((n) => n.id === issue.path)?.name ?? issue.path;
   return (
     <section className="page-content project-overview">

@@ -12,6 +12,8 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 import appIcon from "../../assets/icon-sandbox.png";
 import { projectReadiness } from "../projects/compatibility";
+import { IncompatibleDataNotice } from "../projects/components/IncompatibleDataNotice";
+import type { IncompatibleData } from "../projects/incompatible";
 import { isNarrativeProject, type Project } from "../projects/model";
 import { projectRepository } from "../projects/repository";
 import { ApplicationForm } from "../shared/components/Form";
@@ -60,6 +62,7 @@ export default function NarrativeWorkspace({
     [saveStatus, setSaveStatus] = useState("已保存"),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
+  const [incompatible, setIncompatible] = useState<IncompatibleData[]>([]);
   const [records, setRecords] = useState<StoryRecord[]>([]),
     [record, setRecord] = useState<StoryRecord | null>(null),
     [cursor, setCursor] = useState(-1),
@@ -137,12 +140,14 @@ export default function NarrativeWorkspace({
   useEffect(() => {
     let live = true;
     setHistoryReady(false);
+    setIncompatible([]);
     void narrativeHistory()
       .list(project)
       .then((r) => {
         if (live) {
           setRecords(r.records);
           setHistoryErrors(r.errors);
+          setIncompatible(r.incompatible);
           setHistoryReady(true);
         }
       })
@@ -305,6 +310,12 @@ export default function NarrativeWorkspace({
               </button>
             </div>
           )}
+          <IncompatibleDataNotice
+            items={incompatible}
+            remove={(id) => narrativeHistory().removeIncompatible(project, id)}
+            done={() => setHistoryRevision((n) => n + 1)}
+            disabled={busy}
+          />
           {view === "overview" && (
             <OverviewView
               project={project}

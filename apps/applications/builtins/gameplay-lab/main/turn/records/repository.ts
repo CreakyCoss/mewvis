@@ -5,8 +5,14 @@ import {
 import {
   getApplicationFileClient,
   type ApplicationFileClient,
+  type ApplicationFileInfo,
 } from "@mewvis/app-sdk/files";
 import { parseProjectDocument } from "../../projects/document";
+import {
+  incompatibleFiles,
+  readSnapshot,
+  type IncompatibleData,
+} from "../../projects/incompatible";
 import { type Project } from "../../projects/model";
 import { projectFile } from "../../projects/paths";
 import { copy } from "../../shared/utils";
@@ -18,12 +24,13 @@ import {
 } from "./records";
 type Files = Pick<
   ApplicationFileClient,
-  "mkdir" | "list" | "stat" | "readText" | "writeText"
+  "mkdir" | "list" | "stat" | "readText" | "writeText" | "remove"
 >;
 export function createHistoryRepository(
   data: ApplicationDataClient,
   files: Files,
 ) {
+  const incompatible = incompatibleFiles(files);
   const cache = new Map<string, { text: string; modifiedAt: number }>();
   let writes: Promise<unknown> = Promise.resolve();
   const serialize = <T>(work: () => Promise<T>) => {
@@ -50,16 +57,6 @@ export function createHistoryRepository(
     if (actual.id !== project.id)
       throw new Error("项目标识已变化，请重新打开项目。");
   }
-  async function read(path: string, projectId: string) {
-    const before = await files.stat(path);
-    const text = await files.readText(path, { maxBytes: 16 * 1024 * 1024 });
-    const after = await files.stat(path);
-    if (before.modifiedAt !== after.modifiedAt || before.size !== after.size)
-      throw new Error("记录正在被修改，请重新加载。");
-    const record = parseRecord(JSON.parse(text), projectId);
-    cache.set(path, { text, modifiedAt: after.modifiedAt });
-    return record;
-  }
   return {
     flush: () => writes,
     list(project: Project) {
@@ -67,25 +64,51 @@ export function createHistoryRepository(
         await verify(project);
         const trials: Trial[] = [],
           experiments: Experiment[] = [],
-          errors: string[] = [];
+          errors: string[] = [],
+          unsupported: IncompatibleData[] = [];
         for (const folder of ["runs", "experiments"]) {
           const directory = `${project.path}/${folder}`;
-          await files.mkdir(directory);
-          for (const entry of await files.list(directory)) {
+          let entries: ApplicationFileInfo[];
+          try {
+            entries = await files.list(directory);
+          } catch (error) {
+            if ((error as { code?: string }).code === "FILE_NOT_FOUND")
+              continue;
+            throw error;
+          }
+          for (const entry of entries) {
             if (entry.type !== "file" || !entry.name.endsWith(".json"))
               continue;
+            let snapshot;
             try {
-              const record = await read(entry.filePath, project.id);
+              snapshot = await readSnapshot(
+                files,
+                entry.filePath,
+                16 * 1024 * 1024,
+              );
+              const record = parseRecord(JSON.parse(snapshot.text), project.id);
               const isTrial = "run" in record;
               if (
                 entry.name !== `${record.id}.json` ||
                 (folder === "runs") !== isTrial
               )
                 throw new Error("记录文件名或目录不匹配。");
+              cache.set(entry.filePath, {
+                text: snapshot.text,
+                modifiedAt: snapshot.modifiedAt,
+              });
               if ("run" in record) trials.push(record);
               else experiments.push(record);
             } catch (cause) {
               cache.delete(entry.filePath);
+              if (snapshot)
+                unsupported.push(
+                  incompatible.report(
+                    entry.filePath,
+                    snapshot,
+                    cause instanceof Error ? cause.message : String(cause),
+                  ),
+                );
               errors.push(
                 `${folder}/${entry.name}：${cause instanceof Error ? cause.message : String(cause)}`,
               );
@@ -94,7 +117,19 @@ export function createHistoryRepository(
         }
         const sort = <T extends { createdAt: string }>(items: T[]) =>
           items.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-        return { trials: sort(trials), experiments: sort(experiments), errors };
+        return {
+          trials: sort(trials),
+          experiments: sort(experiments),
+          errors,
+          incompatible: unsupported,
+        };
+      });
+    },
+    removeIncompatible(project: Project, id: string) {
+      return serialize(async () => {
+        await verify(project);
+        const path = await incompatible.remove(id, project.path);
+        cache.delete(path);
       });
     },
     save(project: Project, record: Trial | Experiment) {

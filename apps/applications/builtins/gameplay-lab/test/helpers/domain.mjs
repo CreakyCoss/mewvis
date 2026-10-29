@@ -12,6 +12,10 @@ after(() => rm(temporary, { recursive: true, force: true }));
 const modules = [
   "shared/utils",
   "shared/contracts",
+  "card/model",
+  "card/validation",
+  "card/collections",
+  "card/selection",
   "projects/model",
   "projects/paths",
   "projects/repository",

@@ -7,6 +7,7 @@ import {
   getApplicationFileClient,
   type ApplicationFileClient,
 } from "@mewvis/app-sdk/files";
+import { blankCardModel } from "../card/model";
 import { blankNarrative } from "../narrative/model";
 import { isSimulatorRef, type SimulatorRef } from "../shared/contracts";
 import { copy, uid } from "../shared/utils";
@@ -19,7 +20,7 @@ import {
   type DirectionId,
   type GameTypeId,
 } from "./catalog";
-import { isTemplateId, makeTemplate, type TemplateId } from "./examples";
+import { exampleModel, isTemplateId, type TemplateId } from "./examples";
 
 import {
   identifier,
@@ -27,6 +28,13 @@ import {
   parseProjectDocument,
   projectDocument,
 } from "./document";
+import {
+  IncompatibleDataError,
+  readSnapshot,
+  verifySnapshot,
+  type FileSnapshot,
+  type IncompatibleData,
+} from "./incompatible";
 import {
   emptyBrief,
   initialWorkspace,
@@ -54,7 +62,7 @@ interface ProjectReference {
 }
 type Files = Pick<
   ApplicationFileClient,
-  "mkdir" | "stat" | "readText" | "writeText"
+  "mkdir" | "stat" | "readText" | "writeText" | "remove"
 >;
 export function createProjectRepository(
   data: ApplicationDataClient,
@@ -64,6 +72,14 @@ export function createProjectRepository(
   const cache = new Map<
     string,
     { id: string; text: string; modifiedAt: number }
+  >();
+  const incompatibleProjects = new Map<
+    string,
+    { item: IncompatibleData; workspaceId: string; snapshot: FileSnapshot }
+  >();
+  const incompatibleStorage = new Map<
+    string,
+    { item: IncompatibleData; value: ApplicationStorageValue }
   >();
   const serialize = <T>(operation: () => Promise<T>): Promise<T> => {
     const result = writes.catch(() => {}).then(operation);
@@ -122,22 +138,57 @@ export function createProjectRepository(
       projects: [...remaining, record],
     } as unknown as ApplicationStorageValue);
   }
-  async function read(workspaceId: string): Promise<AnyProject> {
+  async function read(
+    workspaceId: string,
+    expectedId?: string,
+  ): Promise<AnyProject> {
     const workspace = await data.workspaces.get(workspaceId);
     const path = projectFile(workspace.path);
-    const before = await files.stat(path);
-    const text = await files.readText(path, { maxBytes: 4 * 1024 * 1024 });
-    const after = await files.stat(path);
-    if (before.modifiedAt !== after.modifiedAt || before.size !== after.size)
-      throw new Error("项目文件正在被修改，请重新打开。");
-    const project = parseProjectDocument(JSON.parse(text), {
-      workspaceId,
-      path: workspace.path,
-    });
+    const snapshot = await readSnapshot(files, path, 4 * 1024 * 1024);
+    const { text, modifiedAt } = snapshot;
+    let value: unknown;
+    try {
+      value = JSON.parse(text);
+    } catch {
+      value = undefined;
+    }
+    if (
+      object(value) &&
+      object(value.project) &&
+      expectedId &&
+      value.project.id !== expectedId
+    ) {
+      if (identifier(value.project.id))
+        cache.set(workspaceId, {
+          id: value.project.id,
+          text,
+          modifiedAt,
+        });
+      else cache.delete(workspaceId);
+      throw new Error("项目标识已变化，请从项目库重新打开。");
+    }
+    let project: AnyProject;
+    try {
+      project = parseProjectDocument(value, {
+        workspaceId,
+        path: workspace.path,
+      });
+    } catch (error) {
+      cache.delete(workspaceId);
+      const item: IncompatibleData = {
+        id: uid("incompatible"),
+        name: workspace.name,
+        path: normalize(workspace.path),
+        reason: `项目文件或命名版本无法读取：${error instanceof Error ? error.message : String(error)}`,
+        consequence: "将永久删除整个项目目录及其中的所有文件，并移除项目登记。",
+      };
+      incompatibleProjects.set(item.id, { item, workspaceId, snapshot });
+      throw new IncompatibleDataError(item);
+    }
     cache.set(workspaceId, {
       id: project.id,
       text: json(projectDocument(project)),
-      modifiedAt: after.modifiedAt,
+      modifiedAt,
     });
     return project;
   }
@@ -162,24 +213,75 @@ export function createProjectRepository(
     });
   }
   return {
-    async list(): Promise<Workspace<DesignModel>> {
-      await writes.catch(() => {});
-      await data.storage.removeItem(OBSOLETE_WORKSPACE_KEY);
-      const state = initialWorkspace<DesignModel>(),
-        records = await references();
-      for (const reference of records) {
-        try {
-          const project = await read(reference.workspaceId);
-          if (project.id !== reference.id)
-            throw new Error("项目标识与索引不一致。");
-          state.projects.push(project);
-        } catch (error) {
-          state.errors.push(
-            `${reference.name}（${reference.path}）：${error instanceof Error ? error.message : String(error)}`,
-          );
+    list(): Promise<Workspace<DesignModel>> {
+      return serialize(async () => {
+        const state = initialWorkspace<DesignModel>(),
+          records = await references();
+        const oldStorage = await data.storage.getItem(OBSOLETE_WORKSPACE_KEY);
+        if (oldStorage !== null) {
+          const item: IncompatibleData = {
+            id: uid("incompatible"),
+            name: "不兼容的数据库项目",
+            path: OBSOLETE_WORKSPACE_KEY,
+            reason: "此数据格式无法由当前应用读取。",
+            consequence:
+              "将永久删除这份数据库项目数据，目录项目及其文件会保留。",
+          };
+          incompatibleStorage.set(item.id, { item, value: copy(oldStorage) });
+          state.incompatible.push(item);
         }
-      }
-      return state;
+        for (const reference of records) {
+          try {
+            const project = await read(reference.workspaceId, reference.id);
+            state.projects.push(project);
+          } catch (error) {
+            if (error instanceof IncompatibleDataError)
+              state.incompatible.push({ ...error.item, name: reference.name });
+            else
+              state.errors.push(
+                `${reference.name}（${reference.path}）：${error instanceof Error ? error.message : String(error)}`,
+              );
+          }
+        }
+        return state;
+      });
+    },
+    deleteIncompatible(id: string) {
+      return serialize(async () => {
+        const stored = incompatibleStorage.get(id);
+        if (stored) {
+          if (
+            JSON.stringify(
+              await data.storage.getItem(OBSOLETE_WORKSPACE_KEY),
+            ) !== JSON.stringify(stored.value)
+          )
+            throw new Error("数据已变化，请重新加载后再次确认删除。");
+          await data.storage.removeItem(OBSOLETE_WORKSPACE_KEY);
+          incompatibleStorage.delete(id);
+          return;
+        }
+        const candidate = incompatibleProjects.get(id);
+        if (!candidate)
+          throw new Error("待删除项目已变化，请重新加载后再次确认。");
+        const workspace = await data.workspaces.get(candidate.workspaceId);
+        if (normalize(workspace.path) !== candidate.item.path)
+          throw new Error("项目目录已变化，请重新加载后再次确认。");
+        await verifySnapshot(
+          files,
+          projectFile(workspace.path),
+          candidate.snapshot,
+        );
+        const remaining = (await references()).filter(
+          (reference) => reference.workspaceId !== workspace.id,
+        );
+        await data.workspaces.remove({ id: workspace.id, deleteContent: true });
+        await data.storage.setItem(LIBRARY_KEY, {
+          format: "gameplay-library-v2",
+          projects: remaining,
+        } as unknown as ApplicationStorageValue);
+        cache.delete(workspace.id);
+        incompatibleProjects.delete(id);
+      });
     },
     saveProject(project: AnyProject) {
       const snapshot = copy(project);
@@ -254,10 +356,12 @@ export function createProjectRepository(
         if (!workspace) return null;
         const model =
           source === "example"
-            ? makeTemplate(input.exampleId!)
+            ? exampleModel(input.exampleId!)
             : gameType === "narrative"
               ? blankNarrative(name)
-              : blankModel(name);
+              : gameType === "card"
+                ? blankCardModel(name)
+                : blankModel(name);
         model.id = uid("model");
         model.name = name;
         const project = {
@@ -312,7 +416,7 @@ export function createProjectRepository(
     },
     reload(project: Project<DesignModel>) {
       return serialize(async () => {
-        const value = await read(project.workspaceId);
+        const value = await read(project.workspaceId, project.id);
         if (value.id !== project.id)
           throw new Error("项目标识已变化，请从项目库重新打开。");
         return value;
@@ -327,7 +431,7 @@ export function createProjectRepository(
         if (!isTemplateId(exampleId)) throw new Error("请选择内置示例。");
         await save(snapshot);
         // Back up the actual file after checking for external edits, before replacement.
-        const actual = await read(snapshot.workspaceId);
+        const actual = await read(snapshot.workspaceId, snapshot.id);
         if (json(projectDocument(actual)) !== json(projectDocument(snapshot))) {
           cache.delete(snapshot.workspaceId);
           throw new Error(
@@ -337,7 +441,7 @@ export function createProjectRepository(
         const backup = `${snapshot.path}/backups/${new Date().toISOString().replaceAll(":", "-")}-${uid("rules")}.json`;
         await files.mkdir(`${snapshot.path}/backups`);
         await files.writeText(backup, json(projectDocument(snapshot)));
-        const model = makeTemplate(exampleId);
+        const model = exampleModel(exampleId);
         model.id = snapshot.model.id;
         model.name = snapshot.model.name;
         const next = {
@@ -366,6 +470,7 @@ export function projectRepository() {
     getApplicationDataClient(),
     {
       mkdir: (...args) => getApplicationFileClient().mkdir(...args),
+      remove: (...args) => getApplicationFileClient().remove(...args),
       stat: (...args) => getApplicationFileClient().stat(...args),
       readText: (...args) => getApplicationFileClient().readText(...args),
       writeText: (...args) => getApplicationFileClient().writeText(...args),

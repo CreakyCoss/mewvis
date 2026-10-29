@@ -3,6 +3,7 @@ import type { SimulatorRef } from "../shared/contracts";
 import type { Model } from "../turn/model";
 import type { DirectionId, GameTypeId } from "./catalog";
 import type { TemplateId } from "./examples";
+import type { IncompatibleData } from "./incompatible";
 export interface DesignBrief {
   coreLoop: string;
   question: string;
@@ -10,10 +11,10 @@ export interface DesignBrief {
 export const emptyBrief = (): DesignBrief => ({ coreLoop: "", question: "" });
 export type DesignModel = Model | NarrativeModel;
 export interface Version<M extends DesignModel = Model> {
-  gameType?: GameTypeId;
-  direction?: DirectionId | null;
-  simulator?: SimulatorRef | null;
-  brief?: DesignBrief;
+  gameType: GameTypeId;
+  direction: DirectionId | null;
+  simulator: SimulatorRef | null;
+  brief: DesignBrief;
   id: string;
   name: string;
   model: M;
@@ -37,12 +38,14 @@ export const isNarrativeProject = (
   p: AnyProject,
 ): p is Project<NarrativeModel> => p.model.format === "gameplay-narrative-v1";
 export const isTurnProject = (p: AnyProject): p is Project<Model> =>
-  p.model.format === "gameplay-model-v1";
+  p.model.format === "gameplay-model-v1" ||
+  p.model.format === "gameplay-card-v1";
 export interface Workspace<M extends DesignModel = Model> {
   format: "gameplay-workspace-v2";
   active: string;
   projects: Project<M>[];
   errors: string[];
+  incompatible: IncompatibleData[];
 }
 export function initialWorkspace<
   M extends DesignModel = Model,
@@ -52,5 +55,6 @@ export function initialWorkspace<
     active: "",
     projects: [],
     errors: [],
+    incompatible: [],
   };
 }

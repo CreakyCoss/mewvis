@@ -43,7 +43,10 @@ test("aggregate costs and invalid selections are atomic", () => {
 });
 test("combination scoring explains arithmetic and preserves every collection member", () => {
   let run = f.startRun(f.makeTemplate("combination"), 17);
-  const originalIds = run.model.collections[0].cards.map((c) => c.id).sort();
+  const pile = f.current(run).players[0].collections.hand;
+  const originalIds = [...pile.hand, ...pile.draw, ...pile.discard]
+    .map((c) => c.id)
+    .sort();
   for (let i = 0; i < 3 && !f.current(run).outcome; i++) {
     const choice = f.choose(run, "goal");
     run = f.step(run, choice);
@@ -116,6 +119,8 @@ test("unfinished project JSON persists structurally, while malformed data is rej
     workspaceId: "test-workspace",
     path: "/test/project",
     exampleId: "development",
+    gameType: "systems",
+    direction: "resource-development",
     simulator: { id: "resource-turns", version: 1 },
     brief: { coreLoop: "", question: "" },
     createdAt: new Date().toISOString(),
@@ -148,19 +153,26 @@ test("pair bonus is a project rule used by scoring and the policy card selection
   ];
   assert.equal(f.combinationScore(cards.slice(0, 2), 2, 7).score, 18);
   const model = f.makeTemplate("combination");
-  model.collections[0].cards = cards;
-  model.collections[0].handSize = 3;
-  model.collections[0].maxSelect = 2;
+  model.cards = cards.map((c) => ({ ...c, description: "" }));
+  Object.assign(model.decks[0], {
+    handSize: 3,
+    initialDraw: 3,
+    maxSelect: 2,
+    entries: cards.map((c) => ({ card: c.id, count: 1 })),
+  });
   const effect = model.actions
     .find((a) => a.id === "play")
     .effects.find((e) => e.type === "combination");
   effect.pairBonus = 0;
   const low = f.choose(f.startRun(model), "goal");
-  assert.ok(low.cards.includes("c"));
+  assert.ok(low.cards.some((id) => id.includes(":c:")));
   effect.pairBonus = 100;
   const run = f.startRun(model),
     high = f.choose(run, "goal");
-  assert.deepEqual(high.cards.slice().sort(), ["a", "b"]);
+  assert.deepEqual(high.cards.map((id) => id.split(":").at(-2)).sort(), [
+    "a",
+    "b",
+  ]);
   assert.match(
     f.step(run, high).entries.at(-1).notes.join(" "),
     /同类奖励 100/,
@@ -187,8 +199,8 @@ test("definition deletion checks costs, sources, grants, goals and collection sc
 });
 test("unfinished collection edits remain savable drafts but cannot run", () => {
   const model = f.makeTemplate("combination");
-  model.collections[0].cards = [];
-  model.collections[0].maxSelect = 8;
+  model.decks[0].entries = [];
+  model.decks[0].maxSelect = 8;
   assert.deepEqual(f.validateModel(model, true), []);
   assert.ok(f.validateModel(model).length);
   assert.throws(() => f.startRun(model));
@@ -220,6 +232,7 @@ test("compact records preserve events and exact deterministic state; tampering i
 test("interrupted experiments resume the missing cells exactly once and retain failures", () => {
   let e = f.newExperiment("project-test", f.makeTemplate(), 42, 2, "goal");
   e.count = 2;
+  e.setup.scenario.seedCount = 2;
   e.samples.push(f.nextSample(e));
   e = f.parseRecord(JSON.parse(JSON.stringify(e)), e.projectId);
   assert.equal(e.status, "interrupted");
@@ -273,7 +286,7 @@ test("scenarios override each player independently, inherit omitted defaults and
   scenario.participants[0].values.materials = 0;
   setup.strategies[0].name = "changed";
   assert.equal(trial.setup.scenario.participants[0].values.materials, 60);
-  assert.equal(f.trialDocument(trial).format, "gameplay-run-v2");
+  assert.equal(f.trialDocument(trial).format, "gameplay-run-v3");
   assert.deepEqual(
     f.parseRecord(f.trialDocument(trial), trial.projectId),
     trial,
@@ -358,22 +371,34 @@ test("weighted rules and random card selection are deterministic without mutatin
 });
 test("card policies distinguish group scoring from high base values", () => {
   const model = f.makeTemplate("combination");
-  model.collections[0].handSize = 3;
-  model.collections[0].maxSelect = 2;
-  model.collections[0].cards = [
+  Object.assign(model.decks[0], {
+    handSize: 3,
+    initialDraw: 3,
+    maxSelect: 2,
+    entries: ["a", "b", "c"].map((card) => ({ card, count: 1 })),
+  });
+  model.cards = [
     { id: "a", name: "A", group: "pair", value: 1 },
     { id: "b", name: "B", group: "pair", value: 1 },
     { id: "c", name: "C", group: "solo", value: 20 },
-  ];
+  ].map((c) => ({ ...c, description: "" }));
   model.actions[0].effects[0].pairBonus = 100;
   const run = f.startRun(model),
     strategy = {
       ...structuredClone(f.builtinStrategies[0]),
       rules: [{ action: "play", priority: 1, conditions: [] }],
     };
-  assert.deepEqual(f.chooseConfigured(run, strategy).cards.sort(), ["a", "b"]);
+  assert.deepEqual(
+    f
+      .chooseConfigured(run, strategy)
+      .cards.map((id) => id.split(":").at(-2))
+      .sort(),
+    ["a", "b"],
+  );
   strategy.cards = "value";
-  assert.ok(f.chooseConfigured(run, strategy).cards.includes("c"));
+  assert.ok(
+    f.chooseConfigured(run, strategy).cards.some((id) => id.includes(":c:")),
+  );
 });
 test("configured experiments freeze participants and strategies, resume missing cells and report per-player goals", () => {
   const model = f.makeTemplate(),

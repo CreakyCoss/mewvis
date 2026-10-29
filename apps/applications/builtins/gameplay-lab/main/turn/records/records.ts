@@ -1,3 +1,4 @@
+import { cardSimulator } from "../../card/model";
 import { isSimulatorRef, type SimulatorRef } from "../../shared/contracts";
 import { copy, uid } from "../../shared/utils";
 import {
@@ -22,8 +23,11 @@ import {
 import { validateModel, type Model } from "../model";
 import {
   basePolicyValid,
+  defaultPlaytest,
   experimentSetupIssues,
   initialOf,
+  initialPlayer,
+  selectedSetup,
   setupIssues,
   type ExperimentSetup,
   type InitialPlayer,
@@ -51,8 +55,8 @@ export interface Trial {
   run: Run;
 }
 export interface TrialDocument {
-  format: "gameplay-run-v1" | "gameplay-run-v2" | "gameplay-run-v3";
-  simulator?: SimulatorRef;
+  format: "gameplay-run-v3";
+  simulator: SimulatorRef;
   setup?: RunSetup;
   engine: number;
   id: string;
@@ -74,14 +78,10 @@ export interface Sample {
   error?: string;
 }
 export interface Experiment {
-  format:
-    | "gameplay-experiment-v1"
-    | "gameplay-experiment-v2"
-    | "gameplay-experiment-v3"
-    | "gameplay-experiment-v4";
-  simulator?: SimulatorRef;
+  format: "gameplay-experiment-v4";
+  simulator: SimulatorRef;
   comparison?: ComparisonPlan;
-  setup?: ExperimentSetup;
+  setup: ExperimentSetup;
   engine: number;
   id: string;
   projectId: string;
@@ -153,12 +153,8 @@ export function restoreLog(
 }
 export function trialDocument(t: Trial): TrialDocument {
   return {
-    format: t.run.simulator
-      ? "gameplay-run-v3"
-      : t.setup
-        ? "gameplay-run-v2"
-        : "gameplay-run-v1",
-    ...(t.run.simulator ? { simulator: copy(t.run.simulator) } : {}),
+    format: "gameplay-run-v3",
+    simulator: copy(t.run.simulator),
     ...(t.setup ? { setup: copy(t.setup) } : {}),
     engine: ENGINE_VERSION,
     id: t.id,
@@ -218,48 +214,49 @@ export function newExperiment(
   players: number,
   policy: Policy,
 ): Experiment {
-  const now = new Date().toISOString();
-  return {
-    format: "gameplay-experiment-v1",
-    engine: ENGINE_VERSION,
-    id: uid("experiment"),
+  const config = defaultPlaytest(projectId);
+  config.scenarios[0].seedStart = seed;
+  config.scenarios[0].participants = Array.from({ length: players }, (_, i) =>
+    initialPlayer(i),
+  );
+  config.comparedStrategies = [policy, policy === "random" ? "goal" : "random"];
+  return newConfiguredExperiment(
     projectId,
-    createdAt: now,
-    updatedAt: now,
-    seed,
-    players,
-    model: copy(model),
-    policies: [policy, policy === "random" ? "goal" : "random"],
-    count: 12,
-    status: "running",
-    samples: [],
-  };
+    model,
+    selectedSetup(config, model, true) as ExperimentSetup,
+  );
 }
 export function newConfiguredExperiment(
   projectId: string,
   model: Model,
   setup: ExperimentSetup,
-  simulator?: SimulatorRef,
+  simulator: SimulatorRef = model.format === "gameplay-card-v1"
+    ? cardSimulator
+    : { id: "resource-turns", version: 1 },
 ): Experiment {
-  if (simulator) assertSimulator(model, simulator);
+  assertSimulator(model, simulator);
   const errors = [
     ...validateModel(model).map((i) => i.message),
     ...experimentSetupIssues(setup, model),
   ];
   if (errors.length) throw new Error(errors.join(" "));
+  const now = new Date().toISOString();
   return {
-    ...newExperiment(
-      projectId,
-      model,
-      setup.scenario.seedStart,
-      setup.scenario.participants.length,
-      "goal",
-    ),
-    format: simulator ? "gameplay-experiment-v4" : "gameplay-experiment-v2",
-    ...(simulator ? { simulator: copy(simulator) } : {}),
+    format: "gameplay-experiment-v4",
+    simulator: copy(simulator),
     setup: copy(setup),
+    engine: ENGINE_VERSION,
+    id: uid("experiment"),
+    projectId,
+    createdAt: now,
+    updatedAt: now,
+    seed: setup.scenario.seedStart,
+    players: setup.scenario.participants.length,
+    model: copy(model),
     policies: setup.arms.map((a) => a.id),
     count: setup.scenario.seedCount,
+    status: "running",
+    samples: [],
   };
 }
 export function newComparisonExperiment(
@@ -273,14 +270,9 @@ export function newComparisonExperiment(
     base = newConfiguredExperiment(projectId, model, setup, simulator);
   const errors = comparisonIssues(model, setup, comparison);
   if (errors.length) throw new Error(errors.join(" "));
-  if (simulator)
-    for (const v of comparison.variants)
-      assertSimulator(v.model ?? model, simulator);
-  return {
-    ...base,
-    format: simulator ? "gameplay-experiment-v4" : "gameplay-experiment-v3",
-    comparison: copy(comparison),
-  };
+  for (const variant of comparison.variants)
+    assertSimulator(variant.model ?? model, base.simulator);
+  return { ...base, comparison: copy(comparison) };
 }
 export function trialStrategy(trial: Trial) {
   const id =
@@ -299,17 +291,7 @@ export function trialChoice(trial: Trial) {
   };
 }
 export function experimentPolicyName(e: Experiment, id: string) {
-  return (
-    e.setup?.arms.find((a) => a.id === id)?.name ??
-    (
-      {
-        goal: "目标优先",
-        growth: "先发展再推进",
-        random: "随机合法",
-      } as Record<string, string>
-    )[id] ??
-    id
-  );
+  return e.setup.arms.find((a) => a.id === id)?.name ?? id;
 }
 export function nextSample(e: Experiment): Sample | null {
   for (const variant of experimentVariants(e))
@@ -326,25 +308,23 @@ export function nextSample(e: Experiment): Sample | null {
           continue;
         const seed = (e.seed + index) >>> 0;
         const model = variantModel(e, variant.id),
-          initial = e.setup ? initialOf(e.setup.scenario) : undefined;
-        let run = e.simulator
-            ? createSimulatedRun(e.simulator, model, seed, e.players, initial)
-            : startRun(model, seed, e.players, initial),
+          initial = initialOf(e.setup.scenario);
+        let run = createSimulatedRun(
+            e.simulator,
+            model,
+            seed,
+            e.players,
+            initial,
+          ),
           error: string | undefined;
         try {
           while (!current(run).outcome) {
-            const id = e.setup?.arms.find((a) => a.id === policy)?.strategyIds[
+            const id = e.setup.arms.find((a) => a.id === policy)?.strategyIds[
               current(run).actor
             ];
-            const strategy = e.setup?.strategies.find((s) => s.id === id);
-            if (e.setup && !strategy)
-              throw new Error("实验快照中的策略不存在。");
-            run = advanceSimulatedRun(
-              run,
-              strategy
-                ? chooseConfigured(run, strategy)
-                : choose(run, policy as Policy),
-            );
+            const strategy = e.setup.strategies.find((s) => s.id === id);
+            if (!strategy) throw new Error("实验快照中的策略不存在。");
+            run = advanceSimulatedRun(run, chooseConfigured(run, strategy));
           }
         } catch (cause) {
           error = cause instanceof Error ? cause.message : String(cause);
@@ -389,9 +369,7 @@ export function experimentRows(e: Experiment) {
         error: all.length - completed.length,
         players: Array.from({ length: e.players }, (_, i) => ({
           id: `player-${i}`,
-          name:
-            e.setup?.scenario.participants[i].name ??
-            `玩家 ${String.fromCharCode(65 + i)}`,
+          name: e.setup.scenario.participants[i].name,
           reached: completed.filter((s) =>
             s.log.final.outcome?.winners.some(
               (w) => w.player === `player-${i}`,
@@ -430,24 +408,19 @@ export function parseRecord(
       [1, 2].includes(v.players) &&
       !validateModel(v.model).length,
   );
-  if (
-    v.format === "gameplay-run-v1" ||
-    v.format === "gameplay-run-v2" ||
-    v.format === "gameplay-run-v3"
-  ) {
-    if (v.format === "gameplay-run-v3") assert(isSimulatorRef(v.simulator));
-    else assert(v.simulator === undefined);
-    if (
-      v.format === "gameplay-run-v2" ||
-      (v.format === "gameplay-run-v3" && v.setup !== undefined)
-    )
+  assert(
+    v.format === "gameplay-run-v3" || v.format === "gameplay-experiment-v4",
+    "记录格式不受支持。",
+  );
+  assert(isSimulatorRef(v.simulator), "运行记录需要有效的模拟器版本。");
+  assertSimulator(v.model, v.simulator);
+  if (v.format === "gameplay-run-v3") {
+    if (v.setup !== undefined)
       assert(
-        v.setup &&
-          !setupIssues(v.setup, v.model).length &&
+        !setupIssues(v.setup, v.model).length &&
           v.setup.scenario.participants.length === v.players &&
           v.setup.scenario.seedStart === v.seed,
       );
-    else assert(v.setup === undefined);
     const run = restoreLog(
       v.model,
       v.seed,
@@ -477,46 +450,25 @@ export function parseRecord(
       run,
     };
   }
-  assert(
-    v.format === "gameplay-experiment-v1" ||
-      v.format === "gameplay-experiment-v2" ||
-      v.format === "gameplay-experiment-v3" ||
-      v.format === "gameplay-experiment-v4",
-  );
   const e = v as Experiment;
-  if (
-    e.format === "gameplay-experiment-v2" ||
-    e.format === "gameplay-experiment-v3" ||
-    e.format === "gameplay-experiment-v4"
-  )
-    assert(
-      e.setup &&
-        !experimentSetupIssues(e.setup, e.model).length &&
-        e.players === e.setup.scenario.participants.length &&
-        e.seed === e.setup.scenario.seedStart &&
-        e.count === e.setup.scenario.seedCount &&
-        JSON.stringify(e.policies) ===
-          JSON.stringify(e.setup.arms.map((a) => a.id)),
-    );
-  else assert(e.setup === undefined);
-  if (
-    e.format === "gameplay-experiment-v3" ||
-    (e.format === "gameplay-experiment-v4" && e.comparison !== undefined)
-  )
-    assert(e.setup && !comparisonIssues(e.model, e.setup, e.comparison).length);
-  else assert(e.comparison === undefined);
-  if (e.format === "gameplay-experiment-v4") {
-    assert(isSimulatorRef(e.simulator));
-    for (const variant of experimentVariants(e))
-      assertSimulator(variantModel(e, variant.id), e.simulator!);
-  } else assert(e.simulator === undefined);
+  assert(
+    e.setup &&
+      !experimentSetupIssues(e.setup, e.model).length &&
+      e.players === e.setup.scenario.participants.length &&
+      e.seed === e.setup.scenario.seedStart &&
+      e.count === e.setup.scenario.seedCount &&
+      JSON.stringify(e.policies) ===
+        JSON.stringify(e.setup.arms.map((a) => a.id)),
+  );
+  if (e.comparison !== undefined)
+    assert(!comparisonIssues(e.model, e.setup, e.comparison).length);
+  for (const variant of experimentVariants(e))
+    assertSimulator(variantModel(e, variant.id), e.simulator);
   assert(
     Array.isArray(e.policies) &&
       e.policies.length > 0 &&
       e.policies.length <= 4 &&
-      e.policies.every((p) =>
-        e.setup ? e.setup.arms.some((a) => a.id === p) : policyValid(p),
-      ) &&
+      e.policies.every((p) => e.setup.arms.some((a) => a.id === p)) &&
       new Set(e.policies).size === e.policies.length &&
       Number.isInteger(e.count) &&
       e.count >= 1 &&
@@ -549,7 +501,7 @@ export function parseRecord(
       s.seed,
       e.players,
       s.log,
-      e.setup ? initialOf(e.setup.scenario) : undefined,
+      initialOf(e.setup.scenario),
       e.simulator,
     );
     assert(s.error || s.log.final.outcome);

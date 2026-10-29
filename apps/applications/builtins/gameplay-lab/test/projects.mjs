@@ -78,6 +78,10 @@ test("project edits and named versions survive a host restart without modifying 
   a.model.actions[0].costs[0].value = 17;
   a.versions.push({
     id: "version-one",
+    gameType: a.gameType,
+    direction: a.direction,
+    brief: structuredClone(a.brief),
+    simulator: structuredClone(a.simulator),
     name: "版本一",
     model: structuredClone(a.model),
     createdAt: new Date().toISOString(),
@@ -113,6 +117,10 @@ test("switch and reset back up the user's JSON and preserve project identity and
   p.model.actions[0].costs[0].value = 27;
   p.versions.push({
     id: "saved-design",
+    gameType: p.gameType,
+    direction: p.direction,
+    brief: structuredClone(p.brief),
+    simulator: structuredClone(p.simulator),
     name: "旧设计",
     model: structuredClone(p.model),
     createdAt: new Date().toISOString(),
@@ -179,7 +187,7 @@ test("unreadable projects keep their index and do not block healthy projects", a
     p = await create(e, "损坏项目");
   await writeFile(f.projectFile(p.path), "{broken");
   const list = await f.createProjectRepository(e.data, e.files).list();
-  assert.equal(list.errors.length, 1);
+  assert.equal(list.incompatible.length, 1);
   assert.equal(list.projects.length, 0);
   await create(e, "正常项目");
   assert.equal(
@@ -189,26 +197,37 @@ test("unreadable projects keep their index and do not block healthy projects", a
   assert.equal(await readFile(f.projectFile(p.path), "utf8"), "{broken");
 });
 
-test("obsolete database projects are deleted without changing directory projects or their index", async (t) => {
+test("incompatible database data remains until explicitly deleted and changed data requires reconfirmation", async (t) => {
   const e = await fixture(t),
-    project = await create(e, "目录项目");
-  const path = f.projectFile(project.path);
-  const before = await readFile(path, "utf8");
-  const index = await e.data.storage.getItem(f.LIBRARY_KEY);
-  await e.data.storage.setItem(f.OBSOLETE_WORKSPACE_KEY, {
+    project = await create(e, "目录项目"),
+    path = f.projectFile(project.path),
+    before = await readFile(path, "utf8"),
+    index = await e.data.storage.getItem(f.LIBRARY_KEY);
+  const old = {
     format: "gameplay-workspace-v1",
     projects: [{ id: "old-project", model: f.makeTemplate(), versions: [] }],
-  });
+  };
+  await e.data.storage.setItem(f.OBSOLETE_WORKSPACE_KEY, old);
   const list = await e.repo.list();
-  assert.equal(await e.data.storage.getItem(f.OBSOLETE_WORKSPACE_KEY), null);
-  assert.equal(list.projects.length, 1);
+  assert.equal(list.incompatible.length, 1);
   assert.equal(list.projects[0].id, project.id);
-  assert.deepEqual(list.errors, []);
+  assert.deepEqual(await e.data.storage.getItem(f.OBSOLETE_WORKSPACE_KEY), old);
+  await e.repo.list();
+  assert.deepEqual(await e.data.storage.getItem(f.OBSOLETE_WORKSPACE_KEY), old);
+  await e.data.storage.setItem(f.OBSOLETE_WORKSPACE_KEY, "changed data");
+  await assert.rejects(
+    e.repo.deleteIncompatible(list.incompatible[0].id),
+    /已变化/,
+  );
+  assert.equal(
+    await e.data.storage.getItem(f.OBSOLETE_WORKSPACE_KEY),
+    "changed data",
+  );
+  const reloaded = await e.repo.list();
+  await e.repo.deleteIncompatible(reloaded.incompatible[0].id);
+  assert.equal(await e.data.storage.getItem(f.OBSOLETE_WORKSPACE_KEY), null);
   assert.equal(await readFile(path, "utf8"), before);
   assert.deepEqual(await e.data.storage.getItem(f.LIBRARY_KEY), index);
-  await e.data.storage.setItem(f.OBSOLETE_WORKSPACE_KEY, "invalid old data");
-  assert.deepEqual((await e.repo.list()).errors, []);
-  assert.equal(await e.data.storage.getItem(f.OBSOLETE_WORKSPACE_KEY), null);
 });
 
 test("cancelled pickers create no projects and failed initialization cleans up only the new directory", async (t) => {
@@ -270,23 +289,25 @@ test("run and experiment files survive a host restart, keep frozen rules, and re
     parent: host.projectsPath,
     exampleId: "combination",
   });
-  const trial = f.newTrial(p.id, p.model, 51, 2);
+  const cardModel = f.makeTemplate("combination");
+  const trial = f.newTrial(p.id, cardModel, 51, 2);
   for (let i = 0; i < 3; i++) {
     trial.run = f.step(trial.run, f.choose(trial.run, "goal"));
     trial.drivers.push("goal");
   }
   await history.save(p, trial);
-  const e = f.newExperiment(p.id, p.model, 71, 1, "growth");
+  const e = f.newExperiment(p.id, cardModel, 71, 1, "growth");
   e.count = 2;
+  e.setup.scenario.seedCount = 2;
   e.samples.push(f.nextSample(e));
   await history.save(p, e);
   const trialFile = join(p.path, "runs", trial.id + ".json"),
     experimentFile = join(p.path, "experiments", e.id + ".json");
   const document = JSON.parse(await readFile(trialFile, "utf8"));
-  assert.equal(document.format, "gameplay-run-v1");
+  assert.equal(document.format, "gameplay-run-v3");
   assert.equal(document.log.choices.length, 3);
   assert.equal(document.log.events[1].state, undefined);
-  const originalModel = structuredClone(p.model);
+  const originalModel = structuredClone(cardModel);
   await repo.reset(p, "development");
   await host.close(false);
   const restarted = await createProjectHost(host.root);
@@ -503,6 +524,10 @@ test("version and parameter comparisons persist, resume and replay their own rul
   await settings.save(project, config);
   project.versions.push({
     id: "version-baseline",
+    gameType: project.gameType,
+    direction: project.direction,
+    brief: structuredClone(project.brief),
+    simulator: structuredClone(project.simulator),
     name: "研究成本 8",
     model: structuredClone(project.model),
     createdAt: new Date().toISOString(),
@@ -627,7 +652,7 @@ test("blank project creation writes no example content and unfinished drafts reo
   delete legacy.project.exampleId;
   delete legacy.project.simulator;
   delete legacy.project.brief;
-  assert.doesNotThrow(() => f.parseProjectDocument(legacy, project));
+  assert.throws(() => f.parseProjectDocument(legacy, project));
 });
 test("hand-authored blank games persist simulator-aware runs and experiments across host restarts", async (t) => {
   const host = await createProjectHost();
@@ -641,7 +666,7 @@ test("hand-authored blank games persist simulator-aware runs and experiments acr
       name: id,
       parent: host.projectsPath,
       source: "blank",
-      simulator: { id, version: 1 },
+      simulator: { id, version: id === "card-combination" ? 2 : 1 },
     });
     project.model.fields.push({
       id: "my-score",
@@ -666,14 +691,34 @@ test("hand-authored blank games persist simulator-aware runs and experiments acr
       threshold: 6,
     });
     if (id === "card-combination") {
-      project.model.collections.push({
+      project.model.cards.push(
+        {
+          id: "my-one",
+          name: "远行",
+          description: "",
+          group: "旅行",
+          value: 2,
+        },
+        {
+          id: "my-two",
+          name: "相遇",
+          description: "",
+          group: "相识",
+          value: 4,
+        },
+      );
+      project.model.decks.push({
         id: "my-deck",
         name: "心愿牌",
         handSize: 1,
+        initialDraw: 1,
+        minSelect: 1,
         maxSelect: 1,
-        cards: [
-          { id: "my-one", name: "远行", group: "旅行", value: 2 },
-          { id: "my-two", name: "相遇", group: "相识", value: 4 },
+        refill: "after-play",
+        recycle: "shuffle-discard",
+        entries: [
+          { card: "my-one", count: 1 },
+          { card: "my-two", count: 1 },
         ],
       });
       project.model.actions[0].effects = [
@@ -688,6 +733,9 @@ test("hand-authored blank games persist simulator-aware runs and experiments acr
     }
     project.versions.push({
       id: "version-original",
+      gameType: project.gameType,
+      direction: project.direction,
+      brief: structuredClone(project.brief),
       name: "初始规则",
       model: structuredClone(project.model),
       simulator: structuredClone(project.simulator),
@@ -712,7 +760,7 @@ test("hand-authored blank games persist simulator-aware runs and experiments acr
     // Changing the current selection is a draft edit; old runs keep the recorded simulator.
     project.simulator = {
       id: id === "resource-turns" ? "card-combination" : "resource-turns",
-      version: 1,
+      version: id === "resource-turns" ? 2 : 1,
     };
     await repo.saveProject(project);
     ids.push({ project: project.id, simulator: id });
@@ -968,6 +1016,7 @@ test("oversized narrative version collections cannot make the project unreadable
     gameType: "narrative",
     direction: "branching-story",
     simulator: p.simulator,
+    brief: structuredClone(p.brief),
   }));
   await assert.rejects(e.repo.saveProject(p), /4 MiB/);
   assert.equal(await readFile(f.projectFile(p.path), "utf8"), before);

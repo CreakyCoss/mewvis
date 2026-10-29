@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
+import type { IncompatibleData } from "../../projects/incompatible";
 import { type Project } from "../../projects/model";
 import { type Experiment, type Trial } from "./records";
 import { historyRepository } from "./repository";
 export function useTurnHistory(project: Project) {
   const [trials, setTrials] = useState<Trial[]>([]);
   const [experiments, setExperiments] = useState<Experiment[]>([]);
+  const [incompatible, setIncompatible] = useState<IncompatibleData[]>([]);
   const [historyReady, setHistoryReady] = useState("");
   const [historyError, setHistoryError] = useState("");
   const [historyRevision, setHistoryRevision] = useState(0);
@@ -14,6 +16,7 @@ export function useTurnHistory(project: Project) {
     let active = true;
     setHistoryReady("");
     setHistoryError("");
+    setIncompatible([]);
     void historyRepository()
       .list(project)
       .then((result) => {
@@ -27,6 +30,7 @@ export function useTurnHistory(project: Project) {
           ...result.experiments,
         ]);
         setHistoryError(result.errors.join("；"));
+        setIncompatible(result.incompatible);
         setHistoryReady(project.id);
       })
       .catch((cause) => {
@@ -47,6 +51,7 @@ export function useTurnHistory(project: Project) {
     setExperiments,
     historyReady,
     historyError,
+    incompatible,
     reloadHistory: () => setHistoryRevision((n) => n + 1),
   };
 }

@@ -1,3 +1,4 @@
+import { collectionsOf } from "../../card/collections";
 import { copy } from "../../shared/utils";
 import { fieldName, validateModel, type Effect, type Model } from "../model";
 import {
@@ -17,7 +18,14 @@ export type ParameterRef =
       property: "value" | "pairBonus" | "multiplierValue";
     }
   | { kind: "goal"; goal: string }
-  | { kind: "flow"; property: "actionsPerTurn" | "maxRounds" };
+  | { kind: "flow"; property: "actionsPerTurn" | "maxRounds" }
+  | { kind: "card-value"; card: string }
+  | { kind: "deck-count"; deck: string; card: string }
+  | {
+      kind: "deck";
+      deck: string;
+      property: "handSize" | "initialDraw" | "minSelect" | "maxSelect";
+    };
 export interface ParameterOption {
   ref: ParameterRef;
   key: string;
@@ -102,6 +110,37 @@ export function parameterOptions(model: Model): ParameterOption[] {
     1,
     100,
   );
+  if (model.format === "gameplay-card-v1") {
+    for (const card of model.cards)
+      add(
+        { kind: "card-value", card: card.id },
+        `${card.name} · 卡牌基础值`,
+        card.value,
+      );
+    for (const deck of model.decks) {
+      for (const entry of deck.entries)
+        add(
+          { kind: "deck-count", deck: deck.id, card: entry.card },
+          `${deck.name} · ${model.cards.find((card) => card.id === entry.card)?.name ?? entry.card}数量`,
+          entry.count,
+          1,
+          100,
+        );
+      for (const [property, name] of [
+        ["handSize", "手牌容量"],
+        ["initialDraw", "开局抽牌"],
+        ["minSelect", "最少出牌"],
+        ["maxSelect", "最多出牌"],
+      ] as const)
+        add(
+          { kind: "deck", deck: deck.id, property },
+          `${deck.name} · ${name}`,
+          deck[property],
+          property === "initialDraw" ? 0 : 1,
+          10,
+        );
+    }
+  }
   return options;
 }
 function parameter(model: Model, ref: ParameterRef) {
@@ -136,7 +175,16 @@ export function withParameter(
       e.multiplierValue = value;
   } else if (ref.kind === "goal")
     next.goals.find((g) => g.id === ref.goal)!.threshold = value;
-  else next.flow[ref.property] = value;
+  else if (ref.kind === "flow") next.flow[ref.property] = value;
+  else if (next.format === "gameplay-card-v1") {
+    if (ref.kind === "card-value")
+      next.cards.find((card) => card.id === ref.card)!.value = value;
+    else if (ref.kind === "deck-count")
+      next.decks
+        .find((deck) => deck.id === ref.deck)!
+        .entries.find((entry) => entry.card === ref.card)!.count = value;
+    else next.decks.find((deck) => deck.id === ref.deck)![ref.property] = value;
+  }
   const issues = validateModel(next);
   if (issues.length) throw new Error(issues.map((i) => i.message).join(" "));
   return next;
@@ -307,6 +355,10 @@ export function comparisonIssues(
         continue;
       }
       const model = v.model!;
+      if (model.format !== base.format)
+        errors.push(
+          `「${v.name}」的模型格式与基准不同，请使用相同规则体系的版本。`,
+        );
       if (
         !sameIds(base.fields, model.fields) ||
         !sameIds(base.capabilities, model.capabilities)
@@ -477,7 +529,7 @@ export function ruleChanges(before: Model, after: Model) {
             ? `${fieldName(m, e.field)} + ${e.value}${e.from ? ` × ${fieldName(m, e.from)}` : ""}`
             : e.type === "grant"
               ? `授予 ${m.capabilities.find((c) => c.id === e.capability)?.name ?? e.capability}`
-              : `集合 ${m.collections.find((c) => c.id === e.collection)?.name ?? e.collection} → ${fieldName(m, e.field)}，配对奖励 ${e.pairBonus ?? 15}，倍率 ${e.multiplier !== undefined ? fieldName(m, e.multiplier) : (e.multiplierValue ?? 1)}`,
+              : `牌库 ${collectionsOf(m).find((c) => c.id === e.collection)?.name ?? e.collection} → ${fieldName(m, e.field)}，配对奖励 ${e.pairBonus ?? 15}，倍率 ${e.multiplier !== undefined ? fieldName(m, e.multiplier) : (e.multiplierValue ?? 1)}`,
         )
         .join("；") || "无";
     m.fields.forEach((f) => {
@@ -499,7 +551,9 @@ export function ruleChanges(before: Model, after: Model) {
     put(
       ["order", "collections"],
       "集合初始化顺序",
-      m.collections.map((c) => c.id).join(" → "),
+      collectionsOf(m)
+        .map((c) => c.id)
+        .join(" → "),
     );
     m.actions.forEach((a) => {
       put(
@@ -524,20 +578,44 @@ export function ruleChanges(before: Model, after: Model) {
         `${fieldName(m, g.field)} ≥ ${g.threshold}`,
       ),
     );
-    m.collections.forEach((c) => {
-      put(
-        ["collection", c.id, "capacity"],
-        `${c.name} · 容量与选择上限`,
-        `${c.handSize} / ${c.maxSelect}`,
+    if (m.format === "gameplay-card-v1") {
+      m.cards.forEach((card) =>
+        put(
+          ["card", card.id],
+          `${card.name} · 卡牌属性`,
+          `${card.group} / ${card.value}`,
+        ),
       );
-      put(
-        ["collection", c.id, "cards"],
-        `${c.name} · 对象`,
-        c.cards
-          .map((c) => `${c.id} ${c.name} [${c.group}] ${c.value}`)
-          .join("；"),
-      );
-    });
+      m.decks.forEach((deck) => {
+        put(
+          ["deck", deck.id, "composition"],
+          `${deck.name} · 牌库组成`,
+          deck.entries
+            .map((entry) => `${entry.card} × ${entry.count}`)
+            .join(" → "),
+        );
+        put(
+          ["deck", deck.id, "selection"],
+          `${deck.name} · 手牌与出牌`,
+          `${deck.handSize} / ${deck.minSelect}–${deck.maxSelect}`,
+        );
+        put(
+          ["deck", deck.id, "opening"],
+          `${deck.name} · 开局抽牌数`,
+          deck.initialDraw,
+        );
+        put(
+          ["deck", deck.id, "refill"],
+          `${deck.name} · 补牌时机`,
+          deck.refill,
+        );
+        put(
+          ["deck", deck.id, "recycle"],
+          `${deck.name} · 弃牌回收`,
+          deck.recycle,
+        );
+      });
+    }
     put(["flow", "actions"], "每阶段行动数", m.flow.actionsPerTurn);
     put(["flow", "rounds"], "轮数上限", m.flow.maxRounds);
     put(["flow", "income"], "周期效果", effects(m.flow.income));

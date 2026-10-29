@@ -5,8 +5,14 @@ import {
 import {
   getApplicationFileClient,
   type ApplicationFileClient,
+  type ApplicationFileInfo,
 } from "@mewvis/app-sdk/files";
 import { parseProjectDocument } from "../projects/document";
+import {
+  incompatibleFiles,
+  readSnapshot,
+  type IncompatibleData,
+} from "../projects/incompatible";
 import { type Project } from "../projects/model";
 import { projectFile } from "../projects/paths";
 import { copy } from "../shared/utils";
@@ -14,12 +20,13 @@ import { type NarrativeModel } from "./model";
 import { parseStoryRecord, type StoryRecord } from "./records";
 type Files = Pick<
   ApplicationFileClient,
-  "mkdir" | "list" | "stat" | "readText" | "writeText"
+  "mkdir" | "list" | "stat" | "readText" | "writeText" | "remove"
 >;
 export function createNarrativeHistory(
   data: ApplicationDataClient,
   files: Files,
 ) {
+  const incompatible = incompatibleFiles(files);
   const cache = new Map<string, { text: string; modifiedAt: number }>();
   let pending: Promise<unknown> = Promise.resolve();
   const serialize = <T>(fn: () => Promise<T>) => {
@@ -51,28 +58,41 @@ export function createNarrativeHistory(
       return serialize(async () => {
         await verify(p);
         const records: StoryRecord[] = [],
-          errors: string[] = [];
-        await files.mkdir(`${p.path}/runs`);
-        for (const entry of await files.list(`${p.path}/runs`)) {
+          errors: string[] = [],
+          unsupported: IncompatibleData[] = [];
+        let entries: ApplicationFileInfo[];
+        try {
+          entries = await files.list(`${p.path}/runs`);
+        } catch (error) {
+          if ((error as { code?: string }).code !== "FILE_NOT_FOUND")
+            throw error;
+          entries = [];
+        }
+        for (const entry of entries) {
           if (entry.type !== "file" || !entry.name.endsWith(".json")) continue;
+          let snapshot;
           try {
-            const before = await files.stat(entry.filePath),
-              text = await files.readText(entry.filePath, {
-                maxBytes: 4 * 1024 * 1024,
-              }),
-              after = await files.stat(entry.filePath);
-            if (
-              before.modifiedAt !== after.modifiedAt ||
-              before.size !== after.size
-            )
-              throw new Error("记录正在修改，请重新加载。");
+            snapshot = await readSnapshot(
+              files,
+              entry.filePath,
+              4 * 1024 * 1024,
+            );
+            const { text, modifiedAt } = snapshot;
             const r = parseStoryRecord(JSON.parse(text), p.id);
             if (entry.name !== `${r.id}.json`)
               throw new Error("记录名称与文件不符。");
-            cache.set(entry.filePath, { text, modifiedAt: after.modifiedAt });
+            cache.set(entry.filePath, { text, modifiedAt });
             records.push(r);
           } catch (e) {
             cache.delete(entry.filePath);
+            if (snapshot)
+              unsupported.push(
+                incompatible.report(
+                  entry.filePath,
+                  snapshot,
+                  e instanceof Error ? e.message : String(e),
+                ),
+              );
             errors.push(`${entry.name}：${(e as Error).message}`);
           }
         }
@@ -81,7 +101,15 @@ export function createNarrativeHistory(
             b.createdAt.localeCompare(a.createdAt),
           ),
           errors,
+          incompatible: unsupported,
         };
+      });
+    },
+    removeIncompatible(project: Project<NarrativeModel>, id: string) {
+      return serialize(async () => {
+        await verify(project);
+        const path = await incompatible.remove(id, project.path);
+        cache.delete(path);
       });
     },
     save(project: Project<NarrativeModel>, record: StoryRecord) {

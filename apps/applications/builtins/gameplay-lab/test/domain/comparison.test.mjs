@@ -7,10 +7,12 @@ function comparisonFixture() {
   const base = f.makeTemplate(),
     project = {
       id: "project-compare",
+      simulator: { id: "resource-turns", version: 1 },
       model: structuredClone(base),
       versions: [
         {
           id: "version-base",
+          simulator: { id: "resource-turns", version: 1 },
           name: "成本 8",
           model: base,
           createdAt: new Date().toISOString(),
@@ -211,7 +213,7 @@ test("comparison plans reject invalid ranges, unsupported fields, incompatible o
   config.comparedStrategies = ["goal", "growth", "random", "strategy-four"];
   assert.throws(() => scan(studyCost, 1, 11, 1), /240/);
 });
-test("v3 readers reject altered sweep rules, duplicate sample cells and unknown variants", () => {
+test("current readers reject altered sweep rules, duplicate sample cells and unknown variants", () => {
   const { project, config } = comparisonFixture(),
     e = finishExperiment(
       f.prepareComparison(project, config, {

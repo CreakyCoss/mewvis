@@ -4,7 +4,10 @@ import assert from "node:assert/strict";
 import { f } from "../helpers/domain.mjs";
 
 function userRules(kind = "resource-turns") {
-  const model = f.blankModel("我自己的游戏");
+  const model =
+    kind === "card-combination"
+      ? f.blankCardModel("我自己的游戏")
+      : f.blankModel("我自己的游戏");
   model.fields = [
     {
       id: "user-points",
@@ -34,16 +37,21 @@ function userRules(kind = "resource-turns") {
     },
   ];
   if (kind === "card-combination") {
-    model.collections = [
+    model.cards = [
+      { id: "user-red", name: "晨光", description: "", group: "暖", value: 2 },
+      { id: "user-blue", name: "夜色", description: "", group: "冷", value: 4 },
+    ];
+    model.decks = [
       {
         id: "user-deck",
         name: "灵感牌",
         handSize: 1,
+        initialDraw: 1,
+        minSelect: 1,
         maxSelect: 1,
-        cards: [
-          { id: "user-red", name: "晨光", group: "暖", value: 2 },
-          { id: "user-blue", name: "夜色", group: "冷", value: 4 },
-        ],
+        refill: "after-play",
+        recycle: "shuffle-discard",
+        entries: model.cards.map((c) => ({ card: c.id, count: 1 })),
       },
     ];
     model.actions[0].effects = [
@@ -76,8 +84,8 @@ test("blank projects contain no example definitions and remain editable before r
   );
   assert.ok(
     f
-      .modelReadiness(model, { id: "card-combination", version: 1 })
-      .some((i) => i.path === "牌池"),
+      .modelReadiness(model, { id: "card-combination", version: 2 })
+      .some((i) => i.path === "卡牌模型"),
   );
   assert.ok(
     f
@@ -88,7 +96,7 @@ test("blank projects contain no example definitions and remain editable before r
 test("both simulators run hand-authored rules without any example IDs and freeze their versions", () => {
   for (const id of ["resource-turns", "card-combination"]) {
     const model = userRules(id),
-      simulator = { id, version: 1 },
+      simulator = { id, version: id === "card-combination" ? 2 : 1 },
       config = f.defaultPlaytest("user-project"),
       setup = f.selectedSetup(config, model);
     assert.deepEqual(f.modelReadiness(model, simulator), []);
@@ -138,8 +146,8 @@ test("simulator readiness blocks unsupported rules instead of ignoring card mech
   );
   assert.throws(
     () =>
-      f.createSimulatedRun({ id: "card-combination", version: 1 }, userRules()),
-    /牌池|计分/,
+      f.createSimulatedRun({ id: "card-combination", version: 2 }, userRules()),
+    /独立卡牌模型/,
   );
   assert.throws(
     () =>
@@ -149,13 +157,13 @@ test("simulator readiness blocks unsupported rules instead of ignoring card mech
   model.actions[0].effects = [];
   assert.ok(
     f
-      .modelReadiness(model, { id: "card-combination", version: 1 })
+      .modelReadiness(model, { id: "card-combination", version: 2 })
       .some((i) => i.nodeId === "user-create"),
   );
 });
 test("card scoring supports neutral fixed multipliers and scanning without a multiplier state", () => {
   const model = userRules("card-combination"),
-    ref = { id: "card-combination", version: 1 };
+    ref = { id: "card-combination", version: 2 };
   const run = f.createSimulatedRun(ref, model, 42);
   assert.equal(model.fields.length, 1);
   const selected = f.chooseConfigured(run, f.builtinStrategies[0]);
@@ -195,7 +203,7 @@ test("project source and selected simulator are independent and comparisons chec
     id: "version-user",
     name: "v1",
     model: structuredClone(project.model),
-    simulator: { id: "card-combination", version: 1 },
+    simulator: { id: "card-combination", version: 2 },
     createdAt: project.createdAt,
   });
   const config = f.defaultPlaytest(project.id);

@@ -9,14 +9,20 @@ main/
     model.ts                 # 项目、设计说明、命名版本、项目库状态
     catalog.ts               # 类型、玩法方向、格式与模拟器对应关系
     compatibility.ts         # 跨类型的项目就绪检查
-    document.ts              # 项目 JSON 校验、解析及旧格式读取
+    document.ts              # 当前格式项目 JSON 校验与解析
+    incompatible.ts          # 读取快照、失败提示与显式删除校验
     paths.ts                 # 项目目录与文件路径规则
     repository.ts            # SDK 读写、项目索引、备份与冲突保护
     examples.ts / templates/ # 只读系统示例
     components/              # 项目库、新建、设置、概览、方向选择
+  card/
+    model.ts / validation.ts # 卡牌定义、牌库数量、抽补牌规则
+    collections.ts           # 实体牌生成与牌库访问
+    selection.ts             # 按行动引用的牌库筛选选牌
+    components/              # 卡牌库、牌库配置及运行牌区检查
   turn/
     Workspace.tsx            # 数值项目的导航、草稿编辑与页面协调
-    model.ts / definitions.ts
+    model.ts / validation.ts / definitions.ts
     engine.ts / simulators.ts
     rules/                   # 关系图、定义检查器、效果与回合编辑
     playtest/                # 场景和决策策略配置、编辑、持久化
@@ -42,7 +48,8 @@ test/
   run.mjs                    # 领域测试入口
   domain/                    # 数值核心、对照、模拟器、叙事测试
   helpers/domain.mjs         # 测试用 TypeScript 打包与清理
-  projects.mjs               # 生产文件服务集成测试
+  projects.mjs               # 项目与原有玩法的文件服务集成测试
+  card-projects.mjs          # 独立卡牌、不兼容数据确认删除与历史的文件服务集成测试
   host-fixture.mjs            # 隔离宿主服务
   preview-packed.mjs         # 打包应用的人工验收服务
 ```
@@ -56,7 +63,9 @@ test/
 - 直接从所属模块导入类型和函数，不用集中转导出文件掩盖依赖方向。Select 继续直接使用宿主 `NativeSelect`，不扩展宿主组件。
 - 仅 `App.tsx` 导入 `styles/index.css`。其导入顺序保留原有 CSS 层叠关系，新增样式放入对应功能文件，避免再向单个样式文件累加。
 
-目录调整不改变项目磁盘结构、JSON 格式、模拟器版本或现有文件的读取规则。
+独立卡牌的领域结构与不兼容数据处理规则见[卡牌组合计分](card-scoring.md)。项目磁盘目录保持一致，模型格式及模拟器版本分别明确记录。
+
+加载不兼容数据只报告失败，不删除目录、记录、数据库数据或命名版本，也不清理备份。`IncompatibleDataNotice` 展示保留提示与明确的二次确认；只有确认事件调用仓库的删除方法。删除前校验已展示路径和文件快照，避免确认期间的外部修改被误删。
 
 ## 验证
 

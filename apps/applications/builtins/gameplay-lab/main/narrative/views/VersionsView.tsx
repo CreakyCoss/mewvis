@@ -44,9 +44,9 @@ export function VersionsView({
             onClick={() =>
               patch((p) => {
                 p.model = copy(v.model);
-                p.direction = v.direction ?? null;
-                p.simulator = copy(v.simulator ?? null);
-                if (v.brief) p.brief = copy(v.brief);
+                p.direction = v.direction;
+                p.simulator = copy(v.simulator);
+                p.brief = copy(v.brief);
               })
             }
           >

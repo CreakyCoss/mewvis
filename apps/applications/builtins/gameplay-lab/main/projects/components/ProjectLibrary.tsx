@@ -72,6 +72,7 @@ export function ProjectLibrary({
   create,
   open,
   attach,
+  reload,
   errors,
 }: {
   projects: AnyProject[];
@@ -79,6 +80,7 @@ export function ProjectLibrary({
   create(): void;
   open(id: string): void;
   attach(): void;
+  reload(): void;
   errors: string[];
 }) {
   return (
@@ -90,6 +92,9 @@ export function ProjectLibrary({
       <header className="library-heading">
         <h1 id="project-library-title">我的项目</h1>
         <div className="library-actions">
+          <button className="button" disabled={!ready} onClick={reload}>
+            重新加载项目库
+          </button>
           <button className="button" disabled={!ready} onClick={attach}>
             <FolderOpen size={16} />
             打开项目

@@ -17,3 +17,4 @@ export function makeTemplate(id: TemplateId = "development"): Model {
     throw new Error("内置模板无法读取，请更新应用后重试。");
   return copy(template);
 }
+export const exampleModel = makeTemplate;

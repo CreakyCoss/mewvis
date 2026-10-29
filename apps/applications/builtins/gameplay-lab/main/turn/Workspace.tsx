@@ -17,6 +17,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import appIcon from "../../assets/icon-sandbox.png";
 import { type DirectionId } from "../projects/catalog";
 import { projectReadiness } from "../projects/compatibility";
+import { IncompatibleDataNotice } from "../projects/components/IncompatibleDataNotice";
 import { ProjectSettings } from "../projects/components/ProjectForms";
 import { ProjectOverview } from "../projects/components/ProjectOverview";
 import { type TemplateId } from "../projects/examples";
@@ -97,6 +98,7 @@ export default function TurnWorkspace({
     setExperiments,
     historyReady,
     historyError,
+    incompatible,
     reloadHistory: loadHistory,
   } = useTurnHistory(project);
   const {
@@ -565,6 +567,12 @@ export default function TurnWorkspace({
               {notice}
             </div>
           )}
+          <IncompatibleDataNotice
+            items={incompatible}
+            remove={(id) => historyRepository().removeIncompatible(project, id)}
+            done={loadHistory}
+            disabled={busy || !!progress}
+          />
           {view === "overview" && project.id && (
             <ProjectOverview
               project={project}
@@ -617,15 +625,7 @@ export default function TurnWorkspace({
               selectSimulator={selectSimulator}
             />
           )}
-          {view === "rules" && (
-            <RulesEditor
-              model={model}
-              cardMode={project.gameType === "card"}
-              update={update}
-              duplicate={duplicate}
-              remove={remove}
-            />
-          )}
+          {view === "rules" && <RulesEditor model={model} update={update} />}
           {view === "strategy" &&
             (config && configReady === project.id ? (
               <PlaytestEditor
@@ -705,13 +705,14 @@ export default function TurnWorkspace({
                 setModal("version");
               }}
               restore={(v) => {
-                update((m) => Object.assign(m, copy(v.model)));
-                metadata({
-                  simulator: v.simulator ?? null,
-                  gameType: v.gameType ?? project.gameType,
-                  direction: v.direction ?? null,
-                  ...(v.brief ? { brief: copy(v.brief) } : {}),
-                });
+                setProject((project) => ({
+                  ...project,
+                  model: copy(v.model),
+                  simulator: v.simulator,
+                  gameType: v.gameType,
+                  direction: v.direction,
+                  brief: copy(v.brief),
+                }));
                 setNotice("已将此版本复制为草稿，历史版本仍保留。");
               }}
             />

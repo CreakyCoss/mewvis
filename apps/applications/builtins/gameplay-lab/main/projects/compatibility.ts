@@ -66,5 +66,11 @@ export function projectReadiness(p: AnyProject): ReadinessIssue[] {
       message: "策划模型与游戏类型不一致。",
       view: "simulator",
     });
+  if (p.model.format === "gameplay-card-v1" && p.gameType !== "card")
+    errors.push({
+      path: "策划模型",
+      message: "独立卡牌模型只能用于卡牌类型。",
+      view: "simulator",
+    });
   return errors;
 }

@@ -22,17 +22,17 @@ export const directions: readonly {
   description: string;
   simulator: SimulatorRef;
   scope: string;
-  schema: "gameplay-model-v1" | "gameplay-narrative-v1";
+  schema: "gameplay-model-v1" | "gameplay-narrative-v1" | "gameplay-card-v1";
 }[] = [
   {
     id: "card-scoring",
-    schema: "gameplay-model-v1",
+    schema: "gameplay-card-v1",
     gameType: "card",
     name: "组合计分",
     description: "通过选牌、配对奖励和倍率完成得分目标。",
-    simulator: { id: "card-combination", version: 1 },
+    simulator: { id: "card-combination", version: 2 },
     scope:
-      "支持牌池、手牌、选择、弃置与补牌；尚不支持卡牌战斗、任意触发链或完整构筑商店。",
+      "支持独立卡牌定义、牌库数量、实体牌、出牌数量、开局抽牌、出牌后或回合开始补牌及弃牌回收；尚不支持卡牌战斗、任意触发链或构筑商店。",
   },
   {
     id: "resource-development",

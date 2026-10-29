@@ -69,10 +69,7 @@ export function StrategyResults({
               <tr>
                 <th>对照策略</th>
                 {Array.from({ length: e.players }, (_, i) => (
-                  <th key={i}>
-                    {e.setup?.scenario.participants[i].name ??
-                      `玩家 ${String.fromCharCode(65 + i)}`}
-                  </th>
+                  <th key={i}>{e.setup.scenario.participants[i].name}</th>
                 ))}
               </tr>
             </thead>

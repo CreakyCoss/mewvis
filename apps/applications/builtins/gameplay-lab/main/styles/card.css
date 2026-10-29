@@ -1,0 +1,68 @@
+.card-library-table {
+  min-width: 650px;
+}
+.card-library-table td:nth-child(1) {
+  width: 20%;
+}
+.card-library-table td:nth-child(2) {
+  width: 15%;
+}
+.card-library-table td:nth-child(3) {
+  width: 100px;
+}
+.card-library-table td:nth-child(4) {
+  min-width: 160px;
+}
+.deck-entry {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 100px auto;
+  gap: 12px;
+  align-items: end;
+  margin: 12px 0;
+}
+.deck-entry .form-field {
+  margin: 0;
+  min-width: 0;
+}
+.deck-entry > button {
+  min-height: 32px;
+}
+.card-zones {
+  margin-top: 24px;
+  min-width: 0;
+}
+.card-zone-details {
+  border-top: 1px solid var(--border);
+  padding: 8px 0;
+}
+.card-zone-details summary {
+  cursor: pointer;
+  padding: 6px 0;
+  line-height: 20px;
+}
+.card-zone-details ol {
+  padding-left: 20px;
+}
+.card-zone-details li {
+  margin-bottom: 8px;
+}
+.card-zone-details small {
+  display: block;
+  overflow-wrap: anywhere;
+  color: var(--muted-foreground);
+  font-size: var(--lab-text-small);
+}
+@media (max-width: 600px) {
+  .deck-entry {
+    grid-template-columns: minmax(0, 1fr) 80px;
+    gap: 8px;
+  }
+  .deck-entry > button {
+    justify-self: start;
+    min-height: 44px;
+  }
+  .card-zone-details summary {
+    min-height: 44px;
+    box-sizing: border-box;
+  }
+}

@@ -1,12 +1,13 @@
+import { MAX_DECKS } from "../card/model";
 import { copy, uid } from "../shared/utils";
 import { type Effect, type Model } from "./model";
-const groups = [
-  "fields",
-  "capabilities",
-  "actions",
-  "goals",
-  "collections",
-] as const;
+const groups = (model: Model) => [
+  model.fields,
+  model.capabilities,
+  model.actions,
+  model.goals,
+  model.format === "gameplay-card-v1" ? model.decks : model.collections,
+];
 /** Only inbound references block deletion. An action's own effects disappear with it. */
 export function referencesTo(model: Model, id: string): string[] {
   const refs = new Set<string>();
@@ -33,17 +34,21 @@ export function referencesTo(model: Model, id: string): string[] {
   return [...refs];
 }
 export function duplicateDefinition(model: Model, id: string): string {
-  for (const key of groups) {
-    const item = model[key].find((item) => item.id === id);
+  for (const group of groups(model)) {
+    const item = group.find((item) => item.id === id);
     if (!item) continue;
-    if (model[key].length >= 80) throw new Error("同类定义最多 80 项。");
+    const limit =
+      model.format === "gameplay-card-v1" && group === model.decks
+        ? MAX_DECKS
+        : 80;
+    if (group.length >= limit) throw new Error(`同类定义最多 ${limit} 项。`);
     const clone = {
       ...copy(item),
-      id: uid(key),
+      id: uid("definition"),
       name: `${item.name.slice(0, 55)} 副本`,
     };
     // The corresponding group was selected above; its element type is unchanged.
-    (model[key] as (typeof clone)[]).push(clone);
+    (group as (typeof clone)[]).push(clone);
     return clone.id;
   }
   throw new Error("定义已不存在。");
@@ -51,10 +56,10 @@ export function duplicateDefinition(model: Model, id: string): string {
 export function removeDefinition(model: Model, id: string) {
   const refs = referencesTo(model, id);
   if (refs.length) throw new Error(`请先解除引用：${refs.join("、")}`);
-  for (const key of groups) {
-    const at = model[key].findIndex((item) => item.id === id);
+  for (const group of groups(model)) {
+    const at = group.findIndex((item) => item.id === id);
     if (at >= 0) {
-      model[key].splice(at, 1);
+      group.splice(at, 1);
       return;
     }
   }

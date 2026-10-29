@@ -1,5 +1,6 @@
 import type { Dispatch, SetStateAction } from "react";
 import { useEffect, useState } from "react";
+import { selectionForAction } from "../../card/selection";
 import { type Project } from "../../projects/model";
 import { projectRepository } from "../../projects/repository";
 import { copy } from "../../shared/utils";
@@ -99,7 +100,20 @@ export function useRunSession({
     try {
       const decision = automatic
         ? trialChoice(trial)
-        : { driver: "manual", choice: { action, cards } };
+        : {
+            driver: "manual",
+            choice: {
+              action,
+              cards:
+                run.model.format === "gameplay-card-v1"
+                  ? selectionForAction(
+                      current(run),
+                      run.model.actions.find((value) => value.id === action),
+                      cards,
+                    )
+                  : cards,
+            },
+          };
       const next = {
         ...trial,
         run: advanceSimulatedRun(run, decision.choice),
@@ -123,24 +137,23 @@ export function useRunSession({
         sample.seed,
         experiment.players,
         sample.log,
-        experiment.setup ? initialOf(experiment.setup.scenario) : undefined,
+        initialOf(experiment.setup.scenario),
         experiment.simulator,
       );
-      const arm = experiment.setup?.arms.find((a) => a.id === sample.policy);
-      const setup =
-        experiment.setup && arm
-          ? {
-              scenario: {
-                ...copy(experiment.setup.scenario),
-                participants: experiment.setup.scenario.participants.map(
-                  (p, i) => ({ ...copy(p), strategyId: arm.strategyIds[i] }),
-                ),
-              },
-              strategies: copy(experiment.setup.strategies),
-            }
-          : undefined;
+      const arm = experiment.setup.arms.find((a) => a.id === sample.policy);
+      if (!arm) throw new Error("实验快照中的对照策略不存在。");
+      const setup = {
+        scenario: {
+          ...copy(experiment.setup.scenario),
+          participants: experiment.setup.scenario.participants.map((p, i) => ({
+            ...copy(p),
+            strategyId: arm.strategyIds[i],
+          })),
+        },
+        strategies: copy(experiment.setup.strategies),
+      };
       setPreviewTrial({
-        ...(setup ? { setup } : {}),
+        setup,
         id: `${experiment.id}-${sample.variant ?? "baseline"}-${sample.policy}-${sample.index}`,
         projectId: experiment.projectId,
         createdAt: experiment.createdAt,

@@ -7,7 +7,7 @@ import {
   type PlaytestConfig,
 } from "../playtest/config";
 import { newComparisonExperiment } from "../records/records";
-import { assertSimulator, inferLegacySimulator } from "../simulators";
+import { assertSimulator } from "../simulators";
 import {
   parameterPlan,
   versionPlan,
@@ -27,10 +27,7 @@ export function ruleSources(project: Project) {
       name: "当前草稿",
       model: project.model,
       source: "draft" as const,
-      simulator:
-        project.simulator === undefined
-          ? inferLegacySimulator(project.model)
-          : project.simulator,
+      simulator: project.simulator,
     },
     ...project.versions.map((v) => ({
       id: v.id,
@@ -38,8 +35,7 @@ export function ruleSources(project: Project) {
       model: v.model,
       source: "version" as const,
       versionId: v.id,
-      simulator:
-        v.simulator === undefined ? inferLegacySimulator(v.model) : v.simulator,
+      simulator: v.simulator,
     })),
   ];
 }

@@ -3,6 +3,7 @@ import {
   NativeSelectOption,
 } from "design-system/components/ui/native-select";
 import { ArrowDown, ArrowUp, Plus, X } from "lucide-react";
+import { collectionsOf } from "../../card/collections";
 import { type Effect, type Model } from "../model";
 export const amount = (value: string, min = 0, max = 1_000_000) =>
   Math.min(max, Math.max(min, Math.round(Number(value) || 0)));
@@ -156,7 +157,7 @@ export function EffectsEditor({
                   }
                   size="sm"
                 >
-                  {options(model.collections, e.collection)}
+                  {options(collectionsOf(model), e.collection)}
                 </NativeSelect>
               </label>
               <label className="form-field">
@@ -267,7 +268,7 @@ export function EffectsEditor({
             className="text-button"
             disabled={
               !model.fields.length ||
-              !model.collections.length ||
+              !collectionsOf(model).length ||
               effects.length >= 30 ||
               effects.some((e) => e.type === "combination")
             }
@@ -276,7 +277,7 @@ export function EffectsEditor({
                 ...effects,
                 {
                   type: "combination",
-                  collection: model.collections[0].id,
+                  collection: collectionsOf(model)[0].id,
                   field: model.fields[0].id,
                   multiplierValue: 1,
                   pairBonus: 0,

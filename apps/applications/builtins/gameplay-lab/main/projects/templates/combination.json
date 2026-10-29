@@ -1,5 +1,5 @@
 {
-  "format": "gameplay-model-v1",
+  "format": "gameplay-card-v1",
   "id": "combination",
   "name": "组合计分",
   "description": "选择同类组合，还是投资倍率？用同一个运行器验证组合策略。",
@@ -94,109 +94,190 @@
       "threshold": 180
     }
   ],
-  "collections": [
-    {
-      "id": "hand",
-      "name": "候选集合",
-      "handSize": 5,
-      "maxSelect": 3,
-      "cards": [
-        {
-          "id": "card-0",
-          "name": "日 1",
-          "group": "日",
-          "value": 3
-        },
-        {
-          "id": "card-1",
-          "name": "月 1",
-          "group": "月",
-          "value": 3
-        },
-        {
-          "id": "card-2",
-          "name": "星 1",
-          "group": "星",
-          "value": 3
-        },
-        {
-          "id": "card-3",
-          "name": "日 2",
-          "group": "日",
-          "value": 6
-        },
-        {
-          "id": "card-4",
-          "name": "月 2",
-          "group": "月",
-          "value": 6
-        },
-        {
-          "id": "card-5",
-          "name": "星 2",
-          "group": "星",
-          "value": 6
-        },
-        {
-          "id": "card-6",
-          "name": "日 3",
-          "group": "日",
-          "value": 9
-        },
-        {
-          "id": "card-7",
-          "name": "月 3",
-          "group": "月",
-          "value": 9
-        },
-        {
-          "id": "card-8",
-          "name": "星 3",
-          "group": "星",
-          "value": 9
-        },
-        {
-          "id": "card-9",
-          "name": "日 4",
-          "group": "日",
-          "value": 12
-        },
-        {
-          "id": "card-10",
-          "name": "月 4",
-          "group": "月",
-          "value": 12
-        },
-        {
-          "id": "card-11",
-          "name": "星 4",
-          "group": "星",
-          "value": 12
-        },
-        {
-          "id": "card-12",
-          "name": "日 5",
-          "group": "日",
-          "value": 15
-        },
-        {
-          "id": "card-13",
-          "name": "月 5",
-          "group": "月",
-          "value": 15
-        },
-        {
-          "id": "card-14",
-          "name": "星 5",
-          "group": "星",
-          "value": 15
-        }
-      ]
-    }
-  ],
   "flow": {
     "actionsPerTurn": 2,
     "maxRounds": 12,
     "income": []
-  }
+  },
+  "cards": [
+    {
+      "id": "card-0",
+      "name": "日 1",
+      "group": "日",
+      "value": 3,
+      "description": ""
+    },
+    {
+      "id": "card-1",
+      "name": "月 1",
+      "group": "月",
+      "value": 3,
+      "description": ""
+    },
+    {
+      "id": "card-2",
+      "name": "星 1",
+      "group": "星",
+      "value": 3,
+      "description": ""
+    },
+    {
+      "id": "card-3",
+      "name": "日 2",
+      "group": "日",
+      "value": 6,
+      "description": ""
+    },
+    {
+      "id": "card-4",
+      "name": "月 2",
+      "group": "月",
+      "value": 6,
+      "description": ""
+    },
+    {
+      "id": "card-5",
+      "name": "星 2",
+      "group": "星",
+      "value": 6,
+      "description": ""
+    },
+    {
+      "id": "card-6",
+      "name": "日 3",
+      "group": "日",
+      "value": 9,
+      "description": ""
+    },
+    {
+      "id": "card-7",
+      "name": "月 3",
+      "group": "月",
+      "value": 9,
+      "description": ""
+    },
+    {
+      "id": "card-8",
+      "name": "星 3",
+      "group": "星",
+      "value": 9,
+      "description": ""
+    },
+    {
+      "id": "card-9",
+      "name": "日 4",
+      "group": "日",
+      "value": 12,
+      "description": ""
+    },
+    {
+      "id": "card-10",
+      "name": "月 4",
+      "group": "月",
+      "value": 12,
+      "description": ""
+    },
+    {
+      "id": "card-11",
+      "name": "星 4",
+      "group": "星",
+      "value": 12,
+      "description": ""
+    },
+    {
+      "id": "card-12",
+      "name": "日 5",
+      "group": "日",
+      "value": 15,
+      "description": ""
+    },
+    {
+      "id": "card-13",
+      "name": "月 5",
+      "group": "月",
+      "value": 15,
+      "description": ""
+    },
+    {
+      "id": "card-14",
+      "name": "星 5",
+      "group": "星",
+      "value": 15,
+      "description": ""
+    }
+  ],
+  "decks": [
+    {
+      "id": "hand",
+      "name": "候选集合",
+      "entries": [
+        {
+          "card": "card-0",
+          "count": 1
+        },
+        {
+          "card": "card-1",
+          "count": 1
+        },
+        {
+          "card": "card-2",
+          "count": 1
+        },
+        {
+          "card": "card-3",
+          "count": 1
+        },
+        {
+          "card": "card-4",
+          "count": 1
+        },
+        {
+          "card": "card-5",
+          "count": 1
+        },
+        {
+          "card": "card-6",
+          "count": 1
+        },
+        {
+          "card": "card-7",
+          "count": 1
+        },
+        {
+          "card": "card-8",
+          "count": 1
+        },
+        {
+          "card": "card-9",
+          "count": 1
+        },
+        {
+          "card": "card-10",
+          "count": 1
+        },
+        {
+          "card": "card-11",
+          "count": 1
+        },
+        {
+          "card": "card-12",
+          "count": 1
+        },
+        {
+          "card": "card-13",
+          "count": 1
+        },
+        {
+          "card": "card-14",
+          "count": 1
+        }
+      ],
+      "handSize": 5,
+      "initialDraw": 5,
+      "minSelect": 1,
+      "maxSelect": 3,
+      "refill": "after-play",
+      "recycle": "shuffle-discard"
+    }
+  ]
 }

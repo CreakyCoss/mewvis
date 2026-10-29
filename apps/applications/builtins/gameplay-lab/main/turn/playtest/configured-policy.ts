@@ -1,3 +1,4 @@
+import { collectionsOf } from "../../card/collections";
 import {
   actionReason,
   actor,
@@ -80,7 +81,7 @@ export function chooseConfigured(run: Run, strategy: Strategy): Choice {
     .find((a) => a.id === choice.action)
     ?.effects.find((e) => e.type === "combination");
   if (effect?.type === "combination") {
-    const definition = run.model.collections.find(
+    const definition = collectionsOf(run.model).find(
       (c) => c.id === effect.collection,
     )!;
     const cards = player.collections[definition.id].hand;
@@ -98,6 +99,7 @@ export function chooseConfigured(run: Run, strategy: Strategy): Choice {
             definition.maxSelect,
             effectMultiplier(effect, player),
             effect.pairBonus,
+            definition.minSelect,
           )
         : ordered.slice(0, definition.maxSelect).map((c) => c.id);
   }

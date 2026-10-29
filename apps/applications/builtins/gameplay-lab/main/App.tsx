@@ -2,8 +2,10 @@ import { CircleHelp } from "lucide-react";
 import { useEffect, useState } from "react";
 import appIcon from "../assets/icon-sandbox.png";
 import NarrativeWorkspace from "./narrative/Workspace";
+import { IncompatibleDataNotice } from "./projects/components/IncompatibleDataNotice";
 import { ProjectCreateForm } from "./projects/components/ProjectForms";
 import { ProjectLibrary } from "./projects/components/ProjectLibrary";
+import { IncompatibleDataError } from "./projects/incompatible";
 import {
   initialWorkspace,
   isNarrativeProject,
@@ -59,7 +61,15 @@ export default function App() {
         : await projectRepository().open();
       if (loaded) accepted(loaded);
     } catch (e) {
-      setError((e as Error).message);
+      if (e instanceof IncompatibleDataError)
+        setWorkspace((w) => ({
+          ...w,
+          incompatible: [
+            ...w.incompatible.filter((item) => item.path !== e.item.path),
+            e.item,
+          ],
+        }));
+      else setError((e as Error).message);
     } finally {
       setBusy(false);
     }
@@ -101,12 +111,19 @@ export default function App() {
               {error}
             </p>
           )}
+          <IncompatibleDataNotice
+            items={workspace.incompatible}
+            remove={(id) => projectRepository().deleteIncompatible(id)}
+            done={() => setRevision((n) => n + 1)}
+            disabled={!ready || busy}
+          />
           <ProjectLibrary
             projects={workspace.projects}
             ready={ready && !busy}
             create={() => setModal("project")}
             open={(id) => void open(id)}
             attach={() => void open()}
+            reload={() => setRevision((n) => n + 1)}
             errors={workspace.errors}
           />
         </main>

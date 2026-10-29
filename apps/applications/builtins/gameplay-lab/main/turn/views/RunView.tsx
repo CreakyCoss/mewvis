@@ -7,6 +7,9 @@ import {
   Square,
 } from "lucide-react";
 import type { Dispatch, SetStateAction } from "react";
+import { collectionsOf } from "../../card/collections";
+import { CardZones } from "../../card/components/CardZones";
+import { selectionForAction } from "../../card/selection";
 import { actionReason, actor } from "../engine";
 import { type Model } from "../model";
 import { trialStrategy, type Trial } from "../records/records";
@@ -134,6 +137,9 @@ export function RunView({
               </div>
             </div>
           )}
+          {run.model.format === "gameplay-card-v1" && (
+            <CardZones model={run.model} state={entry.state} />
+          )}
         </section>
         <section>
           <h2>{cursor >= 0 || previewTrial ? "历史快照" : "选择下一步"}</h2>
@@ -150,14 +156,19 @@ export function RunView({
             </div>
           ) : (
             <>
-              {run.model.collections.map((c) => {
+              {collectionsOf(run.model).map((c) => {
                 const pile = actor(entry.state).collections[c.id];
                 return (
                   <div className="collection" key={c.id}>
                     <h3>
                       {c.name}
                       <small>
-                        选 1–{c.maxSelect} 个 · 牌库 {pile.draw.length} · 已使用{" "}
+                        选 {c.minSelect}–{c.maxSelect} 张 · 已选{" "}
+                        {
+                          pile.hand.filter((card) => cards.includes(card.id))
+                            .length
+                        }{" "}
+                        · 抽牌区 {pile.draw.length} · 弃牌区{" "}
                         {pile.discard.length}
                       </small>
                     </h3>
@@ -179,6 +190,9 @@ export function RunView({
                             }
                           />
                           <strong>{card.name}</strong>
+                          {"definitionId" in card && (
+                            <small>副本 {card.id.split(":").at(-1)}</small>
+                          )}
                           <span>
                             {card.group} · 基础值 {card.value}
                           </span>
@@ -189,7 +203,26 @@ export function RunView({
                 );
               })}
               {run.model.actions.map((a) => {
-                const reason = actionReason(run.model, entry.state, a);
+                let reason = actionReason(run.model, entry.state, a);
+                const effect = a.effects.find(
+                  (effect) => effect.type === "combination",
+                );
+                if (
+                  !reason &&
+                  run.model.format === "gameplay-card-v1" &&
+                  effect?.type === "combination"
+                ) {
+                  const deck = run.model.decks.find(
+                    (deck) => deck.id === effect.collection,
+                  )!;
+                  const count = selectionForAction(
+                    entry.state,
+                    a,
+                    cards,
+                  ).length;
+                  if (count < deck.minSelect || count > deck.maxSelect)
+                    reason = `请从${deck.name}选择 ${deck.minSelect}–${deck.maxSelect} 张牌，当前 ${count} 张`;
+                }
                 return (
                   <button
                     className="action-offer"

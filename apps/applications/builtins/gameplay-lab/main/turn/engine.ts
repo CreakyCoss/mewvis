@@ -1,3 +1,9 @@
+import {
+  cardsForDeck,
+  collectionsOf,
+  instanceLabel,
+} from "../card/collections";
+import { cardSimulator } from "../card/model";
 import type { SimulatorRef } from "../shared/contracts";
 import { copy } from "../shared/utils";
 import {
@@ -54,7 +60,7 @@ export interface Entry {
   state: State;
 }
 export interface Run {
-  simulator?: SimulatorRef;
+  simulator: SimulatorRef;
   model: Model;
   seed: number;
   entries: Entry[];
@@ -75,16 +81,33 @@ function shuffle<T>(items: T[], state: State) {
   }
   return result;
 }
-function refill(pile: Pile, size: number, state: State) {
+function refill(
+  pile: Pile,
+  size: number,
+  state: State,
+  recycle = true,
+  notes?: string[],
+  label = "牌库",
+) {
+  const drawn: Card[] = [];
   while (pile.hand.length < size) {
     if (!pile.draw.length) {
+      if (!recycle || !pile.discard.length) break;
       pile.draw = shuffle(pile.discard, state);
       pile.discard = [];
+      notes?.push(`${label}：将 ${pile.draw.length} 张弃牌洗回抽牌区。`);
     }
     const card = pile.draw.pop();
     if (!card) break;
     pile.hand.push(card);
+    drawn.push(card);
   }
+  if (drawn.length)
+    notes?.push(
+      `${label}：抽取 ${drawn.map(instanceLabel).join("、")}，手牌 ${pile.hand.length} 张。`,
+    );
+  else if (notes && pile.hand.length < size)
+    notes.push(`${label}：抽牌区已空，当前无法补牌。`);
 }
 function checkGoals(model: Model, state: State) {
   const winners = state.players.flatMap((p) =>
@@ -128,6 +151,7 @@ export function startRun(
     random: seed >>> 0,
     outcome: null,
   };
+  const openingNotes: string[] = [];
   for (let i = 0; i < playerCount; i++) {
     const player: PlayerState = {
       id: `player-${i}`,
@@ -149,13 +173,29 @@ export function startRun(
         )
         .map((c) => c.id);
     }
-    for (const c of model.collections) {
+    for (const c of model.format === "gameplay-card-v1" ? model.decks : []) {
       const pile: Pile = {
-        draw: shuffle(copy(c.cards), state),
+        draw: shuffle(
+          model.format === "gameplay-card-v1"
+            ? cardsForDeck(
+                model,
+                model.decks.find((deck) => deck.id === c.id)!,
+                player.id,
+              )
+            : [],
+          state,
+        ),
         hand: [],
         discard: [],
       };
-      refill(pile, c.handSize, state);
+      refill(
+        pile,
+        c.initialDraw,
+        state,
+        c.recycle === "shuffle-discard",
+        openingNotes,
+        `${player.name} · ${c.name}`,
+      );
       player.collections[c.id] = pile;
     }
     state.players.push(player);
@@ -164,13 +204,20 @@ export function startRun(
   return {
     model,
     seed,
+    simulator:
+      model.format === "gameplay-card-v1"
+        ? copy(cardSimulator)
+        : { id: "resource-turns", version: 1 },
     ...(initial ? { initial: copy(initial) } : {}),
     entries: [
       {
         choice: null,
         actor: "系统",
         title: "已加载场景",
-        notes: [`${playerCount} 位参与者 · 随机种子 ${seed} · 行动后检查目标`],
+        notes: [
+          `${playerCount} 位参与者 · 随机种子 ${seed} · 行动后检查目标`,
+          ...openingNotes,
+        ],
         state,
       },
     ],
@@ -191,6 +238,16 @@ export function actionReason(model: Model, state: State, action: Action) {
   for (const [id, amount] of costsOf(action))
     if (p.values[id] < amount)
       return `${model.fields.find((f) => f.id === id)?.name ?? id}不足，需要 ${amount}`;
+  if (model.format === "gameplay-card-v1")
+    for (const effect of action.effects)
+      if (effect.type === "combination") {
+        const deck = model.decks.find((deck) => deck.id === effect.collection);
+        if (
+          !deck ||
+          (p.collections[deck.id]?.hand.length ?? 0) < deck.minSelect
+        )
+          return `手牌不足，${deck?.name ?? "牌库"}至少需要 ${deck?.minSelect ?? 1} 张牌`;
+      }
   return "";
 }
 export function combinationScore(
@@ -262,19 +319,19 @@ function applyEffect(
     );
   }
   if (effect.type === "combination") {
-    const definition = model.collections.find(
+    const definition = collectionsOf(model).find(
       (c) => c.id === effect.collection,
     )!;
     const pile = player.collections[effect.collection];
     const ids = choice?.cards ?? [];
     if (
-      !ids.length ||
+      ids.length < definition.minSelect ||
       ids.length > definition.maxSelect ||
       new Set(ids).size !== ids.length ||
       ids.some((id) => !pile.hand.some((c) => c.id === id))
     )
       throw new Error(
-        `请选择当前集合内 1–${definition.maxSelect} 个不同对象。`,
+        `请选择当前集合内 ${definition.minSelect}–${definition.maxSelect} 个不同对象。`,
       );
     const selected = ids.map((id) => pile.hand.find((c) => c.id === id)!);
     const result = combinationScore(
@@ -283,12 +340,23 @@ function applyEffect(
       effect.pairBonus,
     );
     notes.push(
-      `组合：${selected.map((c) => c.name).join("、")}；（基础 ${result.base} + 同类奖励 ${result.bonus}）× 倍率 ${effectMultiplier(effect, player)} = ${result.score}`,
+      `组合：${selected.map((card) => instanceLabel(card)).join("、")}；（基础 ${result.base} + 同类奖励 ${result.bonus}）× 倍率 ${effectMultiplier(effect, player)} = ${result.score}`,
     );
     change(player, effect.field, result.score, model, notes);
     pile.hand = pile.hand.filter((c) => !ids.includes(c.id));
     pile.discard.push(...selected);
-    refill(pile, definition.handSize, state);
+    notes.push(
+      `${definition.name}：${selected.map(instanceLabel).join("、")}从手牌进入弃牌区。`,
+    );
+    if (definition.refill === "after-play")
+      refill(
+        pile,
+        definition.handSize,
+        state,
+        definition.recycle === "shuffle-discard",
+        notes,
+        definition.name,
+      );
   }
 }
 export function step(run: Run, choice: Choice): Run {
@@ -330,6 +398,17 @@ export function step(run: Run, choice: Choice): Run {
       else if (!state.outcome) state.round += 1;
       notes.push("周期结算完成。");
     }
+    if (!state.outcome && run.model.format === "gameplay-card-v1")
+      for (const deck of run.model.decks)
+        if (deck.refill === "turn-start")
+          refill(
+            actor(state).collections[deck.id],
+            deck.handSize,
+            state,
+            deck.recycle === "shuffle-discard",
+            notes,
+            `${actor(state).name} · ${deck.name}`,
+          );
   }
   if (!state.outcome && run.entries.length >= 200)
     state.outcome = {
@@ -357,11 +436,12 @@ export function bestCards(
   limit: number,
   multiplier: number,
   pairBonus = 15,
+  minimum = 1,
 ): string[] {
   let best: string[] = [],
     score = -1;
   const visit = (at: number, chosen: Card[]) => {
-    if (chosen.length) {
+    if (chosen.length >= minimum) {
       const value = combinationScore(chosen, multiplier, pairBonus).score;
       if (value > score) {
         best = chosen.map((c) => c.id);
@@ -411,7 +491,7 @@ export function choose(run: Run, policy: Policy): Choice {
   }
   const e = action.effects.find((e) => e.type === "combination");
   if (e?.type === "combination") {
-    const c = m.collections.find((c) => c.id === e.collection)!;
+    const c = collectionsOf(m).find((c) => c.id === e.collection)!;
     return {
       action: action.id,
       cards: bestCards(
@@ -419,6 +499,7 @@ export function choose(run: Run, policy: Policy): Choice {
         c.maxSelect,
         effectMultiplier(e, p),
         e.pairBonus,
+        c.minSelect,
       ),
     };
   }
@@ -431,7 +512,7 @@ export function replay(run: Run, choices: Choice[]): Run {
     run.entries[0].state.players.length,
     run.initial,
   );
-  if (run.simulator) initial.simulator = copy(run.simulator);
+  initial.simulator = copy(run.simulator);
   return choices.reduce(step, initial);
 }
 export function simulate(

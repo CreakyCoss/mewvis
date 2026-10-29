@@ -1,7 +1,9 @@
+import { collectionsOf } from "../card/collections";
+import { cardSimulator } from "../card/model";
 import { type ReadinessIssue, type SimulatorRef } from "../shared/contracts";
 import { copy, uid } from "../shared/utils";
 import { startRun, step, type Choice, type Run } from "./engine";
-import { validateModel, type Model } from "./model";
+import { validateModel, type Model, type NumericModel } from "./model";
 import type { InitialPlayer } from "./playtest/config";
 export interface SimulatorDefinition {
   ref: SimulatorRef;
@@ -17,7 +19,7 @@ const resource: SimulatorDefinition = {
   description: "通过资源投入、周期产出、能力解锁和目标竞速验证回合玩法。",
   validate(model) {
     const issues: ReadinessIssue[] = [];
-    if (model.collections.length)
+    if (model.format === "gameplay-card-v1" || model.collections.length)
       issues.push({
         path: "集合",
         message: "回合发展不支持牌池，请选择卡牌组合模拟器，或移除集合。",
@@ -36,35 +38,36 @@ const resource: SimulatorDefinition = {
   initialize: startRun,
   advance: step,
 };
-const cards: SimulatorDefinition = {
-  ref: { id: "card-combination", version: 1 },
+const cardV2: SimulatorDefinition = {
+  ref: cardSimulator,
   name: "卡牌组合",
-  description: "配置自己的牌池、手牌、选择与计分规则，执行出牌、弃置和补充。",
+  description: "独立卡牌定义、按数量构建牌库、实体牌与可配置抽补牌规则。",
   validate(model) {
-    const issues: ReadinessIssue[] = [];
-    if (!model.collections.length)
-      issues.push({
-        path: "牌池",
-        message: "添加一个牌池，并设置卡牌、手牌容量和选择上限。",
-        view: "rules",
-      });
-    if (
-      !model.actions.some((a) =>
-        a.effects.some((e) => e.type === "combination"),
-      )
+    if (model.format !== "gameplay-card-v1")
+      return [
+        {
+          path: "卡牌模型",
+          message: "该模拟器需要独立卡牌模型，请选择卡牌类型的项目。",
+          view: "simulator",
+        },
+      ];
+    return model.actions.some((action) =>
+      action.effects.some((effect) => effect.type === "combination"),
     )
-      issues.push({
-        path: "计分行动",
-        ...(model.actions[0] ? { nodeId: model.actions[0].id } : {}),
-        message: "为一个行动添加组合计分效果，选择牌池和得分状态。",
-        view: "model",
-      });
-    return issues;
+      ? []
+      : [
+          {
+            path: "计分行动",
+            message: "为一个行动添加组合计分效果，选择牌库和得分状态。",
+            view: "model",
+            nodeId: model.actions[0]?.id,
+          },
+        ];
   },
   initialize: startRun,
   advance: step,
 };
-export const simulators: readonly SimulatorDefinition[] = [resource, cards];
+export const simulators: readonly SimulatorDefinition[] = [resource, cardV2];
 export const simulatorDefinition = (ref: SimulatorRef | null | undefined) =>
   simulators.find(
     (s) => s.ref.id === ref?.id && s.ref.version === ref?.version,
@@ -74,17 +77,9 @@ export const simulatorName = (ref: SimulatorRef | null | undefined) =>
     ? (simulatorDefinition(ref)?.name ??
       `未支持的模拟器 ${ref.id} v${ref.version}`)
     : "尚未选择";
-/** Only legacy documents need inference. New projects always save an explicit selection, including null. */
-export const inferLegacySimulator = (model: Model): SimulatorRef =>
-  copy(
-    model.collections.length ||
-      model.actions.some((a) => a.effects.some((e) => e.type === "combination"))
-      ? cards.ref
-      : resource.ref,
-  );
 export const exampleSimulator = (id: "development" | "combination") =>
-  copy(id === "combination" ? cards.ref : resource.ref);
-export function blankModel(name: string): Model {
+  copy(id === "combination" ? cardSimulator : resource.ref);
+export function blankModel(name: string): NumericModel {
   return {
     format: "gameplay-model-v1",
     id: uid("model"),
@@ -111,8 +106,10 @@ export function modelReadiness(
   const errors: ReadinessIssue[] = validateModel(model).map((issue) => ({
     ...issue,
     view:
-      model.collections.some((c) => c.id === issue.path) ||
-      ["流程", "周期结算"].includes(issue.path)
+      collectionsOf(model).some((c) => c.id === issue.path) ||
+      (model.format === "gameplay-card-v1" &&
+        model.cards.some((card) => card.id === issue.path)) ||
+      ["流程", "周期结算", "牌库", "卡牌", "卡牌与牌库"].includes(issue.path)
         ? "rules"
         : "model",
     ...(nodes.some((n) => n.id === issue.path) ? { nodeId: issue.path } : {}),
@@ -155,7 +152,6 @@ export function createSimulatedRun(
   };
 }
 export function advanceSimulatedRun(run: Run, choice: Choice): Run {
-  if (!run.simulator) return step(run, choice);
   const simulator = simulatorDefinition(run.simulator);
   if (!simulator) throw new Error("本局使用的模拟器版本不可用，原记录已保留。");
   return simulator.advance(run, choice);
