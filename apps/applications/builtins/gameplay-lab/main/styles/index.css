@@ -12,5 +12,10 @@
 @import "./comparison.css";
 @import "./overview.css";
 @import "./narrative.css";
-@import "./card.css";
+@import "../frameworks/card-scoring/styles.css";
+@import "../shared/components/play-window.css";
+@import "./content.css";
 @import "./native-select.css";
+
+@import "../frameworks/doudizhu/play/table.css";
+@import "../frameworks/doudizhu/extensions/heroes/styles.css";

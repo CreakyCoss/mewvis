@@ -1,0 +1,460 @@
+.card-table {
+  --table-ink: #f5efe0;
+  --table-muted: #b1c8c1;
+  --table-gold: #efd18f;
+  color: var(--table-ink);
+  background: radial-gradient(ellipse at 50% 40%, #254b45, #172f2e 72%);
+  min-height: 100%;
+  padding: 24px 32px;
+  font-size: 14px;
+}
+.card-table-hud {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+.card-table-hud h1 {
+  font-size: 22px;
+  line-height: 30px;
+  color: var(--table-ink);
+}
+.card-table-hud small,
+.card-table-hud p {
+  color: var(--table-muted);
+}
+.card-table-hud p {
+  margin-top: 4px;
+}
+.card-table-scores {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+.card-table-scores > div {
+  min-width: 140px;
+}
+.card-table-scores span {
+  display: block;
+  font-size: 12px;
+  color: var(--table-muted);
+}
+.card-table-scores strong {
+  display: block;
+  font-size: 26px;
+  color: var(--table-gold);
+  line-height: 36px;
+}
+.card-table-scores strong small {
+  font-size: 13px;
+}
+.card-table-scores progress {
+  display: block;
+  width: 100%;
+  height: 5px;
+  accent-color: var(--table-gold);
+}
+.card-table-players {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+.card-table-players span {
+  border: 1px solid #ffffff25;
+  border-radius: 8px;
+  padding: 6px 10px;
+  color: var(--table-muted);
+  font-size: 12px;
+}
+.card-table-players .active {
+  border-color: var(--table-gold);
+  color: var(--table-gold);
+}
+.card-table-center {
+  display: grid;
+  grid-template-columns: 90px minmax(0, 1fr) 90px;
+  align-items: center;
+  gap: 24px;
+  max-width: 780px;
+  margin: 28px auto 18px;
+  min-height: 150px;
+}
+.card-table-stack {
+  height: 118px;
+  border: 2px solid #e3d3a666;
+  border-radius: 10px;
+  background:
+    repeating-linear-gradient(45deg, #f7e8be0a 0 2px, transparent 2px 9px),
+    #1e3838;
+  box-shadow:
+    4px 4px 0 #122622,
+    7px 7px 0 #d1c69f55;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.card-table-stack > span {
+  font-size: 26px;
+  color: var(--table-gold);
+}
+.card-table-stack strong {
+  font-size: 22px;
+}
+.card-table-stack small {
+  font-size: 11px;
+  color: var(--table-muted);
+}
+.card-table-discard {
+  background: transparent;
+  box-shadow: none;
+  border-style: dashed;
+}
+.card-table-message {
+  text-align: center;
+  min-width: 0;
+}
+.card-table-message > small {
+  color: var(--table-muted);
+  font-size: 12px;
+}
+.card-table-message h2 {
+  font-size: 24px;
+  line-height: 32px;
+  margin: 5px 0;
+  color: var(--table-gold);
+}
+.card-table-message p {
+  color: var(--table-muted);
+  font-size: 13px;
+  line-height: 20px;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+.card-table-message .button {
+  margin-top: 10px;
+}
+.table-emblem {
+  display: block;
+  font-size: 30px;
+  color: var(--table-gold);
+}
+.card-table-hand-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  max-width: 850px;
+  margin: 12px auto 0;
+}
+.card-table-hand-heading strong {
+  display: block;
+}
+.card-table-hand-heading small {
+  display: block;
+  font-size: 12px;
+  color: var(--table-muted);
+}
+.card-table-hand-heading > div {
+  min-width: 0;
+}
+.card-table-hand-heading [data-slot="native-select-wrapper"] {
+  width: 160px;
+}
+.card-table-hand {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  justify-content: safe center;
+  padding: 16px 4px 12px;
+  min-height: 176px;
+}
+.playing-card {
+  position: relative;
+  flex: 0 0 108px;
+  min-height: 154px;
+  background: #f9f4e8;
+  border: 2px solid #e3dac7;
+  border-radius: 11px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 16px 8px 12px;
+  box-shadow: 0 8px 18px #0004;
+  transition:
+    transform 120ms ease,
+    box-shadow 120ms ease;
+}
+.playing-card-corner {
+  position: absolute;
+  top: 7px;
+  left: 10px;
+  font-size: 20px;
+  line-height: 24px;
+  font-weight: 700;
+}
+.playing-card-group {
+  display: block;
+  font-size: 19px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin: 5px 0;
+}
+.playing-card strong {
+  font-size: 14px;
+  line-height: 20px;
+  overflow-wrap: anywhere;
+}
+.playing-card small {
+  font-size: 10px;
+  color: #827f77;
+  margin-top: 3px;
+}
+.playing-card-check {
+  font-size: 10px;
+  margin-top: 8px;
+  color: #858078;
+}
+.playing-card.selected {
+  transform: translateY(-8px);
+  border-color: var(--table-gold);
+  box-shadow:
+    0 0 0 3px #efd18f88,
+    0 12px 18px #0005;
+}
+.playing-card.selected .playing-card-check {
+  color: #795a16;
+  font-weight: 700;
+}
+.playing-card:hover:enabled {
+  transform: translateY(-5px);
+}
+.playing-card.selected:hover:enabled {
+  transform: translateY(-10px);
+}
+.playing-card:disabled {
+  opacity: 0.58;
+}
+.playing-card.selected:disabled {
+  opacity: 0.85;
+}
+.card-table-empty {
+  align-self: center;
+  color: var(--table-muted);
+  padding: 20px;
+}
+.card-table-submit {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  max-width: 850px;
+  margin: 4px auto 0;
+  padding: 16px 20px;
+  border: 1px solid #ffffff20;
+  border-radius: 12px;
+  background: #0b202055;
+}
+.card-table-submit > div:last-child {
+  text-align: right;
+}
+.card-table-submit strong {
+  display: block;
+  font-size: 32px;
+  line-height: 38px;
+  color: var(--table-gold);
+}
+.card-table-submit strong span {
+  font-size: 14px;
+}
+.card-table-submit small,
+.card-table-submit p {
+  font-size: 12px;
+  color: var(--table-muted);
+}
+.card-table-submit p {
+  min-height: 18px;
+}
+.card-play-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 5px;
+  min-height: 42px;
+  min-width: 150px;
+  background: var(--table-gold);
+  color: #2e341f;
+  border: 1px solid #ffebbb;
+  border-radius: 8px;
+  font-weight: 700;
+  padding: 9px 20px;
+}
+.card-play-button:disabled {
+  opacity: 0.4;
+}
+.card-table-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin: 16px 0 0;
+}
+.card-table .button {
+  background: #f5efe00c;
+  color: var(--table-ink);
+  border-color: #f5efe035;
+}
+.card-table .text-button {
+  color: var(--table-muted);
+}
+.card-table-resources {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+  color: var(--table-muted);
+  font-size: 12px;
+}
+.card-table-resources strong {
+  margin-left: 8px;
+  color: var(--table-ink);
+}
+.card-table-capabilities {
+  margin-top: 12px;
+  text-align: center;
+  color: var(--table-muted);
+  font-size: 12px;
+}
+.card-table-replay {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 10px 12px;
+  margin-top: 16px;
+  border: 1px solid #ffffff30;
+  border-radius: 8px;
+  font-size: 12px;
+}
+.card-table-replay input {
+  flex: 1;
+  min-width: 100px;
+  accent-color: var(--table-gold);
+}
+@media (min-width: 701px) and (max-height: 850px) {
+  .card-table {
+    padding: 16px 24px;
+  }
+  .card-table-center {
+    min-height: 100px;
+    margin: 12px auto 8px;
+  }
+  .card-table-stack {
+    height: 90px;
+  }
+  .card-table-hand-heading {
+    margin-top: 4px;
+  }
+  .card-table-hand {
+    min-height: 150px;
+    padding: 12px 4px 8px;
+  }
+  .playing-card {
+    flex-basis: 96px;
+    min-height: 130px;
+  }
+  .card-table-submit {
+    padding: 10px 16px;
+  }
+  .card-table-submit strong {
+    font-size: 26px;
+    line-height: 30px;
+  }
+  .card-table-actions {
+    margin-top: 10px;
+  }
+}
+@media (max-width: 700px) {
+  .card-table {
+    padding: 16px;
+  }
+  .card-table-hud {
+    align-items: flex-start;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .card-table-hud h1 {
+    font-size: 19px;
+    line-height: 26px;
+  }
+  .card-table-scores {
+    flex: 1;
+    justify-content: flex-end;
+  }
+  .card-table-scores > div {
+    min-width: 110px;
+  }
+  .card-table-center {
+    grid-template-columns: 54px minmax(0, 1fr) 54px;
+    gap: 14px;
+    margin: 20px auto 10px;
+    min-height: 130px;
+  }
+  .card-table-stack {
+    height: 84px;
+    border-radius: 7px;
+  }
+  .card-table-stack strong {
+    font-size: 18px;
+  }
+  .card-table-stack > span {
+    font-size: 19px;
+  }
+  .card-table-message h2 {
+    font-size: 20px;
+    line-height: 26px;
+  }
+  .card-table-hand {
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    overflow-x: auto;
+    max-width: 100%;
+    gap: 9px;
+    min-height: 160px;
+  }
+  .playing-card {
+    flex-basis: 88px;
+    min-height: 138px;
+  }
+  .card-table-submit {
+    padding: 12px;
+    gap: 12px;
+    align-items: flex-end;
+  }
+  .card-table-submit strong {
+    font-size: 27px;
+  }
+  .card-play-button {
+    min-width: 110px;
+    min-height: 44px;
+    padding: 8px 12px;
+  }
+  .card-table-actions .button,
+  .card-table-actions .text-button {
+    min-height: 44px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .playing-card {
+    transition: none;
+  }
+}

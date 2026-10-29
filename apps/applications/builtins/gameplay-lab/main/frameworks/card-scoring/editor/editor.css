@@ -1,0 +1,45 @@
+.framework-overview .settings-section + .settings-section,
+.scoring-editor .settings-section + .settings-section {
+  margin-top: 16px;
+}
+.framework-steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+.framework-steps button {
+  padding: 14px;
+  text-align: left;
+  border: 1px solid var(--border);
+  background: var(--surface-raised);
+  border-radius: 8px;
+}
+.framework-steps button:hover {
+  border-color: var(--primary);
+}
+.framework-steps small,
+.framework-steps strong,
+.framework-steps span {
+  display: block;
+}
+.framework-steps small,
+.framework-steps span {
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+.framework-steps strong {
+  margin: 5px 0;
+  font-size: 16px;
+}
+.scoring-editor h2 {
+  margin-bottom: 12px;
+}
+@media (max-width: 600px) {
+  .framework-steps {
+    grid-template-columns: 1fr;
+  }
+  .framework-steps button {
+    min-height: 70px;
+  }
+}

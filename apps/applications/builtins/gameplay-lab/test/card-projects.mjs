@@ -389,3 +389,69 @@ test("unfinished card quantities and orphan references save as drafts but cross-
     /无法读取|不一致/,
   );
 });
+
+test("a framework-created blank project can be authored and played without building numeric definitions", async (t) => {
+  const host = await createProjectHost();
+  t.after(() => host.close());
+  const repo = f.createProjectRepository(host.data, host.files),
+    history = f.createHistoryRepository(host.data, host.files);
+  assert.deepEqual((await repo.list()).projects, []);
+  const project = await repo.create({
+    name: "从框架开始",
+    parent: host.projectsPath,
+    gameType: "card",
+    direction: "card-scoring",
+  });
+  assert.equal(project.exampleId, null);
+  assert.equal(project.direction, "card-scoring");
+  assert.deepEqual(project.model.cards, []);
+  assert.equal(project.model.actions.length, 1);
+  assert.equal(project.model.goals.length, 1);
+  project.model.cards.push(
+    { id: "sun", name: "晨光", description: "", group: "暖色", value: 2 },
+    { id: "moon", name: "月色", description: "", group: "冷色", value: 4 },
+  );
+  const deck = project.model.decks[0];
+  Object.assign(deck, {
+    entries: [
+      { card: "sun", count: 2 },
+      { card: "moon", count: 2 },
+    ],
+    handSize: 2,
+    initialDraw: 2,
+    minSelect: 2,
+    maxSelect: 2,
+    refill: "after-play",
+    recycle: "stop",
+  });
+  f.scoringRules(project.model)[0].effect.pairBonus = 0;
+  project.model.goals[0].threshold = 12;
+  await repo.saveProject(project);
+  assert.deepEqual(f.projectReadiness(project), []);
+  const trial = f.newTrial(
+    project.id,
+    project.model,
+    42,
+    1,
+    undefined,
+    project.simulator,
+  );
+  while (!f.current(trial.run).outcome) {
+    const state = f.current(trial.run),
+      cards = state.players[0].collections[deck.id].hand.map((card) => card.id),
+      action = f.scoringRules(trial.run.model)[0].action.id;
+    const preview = f.scoringPreview(trial.run.model, state, action, cards);
+    assert.equal(preview.reason, "");
+    trial.run = f.advanceSimulatedRun(trial.run, { action, cards });
+    trial.drivers.push("manual");
+    await history.save(project, trial);
+  }
+  assert.equal(f.current(trial.run).outcome.kind, "won");
+  assert.equal(trial.drivers.length, 2);
+  const loaded = await repo.reload(project);
+  assert.deepEqual((await history.list(loaded)).trials, [trial]);
+  assert.equal(
+    f.current(trial.run).players[0].collections[deck.id].discard.length,
+    4,
+  );
+});

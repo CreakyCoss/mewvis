@@ -32,7 +32,7 @@ test("first launch stays empty and only explicit creation copies a template JSON
   assert.deepEqual(await e.data.storage.keys(), []);
   const sources = await Promise.all(
     ["development", "combination"].map((id) =>
-      readFile(join(root, "main/projects/templates", id + ".json"), "utf8"),
+      readFile(join(root, "main/app/projects/templates", id + ".json"), "utf8"),
     ),
   );
   for (const id of ["development", "combination"]) {
@@ -49,7 +49,10 @@ test("first launch stays empty and only explicit creation copies a template JSON
   assert.deepEqual(
     await Promise.all(
       ["development", "combination"].map((id) =>
-        readFile(join(root, "main/projects/templates", id + ".json"), "utf8"),
+        readFile(
+          join(root, "main/app/projects/templates", id + ".json"),
+          "utf8",
+        ),
       ),
     ),
     sources,
@@ -668,6 +671,8 @@ test("hand-authored blank games persist simulator-aware runs and experiments acr
       source: "blank",
       simulator: { id, version: id === "card-combination" ? 2 : 1 },
     });
+    if (id === "card-combination")
+      project.model = f.blankCardModel(project.model.name);
     project.model.fields.push({
       id: "my-score",
       name: "心愿",

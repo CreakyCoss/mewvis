@@ -14,5 +14,10 @@ export default defineConfig({
     network: { hosts: [] },
     process: { execute: false },
   },
-  ui: { title: "游戏沙盘", layout: "fullscreen", immersive: true },
+  ui: {
+    entry: "./main/app/App.tsx",
+    title: "游戏沙盘",
+    layout: "fullscreen",
+    immersive: true,
+  },
 });

@@ -10,7 +10,7 @@
     "build": "mewvis-app build",
     "test": "node test/run.mjs",
     "preview:packed": "node test/preview-packed.mjs",
-    "test:projects": "pnpm --filter @mewvis/server build && node --test test/projects.mjs test/card-projects.mjs"
+    "test:projects": "pnpm --filter @mewvis/server build && node --test test/projects.mjs test/card-projects.mjs test/doudizhu-projects.mjs"
   },
   "dependencies": {
     "@mewvis/app-sdk": "workspace:*",
