@@ -1,0 +1,196 @@
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  margin-bottom: 14px;
+}
+.inspector-section {
+  padding: 16px 0;
+  border-top: 1px solid var(--border);
+}
+.inspector-section h3 {
+  margin-bottom: 10px;
+}
+.quick-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 16px 0 12px;
+}
+.quick-fields > label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  font-size: var(--lab-text-body);
+  color: var(--muted-foreground);
+}
+.quick-fields input {
+  max-width: 104px;
+}
+.advanced-editor {
+  margin: 0 0 12px;
+  font-size: 12px;
+}
+.advanced-editor > summary {
+  cursor: pointer;
+  color: var(--muted-foreground);
+  padding: 6px 0;
+}
+.advanced-editor[open] > summary {
+  margin-bottom: 12px;
+}
+.advanced-editor h3 {
+  margin: 12px 0 8px;
+}
+.effect-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.effect-row > input {
+  max-width: 78px;
+}
+.effect-row > .icon-button {
+  width: 28px;
+  border: 0;
+  height: 28px;
+}
+.cost-name {
+  flex: 1;
+  min-width: 0;
+}
+.cost-name select {
+  padding-left: 8px;
+  font-size: 12px;
+}
+.effect-editor {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 10px;
+  margin-bottom: 10px;
+}
+.effect-editor label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+.effect-editor label input {
+  max-width: 95px;
+}
+.effect-editor p {
+  display: flex;
+  gap: 8px;
+  font-size: 13px;
+}
+.effect-editor select {
+  font-size: 12px;
+}
+.check-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+.related-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  padding: 9px 0;
+  text-align: left;
+}
+.related-row > svg:last-child {
+  margin-left: auto;
+  color: var(--muted-foreground);
+}
+.validation-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 0;
+  color: var(--success);
+}
+.validation-status p {
+  margin-top: 3px;
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+.validation-status.has-issues {
+  color: var(--warning);
+}
+.hint,
+.muted {
+  color: var(--muted-foreground);
+}
+.hint {
+  font-size: 12px;
+  line-height: 1.6;
+  margin-top: 8px;
+}
+.error-banner,
+.notice-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+}
+.error-banner {
+  color: var(--error);
+  background: var(--error-subtle);
+  border-bottom: 1px solid var(--error-border);
+}
+.error-banner > span {
+  flex: 1;
+}
+.notice-banner {
+  background: var(--info-subtle);
+  color: var(--info);
+  flex-wrap: wrap;
+}
+.validation-errors {
+  padding: 12px;
+  background: var(--warning-subtle);
+  color: var(--warning);
+  margin-top: 12px;
+  border-radius: 8px;
+  font-size: 12px;
+}
+.lab-definition-list {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 0 5px;
+}
+.lab-definition-list > button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  text-align: left;
+  padding: 10px 8px;
+}
+.lab-definition-list > button.selected {
+  background: var(--primary-subtle);
+}
+.lab-definition-list > button > span:last-child {
+  margin-left: auto;
+  font-size: 12px;
+}
+.lab-definition-list small {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted-foreground);
+}

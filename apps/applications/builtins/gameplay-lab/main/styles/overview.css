@@ -1,0 +1,77 @@
+.project-overview {
+  max-width: 1150px;
+}
+.overview-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr);
+  gap: 16px;
+  align-items: start;
+}
+.overview-grid .settings-section {
+  min-width: 0;
+}
+.overview-grid h2 {
+  margin-bottom: 12px;
+}
+.overview-brief {
+  grid-column: 1 / -1;
+}
+.readiness-list {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0 0;
+}
+.readiness-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.readiness-list li > svg {
+  margin-top: 3px;
+  color: var(--muted-foreground);
+  flex-shrink: 0;
+}
+.readiness-list li > div {
+  flex: 1;
+  min-width: 0;
+}
+.readiness-list p {
+  color: var(--muted-foreground);
+  font-size: var(--lab-text-small);
+  margin-top: 3px;
+}
+.readiness-list .text-button {
+  flex-shrink: 0;
+}
+.readiness-success {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  color: var(--success);
+  background: var(--success-subtle);
+  border-radius: 6px;
+  padding: 12px;
+  margin-top: 12px;
+}
+.readiness-success svg {
+  flex-shrink: 0;
+}
+.simulator-choice .form-field {
+  margin-top: 12px;
+}
+.simulator-badge {
+  display: inline-block;
+  font-size: var(--lab-text-small);
+  color: var(--primary);
+  background: var(--primary-subtle);
+  padding: 3px 8px;
+  border-radius: 5px;
+  margin-bottom: 8px;
+}
+@media (max-width: 900px) {
+  .overview-grid {
+    grid-template-columns: 1fr;
+  }
+}

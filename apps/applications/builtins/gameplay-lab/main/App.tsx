@@ -1,21 +1,21 @@
-import { useEffect, useState } from "react";
 import { CircleHelp } from "lucide-react";
-import { ProjectLibrary } from "./ProjectLibrary";
-import { ProjectCreateForm } from "./ProjectForms";
-import { Modal } from "./Modal";
-import TurnWorkspace from "./TurnWorkspace";
-import NarrativeWorkspace from "./NarrativeWorkspace";
+import { useEffect, useState } from "react";
+import appIcon from "../assets/icon-sandbox.png";
+import NarrativeWorkspace from "./narrative/Workspace";
+import { ProjectCreateForm } from "./projects/components/ProjectForms";
+import { ProjectLibrary } from "./projects/components/ProjectLibrary";
 import {
   initialWorkspace,
-  projectRepository,
   isNarrativeProject,
   isTurnProject,
   type AnyProject,
   type DesignModel,
   type Workspace,
-} from "./storage";
-import appIcon from "../assets/icon-sandbox.png";
-import "./styles.css";
+} from "./projects/model";
+import { projectRepository } from "./projects/repository";
+import { Modal } from "./shared/components/Modal";
+import "./styles/index.css";
+import TurnWorkspace from "./turn/Workspace";
 export default function App() {
   const [workspace, setWorkspace] = useState<Workspace<DesignModel>>(() =>
     initialWorkspace<DesignModel>(),

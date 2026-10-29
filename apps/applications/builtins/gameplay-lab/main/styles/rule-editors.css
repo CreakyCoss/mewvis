@@ -1,0 +1,80 @@
+.rules-page {
+  max-width: 1100px;
+}
+.rules-page > .settings-section + .settings-section {
+  margin-top: 16px;
+}
+.rule-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+.effect-fields {
+  position: relative;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin: 12px 0 0;
+  padding: 12px;
+  min-width: 0;
+}
+.effect-fields legend {
+  padding: 0 4px;
+  font-size: var(--lab-text-small);
+  color: var(--muted-foreground);
+}
+.effect-fields .form-field {
+  margin-bottom: 10px;
+}
+.effect-controls {
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+.rules-page .effects-editor > .effect-fields {
+  display: inline-block;
+  vertical-align: top;
+  width: min(100%, 300px);
+  margin-right: 12px;
+}
+.definition-actions {
+  border-top: 1px solid var(--border);
+  margin-top: 12px;
+}
+.danger-text {
+  color: var(--error);
+}
+.table-scroll {
+  overflow-x: auto;
+}
+.card-editor {
+  min-width: 440px;
+}
+.card-editor th,
+.card-editor td {
+  padding: 6px;
+}
+.card-editor td:first-child {
+  width: 35%;
+}
+.card-editor td:nth-child(2) {
+  width: 25%;
+}
+.sample-list {
+  margin-top: 12px;
+}
+.sample-list summary {
+  cursor: pointer;
+  color: var(--primary);
+  padding: 8px 0;
+}
+.history-meta {
+  display: block;
+  font-size: var(--lab-text-small);
+  color: var(--muted-foreground);
+}
+.record-state {
+  color: var(--muted-foreground);
+  font-size: var(--lab-text-small);
+}

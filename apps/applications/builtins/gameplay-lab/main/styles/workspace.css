@@ -1,0 +1,218 @@
+.lab-app {
+  height: 100%;
+  padding-top: var(--mewvis-safe-area-top, 0px);
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--background);
+}
+.lab-header {
+  height: 48px;
+  flex: 0 0 48px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-raised);
+}
+.lab-brand {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-shrink: 0;
+  font-size: 15px;
+  line-height: 22px;
+}
+.lab-brand-icon {
+  display: block;
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+.lab-breadcrumb {
+  border-left: 1px solid var(--border);
+  display: flex;
+  gap: 12px;
+  padding-left: 16px;
+  align-items: center;
+  white-space: nowrap;
+  min-width: 0;
+}
+.lab-breadcrumb > span {
+  color: var(--muted-foreground);
+}
+.save-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--muted-foreground);
+  white-space: nowrap;
+}
+.save-status i {
+  width: 6px;
+  height: 6px;
+  background: var(--success);
+  border-radius: 50%;
+}
+.header-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.button {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--lab-control-height);
+  padding: 5px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface-raised);
+  white-space: nowrap;
+  line-height: 20px;
+}
+.button:hover:not(:disabled),
+.icon-button:hover:not(:disabled) {
+  background: var(--surface);
+  border-color: var(--input);
+}
+.button.primary {
+  color: var(--primary-foreground);
+  background: var(--primary);
+  border-color: var(--primary);
+}
+.button.primary:hover:not(:disabled) {
+  background: var(--primary-hover);
+}
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  flex-shrink: 0;
+}
+.text-button {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  border: 0;
+  background: transparent;
+  padding: 5px 0;
+  color: var(--primary);
+  font-size: var(--lab-text-small);
+  min-height: 28px;
+}
+.lab-shell {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+}
+.lab-sidebar {
+  width: 176px;
+  flex: 0 0 176px;
+  padding: 16px 8px 12px;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border);
+  background: var(--sidebar);
+}
+.back-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  background: transparent;
+  color: var(--muted-foreground);
+  padding: 6px 8px;
+  text-align: left;
+  min-height: 32px;
+  font-size: var(--lab-text-small);
+}
+.project-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  background: transparent;
+  padding: 16px 8px;
+  text-align: left;
+  min-width: 0;
+}
+.project-name strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.project-symbol {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 7px;
+  color: var(--primary);
+  background: var(--primary-subtle);
+}
+.lab-sidebar nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.lab-sidebar nav button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  background: transparent;
+  border-radius: 6px;
+  padding: 8px 10px;
+  color: var(--muted-foreground);
+  text-align: left;
+  min-height: 36px;
+  line-height: 20px;
+}
+.lab-sidebar nav button:hover {
+  background: var(--muted);
+}
+.lab-sidebar nav button.active {
+  background: var(--primary-subtle);
+  color: var(--primary);
+  font-weight: 600;
+}
+.stage-label {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin: auto 8px 0;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+  font-size: 12px;
+  color: var(--muted-foreground);
+  white-space: nowrap;
+}
+.stage-label strong {
+  color: var(--primary);
+  font-weight: 500;
+}
+.lab-main {
+  min-width: 0;
+  flex: 1;
+  overflow: auto;
+}
+.lab-main.view-model {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}

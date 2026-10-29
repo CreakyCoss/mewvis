@@ -1,0 +1,141 @@
+.story-editor-layout {
+  display: grid;
+  grid-template-columns: 190px minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+  margin-top: 16px;
+}
+.story-node-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.story-node-list button {
+  text-align: left;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-raised);
+  display: flex;
+  flex-direction: column;
+  overflow-wrap: anywhere;
+}
+.story-node-list small {
+  color: var(--muted-foreground);
+}
+.story-node-list button.active {
+  border-color: var(--primary);
+  background: var(--accent);
+}
+.story-node-editor {
+  min-width: 0;
+}
+.story-node-editor .form-field {
+  margin-bottom: 12px;
+}
+.story-choice-editor {
+  margin: 16px 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.story-choice-editor h3 {
+  margin: 10px 0 6px;
+}
+.story-rule-row {
+  display: grid;
+  grid-template-columns:
+    minmax(90px, 1fr) minmax(90px, 1fr) minmax(80px, 1fr)
+    auto;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.story-variable-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: 12px;
+}
+.story-checkbox {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-height: 32px;
+}
+.story-reader {
+  max-width: 860px;
+}
+.story-speaker {
+  color: var(--primary);
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+.story-prose {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.8;
+  margin-bottom: 24px;
+}
+.story-play-choice {
+  width: 100%;
+  min-height: 40px;
+  padding: 10px 12px;
+  text-align: left;
+  border: 1px solid var(--border);
+  background: var(--surface-raised);
+  border-radius: 6px;
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.story-play-choice small {
+  color: var(--muted-foreground);
+}
+.story-state-values {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+.story-state-values div {
+  display: flex;
+  gap: 8px;
+}
+.story-state-values dd {
+  margin: 0;
+  font-weight: 600;
+}
+.story-events {
+  padding-left: 22px;
+}
+.story-events li {
+  margin: 12px 0;
+}
+@media (max-width: 900px) {
+  .story-editor-layout {
+    grid-template-columns: 1fr;
+  }
+  .story-node-list {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+  .story-rule-row {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+@media (max-width: 600px) {
+  .story-variable-grid {
+    grid-template-columns: 1fr;
+  }
+  .story-play-choice,
+  .story-checkbox,
+  .story-node-list button {
+    min-height: 44px;
+  }
+}
+.narrative-workspace .page-content > .settings-section + .settings-section {
+  margin-top: 16px;
+}
+.narrative-workspace .page-content > h2 {
+  margin-top: 20px;
+}

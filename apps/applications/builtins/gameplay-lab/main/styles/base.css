@@ -1,0 +1,108 @@
+:root {
+  /* Compact workbench scale, shared by the library, model and run views. */
+  --lab-text-page: 18px;
+  --lab-text-section: 16px;
+  --lab-text-title: 14px;
+  --lab-text-body: 13px;
+  --lab-text-small: 12px;
+  --lab-control-height: 32px;
+  --lab-page-padding: 24px;
+  --lab-panel-padding: 16px;
+}
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  height: 100%;
+  margin: 0;
+  min-width: 320px;
+}
+body {
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+    "Microsoft YaHei", sans-serif;
+  color: var(--foreground);
+  background: var(--background);
+  font-size: var(--lab-text-body);
+  line-height: 1.5;
+}
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+button {
+  cursor: pointer;
+  color: inherit;
+}
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+button,
+input,
+select,
+textarea {
+  outline-offset: 3px;
+}
+:focus-visible {
+  outline: 2px solid var(--ring);
+}
+button {
+  transition:
+    background 160ms ease,
+    border-color 160ms ease;
+}
+button svg {
+  flex-shrink: 0;
+}
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+h1 {
+  font-size: var(--lab-text-page);
+  font-weight: 600;
+  letter-spacing: -0.2px;
+  line-height: 26px;
+}
+h2 {
+  font-size: var(--lab-text-section);
+  font-weight: 600;
+  line-height: 24px;
+}
+h3 {
+  font-size: var(--lab-text-body);
+  font-weight: 600;
+  line-height: 20px;
+}
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+select,
+textarea {
+  width: 100%;
+  min-height: var(--lab-control-height);
+  border: 1px solid var(--input);
+  background: var(--surface-raised);
+  color: var(--foreground);
+  border-radius: 6px;
+  padding: 5px 9px;
+  min-width: 0;
+}
+input[type="checkbox"],
+input[type="radio"],
+input[type="range"] {
+  accent-color: var(--primary);
+}
+input[type="checkbox"],
+input[type="radio"] {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+textarea {
+  resize: vertical;
+}

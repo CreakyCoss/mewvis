@@ -1,0 +1,88 @@
+.comparison-builder {
+  margin: 16px 0 24px;
+}
+.comparison-builder > summary {
+  cursor: pointer;
+  font-size: var(--lab-text-section);
+  font-weight: 600;
+}
+.comparison-modes {
+  margin: 16px 0 4px;
+}
+.comparison-plan {
+  margin-top: 12px;
+  color: var(--muted-foreground);
+  font-size: var(--lab-text-small);
+}
+.comparison-table {
+  min-width: 640px;
+  margin: 12px 0;
+}
+.comparison-table td:first-child {
+  max-width: 240px;
+  overflow-wrap: anywhere;
+}
+.baseline-row {
+  background: var(--surface);
+}
+.rule-changes {
+  table-layout: fixed;
+  min-width: 560px;
+}
+.rule-changes td {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  vertical-align: top;
+}
+.parameter-trend {
+  margin: 16px 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px;
+}
+.parameter-trend .section-title label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--lab-text-small);
+}
+.parameter-trend select {
+  width: auto;
+}
+.parameter-trend svg {
+  width: 100%;
+  max-height: 290px;
+  display: block;
+}
+.parameter-trend text {
+  fill: var(--muted-foreground);
+  font-size: 11px;
+}
+.trend-grid {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+.trend-baseline {
+  stroke: var(--muted-foreground);
+  stroke-dasharray: 4 4;
+  opacity: 0.6;
+}
+.trend-legend {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  font-size: var(--lab-text-small);
+}
+@media (max-width: 600px) {
+  .comparison-builder .settings-actions,
+  .parameter-trend .section-title {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+.trend-chart {
+  overflow-x: auto;
+}
+.trend-chart svg {
+  min-width: 640px;
+}

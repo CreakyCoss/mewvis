@@ -1,0 +1,89 @@
+.project-fields {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.path-input,
+.library-actions,
+.settings-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.path-input input {
+  flex: 1;
+  min-width: 0;
+}
+.path-input .button {
+  flex-shrink: 0;
+}
+.project-target,
+.project-row-path {
+  color: var(--muted-foreground);
+  font-size: var(--lab-text-small);
+  line-height: 18px;
+}
+.project-target {
+  margin-bottom: 12px;
+}
+.project-target span {
+  display: block;
+  overflow-wrap: anywhere;
+  margin-top: 4px;
+}
+.project-row-path {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-top: 4px;
+}
+.form-error {
+  color: var(--error);
+  background: var(--error-subtle);
+  border: 1px solid var(--error-border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: var(--lab-text-small);
+  overflow-wrap: anywhere;
+  margin-bottom: 16px;
+}
+.library-empty {
+  padding: 64px 16px;
+}
+.project-settings {
+  max-width: 960px;
+}
+.project-settings .settings-section + .settings-section {
+  margin-top: 16px;
+}
+.project-settings .settings-section > .hint {
+  margin-bottom: 12px;
+}
+.settings-actions {
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+.settings-confirm {
+  margin-top: 16px;
+  border: 1px solid var(--warning-border);
+  border-radius: 8px;
+  background: var(--warning-subtle);
+  padding: 16px;
+}
+.settings-confirm p {
+  margin-top: 6px;
+}
+.notice-banner {
+  overflow-wrap: anywhere;
+}
+@media (max-width: 600px) {
+  .library-heading {
+    flex-wrap: wrap;
+  }
+  .library-actions {
+    margin-left: auto;
+    flex-wrap: wrap;
+  }
+}

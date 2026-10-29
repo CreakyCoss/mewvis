@@ -1,10 +1,8 @@
-import test, { after } from "node:test";
+import test from "node:test";
 import assert from "node:assert/strict";
-import { build } from "esbuild";
 import {
   readFile,
   writeFile,
-  mkdtemp,
   mkdir,
   readdir,
   rm,
@@ -12,35 +10,13 @@ import {
   utimes,
 } from "node:fs/promises";
 import { join } from "node:path";
-import { tmpdir } from "node:os";
-import { fileURLToPath, pathToFileURL } from "node:url";
 import { createProjectHost } from "./host-fixture.mjs";
-const root = fileURLToPath(new URL("../", import.meta.url));
-const temp = await mkdtemp(join(tmpdir(), "gameplay-repository-test-"));
-await build({
-  stdin: {
-    contents:
-      'export * from "./main/storage.ts";export * from "./main/fixtures.ts";export * from "./main/engine.ts";export * from "./main/history.ts";export * from "./main/records.ts";export * from "./main/playtest.ts";export * from "./main/configured-policy.ts";export * from "./main/playtest-storage.ts";export * from "./main/comparison.ts";export * from "./main/comparison-project.ts";export * from "./main/simulators.ts";export * from "./main/catalog.ts";export * from "./main/compatibility.ts";export * from "./main/narrative.ts";export * from "./main/narrative-storage.ts";',
-    resolveDir: root,
-  },
-  bundle: true,
-  platform: "node",
-  format: "esm",
-  outfile: join(temp, "domain.mjs"),
-  logLevel: "silent",
-});
-const f = await import(pathToFileURL(join(temp, "domain.mjs")));
-after(() => rm(temp, { recursive: true, force: true }));
+import { f, root } from "./helpers/domain.mjs";
 async function fixture(t) {
   const host = await createProjectHost();
   t.after(() => host.close());
   return { ...host, repo: f.createProjectRepository(host.data, host.files) };
 }
-const workspace = (project) => ({
-  ...f.initialWorkspace(),
-  active: project.id,
-  projects: [project],
-});
 const create = (env, name = "测试项目", exampleId = "development") =>
   env.repo.create({ name, parent: env.projectsPath, exampleId });
 async function externalWrite(path, value) {
@@ -56,7 +32,7 @@ test("first launch stays empty and only explicit creation copies a template JSON
   assert.deepEqual(await e.data.storage.keys(), []);
   const sources = await Promise.all(
     ["development", "combination"].map((id) =>
-      readFile(join(root, "main/templates", id + ".json"), "utf8"),
+      readFile(join(root, "main/projects/templates", id + ".json"), "utf8"),
     ),
   );
   for (const id of ["development", "combination"]) {
@@ -73,7 +49,7 @@ test("first launch stays empty and only explicit creation copies a template JSON
   assert.deepEqual(
     await Promise.all(
       ["development", "combination"].map((id) =>
-        readFile(join(root, "main/templates", id + ".json"), "utf8"),
+        readFile(join(root, "main/projects/templates", id + ".json"), "utf8"),
       ),
     ),
     sources,
@@ -106,7 +82,7 @@ test("project edits and named versions survive a host restart without modifying 
     model: structuredClone(a.model),
     createdAt: new Date().toISOString(),
   });
-  await repo.saveWorkspace(workspace(a));
+  await repo.saveProject(a);
   await e.close(false);
   const restarted = await createProjectHost(e.root);
   t.after(() => restarted.close());
@@ -170,7 +146,7 @@ test("external JSON changes block stale saves and resets until explicit reload",
   await externalWrite(path, disk);
   p.model.fields[0].initial = 66;
   await assert.rejects(
-    e.repo.saveWorkspace(workspace(p)),
+    e.repo.saveProject(p),
     (error) => error.code === "FILE_CHANGED",
   );
   assert.equal(JSON.parse(await readFile(path, "utf8")).fields[0].initial, 77);
@@ -181,7 +157,7 @@ test("external JSON changes block stale saves and resets until explicit reload",
   const restored = await e.repo.reload(p);
   assert.equal(restored.model.fields[0].initial, 77);
   restored.model.fields[0].initial = 88;
-  await e.repo.saveWorkspace(workspace(restored));
+  await e.repo.saveProject(restored);
   assert.equal(JSON.parse(await readFile(path, "utf8")).fields[0].initial, 88);
 });
 
@@ -194,7 +170,7 @@ test("unchanged UI state cannot bypass external-change checks during reset", asy
   await externalWrite(path, disk);
   await assert.rejects(e.repo.reset(p, "combination"), /外部修改/);
   p.model.fields[0].initial = 66;
-  await assert.rejects(e.repo.saveWorkspace(workspace(p)), /重新打开/);
+  await assert.rejects(e.repo.saveProject(p), /重新打开/);
   assert.equal(JSON.parse(await readFile(path, "utf8")).fields[0].initial, 101);
 });
 
@@ -269,7 +245,7 @@ test("a failed reload of a replaced project cannot authorize stale UI writes", a
   await externalWrite(path, disk);
   await assert.rejects(e.repo.reload(p), /标识/);
   p.model.fields[0].initial = 66;
-  await assert.rejects(e.repo.saveWorkspace(workspace(p)), /标识/);
+  await assert.rejects(e.repo.saveProject(p), /标识/);
   assert.deepEqual(JSON.parse(await readFile(path, "utf8")), disk);
 });
 
@@ -532,7 +508,7 @@ test("version and parameter comparisons persist, resume and replay their own rul
     createdAt: new Date().toISOString(),
   });
   project.model.actions[1].costs[0].value = 16;
-  await repo.saveWorkspace(workspace(project));
+  await repo.saveProject(project);
   const core = await readFile(f.projectFile(project.path), "utf8"),
     settingsText = await readFile(join(project.path, f.PLAYTEST_FILE), "utf8");
   const versions = f.prepareComparison(project, config, {
@@ -634,7 +610,7 @@ test("blank project creation writes no example content and unfinished drafts reo
     assert.deepEqual(project.model[key], []);
   project.brief = { coreLoop: "尝试自己的循环", question: "最短几步结束？" };
   project.model.description = "自己定义目标";
-  await env.repo.saveWorkspace(workspace(project));
+  await env.repo.saveProject(project);
   const document = JSON.parse(
     await readFile(f.projectFile(project.path), "utf8"),
   );
@@ -717,7 +693,7 @@ test("hand-authored blank games persist simulator-aware runs and experiments acr
       simulator: structuredClone(project.simulator),
       createdAt: project.createdAt,
     });
-    await repo.saveWorkspace(workspace(project));
+    await repo.saveProject(project);
     const config = await settings.load(project);
     config.scenarios[0].seedCount = 1;
     config.comparedStrategies = ["goal"];
@@ -738,7 +714,7 @@ test("hand-authored blank games persist simulator-aware runs and experiments acr
       id: id === "resource-turns" ? "card-combination" : "resource-turns",
       version: 1,
     };
-    await repo.saveWorkspace(workspace(project));
+    await repo.saveProject(project);
     ids.push({ project: project.id, simulator: id });
   }
   await host.close(false);
@@ -891,11 +867,11 @@ test("narrative rules, versions, and independent run history survive production 
     simulator: p.simulator,
     brief: structuredClone(p.brief),
   });
-  await repo.saveWorkspace(workspace(p));
+  await repo.saveProject(p);
   let r = f.newStoryRecord(p.id, p.model);
   await history.save(p, r);
   p.model.nodes[1].text = "新的草稿结局";
-  await repo.saveWorkspace(workspace(p));
+  await repo.saveProject(p);
   await host.close(false);
   const restarted = await createProjectHost(host.root);
   t.after(() => restarted.close());
@@ -938,7 +914,7 @@ test("narrative history protects external changes and isolates corrupted or unsu
       choices: [],
     },
   ];
-  await e.repo.saveWorkspace(workspace(p));
+  await e.repo.saveProject(p);
   const h = f.createNarrativeHistory(e.data, e.files),
     r = f.newStoryRecord(p.id, p.model);
   await h.save(p, r);
@@ -993,7 +969,7 @@ test("oversized narrative version collections cannot make the project unreadable
     direction: "branching-story",
     simulator: p.simulator,
   }));
-  await assert.rejects(e.repo.saveWorkspace(workspace(p)), /4 MiB/);
+  await assert.rejects(e.repo.saveProject(p), /4 MiB/);
   assert.equal(await readFile(f.projectFile(p.path), "utf8"), before);
   assert.deepEqual((await e.repo.reload(p)).model.nodes, []);
 });
