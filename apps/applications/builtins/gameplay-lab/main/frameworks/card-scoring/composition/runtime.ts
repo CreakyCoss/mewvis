@@ -162,10 +162,18 @@ export function createCardScoringRuntime(
         throw new Error("当前玩家不能执行操作。");
     },
     resetModules: () => false,
-    completeModuleCommand: (run, events) => ({
-      ...run,
-      entries: [...run.entries, ...events],
-    }),
+    completeModuleCommand: (run, events) => {
+      if (events.length !== 1)
+        throw new Error("每个模块命令必须生成一条决策记录。");
+      const entry = events[0];
+      if (!entry.state.outcome && run.entries.length >= 200)
+        entry.state.outcome = {
+          kind: "limit",
+          winners: [],
+          reason: "达到 200 步计算预算。",
+        };
+      return { ...run, entries: [...run.entries, entry] };
+    },
   });
 }
 export const cardScoringRuntime = createCardScoringRuntime();

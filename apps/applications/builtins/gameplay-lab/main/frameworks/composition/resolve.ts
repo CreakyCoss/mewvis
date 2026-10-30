@@ -44,6 +44,7 @@ export function resolveGameComposition<M, S, C, E, V>(
   layout: LayoutDefinition,
   registry: readonly ModuleRuntime<M, S, C, E, V>[],
   draft = false,
+  model?: M,
 ): ResolvedComposition<M, S, C, E, V> {
   const issues: Issue[] = [],
     add = (message: string) => issues.push({ path: "玩法组合", message });
@@ -65,7 +66,7 @@ export function resolveGameComposition<M, S, C, E, V>(
   for (const [id, config] of Object.entries(configs)) {
     const module = byId.get(id);
     if (!module) add("无法忽略未知扩展：" + id);
-    else issues.push(...module.validate(config, draft));
+    else issues.push(...module.validate(config, draft, model));
   }
   // Old snapshots are interpreted in memory; loading never rewrites a project.
   const inferred: GameComposition = {
@@ -106,6 +107,11 @@ export function resolveGameComposition<M, S, C, E, V>(
       add("模块或版本不受支持：" + selectedModule.id);
       continue;
     }
+    if (
+      module.afterAdvance &&
+      !module.definition.timings.includes("after-command")
+    )
+      add("模块必须声明命令后结算时机：" + module.definition.name);
     const definition = module.definition,
       config = configs[definition.id];
     if (

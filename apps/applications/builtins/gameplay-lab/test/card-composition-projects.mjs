@@ -4,6 +4,7 @@ import { readFile, writeFile, readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { f } from "./helpers/domain.mjs";
 import { createProjectHost } from "./host-fixture.mjs";
+import { abilityGame } from "./helpers/card-abilities.mjs";
 
 test("registered card preset, authored modules, versions and frozen runs survive restart and preset changes", async (t) => {
   let host = await createProjectHost();
@@ -196,4 +197,118 @@ test("shared insight config and private checkpoints survive file restart, frozen
   await writeFile(path, JSON.stringify(tampered));
   assert.equal((await history.list(project)).incompatible.length, 1);
   assert.deepEqual(JSON.parse(await readFile(path, "utf8")), tampered);
+});
+
+test("two blank-authored card games persist draw/discard costs, focus lifetimes, versions and resumable logs", async (t) => {
+  let host = await createProjectHost();
+  t.after(() => host.close());
+  let repo = f.createProjectRepository(host.data, host.files),
+    history = f.createHistoryRepository(host.data, host.files);
+  const expected = [];
+  for (const kind of ["换牌", "付费补牌"]) {
+    const project = await repo.create({
+      name: kind,
+      parent: host.projectsPath,
+      direction: "card-scoring",
+      presetId: "base-scoring",
+    });
+    assert.deepEqual(project.model.cards, []);
+    abilityGame(project.model);
+    if (kind === "付费补牌")
+      Object.assign(project.model.extensions["card-abilities"].abilities[0], {
+        discard: 0,
+        draw: 2,
+      });
+    project.versions.push({
+      id: "authored",
+      name: "自定玩法",
+      createdAt: project.createdAt,
+      gameType: project.gameType,
+      direction: project.direction,
+      simulator: structuredClone(project.simulator),
+      brief: structuredClone(project.brief),
+      model: structuredClone(project.model),
+    });
+    await repo.saveProject(project);
+    let trial = f.newTrial(
+      project.id,
+      project.model,
+      42,
+      2,
+      undefined,
+      project.simulator,
+    );
+    for (const id of ["focus", "exchange"]) {
+      const command = f.cardScoringRuntime
+        .commands(
+          trial.run.model,
+          f.cardScoringRuntime.observe(trial.run.model, trial.run, 0),
+        )
+        .find((c) => c.type === "card-ability" && c.skillId === id);
+      assert.ok(command);
+      trial.run = f.advanceSimulatedRun(trial.run, {
+        action: "__module",
+        command,
+      });
+      trial.drivers.push("manual");
+    }
+    trial.run = f.advanceSimulatedRun(trial.run, { action: "__end_turn" });
+    trial.drivers.push("manual");
+    assert.equal(f.current(trial.run).players[0].values.energy, 3);
+    assert.equal(trial.run["card-abilities"].focus[0].turns, 1);
+    await history.save(project, trial);
+    f.setCardScoringModuleEnabled(project.model, "card-abilities", false);
+    project.model.extensions["card-abilities"].abilities[0].cost.amount = 9;
+    await repo.saveProject(project);
+    expected.push({ project, trial });
+  }
+  const root = host.root;
+  await host.close(false);
+  host = await createProjectHost(root);
+  repo = f.createProjectRepository(host.data, host.files);
+  history = f.createHistoryRepository(host.data, host.files);
+  const reopened = (await repo.list()).projects;
+  for (const { project: old, trial } of expected) {
+    const project = reopened.find((p) => p.id === old.id);
+    assert.ok(project);
+    assert.equal(project.model.extensions["card-abilities"].enabled, false);
+    assert.equal(
+      project.versions[0].model.extensions["card-abilities"].abilities[0].cost
+        .amount,
+      2,
+    );
+    const loaded = await history.list(project);
+    assert.deepEqual(loaded.errors, []);
+    assert.deepEqual(loaded.trials, [trial]);
+    const run = loaded.trials[0].run;
+    assert.equal(
+      run.model.extensions["card-abilities"].abilities[0].cost.amount,
+      2,
+    );
+    assert.equal(
+      f.cardScoringRunAtStep(run, 0)["card-abilities"].focus[0],
+      null,
+    );
+    assert.equal(
+      f.cardScoringRunAtStep(run, 1)["card-abilities"].focus[0].turns,
+      2,
+    );
+    const opponentEnd = f.advanceSimulatedRun(run, { action: "__end_turn" });
+    assert.equal(opponentEnd["card-abilities"].focus[0].turns, 1);
+    const expired = f.advanceSimulatedRun(opponentEnd, {
+      action: "__end_turn",
+    });
+    assert.equal(expired["card-abilities"].focus[0], null);
+    const resumed = {
+      ...trial,
+      run: expired,
+      drivers: [...trial.drivers, "manual", "manual"],
+    };
+    await history.save(project, resumed);
+    assert.deepEqual((await history.list(project)).trials, [resumed]);
+    assert.equal(
+      f.createSimulatedRun(project.simulator, project.model)["card-abilities"],
+      undefined,
+    );
+  }
 });

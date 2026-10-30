@@ -1,0 +1,62 @@
+.card-ability-panel {
+  max-width: 1000px;
+  margin: 0 auto 16px;
+  padding: 16px;
+  border: 1px solid #efd18f50;
+  border-radius: 10px;
+  background: #ffffff08;
+  color: #e3e9e4;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.card-ability-heading,
+.card-ability-controls,
+.card-ability-selection {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+.card-ability-heading {
+  margin-bottom: 12px;
+}
+.card-ability-heading span,
+.card-ability-panel small {
+  color: #c4d2c8;
+  font-size: 12px;
+}
+.card-ability-panel .form-field {
+  max-width: 400px;
+  color: inherit;
+}
+.card-ability-panel p {
+  margin-top: 8px;
+}
+.card-ability-selection {
+  justify-content: flex-start;
+  margin-top: 12px;
+}
+.card-ability-selection .button,
+.card-ability-controls .button {
+  min-height: 44px;
+}
+.card-ability-selection .button[aria-pressed="true"] {
+  border-color: #efd18f;
+  background: #efd18f25;
+}
+.card-ability-controls {
+  margin: 12px 0;
+}
+.card-ability-panel .button:focus-visible {
+  outline: 3px solid #efd18f;
+  outline-offset: 2px;
+}
+@media (max-width: 600px) {
+  .card-ability-panel {
+    padding: 12px;
+  }
+  .card-ability-controls .button {
+    width: 100%;
+  }
+}

@@ -63,7 +63,9 @@ export function modelReadiness(
       collectionsOf(model).some((c) => c.id === issue.path) ||
       (model.format === "gameplay-card-v1" &&
         model.cards.some((card) => card.id === issue.path)) ||
-      ["流程", "周期结算", "牌库", "卡牌", "卡牌与牌库"].includes(issue.path)
+      ["流程", "周期结算", "牌库", "卡牌", "卡牌与牌库", "卡牌能力"].includes(
+        issue.path,
+      )
         ? "rules"
         : "model",
     ...(nodes.some((n) => n.id === issue.path) ? { nodeId: issue.path } : {}),

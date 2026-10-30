@@ -108,3 +108,5 @@ pnpm --filter @mewvis/gameplay-lab preview:packed
 隔离预览使用生产 SDK、文件与数据库服务，目录选择器为测试替身，不访问真实用户项目。基础编辑能力与剩余缺口见[能力盘点](foundations.md)。
 
 创建表单只读取 `frameworks/creation.ts` 的预设与描述，项目仓库通过相同注册创建或准备示例。斗地主和组合计分共用 `composition/Editor.tsx`，各自提供 `CompositionDesign`。
+
+卡牌能力模块以自己的目标接入主动能力契约，使用共享抽牌和牌区移动原语；配置、引用检查、运行、编辑和面板放在 `card-scoring/extensions/card-abilities/`。命令后的 `afterAdvance` 结算按依赖顺序执行，和原命令处于同一原子操作；组合计分据此处理自己的阶段结束和专注时限。具体语义见[卡牌能力](card-abilities.md)。

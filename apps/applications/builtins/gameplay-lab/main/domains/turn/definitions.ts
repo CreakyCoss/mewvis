@@ -1,5 +1,6 @@
 import { copy, uid } from "../../shared/utils";
 import { MAX_DECKS } from "../card/model";
+import { cardScoringModuleReferences } from "../../frameworks/card-scoring/composition/catalog";
 import { type Effect, type Model } from "./model";
 const groups = (model: Model) => [
   model.fields,
@@ -31,6 +32,9 @@ export function referencesTo(model: Model, id: string): string[] {
   for (const g of model.goals)
     if (g.id !== id && g.field === id) refs.add(`目标「${g.name}」`);
   effects(model.flow.income, "周期结算");
+  if (model.format === "gameplay-card-v1")
+    for (const ref of cardScoringModuleReferences(model))
+      if (ref.target === id) refs.add(ref.owner);
   return [...refs];
 }
 export function duplicateDefinition(model: Model, id: string): string {

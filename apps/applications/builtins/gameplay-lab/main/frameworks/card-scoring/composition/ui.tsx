@@ -1,5 +1,6 @@
 import type { CardModel } from "../../../domains/card/model";
 import { assembledModuleEditors, renderModuleSlot } from "../../composition/ui";
+import { cardAbilitiesPresentation } from "../extensions/card-abilities/ui";
 import { cardHeroesPresentation } from "../extensions/heroes/ui";
 import { pairRewardPresentation } from "../extensions/pair-reward/ui";
 import { CardTable } from "../play/CardTable";
@@ -9,6 +10,7 @@ import { cardScoringRunAtStep, cardScoringRuntime } from "./runtime";
 export const cardScoringPresentations = [
   pairRewardPresentation,
   cardHeroesPresentation,
+  cardAbilitiesPresentation,
 ] as const;
 export const cardScoringModuleEditors = (model: CardModel) =>
   assembledModuleEditors(

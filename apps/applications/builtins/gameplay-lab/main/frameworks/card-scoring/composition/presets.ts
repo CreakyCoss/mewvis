@@ -38,7 +38,7 @@ export function applyCardScoringPreset(model: CardModel, id: string) {
   for (const module of cardScoringModules) {
     const enabled = preset.modules.some((id) => id === module.definition.id);
     if (enabled) {
-      model.extensions[module.definition.id] ??= module.createConfig();
+      model.extensions[module.definition.id] ??= module.createConfig(model);
       composition.modules.push(componentRef(module.definition));
     }
     if (model.extensions[module.definition.id])
@@ -57,7 +57,7 @@ export function setCardScoringModuleEnabled(
   if (resolved.issues.length)
     throw new Error(resolved.issues.map((issue) => issue.message).join(" "));
   model.extensions = structuredClone(cardScoringConfigs(model));
-  model.extensions[id] ??= module.createConfig();
+  model.extensions[id] ??= module.createConfig(model);
   Object.assign(model.extensions[id]!, { enabled });
   model.composition = structuredClone(resolved.snapshot);
   model.composition.modules = enabled

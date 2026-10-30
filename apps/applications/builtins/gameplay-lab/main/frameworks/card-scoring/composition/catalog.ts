@@ -4,6 +4,7 @@ import type {
   LayoutDefinition,
 } from "../../composition/contracts";
 import { resolveGameComposition } from "../../composition/resolve";
+import { cardAbilitiesModule } from "../extensions/card-abilities/module";
 import { cardHeroesModule } from "../extensions/heroes/module";
 import { pairRewardModule } from "../extensions/pair-reward/module";
 export const cardScoringSkeleton: SkeletonDefinition = {
@@ -17,8 +18,11 @@ export const cardScoringSkeleton: SkeletonDefinition = {
     "deterministic-random",
     "hand-zones",
     "opponent-target",
+    "draw-piles",
+    "resource-values",
+    "turn-end",
   ],
-  timings: ["rule-compile", "before-play"],
+  timings: ["rule-compile", "before-play", "after-command"],
   commandTypes: ["action"],
   stateKeys: [
     "model",
@@ -36,7 +40,18 @@ export const cardScoringLayout: LayoutDefinition = {
   skeleton: { id: "card-scoring", version: 1 },
   slots: ["score-detail", "before-hand", "opponent"],
 };
-export const cardScoringModules = [pairRewardModule, cardHeroesModule] as const;
+export const cardScoringModules = [
+  pairRewardModule,
+  cardHeroesModule,
+  cardAbilitiesModule,
+] as const;
+export const cardScoringModuleReferences = (model: CardModel) =>
+  cardScoringModules.flatMap((module) => {
+    const config = cardScoringConfigs(model)[module.definition.id];
+    return config && !module.validate(config, true, model).length
+      ? (module.references?.(config) ?? [])
+      : [];
+  });
 export function cardScoringConfigs(model: CardModel): Record<string, unknown> {
   if (model.extensions !== undefined) return model.extensions;
   if (model.composition !== undefined) return {};
@@ -56,4 +71,5 @@ export const resolveCardScoringComposition = (
     cardScoringLayout,
     cardScoringModules,
     draft,
+    model,
   );

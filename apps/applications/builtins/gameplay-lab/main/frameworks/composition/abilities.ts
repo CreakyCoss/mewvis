@@ -1,7 +1,7 @@
 import { sameJson } from "./resolve";
 
-export interface AbilityCommand {
-  type: "skill";
+export interface AbilityCommand<Type extends string = "skill"> {
+  type: Type;
   player: number;
   skillId: string;
   target: number;
@@ -16,13 +16,15 @@ export interface ActiveAbility {
   id: string;
   timing: string;
   uses: number;
+  target?: "self" | "opponent";
 }
 
-export function activeAbilityCommands(
+export function activeAbilityCommands<Type extends string = "skill">(
   ability: ActiveAbility | undefined,
   used: number | undefined,
   window: AbilityWindow,
-): AbilityCommand[] {
+  type: Type = "skill" as Type,
+): AbilityCommand<Type>[] {
   if (
     !ability ||
     used === undefined ||
@@ -34,10 +36,14 @@ export function activeAbilityCommands(
   )
     return [];
   return window.counts.flatMap((count, target) =>
-    target !== window.player && count > 0
+    (
+      ability.target === "self"
+        ? target === window.player
+        : target !== window.player && count > 0
+    )
       ? [
           {
-            type: "skill" as const,
+            type,
             player: window.player,
             skillId: ability.id,
             target,
@@ -48,15 +54,15 @@ export function activeAbilityCommands(
 }
 
 /** Resolve on copies. Usage is committed only after the complete effect succeeds. */
-export function resolveActiveAbility<T>(
+export function resolveActiveAbility<T, Type extends string = "skill">(
   ability: ActiveAbility,
   used: number,
   window: AbilityWindow,
-  command: AbilityCommand,
+  command: AbilityCommand<Type>,
   effect: () => T,
 ): { used: number; result: T } {
   if (
-    !activeAbilityCommands(ability, used, window).some((c) =>
+    !activeAbilityCommands(ability, used, window, command.type).some((c) =>
       sameJson(c, command),
     )
   )

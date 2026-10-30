@@ -62,4 +62,5 @@ export const resolveDoudizhuComposition = (
     doudizhuLayout,
     doudizhuModules,
     draft,
+    model,
   );

@@ -35,11 +35,13 @@ export const cardScoringUi: NumericFrameworkUi = {
     { id: "model", name: "高级规则", icon: Boxes },
   ],
   issueView: (issue) =>
-    ["流程", "周期结算"].includes(issue.path)
-      ? "scoring"
-      : issue.path === "牌库"
-        ? "decks"
-        : "cards",
+    issue.path === "卡牌能力"
+      ? "module/card-abilities"
+      : ["流程", "周期结算"].includes(issue.path)
+        ? "scoring"
+        : issue.path === "牌库"
+          ? "decks"
+          : "cards",
   contentView(model, location) {
     if (model.format !== "gameplay-card-v1") return null;
     const key = location.key;

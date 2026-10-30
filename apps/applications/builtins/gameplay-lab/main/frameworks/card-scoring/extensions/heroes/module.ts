@@ -70,17 +70,6 @@ export const cardHeroesModule = createHeroesModule<
     actor: current(run).players[command.player].name,
     title: "使用技能",
     notes: [text],
-    state: {
-      ...copy(current(run)),
-      ...(run.entries.length >= 200
-        ? {
-            outcome: {
-              kind: "limit" as const,
-              winners: [],
-              reason: "达到 200 步计算预算。",
-            },
-          }
-        : {}),
-    },
+    state: copy(current(run)),
   }),
 });

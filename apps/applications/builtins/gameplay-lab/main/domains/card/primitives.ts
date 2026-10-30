@@ -56,3 +56,41 @@ export function visibleCardZone<T>(
 export const queryHandCards = <T>(
   zones: readonly { hand: readonly T[] }[],
 ): T[] => structuredClone(zones.flatMap((zone) => [...zone.hand]));
+
+/** Draw up to count without exceeding capacity; only recycling advances the random stream. */
+export function drawCardItems<T>(
+  input: { draw: T[]; hand: T[]; discard: T[] },
+  count: number,
+  capacity: number,
+  recycle: boolean,
+  seed: number,
+) {
+  if (
+    !Number.isInteger(count) ||
+    count < 0 ||
+    count > 10 ||
+    !Number.isInteger(capacity) ||
+    capacity < 1 ||
+    capacity > 10
+  )
+    throw new Error("抽牌数量或手牌容量无效。");
+  const pile = structuredClone(input),
+    cards: T[] = [];
+  let random = seed >>> 0,
+    recycled = 0;
+  while (cards.length < count && pile.hand.length < capacity) {
+    if (!pile.draw.length) {
+      if (!recycle || !pile.discard.length) break;
+      recycled += pile.discard.length;
+      pile.draw = shuffleCardItems(pile.discard, () => {
+        random = nextCardRandom(random);
+        return random / 4294967296;
+      });
+      pile.discard = [];
+    }
+    const card = pile.draw.pop()!;
+    pile.hand.push(card);
+    cards.push(card);
+  }
+  return { pile, cards, random, recycled };
+}

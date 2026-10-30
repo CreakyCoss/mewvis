@@ -39,8 +39,9 @@ export interface ModuleRuntime<M, S, C, E, V> {
   definition: ModuleDefinition;
   stateKey: string;
   commandTypes: readonly string[];
-  createConfig(): unknown;
-  validate(config: unknown, draft?: boolean): Issue[];
+  createConfig(model?: M): unknown;
+  validate(config: unknown, draft?: boolean, model?: M): Issue[];
+  references?(config: unknown): { target: string; owner: string }[];
   /** Deterministic contribution to effective rules; the source design remains frozen. */
   projectRules?(context: { model: M; rules: M; config: unknown }): M;
   initialize(context: { model: M; state: S; config: unknown }): unknown;
@@ -63,6 +64,16 @@ export interface ModuleRuntime<M, S, C, E, V> {
     config: unknown;
     value: unknown;
     command: C;
+  }): { state: S; value: unknown; events: E[] };
+  /** Runs in dependency order after a successful command, inside the same atomic commit. */
+  afterAdvance?(context: {
+    model: M;
+    before: S;
+    state: S;
+    config: unknown;
+    value: unknown;
+    command: C;
+    events: E[];
   }): { state: S; value: unknown; events: E[] };
   choose?(context: {
     model: M;

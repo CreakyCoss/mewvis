@@ -13,6 +13,7 @@
 @import "./overview.css";
 @import "./narrative.css";
 @import "../frameworks/card-scoring/styles.css";
+@import "../frameworks/card-scoring/extensions/card-abilities/styles.css";
 @import "../shared/components/play-window.css";
 @import "./content.css";
 @import "./native-select.css";

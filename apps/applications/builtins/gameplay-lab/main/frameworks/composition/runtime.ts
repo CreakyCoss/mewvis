@@ -119,6 +119,25 @@ export function assembleGameRuntime<
     options.assertCommand(state, command);
     const modules = resolved(model).modules,
       module = modules.find((m) => m.commandTypes.includes(command.type));
+    function finish(result: { state: S; events: E[] }) {
+      for (const item of modules)
+        if (item.afterAdvance) {
+          const next = item.afterAdvance({
+            model,
+            before: copy(state),
+            state: copy(result.state),
+            command,
+            config: configs(model)[item.definition.id],
+            value: copy(moduleValue(result.state, item.stateKey)),
+            events: copy(result.events),
+          });
+          result = {
+            state: withModuleValue(next.state, item.stateKey, next.value),
+            events: next.events,
+          };
+        }
+      return result;
+    }
     if (module) {
       const view = observe(model, state, options.commandPlayer(command));
       if (
@@ -134,15 +153,15 @@ export function assembleGameRuntime<
         config: configs(model)[module.definition.id],
         value: copy(moduleValue(state, module.stateKey)),
       });
-      return {
+      return finish({
         state: options.completeModuleCommand(
           withModuleValue(result.state, module.stateKey, result.value),
           result.events,
         ),
         events: result.events,
-      };
+      });
     }
-    const result = core.advance(projectRules(model), state, command);
+    const result = core.advance(projectRules(model), copy(state), command);
     if (options.resetModules(state, result.state))
       for (const item of modules)
         withModuleValue(
@@ -154,7 +173,7 @@ export function assembleGameRuntime<
             config: configs(model)[item.definition.id],
           }),
         );
-    return result;
+    return finish(result);
   }
   function chooseModule(model: M, view: V): C | undefined {
     for (const module of resolved(model).modules) {

@@ -144,3 +144,5 @@ pnpm --filter @mewvis/gameplay-lab preview:packed
 本地设计证据与验收记录见 `design-qa.md` 和 `qa/`；目录流程验收位于 `output/gameplay-lab/project-flow-qa/`，规则编辑与记录持久化验收位于 `output/gameplay-lab/rules-history-qa/`，场景与策略配置验收位于 `output/gameplay-lab/playtest-config-qa/`，版本与参数对照验收位于 `output/gameplay-lab/comparison-qa/`。从零建项与模拟器验收位于 `output/gameplay-lab/blank-project-qa/`。类型化与从零叙事验收位于 `output/gameplay-lab/typed-design-qa/`。这些探索与验收产物独立保留。
 
 斗地主提供三人叫分、十四种牌型配置、手动出牌、基础自动对手、阵营结算、规则版本及冻结对局回放。经典斗地主、英雄斗地主预设与用户自定义组合共用骨架、模块和布局装配流程；在“玩法组合”管理兼容模块，侧栏与牌桌按启用项装配。详见[玩法组合与模块接入](docs/composition.md)。组合计分也已接入相同协议，基础计分和配对计分预设共用运行与界面装配。关闭配对奖励会同步影响自动选牌、预估与结算；金额保留，对局与实验冻结组合和模块状态。资源发展和叙事仍使用已有入口，斗地主批量实验尚未提供。
+
+组合计分还提供可选[卡牌能力模块](docs/card-abilities.md)：自己抽牌、选牌弃牌、资源费用与限时专注。费用、牌区、次数和状态在同一命令内结算，并接入自动玩家、冻结记录和逐步回放。已用空白框架配置换牌与付费补牌两套不同规则完成验收。
