@@ -1,3 +1,4 @@
+import { validateBoard } from "../../frameworks/board-economy/validation";
 import { validateModel } from "../../domains/turn/model";
 import { validateNarrative } from "../../frameworks/branching-story/validation";
 import {
@@ -29,11 +30,13 @@ const validBrief = (value: unknown): value is DesignBrief =>
       typeof value[key] === "string" && String(value[key]).length <= 4000,
   );
 export const validateDesign = (model: unknown, draft = false) =>
-  (model as { format?: string })?.format === "gameplay-doudizhu-v1"
-    ? validateDoudizhu(model, draft)
-    : (model as { format?: string })?.format === "gameplay-narrative-v1"
-      ? validateNarrative(model, draft)
-      : validateModel(model, draft);
+  (model as { format?: string })?.format === "gameplay-board-economy-v1"
+    ? validateBoard(model, draft)
+    : (model as { format?: string })?.format === "gameplay-doudizhu-v1"
+      ? validateDoudizhu(model, draft)
+      : (model as { format?: string })?.format === "gameplay-narrative-v1"
+        ? validateNarrative(model, draft)
+        : validateModel(model, draft);
 function typed(value: Record<string, unknown>, model: unknown) {
   if (
     !object(model) ||
@@ -47,11 +50,13 @@ function typed(value: Record<string, unknown>, model: unknown) {
     ? frameworkDefinition(
         value.direction as import("../../frameworks/contracts").FrameworkId,
       )?.schema
-    : value.gameType === "card"
-      ? "gameplay-card-v1"
-      : value.gameType === "narrative"
-        ? "gameplay-narrative-v1"
-        : "gameplay-model-v1";
+    : value.gameType === "board"
+      ? "gameplay-board-economy-v1"
+      : value.gameType === "card"
+        ? "gameplay-card-v1"
+        : value.gameType === "narrative"
+          ? "gameplay-narrative-v1"
+          : "gameplay-model-v1";
   return (
     model.format === format &&
     (value.direction === null ||
@@ -96,6 +101,13 @@ export function parseProjectDocument(
   const story = model.format === "gameplay-narrative-v1";
   if (
     (story && metadata.exampleId !== null) ||
+    (model.format === "gameplay-board-economy-v1" &&
+      metadata.exampleId !== null) ||
+    metadata.versions.some(
+      (v) =>
+        (v.model.format === "gameplay-board-economy-v1") !==
+        (model.format === "gameplay-board-economy-v1"),
+    ) ||
     (model.format === "gameplay-doudizhu-v1" && metadata.exampleId !== null) ||
     metadata.versions.some(
       (v) =>

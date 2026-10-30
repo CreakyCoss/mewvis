@@ -1,4 +1,5 @@
 import type { SimulatorRef } from "../shared/contracts";
+import { boardEconomyDefinition } from "./board-economy/definition";
 import { branchingStoryDefinition } from "./branching-story/definition";
 import { cardScoringDefinition } from "./card-scoring/definition";
 import type { FrameworkDefinition, FrameworkId, GameTypeId } from "./contracts";
@@ -17,12 +18,18 @@ export const gameTypes = [
     name: "文字冒险",
     description: "设计人物、剧情、选择、条件与后果。",
   },
+  {
+    id: "board",
+    name: "棋盘经济",
+    description: "设计环形棋盘、地块、资金与资产归属。",
+  },
 ] as const;
 export const frameworks: readonly FrameworkDefinition[] = [
   cardScoringDefinition,
   doudizhuDefinition,
   resourceDevelopmentDefinition,
   branchingStoryDefinition,
+  boardEconomyDefinition,
 ];
 export const gameTypeName = (id: GameTypeId) =>
   gameTypes.find((type) => type.id === id)?.name ?? id;

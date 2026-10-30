@@ -26,7 +26,7 @@ test("a card framework supplies rule structure without copying sample content", 
   assert.deepEqual(model, snapshot);
 });
 test("registered frameworks bind a type, model format and fixed simulator", () => {
-  assert.equal(f.frameworks.length, 4);
+  assert.equal(f.frameworks.length, 5);
   for (const framework of f.frameworks) {
     assert.equal(
       f.defaultFramework(framework.gameType).gameType,

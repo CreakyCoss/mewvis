@@ -1,6 +1,6 @@
-/** The same integer generator and Fisher–Yates order are used by both card skeletons. */
-export const nextCardRandom = (seed: number) =>
-  (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+import { nextRandomSeed } from "../../shared/random";
+/** Keep the card API and sequence stable while sharing the stream with other games. */
+export const nextCardRandom = nextRandomSeed;
 export function shuffleCardItems<T>(
   items: readonly T[],
   next: () => number,

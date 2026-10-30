@@ -1,3 +1,4 @@
+import { createBoardModel } from "../../frameworks/board-economy/model";
 import { frameworkCreation } from "../../frameworks/creation";
 import type { Model } from "../../domains/turn/model";
 import {
@@ -378,11 +379,13 @@ export function createProjectRepository(
               ) ?? exampleModel(input.exampleId!))
             : direction
               ? createFrameworkModel(direction, name, input.presetId)
-              : gameType === "narrative"
-                ? blankNarrative(name)
-                : gameType === "card"
-                  ? blankCardModel(name)
-                  : blankModel(name);
+              : gameType === "board"
+                ? createBoardModel(name)
+                : gameType === "narrative"
+                  ? blankNarrative(name)
+                  : gameType === "card"
+                    ? blankCardModel(name)
+                    : blankModel(name);
         const directory = projectDirectory(input.parent, name);
         const workspace = await data.workspaces.create({
           name,
@@ -447,6 +450,13 @@ export function createProjectRepository(
         const value = await read(project.workspaceId, project.id);
         if (value.id !== project.id)
           throw new Error("项目标识已变化，请从项目库重新打开。");
+        if (
+          value.model.format !== project.model.format ||
+          value.gameType !== project.gameType
+        ) {
+          cache.delete(project.workspaceId);
+          throw new Error("项目类型已变化，请从项目库重新打开。");
+        }
         return value;
       });
     },
@@ -458,7 +468,9 @@ export function createProjectRepository(
       return serialize(async () => {
         if (!isTemplateId(exampleId)) throw new Error("请选择内置示例。");
         if (!isTurnProject(snapshot))
-          throw new Error("斗地主不能应用其他玩法框架的示例，请另建项目。");
+          throw new Error(
+            `${frameworkDefinition(snapshot.direction)?.name ?? "当前玩法"}不能应用其他玩法框架的示例，请另建项目。`,
+          );
         await save(snapshot);
         // Back up the actual file after checking for external edits, before replacement.
         const actual = await read(snapshot.workspaceId, snapshot.id);

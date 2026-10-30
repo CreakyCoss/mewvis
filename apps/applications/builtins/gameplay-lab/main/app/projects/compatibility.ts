@@ -1,3 +1,4 @@
+import { validateBoard } from "../../frameworks/board-economy/validation";
 import { narrativeSimulator } from "../../frameworks/branching-story/model";
 import { validateNarrative } from "../../frameworks/branching-story/validation";
 import { frameworkDefinition } from "../../frameworks/catalog";
@@ -7,19 +8,24 @@ import { simulatorKey, type ReadinessIssue } from "../../shared/contracts";
 import type { AnyProject } from "./model";
 export function projectReadiness(p: AnyProject): ReadinessIssue[] {
   const errors: ReadinessIssue[] =
-    p.model.format === "gameplay-doudizhu-v1"
-      ? validateDoudizhu(p.model).map((e) => ({ ...e, view: "rules" as const }))
-      : p.model.format === "gameplay-narrative-v1"
-        ? validateNarrative(p.model).map((e) => ({
+    p.model.format === "gameplay-board-economy-v1"
+      ? validateBoard(p.model).map((e) => ({ ...e, view: "rules" as const }))
+      : p.model.format === "gameplay-doudizhu-v1"
+        ? validateDoudizhu(p.model).map((e) => ({
             ...e,
-            view: "model" as const,
-            nodeId:
-              p.model.format === "gameplay-narrative-v1" &&
-              p.model.nodes.some((n) => n.id === e.path)
-                ? e.path
-                : undefined,
+            view: "rules" as const,
           }))
-        : modelReadiness(p.model, p.simulator);
+        : p.model.format === "gameplay-narrative-v1"
+          ? validateNarrative(p.model).map((e) => ({
+              ...e,
+              view: "model" as const,
+              nodeId:
+                p.model.format === "gameplay-narrative-v1" &&
+                p.model.nodes.some((n) => n.id === e.path)
+                  ? e.path
+                  : undefined,
+            }))
+          : modelReadiness(p.model, p.simulator);
   const direction = frameworkDefinition(p.direction);
   if (!direction && !p.simulator)
     for (let i = errors.length - 1; i >= 0; i--)
@@ -73,6 +79,15 @@ export function projectReadiness(p: AnyProject): ReadinessIssue[] {
     errors.push({
       path: "策划模型",
       message: "独立卡牌模型只能用于卡牌类型。",
+      view: "simulator",
+    });
+  if (
+    (p.gameType === "board") !==
+    (p.model.format === "gameplay-board-economy-v1")
+  )
+    errors.push({
+      path: "策划模型",
+      message: "棋盘模型与游戏类型不一致。",
       view: "simulator",
     });
   return errors;

@@ -11,6 +11,13 @@ const entry = join(temporary, "domain.mjs");
 after(() => rm(temporary, { recursive: true, force: true }));
 const modules = [
   "shared/utils",
+  "shared/random",
+  "frameworks/board-economy/model",
+  "frameworks/board-economy/definition",
+  "frameworks/board-economy/validation",
+  "frameworks/board-economy/runtime",
+  "frameworks/board-economy/records",
+  "frameworks/board-economy/repository",
   "shared/contracts",
   "shared/content",
   "app/projects/content",

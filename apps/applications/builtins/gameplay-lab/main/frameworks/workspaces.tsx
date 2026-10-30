@@ -2,9 +2,11 @@ import type { ComponentType } from "react";
 import type { AnyProject } from "../app/projects/model";
 import {
   isDoudizhuProject,
+  isBoardProject,
   isNarrativeProject,
   isTurnProject,
 } from "../app/projects/model";
+import BoardWorkspace from "./board-economy/Workspace";
 import NumericWorkspace from "../app/workspaces/NumericWorkspace";
 import NarrativeWorkspace from "./branching-story/Workspace";
 import type { FrameworkId } from "./contracts";
@@ -34,6 +36,13 @@ const landlord: ComponentType<FrameworkWorkspaceProps> = (props) =>
       onExit={props.onExit}
     />
   ) : null;
+const board: ComponentType<FrameworkWorkspaceProps> = (props) =>
+  isBoardProject(props.initialProject) ? (
+    <BoardWorkspace
+      initialProject={props.initialProject}
+      onExit={props.onExit}
+    />
+  ) : null;
 const workspaces: Record<
   FrameworkId,
   ComponentType<FrameworkWorkspaceProps>
@@ -42,10 +51,13 @@ const workspaces: Record<
   "resource-development": numeric,
   "branching-story": story,
   doudizhu: landlord,
+  "board-economy": board,
 };
 export const frameworkWorkspace = (project: AnyProject) =>
   project.direction
     ? workspaces[project.direction]
-    : isNarrativeProject(project)
-      ? story
-      : numeric;
+    : isBoardProject(project)
+      ? board
+      : isNarrativeProject(project)
+        ? story
+        : numeric;

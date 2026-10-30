@@ -13,6 +13,7 @@ import type { DesignModel } from "./model";
 
 export function projectContent(model: DesignModel): ContentIndex {
   switch (model.format) {
+    case "gameplay-board-economy-v1":
     case "gameplay-doudizhu-v1":
       return { items: [], references: [] };
     case "gameplay-card-v1":

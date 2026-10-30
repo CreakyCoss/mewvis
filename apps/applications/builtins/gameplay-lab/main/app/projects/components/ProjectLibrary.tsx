@@ -45,19 +45,23 @@ function ProjectRow({
           </span>
           <span aria-hidden="true">·</span>
           <span>
-            {model.format === "gameplay-doudizhu-v1"
-              ? `${model.rules.enabled.length} 种牌型`
-              : model.format === "gameplay-narrative-v1"
-                ? `${model.nodes.length} 段剧情`
-                : `${model.actions.length} 个行动`}
+            {model.format === "gameplay-board-economy-v1"
+              ? `${model.tiles.length} 个地块`
+              : model.format === "gameplay-doudizhu-v1"
+                ? `${model.rules.enabled.length} 种牌型`
+                : model.format === "gameplay-narrative-v1"
+                  ? `${model.nodes.length} 段剧情`
+                  : `${model.actions.length} 个行动`}
           </span>
           <span aria-hidden="true">·</span>
           <span>
-            {model.format === "gameplay-doudizhu-v1"
-              ? "3 位玩家"
-              : model.format === "gameplay-narrative-v1"
-                ? `${model.characters.length} 位人物`
-                : `${model.goals.length} 个目标`}
+            {model.format === "gameplay-board-economy-v1"
+              ? "2 位玩家"
+              : model.format === "gameplay-doudizhu-v1"
+                ? "3 位玩家"
+                : model.format === "gameplay-narrative-v1"
+                  ? `${model.characters.length} 位人物`
+                  : `${model.goals.length} 个目标`}
           </span>
         </span>
         <ArrowRight

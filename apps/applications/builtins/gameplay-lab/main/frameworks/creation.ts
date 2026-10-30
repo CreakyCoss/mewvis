@@ -1,3 +1,4 @@
+import { createBoardModel } from "./board-economy/model";
 import type { DesignModel } from "../app/projects/model";
 import type { CardModel } from "../domains/card/model";
 import { blankNarrative } from "./branching-story/model";
@@ -19,6 +20,11 @@ export interface FrameworkCreation {
   prepareExample?(model: DesignModel): DesignModel;
 }
 const registrations: Record<FrameworkId, FrameworkCreation> = {
+  "board-economy": {
+    presets: [],
+    hint: "从空白棋盘开始，配置起点、自己的地产与现金流规则。",
+    create: createBoardModel,
+  },
   doudizhu: {
     presets: doudizhuPresets,
     hint: "保留固定 54 张牌和叫分流程，直接调整自己的出牌及结算规则。",

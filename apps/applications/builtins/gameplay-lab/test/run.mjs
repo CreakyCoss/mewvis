@@ -14,3 +14,5 @@ import "./domain/card-composition.test.mjs";
 import "./domain/shared-abilities.test.mjs";
 
 import "./domain/card-abilities.test.mjs";
+
+import "./domain/board-economy.test.mjs";

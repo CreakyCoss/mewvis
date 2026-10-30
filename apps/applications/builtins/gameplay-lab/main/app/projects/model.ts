@@ -1,3 +1,4 @@
+import type { BoardModel } from "../../frameworks/board-economy/model";
 import type { Model } from "../../domains/turn/model";
 import type { NarrativeModel } from "../../frameworks/branching-story/model";
 import type { FrameworkId, GameTypeId } from "../../frameworks/catalog";
@@ -10,7 +11,7 @@ export interface DesignBrief {
   question: string;
 }
 export const emptyBrief = (): DesignBrief => ({ coreLoop: "", question: "" });
-export type DesignModel = Model | NarrativeModel | DoudizhuModel;
+export type DesignModel = Model | NarrativeModel | DoudizhuModel | BoardModel;
 export const isDoudizhuProject = (p: AnyProject): p is Project<DoudizhuModel> =>
   p.model.format === "gameplay-doudizhu-v1";
 export interface Version<M extends DesignModel = Model> {
@@ -61,3 +62,6 @@ export function initialWorkspace<
     incompatible: [],
   };
 }
+
+export const isBoardProject = (p: AnyProject): p is Project<BoardModel> =>
+  p.model.format === "gameplay-board-economy-v1";

@@ -149,9 +149,6 @@ export function ProjectCreateForm({
                 {t.name}
               </NativeSelectOption>
             ))}
-            <NativeSelectOption disabled>
-              棋盘经济 · 尚未提供
-            </NativeSelectOption>
             <NativeSelectOption disabled>塔防 · 尚未提供</NativeSelectOption>
           </NativeSelect>
         </label>
