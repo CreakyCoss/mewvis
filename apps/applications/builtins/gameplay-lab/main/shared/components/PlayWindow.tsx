@@ -8,6 +8,8 @@ export function PlayWindow({
   readOnly = false,
   readOnlyText = "实验样本 · 只读回放",
   onInspectChange,
+  className = "",
+  sceneName = "牌桌",
   scene,
   inspection,
   close,
@@ -18,6 +20,8 @@ export function PlayWindow({
   readOnly?: boolean;
   readOnlyText?: string;
   onInspectChange?(inspect: boolean): void;
+  className?: string;
+  sceneName?: string;
   scene?: ReactNode;
   inspection: ReactNode;
   close(): void;
@@ -34,7 +38,7 @@ export function PlayWindow({
   return (
     <dialog
       ref={ref}
-      className={`play-window ${large ? "play-window-large" : ""}`}
+      className={`play-window ${large ? "play-window-large" : ""} ${className}`}
       aria-label={`${title} · 游戏试玩`}
       onCancel={(event) => {
         event.preventDefault();
@@ -54,7 +58,7 @@ export function PlayWindow({
               aria-pressed={inspect}
               onClick={() => setInspect((value) => !value)}
             >
-              {inspect ? "返回牌桌" : "检查与回放"}
+              {inspect ? `返回${sceneName}` : "检查与回放"}
             </button>
           )}
           <button

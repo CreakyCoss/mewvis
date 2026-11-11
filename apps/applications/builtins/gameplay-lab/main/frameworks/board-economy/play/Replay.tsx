@@ -4,10 +4,12 @@ export function BoardReplayControls({
   record,
   cursor,
   setCursor,
+  sample = false,
 }: {
   record: BoardRecord;
   cursor: number;
   setCursor(n: number): void;
+  sample?: boolean;
 }) {
   return (
     <div className="economy-replay">
@@ -28,7 +30,7 @@ export function BoardReplayControls({
       </span>
       {cursor >= 0 && (
         <button className="button" onClick={() => setCursor(-1)}>
-          回到当前对局
+          {sample ? "查看样本末步" : "回到当前对局"}
         </button>
       )}
     </div>
@@ -38,10 +40,12 @@ export function BoardInspection({
   record,
   cursor,
   setCursor,
+  sample = false,
 }: {
   record: BoardRecord;
   cursor: number;
   setCursor(n: number): void;
+  sample?: boolean;
 }) {
   const timeline = useMemo(() => boardTimeline(record), [record]);
   return (
@@ -51,7 +55,7 @@ export function BoardInspection({
         种子 {record.seed} · {record.decisions.length}{" "}
         步操作，使用开局时的棋盘和规则。
       </p>
-      <BoardReplayControls {...{ record, cursor, setCursor }} />
+      <BoardReplayControls {...{ record, cursor, setCursor, sample }} />
       <ol className="economy-event-list">
         {timeline
           .map((state, i) => (

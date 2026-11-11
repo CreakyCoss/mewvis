@@ -4,6 +4,7 @@ import { readFile, writeFile, readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { f } from "./helpers/domain.mjs";
 import { boardGame } from "./helpers/board-game.mjs";
+import { boardPlan } from "./helpers/board-experiment.mjs";
 import { createProjectHost } from "./host-fixture.mjs";
 const create = async (host, repo, name = "自己的棋盘") => {
   const project = await repo.create({
@@ -212,4 +213,123 @@ test("a valid external change of model type cannot authorize overwriting it thro
   const opened = (await repo.list()).projects[0];
   assert.equal(opened.model.format, "gameplay-card-v1");
   assert.equal(f.isBoardProject(opened), false);
+});
+
+test("board experiment checkpoints survive restart, freeze edited rules, resume missing cells and stay out of ordinary runs", async (t) => {
+  let host = await createProjectHost();
+  t.after(() => host.close());
+  let repo = f.createProjectRepository(host.data, host.files),
+    p = await create(host, repo);
+  let history = f.createBoardExperimentHistory(host.data, host.files);
+  let e = f.newBoardExperiment(p.id, boardPlan());
+  await history.save(p, e);
+  e = f.appendBoardSample(e, f.nextBoardSample(e));
+  await history.save(p, e);
+  const path = join(p.path, "experiments", e.id + ".json"),
+    bytes = await readFile(path, "utf8");
+  p.model.tiles[1].rent = 999;
+  await repo.saveProject(p);
+  const root = host.root;
+  await host.close(false);
+  host = await createProjectHost(root);
+  repo = f.createProjectRepository(host.data, host.files);
+  p = (await repo.list()).projects[0];
+  history = f.createBoardExperimentHistory(host.data, host.files);
+  const loaded = await history.list(p);
+  assert.deepEqual(loaded.errors, []);
+  assert.equal(loaded.records[0].status, "interrupted");
+  assert.equal(loaded.records[0].variants[0].model.tiles[1].rent, 30);
+  assert.equal(await readFile(path, "utf8"), bytes);
+  e = await f.runBoardExperimentBatch(
+    { ...loaded.records[0], status: "running" },
+    {
+      persist: (x) => history.save(p, x),
+      changed: () => {},
+      cancelled: () => false,
+      yieldTask: async () => {},
+    },
+  );
+  assert.equal(e.status, "completed");
+  assert.equal(e.samples.length, 8);
+  assert.equal(
+    new Set(e.samples.map((s) => s.index + ":" + s.variant)).size,
+    8,
+  );
+  assert.equal((await history.list(p)).records[0].status, "completed");
+  assert.deepEqual(
+    (await f.createBoardHistory(host.data, host.files).list(p)).records,
+    [],
+  );
+  assert.deepEqual(
+    (await f.createBoardHistory(host.data, host.files).list(p)).incompatible,
+    [],
+  );
+});
+
+test("failed board experiment checkpoints preserve disk and published progress for a clean resume", async (t) => {
+  const host = await createProjectHost();
+  t.after(() => host.close());
+  const repo = f.createProjectRepository(host.data, host.files),
+    p = await create(host, repo),
+    history = f.createBoardExperimentHistory(host.data, host.files);
+  const e = f.newBoardExperiment(p.id, boardPlan());
+  await history.save(p, e);
+  const next = f.appendBoardSample(e, f.nextBoardSample(e));
+  const failing = f.createBoardExperimentHistory(host.data, {
+    ...host.files,
+    writeText: async () => {
+      throw new Error("disk unavailable");
+    },
+  });
+  const published = [];
+  await assert.rejects(
+    f.runBoardExperimentBatch(e, {
+      persist: (x) => failing.save(p, x),
+      changed: (x) => published.push(x),
+      cancelled: () => false,
+      yieldTask: async () => {},
+    }),
+    /disk unavailable/,
+  );
+  assert.deepEqual(published, []);
+  assert.equal((await history.list(p)).records[0].samples.length, 0);
+  await history.save(p, next);
+  assert.deepEqual((await history.list(p)).records[0].samples, next.samples);
+});
+
+test("board experiments protect external edits and reject modified frozen samples even after warming verification cache", async (t) => {
+  const host = await createProjectHost();
+  t.after(() => host.close());
+  const repo = f.createProjectRepository(host.data, host.files),
+    p = await create(host, repo),
+    history = f.createBoardExperimentHistory(host.data, host.files);
+  let e = f.newBoardExperiment(p.id, boardPlan());
+  e = f.appendBoardSample(e, f.nextBoardSample(e));
+  await history.save(p, e);
+  const path = join(p.path, "experiments", e.id + ".json"),
+    external = structuredClone(e);
+  external.updatedAt = "2020-01-01T00:00:00.000Z";
+  await writeFile(path, JSON.stringify(external));
+  await assert.rejects(
+    history.save(p, f.appendBoardSample(e, f.nextBoardSample(e))),
+    /外部修改/,
+  );
+  assert.deepEqual(JSON.parse(await readFile(path, "utf8")), external);
+  const valid = (await history.list(p)).records[0];
+  await history.save(p, { ...valid, status: "running" });
+  const tampered = JSON.parse(await readFile(path, "utf8"));
+  tampered.samples[0].final.players[0].cash++;
+  await writeFile(path, JSON.stringify(tampered));
+  const result = await history.list(p);
+  assert.equal(result.records.length, 0);
+  assert.equal(result.incompatible.length, 1);
+  assert.deepEqual(JSON.parse(await readFile(path, "utf8")), tampered);
+  await assert.rejects(
+    history.save(p, { ...valid, status: "running" }),
+    (error) =>
+      error.code === "FILE_ALREADY_EXISTS" ||
+      /外部修改|目标文件已存在/.test(error.message),
+  );
+  await history.removeIncompatible(p, result.incompatible[0].id);
+  assert.deepEqual((await history.list(p)).incompatible, []);
 });

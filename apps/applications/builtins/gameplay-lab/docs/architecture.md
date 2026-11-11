@@ -112,3 +112,5 @@ pnpm --filter @mewvis/gameplay-lab preview:packed
 卡牌能力模块以自己的目标接入主动能力契约，使用共享抽牌和牌区移动原语；配置、引用检查、运行、编辑和面板放在 `card-scoring/extensions/card-abilities/`。命令后的 `afterAdvance` 结算按依赖顺序执行，和原命令处于同一原子操作；组合计分据此处理自己的阶段结束和专注时限。具体语义见[卡牌能力](card-abilities.md)。
 
 棋盘经济以 `board-economy` 登记自己的创建、模型和工作区，实现独立 `BoardModel / BoardState / BoardCommand / BoardView` 与 `GameRuntime`。不进入数值模型或模拟器登记。棋盘复用 `shared/random.ts`、项目服务、`PlayWindow` 与 `createRecordStore`；卡牌的随机 API 作为相同整数序列的兼容别名保留。目录项目允许棋盘模型与其他类型共存，命名版本不能跨独立模型混用。
+
+`board-economy/experiments` 负责棋盘冻结实验、同种子调度、逐局持久化、取消续跑与配对统计。`createRecordStore` 可选记录目录与大小预算，默认仍为 `runs/`、4 MiB；棋盘实验用 `experiments/`、16 MiB。样本复用棋盘运行时及基础策略，读取时重算并用不可变指纹缓存已验证单元；规则指纹变化会失效。只读样本转换为临时 `BoardRecord` 供回放，不调用试玩记录保存。

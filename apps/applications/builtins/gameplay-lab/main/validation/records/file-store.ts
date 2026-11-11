@@ -25,8 +25,12 @@ export function createRecordStore<
   options: {
     modelFormat: M["format"];
     parse(value: unknown, projectId: string): R;
+    directory?: "runs" | "experiments";
+    maxBytes?: number;
   },
 ) {
+  const directory = options.directory ?? "runs";
+  const maxBytes = options.maxBytes ?? 4 * 1024 * 1024;
   const incompatible = incompatibleFiles(files);
   const cache = new Map<string, { text: string; modifiedAt: number }>();
   let pending: Promise<unknown> = Promise.resolve();
@@ -63,7 +67,7 @@ export function createRecordStore<
           unsupported: IncompatibleData[] = [];
         let entries: ApplicationFileInfo[];
         try {
-          entries = await files.list(`${p.path}/runs`);
+          entries = await files.list(`${p.path}/${directory}`);
         } catch (error) {
           if ((error as { code?: string }).code !== "FILE_NOT_FOUND")
             throw error;
@@ -73,11 +77,7 @@ export function createRecordStore<
           if (entry.type !== "file" || !entry.name.endsWith(".json")) continue;
           let snapshot;
           try {
-            snapshot = await readSnapshot(
-              files,
-              entry.filePath,
-              4 * 1024 * 1024,
-            );
+            snapshot = await readSnapshot(files, entry.filePath, maxBytes);
             const { text, modifiedAt } = snapshot;
             const r = options.parse(JSON.parse(text), p.id);
             if (entry.name !== `${r.id}.json`)
@@ -118,19 +118,20 @@ export function createRecordStore<
         r = options.parse(record, p.id);
       return serialize(async () => {
         await verify(p);
-        const path = `${p.path}/runs/${r.id}.json`,
+        const path = `${p.path}/${directory}/${r.id}.json`,
           text = JSON.stringify(r, null, 2) + "\n",
           previous = cache.get(path);
-        if (new TextEncoder().encode(text).byteLength > 4 * 1024 * 1024)
-          throw new Error("对局记录超过 4 MiB。");
+        if (new TextEncoder().encode(text).byteLength > maxBytes)
+          throw new Error(
+            `记录超过 ${maxBytes / 1024 / 1024} MiB，原文件已保留。`,
+          );
         if (previous?.text === text) return;
         if (
           previous &&
-          (await files.readText(path, { maxBytes: 4 * 1024 * 1024 })) !==
-            previous.text
+          (await files.readText(path, { maxBytes })) !== previous.text
         )
           throw new Error("对局记录已被外部修改，请重新加载记录后继续。");
-        await files.mkdir(`${p.path}/runs`);
+        await files.mkdir(`${p.path}/${directory}`);
         const info = await files.writeText(
           path,
           text,

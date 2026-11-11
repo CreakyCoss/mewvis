@@ -1,6 +1,7 @@
 import {
   ArrowLeft,
   CircleHelp,
+  FlaskConical,
   Grid2X2,
   History,
   Layers3,
@@ -23,11 +24,14 @@ import {
   BoardVersions,
 } from "./editor/ProjectViews";
 import type { BoardModel } from "./model";
+import { ExperimentPanel } from "./experiments/ExperimentPanel";
+import { boardSampleRecord } from "./experiments/simulation";
+import { useBoardExperiments } from "./experiments/use-board-experiments";
 import { BoardTable } from "./play/BoardTable";
 import { BoardInspection, BoardReplayControls } from "./play/Replay";
 import {
   advanceBoardRecord,
-  boardReplay,
+  boardTimeline,
   newBoardRecord,
   type BoardRecord,
 } from "./records";
@@ -37,6 +41,7 @@ import { validateBoard } from "./validation";
 const nav = [
   { id: "design", name: "棋盘与规则", icon: Grid2X2 },
   { id: "history", name: "试玩记录", icon: History },
+  { id: "experiments", name: "自动实验", icon: FlaskConical },
   { id: "versions", name: "版本", icon: Layers3 },
   { id: "settings", name: "项目设置", icon: Settings2 },
 ] as const;
@@ -63,6 +68,7 @@ export default function BoardWorkspace({
     [playOpen, setPlayOpen] = useState(false),
     [inspecting, setInspecting] = useState(false),
     [automatic, setAutomatic] = useState(false),
+    [previewLabel, setPreviewLabel] = useState(""),
     [versionName, setVersionName] = useState(""),
     [reloadConfirm, setReloadConfirm] = useState(false),
     [help, setHelp] = useState(false);
@@ -70,14 +76,21 @@ export default function BoardWorkspace({
     saved = useRef(JSON.stringify(initialProject)),
     active = useRef<BoardRecord | null>(null);
   const issues = useMemo(() => projectReadiness(project), [project]);
-  const state = useMemo(
+  const timeline = useMemo(
+    () => (record ? boardTimeline(record) : []),
+    [record],
+  );
+  const state = record ? (cursor >= 0 ? timeline[cursor] : record.final) : null;
+  const recentEvents = useMemo(
     () =>
-      record
-        ? cursor >= 0
-          ? boardReplay(record, cursor)
-          : record.final
-        : null,
-    [record, cursor],
+      timeline
+        .slice(0, cursor < 0 ? timeline.length : cursor + 1)
+        .flatMap((snapshot, step) =>
+          snapshot.events.map((event) => ({ step, text: event.text })),
+        )
+        .slice(-3)
+        .reverse(),
+    [timeline, cursor],
   );
   function update(fn: (m: BoardModel) => void) {
     setProject((p) => {
@@ -91,6 +104,7 @@ export default function BoardWorkspace({
     await projectRepository().saveProject(snapshot);
     saved.current = JSON.stringify(snapshot);
   }
+  const experiments = useBoardExperiments(project, save);
   async function act(fn: () => Promise<void>) {
     if (lock.current) return;
     lock.current = true;
@@ -155,12 +169,14 @@ export default function BoardWorkspace({
     };
   }, [project.id, revision]);
   function accept(next: BoardRecord) {
+    setPreviewLabel("");
     active.current = next;
     setRecord(next);
     setRecords((items) => [next, ...items.filter((r) => r.id !== next.id)]);
     setError("");
   }
   function clearRecord() {
+    setPreviewLabel("");
     active.current = null;
     setRecord(null);
     setPlayOpen(false);
@@ -170,7 +186,8 @@ export default function BoardWorkspace({
     command: BoardCommand,
     driver: "manual" | "basic" = "manual",
   ) {
-    if (!active.current || cursor >= 0) return;
+    if (!active.current || previewLabel || experiments.running || cursor >= 0)
+      return;
     await act(async () => {
       const next = advanceBoardRecord(active.current!, command, driver);
       await boardHistory().save(project, next);
@@ -188,6 +205,8 @@ export default function BoardWorkspace({
   useEffect(() => {
     if (
       !automatic ||
+      !!previewLabel ||
+      experiments.running ||
       !playOpen ||
       inspecting ||
       error ||
@@ -200,10 +219,20 @@ export default function BoardWorkspace({
       return;
     const timer = setTimeout(autoStep, 450);
     return () => clearTimeout(timer);
-  }, [automatic, playOpen, inspecting, error, busy, cursor, record]);
+  }, [
+    automatic,
+    playOpen,
+    inspecting,
+    error,
+    busy,
+    cursor,
+    record,
+    previewLabel,
+    experiments.running,
+  ]);
   async function begin() {
     await act(async () => {
-      if (issues.length || !historyReady)
+      if (issues.length || !historyReady || experiments.running)
         throw new Error("请先完成棋盘配置并加载记录。");
       await save();
       const next = newBoardRecord(project.id, project.model, seed);
@@ -215,6 +244,7 @@ export default function BoardWorkspace({
   }
   async function exit() {
     await act(async () => {
+      await experiments.stopAndFlush();
       await save();
       await boardHistory().flush();
       onExit();
@@ -243,6 +273,7 @@ export default function BoardWorkspace({
   }
   async function reloadProject() {
     await act(async () => {
+      await experiments.stopAndFlush();
       const next = await projectRepository().reload(project);
       if (!isBoardProject(next))
         throw new Error("项目类型已变化，请从项目库重新打开。");
@@ -251,6 +282,7 @@ export default function BoardWorkspace({
       setReloadConfirm(false);
       clearRecord();
       setRevision((n) => n + 1);
+      experiments.reload();
     });
   }
   return (
@@ -267,10 +299,10 @@ export default function BoardWorkspace({
           {record && (
             <button
               className="button"
-              disabled={busy}
+              disabled={busy || experiments.running}
               onClick={() => setPlayOpen(true)}
             >
-              打开本局
+              {previewLabel ? "打开样本" : "打开本局"}
             </button>
           )}
           <button
@@ -283,7 +315,9 @@ export default function BoardWorkspace({
           </button>
           <button
             className="button primary"
-            disabled={busy || !!issues.length || !historyReady}
+            disabled={
+              busy || experiments.running || !!issues.length || !historyReady
+            }
             onClick={() => void begin()}
           >
             <Play size={15} />
@@ -318,7 +352,9 @@ export default function BoardWorkspace({
               <button
                 key={item.id}
                 className={view === item.id ? "active" : ""}
-                disabled={busy}
+                disabled={
+                  busy || (experiments.running && item.id !== "experiments")
+                }
                 onClick={() => setView(item.id)}
               >
                 <item.icon size={16} />
@@ -396,6 +432,25 @@ export default function BoardWorkspace({
               removed={() => setRevision((n) => n + 1)}
             />
           )}
+          {view === "experiments" && (
+            <ExperimentPanel
+              project={project}
+              session={experiments}
+              busy={busy}
+              preview={(experiment, sample) => {
+                const variant = experiment.variants.find(
+                  (v) => v.id === sample.variant,
+                )!;
+                setRecord(boardSampleRecord(experiment, sample));
+                setPreviewLabel(
+                  `${variant.name} · 种子 ${sample.seed}${sample.error ? " · 错误发生前的操作" : ""}`,
+                );
+                setAutomatic(false);
+                setCursor(0);
+                setPlayOpen(true);
+              }}
+            />
+          )}
           {view === "versions" && (
             <BoardVersions
               project={project}
@@ -446,11 +501,13 @@ export default function BoardWorkspace({
               两位玩家轮流掷骰，落到空置地产可购买或跳过。对手地产自动收租；现金不足时支付余额、移交地产并结束对局。首版没有抵押、拍卖或建房。
             </p>
             <p>
-              “自动玩家走一步”按基础策略执行当前操作，也可启用“自动控制玩家
-              2”。达到回合上限不判胜负。检查或回放时暂停自动对手。
+              “自动玩家走一步”按基础策略执行当前操作，也可勾选自动控制第二位玩家。达到回合上限不判胜负。检查或回放时暂停自动对手。
             </p>
             <p>
               操作保存成功后更新棋盘。修改草稿不影响旧局；在试玩记录里继续或回放。
+            </p>
+            <p>
+              “自动实验”可运行多个种子，或对照两份规则。实验按局保存，取消后可继续；样本只读回放，不写入试玩记录。
             </p>
           </div>
         </Modal>
@@ -458,37 +515,53 @@ export default function BoardWorkspace({
       {playOpen && record && state && (
         <PlayWindow
           key={record.id}
+          className="economy-play-window"
+          sceneName="棋盘"
           title={record.model.name}
           busy={busy}
           error={error}
-          readOnly={cursor >= 0}
-          readOnlyText="历史棋盘 · 只读回放"
+          readOnly={!!previewLabel || cursor >= 0}
+          readOnlyText={
+            previewLabel ? "实验样本 · 只读回放" : "历史棋盘 · 只读回放"
+          }
           onInspectChange={setInspecting}
           close={() => setPlayOpen(false)}
           scene={
             <>
-              {JSON.stringify(record.model) !==
-                JSON.stringify(project.model) && (
+              {previewLabel ? (
                 <p className="play-window-notice">
-                  设计方案已修改，本局继续使用开局时的棋盘和规则。
+                  {previewLabel} · 使用实验冻结的棋盘和规则。
                 </p>
+              ) : (
+                JSON.stringify(record.model) !==
+                  JSON.stringify(project.model) && (
+                  <p className="play-window-notice">
+                    设计方案已修改，本局继续使用开局时的棋盘和规则。
+                  </p>
+                )
               )}
-              <BoardReplayControls
-                record={record}
-                cursor={cursor}
-                setCursor={setCursor}
-              />
+              {(cursor >= 0 || previewLabel) && (
+                <BoardReplayControls
+                  record={record}
+                  cursor={cursor}
+                  setCursor={setCursor}
+                  sample={!!previewLabel}
+                />
+              )}
               <BoardTable
                 model={record.model}
                 state={state}
-                busy={busy}
-                readOnly={cursor >= 0}
+                recentEvents={recentEvents}
+                busy={busy || experiments.running}
+                readOnly={!!previewLabel || cursor >= 0}
                 automatic={automatic}
                 setAutomatic={setAutomatic}
                 execute={(c) => void execute(c)}
                 autoStep={autoStep}
                 newGame={() => void begin()}
-                newGameDisabled={!!issues.length || !historyReady}
+                newGameDisabled={
+                  !!issues.length || !historyReady || experiments.running
+                }
               />
             </>
           }
@@ -497,6 +570,7 @@ export default function BoardWorkspace({
               record={record}
               cursor={cursor}
               setCursor={setCursor}
+              sample={!!previewLabel}
             />
           }
         />
