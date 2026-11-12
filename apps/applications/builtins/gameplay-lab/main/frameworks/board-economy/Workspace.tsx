@@ -30,6 +30,7 @@ import { useBoardExperiments } from "./experiments/use-board-experiments";
 import { BoardTable } from "./play/BoardTable";
 import { BoardInspection, BoardReplayControls } from "./play/Replay";
 import { useBoardPresentation } from "./play/use-board-presentation";
+import { boardResultSummary } from "./play/result";
 import {
   advanceBoardRecord,
   boardTimeline,
@@ -82,6 +83,14 @@ export default function BoardWorkspace({
     [record],
   );
   const state = record ? (cursor >= 0 ? timeline[cursor] : record.final) : null;
+  const result =
+    record && state
+      ? boardResultSummary(
+          record,
+          state,
+          timeline[(cursor < 0 ? timeline.length - 1 : cursor) - 1],
+        )
+      : null;
   function update(fn: (m: BoardModel) => void) {
     setProject((p) => {
       const next = copy(p);
@@ -590,6 +599,26 @@ export default function BoardWorkspace({
                 newGameDisabled={
                   !!issues.length || !historyReady || experiments.running
                 }
+                newGameDisabledReason={
+                  issues.length
+                    ? "当前设计尚未就绪，完善配置后可新开一局。"
+                    : !historyReady
+                      ? "正在加载试玩记录，请稍候。"
+                      : experiments.running
+                        ? "请等待当前实验结束后再新开一局。"
+                        : ""
+                }
+                result={result}
+                replay={() => {
+                  presentation.cancel();
+                  setAutomatic(false);
+                  setCursor(0);
+                }}
+                returnDesign={() => {
+                  presentation.cancel();
+                  setPlayOpen(false);
+                  setView("design");
+                }}
               />
             </>
           }

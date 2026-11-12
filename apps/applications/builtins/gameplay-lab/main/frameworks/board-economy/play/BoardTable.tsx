@@ -19,6 +19,8 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { boardCashChanges, type BoardPresentationFrame } from "./presentation";
+import { BoardResult } from "./BoardResult";
+import type { BoardResultSummary } from "./result";
 import { boardTileNames, type BoardModel } from "../model";
 import {
   boardCommands,
@@ -63,6 +65,10 @@ export function BoardTable({
   autoStep,
   newGame,
   newGameDisabled,
+  newGameDisabledReason,
+  result,
+  replay,
+  returnDesign,
 }: {
   model: BoardModel;
   state: BoardState;
@@ -77,8 +83,13 @@ export function BoardTable({
   autoStep(): void;
   newGame(): void;
   newGameDisabled: boolean;
+  newGameDisabledReason: string;
+  result: BoardResultSummary | null;
+  replay(): void;
+  returnDesign(): void;
 }) {
   const board = useRef<HTMLDivElement>(null);
+  const [resultBoard, setResultBoard] = useState<BoardState | null>(null);
   const [selection, setSelection] = useState<{
     id: string;
     random: number;
@@ -136,8 +147,33 @@ export function BoardTable({
       <DieIcon aria-hidden="true" />
     </div>
   );
+  if (state.outcome && !motion && result && resultBoard !== state)
+    return (
+      <BoardResult
+        result={result}
+        busy={busy}
+        readOnly={readOnly}
+        newGameDisabled={newGameDisabled}
+        newGameDisabledReason={newGameDisabledReason}
+        newGame={newGame}
+        replay={() => {
+          setResultBoard(null);
+          replay();
+        }}
+        returnDesign={returnDesign}
+        inspectBoard={() => setResultBoard(state)}
+      />
+    );
   return (
     <section className="economy-table" aria-label="环形经济棋盘">
+      {state.outcome && !motion && result && (
+        <div className="economy-result-return">
+          <span>终局棋盘 · {result.title}</span>
+          <button className="button" onClick={() => setResultBoard(null)}>
+            返回结算
+          </button>
+        </div>
+      )}
       <header className="economy-session">
         <div className="economy-turn">
           <span className="economy-live-dot" aria-hidden="true" />
