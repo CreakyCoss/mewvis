@@ -21,6 +21,7 @@ const modules = [
   "frameworks/board-economy/play/result",
   "frameworks/board-economy/repository",
   "frameworks/board-economy/experiments/model",
+  "frameworks/board-economy/experiments/rent-scan",
   "frameworks/board-economy/experiments/simulation",
   "frameworks/board-economy/experiments/statistics",
   "frameworks/board-economy/experiments/records",

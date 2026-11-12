@@ -333,3 +333,84 @@ test("board experiments protect external edits and reject modified frozen sample
   await history.removeIncompatible(p, result.incompatible[0].id);
   assert.deepEqual((await history.list(p)).incompatible, []);
 });
+
+test("rent scans coexist with ordinary experiments, survive restart and resume frozen rules through production files", async (t) => {
+  let host = await createProjectHost();
+  t.after(() => host.close());
+  let repo = f.createProjectRepository(host.data, host.files),
+    p = await create(host, repo),
+    history = f.createBoardExperimentHistory(host.data, host.files);
+  const ordinary = f.newBoardExperiment(p.id, boardPlan(false, 1));
+  await history.save(p, ordinary);
+  let e = f.newBoardExperiment(
+    p.id,
+    f.createBoardRentScanPlan(
+      {
+        id: "baseline",
+        name: "原规则",
+        source: { kind: "draft" },
+        model: p.model,
+      },
+      { kind: "rent-multiplier", start: 50, end: 150, step: 50 },
+      42,
+      2,
+    ),
+  );
+  await history.save(p, e);
+  for (let i = 0; i < 2; i++) {
+    e = f.appendBoardSample(e, f.nextBoardSample(e));
+    await history.save(p, e);
+  }
+  const originalSamples = structuredClone(e.samples),
+    path = join(p.path, "experiments", e.id + ".json"),
+    bytes = await readFile(path, "utf8");
+  p.model.rules.initialCash = 999;
+  p.model.tiles[1].rent = 2;
+  await repo.saveProject(p);
+  const root = host.root;
+  await host.close(false);
+  host = await createProjectHost(root);
+  repo = f.createProjectRepository(host.data, host.files);
+  p = (await repo.list()).projects[0];
+  history = f.createBoardExperimentHistory(host.data, host.files);
+  const loaded = await history.list(p);
+  assert.deepEqual(loaded.errors, []);
+  assert.deepEqual(loaded.incompatible, []);
+  assert.equal(loaded.records.length, 2);
+  e = loaded.records.find((record) => record.scan);
+  assert.equal(e.status, "interrupted");
+  assert.equal(e.variants[0].model.rules.initialCash, 20);
+  assert.equal(e.variants[0].model.tiles[1].rent, 30);
+  assert.equal(await readFile(path, "utf8"), bytes);
+  e = await f.runBoardExperimentBatch(
+    { ...e, status: "running" },
+    {
+      persist: (next) => history.save(p, next),
+      changed: () => {},
+      cancelled: () => false,
+      yieldTask: async () => {},
+    },
+  );
+  assert.equal(e.samples.length, 6);
+  assert.deepEqual(e.samples.slice(0, 2), originalSamples);
+  assert.equal(
+    new Set(e.samples.map((s) => `${s.variant}:${s.index}`)).size,
+    6,
+  );
+  const sample = e.samples.find((s) => s.variant === "rent-50"),
+    replay = f.boardSampleRecord(e, sample);
+  assert.deepEqual(f.parseBoardRecord(replay, p.id), replay);
+  assert.equal(replay.model.tiles[1].rent, 15);
+  assert.deepEqual(
+    (await f.createBoardHistory(host.data, host.files).list(p)).records,
+    [],
+  );
+  const corrupt = structuredClone(e);
+  corrupt.variants[1].model.tiles[1].price++;
+  await writeFile(path, JSON.stringify(corrupt));
+  const rejected = await history.list(p);
+  assert.equal(rejected.records.length, 1);
+  assert.equal(rejected.records[0].id, ordinary.id);
+  assert.equal(rejected.incompatible.length, 1);
+  assert.deepEqual(JSON.parse(await readFile(path, "utf8")), corrupt);
+});

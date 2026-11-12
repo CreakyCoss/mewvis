@@ -1,4 +1,5 @@
 import type { BoardExperiment, BoardSample } from "./model";
+import { boardRentScanPoints } from "./rent-scan";
 export const boardRate = (count: number, total: number) =>
   total ? (count / total) * 100 : 0;
 export function boardExperimentRows(experiment: BoardExperiment) {
@@ -37,15 +38,28 @@ export function boardExperimentRows(experiment: BoardExperiment) {
   });
 }
 export function boardPairedComparison(experiment: BoardExperiment) {
-  if (experiment.variants.length !== 2) return null;
+  if (experiment.scan || experiment.variants.length !== 2) return null;
+  return boardPairedDifference(experiment, "candidate");
+}
+export function boardPairedDifference(
+  experiment: BoardExperiment,
+  variant: BoardSample["variant"],
+) {
+  if (
+    variant === "baseline" ||
+    !experiment.variants.some((v) => v.id === variant)
+  )
+    return null;
   const pairs = Array.from({ length: experiment.seedCount }, (_, index) => {
     const a = experiment.samples.find(
         (s) => s.index === index && s.variant === "baseline",
       ),
       b = experiment.samples.find(
-        (s) => s.index === index && s.variant === "candidate",
+        (s) => s.index === index && s.variant === variant,
       );
-    return a && b && !a.error && !b.error ? { a, b } : null;
+    return a && b && a.seed === b.seed && !a.error && !b.error
+      ? { a, b }
+      : null;
   }).filter((pair) => pair !== null);
   const firstWin = (s: BoardSample) =>
     s.final.outcome?.kind === "won" && s.final.outcome.winner === 0 ? 1 : 0;
@@ -61,4 +75,12 @@ export function boardPairedComparison(experiment: BoardExperiment) {
         100
       : null,
   };
+}
+export function boardRentScanResults(experiment: BoardExperiment) {
+  const rows = boardExperimentRows(experiment);
+  return boardRentScanPoints(experiment).map((point) => ({
+    ...point,
+    row: rows.find((row) => row.id === point.variant)!,
+    paired: boardPairedDifference(experiment, point.variant),
+  }));
 }

@@ -1,0 +1,85 @@
+.board-rent-preview {
+  margin: 12px 0 16px;
+  min-width: 0;
+  font-size: 12px;
+}
+.board-rent-preview summary {
+  padding: 10px 0;
+  min-height: 44px;
+  cursor: pointer;
+}
+.board-rent-trend {
+  min-width: 0;
+  margin: 20px 0;
+}
+.board-rent-trend-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.board-rent-trend-heading label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.board-rent-trend-heading select {
+  min-width: 130px;
+}
+.board-rent-chart {
+  width: 100%;
+  min-width: 0;
+}
+.board-rent-chart svg {
+  display: block;
+  max-width: 100%;
+}
+.board-rent-chart text {
+  fill: var(--muted-foreground);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.board-rent-grid {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+.board-rent-baseline {
+  stroke: var(--muted-foreground);
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+}
+.board-rent-legend {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-bottom: 10px;
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+.board-rent-legend > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.board-rent-legend i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.board-rent-legend .square {
+  border-radius: 0;
+}
+@media (max-width: 600px) {
+  .board-rent-trend-heading select {
+    min-height: 44px;
+  }
+}

@@ -19,3 +19,4 @@ import "./domain/board-economy.test.mjs";
 import "./domain/board-presentation.test.mjs";
 import "./domain/board-result.test.mjs";
 import "./domain/board-experiments.test.mjs";
+import "./domain/board-rent-scan.test.mjs";

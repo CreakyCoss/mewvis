@@ -14,7 +14,23 @@ import {
   type BoardSample,
   type BoardVariant,
 } from "./model";
-import { boardExperimentRows, boardPairedComparison } from "./statistics";
+import {
+  boardExperimentRows,
+  boardPairedComparison,
+  boardPairedDifference,
+} from "./statistics";
+import {
+  boardRentScanPoints,
+  boardRentVariantLabel,
+  createBoardRentScanPlan,
+  parseBoardRentMultiplier,
+} from "./rent-scan";
+import {
+  RentScanFields,
+  RentScanPreview,
+  type RentScanInput,
+} from "./RentScanSettings";
+import { RentScanTrend } from "./RentScanTrend";
 import type { useBoardExperiments } from "./use-board-experiments";
 const statusNames: Record<BoardExperiment["status"], string> = {
   running: "运行中",
@@ -71,7 +87,7 @@ export function ExperimentPanel({
   busy: boolean;
   preview(e: BoardExperiment, s: BoardSample): void;
 }) {
-  const [comparison, setComparison] = useState(false),
+  const [mode, setMode] = useState("single"),
     [single, setSingle] = useState("draft"),
     [baseline, setBaseline] = useState(
       project.versions[0] ? "version:" + project.versions[0].id : "draft",
@@ -79,20 +95,49 @@ export function ExperimentPanel({
     [candidate, setCandidate] = useState("draft"),
     [seedStart, setSeedStart] = useState(42),
     [seedCount, setSeedCount] = useState(100);
+  const [scanSeeds, setScanSeeds] = useState(20),
+    [scanInput, setScanInput] = useState<RentScanInput>({
+      start: "0.5",
+      end: "2",
+      step: "0.25",
+    });
+  const comparison = mode === "comparison",
+    scanning = mode === "scan",
+    count = scanning ? scanSeeds : seedCount;
   const variants = comparison
     ? [
         source(project, baseline, "baseline"),
         source(project, candidate, "candidate"),
       ]
     : [source(project, single, "baseline")];
-  const plan: BoardExperimentPlan = {
+  let plan: BoardExperimentPlan = {
     variants: variants.filter((v): v is BoardVariant => !!v),
     seedStart,
-    seedCount,
+    seedCount: count,
   };
-  const issues = variants.some((v) => !v)
-    ? [{ path: "棋盘实验", message: "规则来源已不存在，请重新选择。" }]
-    : boardExperimentIssues(plan);
+  let scanError = "";
+  if (scanning && variants[0]) {
+    try {
+      const start = parseBoardRentMultiplier(scanInput.start),
+        end = parseBoardRentMultiplier(scanInput.end),
+        step = parseBoardRentMultiplier(scanInput.step);
+      if (start === null || end === null || step === null)
+        throw new Error("租金倍率须为 0.01–100，最多两位小数。");
+      plan = createBoardRentScanPlan(
+        variants[0],
+        { kind: "rent-multiplier", start, end, step },
+        seedStart,
+        count,
+      );
+    } catch (cause) {
+      scanError = (cause as Error).message;
+    }
+  }
+  const issues = scanError
+    ? [{ path: "棋盘实验", message: scanError }]
+    : variants.some((v) => !v)
+      ? [{ path: "棋盘实验", message: "规则来源已不存在，请重新选择。" }]
+      : boardExperimentIssues(plan);
   const active =
     session.records.find((e) => e.id === session.activeId) ??
     session.records[0];
@@ -141,12 +186,15 @@ export function ExperimentPanel({
               <NativeSelect
                 size="sm"
                 aria-label="棋盘实验类型"
-                value={comparison ? "comparison" : "single"}
-                onChange={(e) => setComparison(e.target.value === "comparison")}
+                value={mode}
+                onChange={(e) => setMode(e.target.value)}
               >
                 <NativeSelectOption value="single">单版验证</NativeSelectOption>
                 <NativeSelectOption value="comparison">
                   规则版本对照
+                </NativeSelectOption>
+                <NativeSelectOption value="scan">
+                  租金倍率扫描
                 </NativeSelectOption>
               </NativeSelect>
             </label>
@@ -188,6 +236,9 @@ export function ExperimentPanel({
                 </NativeSelect>
               </label>
             )}
+            {scanning && (
+              <RentScanFields value={scanInput} change={setScanInput} />
+            )}
             <label className="form-field">
               起始种子
               <input
@@ -205,20 +256,34 @@ export function ExperimentPanel({
                 aria-label="棋盘实验种子数量"
                 type="number"
                 min={1}
-                max={comparison ? 120 : 240}
-                value={seedCount}
-                onChange={(e) => setSeedCount(Number(e.target.value))}
+                max={Math.floor(240 / Math.max(1, plan.variants.length))}
+                value={count}
+                onChange={(e) =>
+                  (scanning ? setScanSeeds : setSeedCount)(
+                    Number(e.target.value),
+                  )
+                }
               />
             </label>
           </div>
           <p className="hint">
             固定第一位玩家先手，双方使用基础自动策略
-            v1；两版按同一种子交替执行。单次最多 240 局。
+            v1；每个种子先跑基准，再跑其余规则。单次最多 240 局。
           </p>
-          <p>
-            种子 {seedStart}–{seedStart + seedCount - 1} · {seedCount} 个种子 ×{" "}
-            {comparison ? 2 : 1} 份规则 = {seedCount * (comparison ? 2 : 1)} 局
-          </p>
+          {scanning && (
+            <p className="hint">
+              保留 1 倍基准，最多 11
+              个倍率点；只调整地产租金，四舍五入为整数、最低
+              1。换算相同的规则合并运行，超过租金上限时需缩小范围。不会修改草稿或命名版本。
+            </p>
+          )}
+          {!scanError && (
+            <p>
+              种子 {seedStart}–{seedStart + count - 1} · {count} 个种子 ×{" "}
+              {plan.variants.length} 份规则 = {boardExperimentTotal(plan)} 局
+            </p>
+          )}
+          {scanning && !issues.length && <RentScanPreview plan={plan} />}
           {!!issues.length && (
             <ul className="form-error">
               {issues.map((i, n) => (
@@ -247,8 +312,12 @@ export function ExperimentPanel({
             >
               {session.records.map((e) => (
                 <NativeSelectOption key={e.id} value={e.id}>
-                  {e.variants.length === 2 ? "规则对照" : "单版验证"} ·{" "}
-                  {new Date(e.createdAt).toLocaleString()} ·{" "}
+                  {e.scan
+                    ? "租金扫描"
+                    : e.variants.length === 2
+                      ? "规则对照"
+                      : "单版验证"}{" "}
+                  · {new Date(e.createdAt).toLocaleString()} ·{" "}
                   {statusNames[e.status]} · {e.samples.length}/
                   {boardExperimentTotal(e)} 局
                 </NativeSelectOption>
@@ -294,7 +363,12 @@ function BoardExperimentResults({
   preview(s: BoardSample): void;
 }) {
   const rows = boardExperimentRows(e),
-    paired = boardPairedComparison(e);
+    paired = boardPairedComparison(e),
+    points = boardRentScanPoints(e);
+  const variantName = (id: BoardVariant["id"]) =>
+    e.scan
+      ? boardRentVariantLabel(points, id)
+      : e.variants.find((v) => v.id === id)!.name;
   const [variant, setVariant] = useState<BoardVariant["id"]>("baseline"),
     [result, setResult] = useState("all"),
     [seed, setSeed] = useState(""),
@@ -328,7 +402,11 @@ function BoardExperimentResults({
       <div className="page-heading">
         <div>
           <h2>
-            {e.variants.length === 2 ? "规则版本对照结果" : "单版验证结果"}
+            {e.scan
+              ? "租金倍率扫描结果"
+              : e.variants.length === 2
+                ? "规则版本对照结果"
+                : "单版验证结果"}
           </h2>
           <p role="status">
             {statusNames[e.status]} · 已处理 {e.samples.length} /{" "}
@@ -360,6 +438,17 @@ function BoardExperimentResults({
         max={boardExperimentTotal(e)}
         value={e.samples.length}
       />
+      {e.scan && (
+        <>
+          <p className="hint">
+            {points.length} 个倍率点合并为 {e.variants.length}{" "}
+            份冻结规则；每份规则使用相同的 {e.seedCount}{" "}
+            个种子。表格按独立规则分组，曲线按倍率点展示。
+          </p>
+          <RentScanPreview plan={e} />
+          <RentScanTrend experiment={e} />
+        </>
+      )}
       <div className="board-experiment-table-scroll">
         <table>
           <caption>
@@ -375,18 +464,25 @@ function BoardExperimentResults({
               <th>破产率</th>
               <th>上限率</th>
               <th>错误</th>
+              {e.scan && (
+                <>
+                  <th>与基准配对</th>
+                  <th>局长差</th>
+                  <th>先手胜率差</th>
+                </>
+              )}
             </tr>
           </thead>
           <tbody>
             {rows.map((row) => (
               <tr key={row.id}>
                 <th scope="row">
-                  {e.variants.length === 2
+                  {!e.scan && e.variants.length === 2
                     ? row.id === "baseline"
                       ? "基准 · "
                       : "候选 · "
                     : ""}
-                  {row.name}
+                  {variantName(row.id)}
                 </th>
                 <td>
                   {row.finished} / {row.planned}
@@ -397,11 +493,35 @@ function BoardExperimentResults({
                 <td>{row.finished ? fixed(row.bankruptRate) + "%" : "—"}</td>
                 <td>{row.finished ? fixed(row.limitRate) + "%" : "—"}</td>
                 <td>{row.errors}</td>
+                {e.scan &&
+                  (() => {
+                    const diff = boardPairedDifference(e, row.id);
+                    return (
+                      <>
+                        <td>{diff ? `${diff.count} 组` : "基准"}</td>
+                        <td>
+                          {diff
+                            ? signed(diff.averageTurnChange) + " 回合"
+                            : "—"}
+                        </td>
+                        <td>
+                          {diff
+                            ? signed(diff.firstWinRateChange) + " 个百分点"
+                            : "—"}
+                        </td>
+                      </>
+                    );
+                  })()}
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+      {e.scan && (
+        <p className="hint">
+          差值为扫描规则减基准，仅使用双方均成功的同种子；没有配对数据时留空。错误样本保留在记录中，不计入统计。
+        </p>
+      )}
       {paired && (
         <div className="board-paired-summary">
           <strong>同种子配对 · {paired.count} 组</strong>
@@ -422,7 +542,7 @@ function BoardExperimentResults({
         <summary>冻结的规则与执行方式</summary>
         {e.variants.map((v) => (
           <p key={v.id}>
-            {v.id === "baseline" ? "基准" : "候选"} · {v.name}：
+            {v.id === "baseline" ? "基准" : "候选"} · {variantName(v.id)}：
             {v.model.tiles.length} 格，初始资金 {v.model.rules.initialCash}
             ，起点收入 {v.model.rules.salary}，{v.model.rules.diceSides}{" "}
             面骰子，上限 {v.model.rules.maxTurns} 回合。
@@ -447,7 +567,7 @@ function BoardExperimentResults({
           >
             {e.variants.map((v) => (
               <NativeSelectOption value={v.id} key={v.id}>
-                {v.name}
+                {variantName(v.id)}
               </NativeSelectOption>
             ))}
           </NativeSelect>

@@ -41,6 +41,7 @@ function parse(
       "seedCount",
       "status",
       "samples",
+      "scan",
     ]) ||
     input.format !== "gameplay-board-economy-experiment-v1" ||
     typeof input.id !== "string" ||
@@ -74,6 +75,7 @@ function parse(
     e.seedStart,
     e.seedCount,
     e.variants,
+    e.scan ?? null,
   ]);
   if (memo && memo.signature !== signature) {
     memo.signature = signature;
