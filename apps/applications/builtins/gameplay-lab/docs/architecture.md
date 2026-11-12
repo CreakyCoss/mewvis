@@ -113,4 +113,6 @@ pnpm --filter @mewvis/gameplay-lab preview:packed
 
 棋盘经济以 `board-economy` 登记自己的创建、模型和工作区，实现独立 `BoardModel / BoardState / BoardCommand / BoardView` 与 `GameRuntime`。不进入数值模型或模拟器登记。棋盘复用 `shared/random.ts`、项目服务、`PlayWindow` 与 `createRecordStore`；卡牌的随机 API 作为相同整数序列的兼容别名保留。目录项目允许棋盘模型与其他类型共存，命名版本不能跨独立模型混用。
 
+棋盘 `play/presentation.ts` 从已保存命令的前后状态构造只用于展示的掷骰、路径和收支帧；不推进引擎或写入记录。`use-board-presentation.ts` 管理播放、跳过、取消和减少动态效果，工作区在文件写入成功后才启动展示，并在播放期间暂停下一条自动命令。关闭、检查、回放、记录切换及后台状态会清理定时器并显示权威快照。收支说明直接来自冻结事件，包含真实支付金额和双方租金转移。
+
 `board-economy/experiments` 负责棋盘冻结实验、同种子调度、逐局持久化、取消续跑与配对统计。`createRecordStore` 可选记录目录与大小预算，默认仍为 `runs/`、4 MiB；棋盘实验用 `experiments/`、16 MiB。样本复用棋盘运行时及基础策略，读取时重算并用不可变指纹缓存已验证单元；规则指纹变化会失效。只读样本转换为临时 `BoardRecord` 供回放，不调用试玩记录保存。

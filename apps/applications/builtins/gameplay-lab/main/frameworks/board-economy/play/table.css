@@ -16,6 +16,7 @@
   --economy-blue: light-dark(#356c9a, #83aed0);
   --economy-orange: light-dark(#a5632e, #e6b07c);
   --economy-gold: light-dark(#806432, #d6be85);
+  --economy-expense: light-dark(#9c4d31, #e6ab8b);
   color: var(--economy-ink);
   background: var(--economy-surface);
 }
@@ -210,6 +211,36 @@
   font-size: 11px;
   color: var(--economy-muted);
 }
+.economy-table .economy-cash-feedback {
+  display: flex;
+  flex-wrap: wrap;
+  grid-column: 1 / -1;
+  gap: 4px 12px;
+  min-height: 18px;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 11px;
+  line-height: 18px;
+}
+.economy-cash-change {
+  display: inline-flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.economy-cash-change strong {
+  font-variant-numeric: tabular-nums;
+}
+.economy-cash-change.income {
+  color: var(--economy-accent);
+}
+.economy-cash-change.expense {
+  color: var(--economy-expense);
+}
+.economy-cash-change.fresh {
+  animation: economy-cash-change 200ms ease-out;
+}
 .economy-small-stage {
   display: flex;
   align-items: center;
@@ -237,6 +268,7 @@
   background: var(--economy-table);
 }
 .economy-board {
+  position: relative;
   display: grid;
   grid-template-columns: repeat(var(--board-side), minmax(80px, 1fr));
   grid-template-rows: repeat(var(--board-side), minmax(110px, auto));
@@ -279,6 +311,16 @@
 .economy-space[aria-pressed="true"] {
   background: #fff9e9;
   box-shadow: 0 0 0 2px light-dark(#315d45, #d6c48e);
+}
+.economy-space.is-traversed:not([aria-pressed="true"]) {
+  background: #edf0de;
+}
+.economy-space.is-moving {
+  box-shadow: 0 0 0 2px light-dark(#806432, #d6be85);
+}
+.economy-landing-mark {
+  color: #6f592e;
+  font-weight: 600;
 }
 .economy-space:focus-visible {
   outline: 3px solid var(--economy-blue);
@@ -351,6 +393,9 @@
 .economy-token-1 {
   background: #a5632e;
 }
+.economy-token.in-motion {
+  animation: economy-pawn-step 160ms ease-out;
+}
 .economy-board-center {
   display: flex;
   flex-direction: column;
@@ -391,7 +436,7 @@
   stroke-width: 1.4;
 }
 .economy-die.has-roll {
-  animation: economy-dice-roll 280ms ease-out;
+  animation: economy-dice-roll 240ms ease-out;
 }
 .economy-move-summary {
   display: flex;
@@ -704,6 +749,24 @@
     transform: rotate(0) scale(1);
   }
 }
+@keyframes economy-pawn-step {
+  from {
+    transform: scale(0.65) translateY(-3px);
+  }
+  to {
+    transform: scale(1) translateY(0);
+  }
+}
+@keyframes economy-cash-change {
+  from {
+    opacity: 0.35;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
 @media (max-width: 1100px) {
   .economy-scene-layout {
     grid-template-columns: minmax(0, 1fr) 250px;
@@ -886,8 +949,33 @@
     padding: 12px;
   }
 }
+@media (max-width: 360px) {
+  .economy-player {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .economy-player-name {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .economy-player-money {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    grid-column: 1;
+    grid-row: 2;
+    text-align: left;
+  }
+  .economy-player-properties {
+    grid-row: 3;
+  }
+  .economy-table .economy-cash-feedback {
+    grid-row: 4;
+  }
+}
 @media (prefers-reduced-motion: reduce) {
-  .economy-die.has-roll {
+  .economy-die.has-roll,
+  .economy-token.in-motion,
+  .economy-cash-change.fresh {
     animation: none;
   }
 }

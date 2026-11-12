@@ -29,6 +29,7 @@ import { boardSampleRecord } from "./experiments/simulation";
 import { useBoardExperiments } from "./experiments/use-board-experiments";
 import { BoardTable } from "./play/BoardTable";
 import { BoardInspection, BoardReplayControls } from "./play/Replay";
+import { useBoardPresentation } from "./play/use-board-presentation";
 import {
   advanceBoardRecord,
   boardTimeline,
@@ -81,17 +82,6 @@ export default function BoardWorkspace({
     [record],
   );
   const state = record ? (cursor >= 0 ? timeline[cursor] : record.final) : null;
-  const recentEvents = useMemo(
-    () =>
-      timeline
-        .slice(0, cursor < 0 ? timeline.length : cursor + 1)
-        .flatMap((snapshot, step) =>
-          snapshot.events.map((event) => ({ step, text: event.text })),
-        )
-        .slice(-3)
-        .reverse(),
-    [timeline, cursor],
-  );
   function update(fn: (m: BoardModel) => void) {
     setProject((p) => {
       const next = copy(p);
@@ -105,6 +95,25 @@ export default function BoardWorkspace({
     saved.current = JSON.stringify(snapshot);
   }
   const experiments = useBoardExperiments(project, save);
+  const presentation = useBoardPresentation(
+    playOpen &&
+      !inspecting &&
+      cursor < 0 &&
+      !previewLabel &&
+      !experiments.running,
+    record?.id,
+  );
+  const recentEvents = useMemo(() => {
+    let count = cursor < 0 ? timeline.length : cursor + 1;
+    if (presentation.frame && presentation.frame.phase !== "settle") count--;
+    return timeline
+      .slice(0, count)
+      .flatMap((snapshot, step) =>
+        snapshot.events.map((event) => ({ step, text: event.text })),
+      )
+      .slice(-3)
+      .reverse();
+  }, [timeline, cursor, presentation.frame?.phase]);
   async function act(fn: () => Promise<void>) {
     if (lock.current) return;
     lock.current = true;
@@ -176,6 +185,7 @@ export default function BoardWorkspace({
     setError("");
   }
   function clearRecord() {
+    presentation.cancel();
     setPreviewLabel("");
     active.current = null;
     setRecord(null);
@@ -186,12 +196,20 @@ export default function BoardWorkspace({
     command: BoardCommand,
     driver: "manual" | "basic" = "manual",
   ) {
-    if (!active.current || previewLabel || experiments.running || cursor >= 0)
+    if (
+      !active.current ||
+      previewLabel ||
+      experiments.running ||
+      cursor >= 0 ||
+      presentation.pending()
+    )
       return;
     await act(async () => {
-      const next = advanceBoardRecord(active.current!, command, driver);
+      const previous = active.current!;
+      const next = advanceBoardRecord(previous, command, driver);
       await boardHistory().save(project, next);
       accept(next);
+      presentation.play(previous, next, command);
     });
   }
   function autoStep() {
@@ -211,6 +229,7 @@ export default function BoardWorkspace({
       inspecting ||
       error ||
       busy ||
+      presentation.running ||
       cursor >= 0 ||
       !record ||
       record.final.outcome ||
@@ -229,8 +248,10 @@ export default function BoardWorkspace({
     record,
     previewLabel,
     experiments.running,
+    presentation.running,
   ]);
   async function begin() {
+    presentation.cancel();
     await act(async () => {
       if (issues.length || !historyReady || experiments.running)
         throw new Error("请先完成棋盘配置并加载记录。");
@@ -424,6 +445,7 @@ export default function BoardWorkspace({
                 setRevision((n) => n + 1);
               }}
               open={(r) => {
+                presentation.cancel();
                 accept(r);
                 setCursor(-1);
                 setPlayOpen(true);
@@ -438,6 +460,7 @@ export default function BoardWorkspace({
               session={experiments}
               busy={busy}
               preview={(experiment, sample) => {
+                presentation.cancel();
                 const variant = experiment.variants.find(
                   (v) => v.id === sample.variant,
                 )!;
@@ -525,7 +548,10 @@ export default function BoardWorkspace({
             previewLabel ? "实验样本 · 只读回放" : "历史棋盘 · 只读回放"
           }
           onInspectChange={setInspecting}
-          close={() => setPlayOpen(false)}
+          close={() => {
+            presentation.cancel();
+            setPlayOpen(false);
+          }}
           scene={
             <>
               {previewLabel ? (
@@ -550,7 +576,9 @@ export default function BoardWorkspace({
               )}
               <BoardTable
                 model={record.model}
-                state={state}
+                state={presentation.frame?.state ?? state}
+                motion={presentation.frame}
+                skipMotion={presentation.cancel}
                 recentEvents={recentEvents}
                 busy={busy || experiments.running}
                 readOnly={!!previewLabel || cursor >= 0}

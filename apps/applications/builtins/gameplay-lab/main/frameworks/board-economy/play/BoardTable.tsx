@@ -12,11 +12,13 @@ import {
   Flag,
   MousePointer2,
   RotateCw,
+  SkipForward,
   Trees,
   UserRound,
   Warehouse,
 } from "lucide-react";
-import { useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { boardCashChanges, type BoardPresentationFrame } from "./presentation";
 import { boardTileNames, type BoardModel } from "../model";
 import {
   boardCommands,
@@ -50,6 +52,8 @@ export function boardPositions(count: number) {
 export function BoardTable({
   model,
   state,
+  motion,
+  skipMotion,
   recentEvents,
   busy,
   readOnly,
@@ -62,6 +66,8 @@ export function BoardTable({
 }: {
   model: BoardModel;
   state: BoardState;
+  motion: BoardPresentationFrame | null;
+  skipMotion(): void;
   recentEvents: { step: number; text: string }[];
   busy: boolean;
   readOnly: boolean;
@@ -72,6 +78,7 @@ export function BoardTable({
   newGame(): void;
   newGameDisabled: boolean;
 }) {
+  const board = useRef<HTMLDivElement>(null);
   const [selection, setSelection] = useState<{
     id: string;
     random: number;
@@ -85,22 +92,46 @@ export function BoardTable({
         (t) => selection?.random === state.random && t.id === selection.id,
       ) ??
       pending ??
-      landing,
+      (motion ? model.tiles[state.players[motion.player].position] : landing),
     chosenIndex = model.tiles.indexOf(chosen),
     owner = state.owners[chosen.id],
     visitors = state.players.filter((p) => p.position === chosenIndex),
     layout = boardPositions(model.tiles.length),
     canAct =
-      !busy && !readOnly && !state.outcome && !(automatic && state.actor === 1),
+      !busy &&
+      !motion &&
+      !readOnly &&
+      !state.outcome &&
+      !(automatic && state.actor === 1),
     TileIcon = tileIcons[chosen.type],
-    DieIcon = diceIcons[state.lastMove?.die ?? 0];
+    die = motion?.die ?? state.lastMove?.die ?? 0,
+    DieIcon = diceIcons[die],
+    cashChanges = motion?.cashChanges ?? boardCashChanges(state.events),
+    trail = motion
+      ? Array.from(
+          { length: motion.step },
+          (_, i) => (motion.from + i + 1) % model.tiles.length,
+        )
+      : [];
+  useEffect(() => {
+    if (motion?.phase !== "move" || !board.current) return;
+    const container = board.current;
+    const target = container.querySelector<HTMLButtonElement>(
+      `[data-position="${motion.state.players[motion.player].position}"]`,
+    );
+    if (!target) return;
+    const view = container.getBoundingClientRect(),
+      tile = target.getBoundingClientRect();
+    if (tile.left < view.left + 8)
+      container.scrollLeft += tile.left - view.left - 8;
+    else if (tile.right > view.right - 8)
+      container.scrollLeft += tile.right - view.right + 8;
+  }, [motion]);
   const dice = (
     <div
       key={state.random}
-      className={`economy-die ${state.lastMove && !readOnly ? "has-roll" : ""}`}
-      aria-label={
-        state.lastMove ? `上次掷骰 ${state.lastMove.die} 点` : "等待首次掷骰"
-      }
+      className={`economy-die ${motion?.phase === "dice" ? "has-roll" : ""}`}
+      aria-label={die ? `上次掷骰 ${die} 点` : "等待首次掷骰"}
     >
       <DieIcon aria-hidden="true" />
     </div>
@@ -159,6 +190,32 @@ export function BoardTable({
                   <b>{number(p.cash)}</b>
                   <small>现金</small>
                 </span>
+                <ul
+                  className="economy-cash-feedback"
+                  aria-label={`${p.name} 本次资金变化`}
+                  aria-hidden={
+                    !cashChanges.some((change) => change.player === seat)
+                  }
+                >
+                  {cashChanges
+                    .filter((change) => change.player === seat)
+                    .map((change) => (
+                      <li
+                        key={`${change.label}-${change.amount}`}
+                        className={`economy-cash-change ${change.label === "支付租金" || change.label === "购买地产" ? "expense" : "income"} ${motion ? "fresh" : ""}`}
+                      >
+                        <strong>
+                          {change.amount > 0
+                            ? "+"
+                            : change.amount < 0
+                              ? "−"
+                              : ""}
+                          {number(Math.abs(change.amount))}
+                        </strong>
+                        <span>{change.label}</span>
+                      </li>
+                    ))}
+                </ul>
               </section>
             ))}
           </div>
@@ -171,12 +228,13 @@ export function BoardTable({
               {layout.side === 2 && dice}
             </div>
           )}
-          <div className="economy-board-scroll">
+          <div className="economy-board-scroll" ref={board}>
             <div
               className={`economy-board ${layout.side <= 3 ? "compact-center" : ""}`}
               style={{ "--board-side": layout.side } as CSSProperties}
               role="group"
               aria-label="按编号顺时针前进的棋盘"
+              aria-busy={!!motion}
             >
               {model.tiles.map((tile, i) => {
                 const tileOwner = state.owners[tile.id],
@@ -187,7 +245,8 @@ export function BoardTable({
                 return (
                   <button
                     type="button"
-                    className={`economy-space ${tile.type} ${tileOwner === null ? "" : `owner-${tileOwner}`}`}
+                    className={`economy-space ${tile.type} ${tileOwner === null ? "" : `owner-${tileOwner}`} ${trail.includes(i) ? "is-traversed" : ""} ${motion?.phase === "move" && state.players[motion.player].position === i ? "is-moving" : ""} ${state.lastMove?.to === i && (!motion || motion.step === motion.die) ? "is-landing" : ""}`}
+                    data-position={i}
                     style={{
                       gridRow: layout.positions[i].row,
                       gridColumn: layout.positions[i].column,
@@ -201,7 +260,12 @@ export function BoardTable({
                   >
                     <span className="economy-space-top">
                       <span>{String(i + 1).padStart(2, "0")}</span>
-                      <Icon aria-hidden="true" />
+                      {state.lastMove?.to === i &&
+                      (!motion || motion.step === motion.die) ? (
+                        <span className="economy-landing-mark">落点</span>
+                      ) : (
+                        <Icon aria-hidden="true" />
+                      )}
                     </span>
                     <strong>{tile.name}</strong>
                     <span className="economy-space-price">
@@ -227,7 +291,7 @@ export function BoardTable({
                       <span className="economy-tokens">
                         {players.map((s) => (
                           <span
-                            className={`economy-token economy-token-${s}`}
+                            className={`economy-token economy-token-${s} ${motion?.phase === "move" && motion.player === s ? "in-motion" : ""}`}
                             key={s}
                             aria-hidden="true"
                           >
@@ -257,14 +321,22 @@ export function BoardTable({
                   {layout.side > 3 && (
                     <div className="economy-move-summary">
                       <strong>
-                        {state.lastMove
-                          ? `${state.players[state.lastMove.player].name} 前进 ${state.lastMove.die} 格`
-                          : "从起点出发"}
+                        {motion?.phase === "dice"
+                          ? `掷出 ${die} 点`
+                          : motion?.phase === "move"
+                            ? `${state.players[motion.player].name} 正在前进`
+                            : state.lastMove
+                              ? `${state.players[state.lastMove.player].name} 前进 ${state.lastMove.die} 格`
+                              : "从起点出发"}
                       </strong>
                       <span>
-                        {state.lastMove
-                          ? `来到「${landing.name}」`
-                          : "轮流掷骰，经营你的地产"}
+                        {motion?.phase === "move"
+                          ? `第 ${motion.step} / ${die} 格 · ${model.tiles[state.players[motion.player].position].name}`
+                          : motion?.phase === "dice"
+                            ? `前往「${model.tiles[motion.destination].name}」`
+                            : state.lastMove
+                              ? `来到「${landing.name}」`
+                              : "轮流掷骰，经营你的地产"}
                       </span>
                     </div>
                   )}
@@ -365,22 +437,34 @@ export function BoardTable({
                   : `轮到 ${player.name} 作出选择`}
             </div>
             <h2>
-              {state.outcome
-                ? state.outcome.kind === "won"
-                  ? `${state.players[state.outcome.winner].name} 获胜`
-                  : "本局达到回合上限"
-                : pending
-                  ? `购买「${pending.name}」？`
-                  : `轮到 ${player.name} 掷骰`}
+              {motion
+                ? motion.phase === "dice"
+                  ? `掷出 ${die} 点`
+                  : motion.phase === "move"
+                    ? `前进 ${motion.step} / ${die} 格`
+                    : "正在结算资金"
+                : state.outcome
+                  ? state.outcome.kind === "won"
+                    ? `${state.players[state.outcome.winner].name} 获胜`
+                    : "本局达到回合上限"
+                  : pending
+                    ? `购买「${pending.name}」？`
+                    : `轮到 ${player.name} 掷骰`}
             </h2>
             <p>
-              {state.outcome
-                ? state.outcome.reason
-                : pending
-                  ? `对手停在这里时，将向 ${player.name} 支付 ${number(pending.rent)} 租金。`
-                  : "掷骰后沿棋盘前进，结算经过起点收入和落地事件。"}
+              {motion
+                ? motion.phase === "dice"
+                  ? `${state.players[motion.player].name} 从「${model.tiles[motion.from].name}」出发。`
+                  : motion.phase === "move"
+                    ? `来到「${model.tiles[state.players[motion.player].position].name}」，沿编号顺时针前进。`
+                    : "本次收入、支出与地产归属如下。"
+                : state.outcome
+                  ? state.outcome.reason
+                  : pending
+                    ? `对手停在这里时，将向 ${player.name} 支付 ${number(pending.rent)} 租金。`
+                    : "掷骰后沿棋盘前进，结算经过起点收入和落地事件。"}
             </p>
-            {pending && !state.outcome && (
+            {pending && !state.outcome && !motion && (
               <dl className="economy-cash-preview">
                 <div>
                   <dt>当前现金</dt>
@@ -402,23 +486,35 @@ export function BoardTable({
               </p>
             )}
             <div className="economy-action-buttons">
-              {legal.map((command) => (
+              {motion && (
                 <button
-                  className={`button ${command.type === "skip" ? "" : "primary"}`}
-                  key={command.type}
-                  disabled={!canAct}
-                  onClick={() => execute(command)}
+                  className="button economy-skip-motion"
+                  onClick={skipMotion}
                 >
-                  {command.type === "roll" && <Dices aria-hidden="true" />}
-                  {command.type === "roll"
-                    ? "掷骰前进"
-                    : command.type === "buy"
-                      ? `购买地产 · ${number(pending!.price)}`
-                      : "跳过，保留现金"}
-                  {command.type === "buy" && <ArrowRight aria-hidden="true" />}
+                  <SkipForward aria-hidden="true" />
+                  跳过动画
                 </button>
-              ))}
-              {!state.outcome && (
+              )}
+              {!motion &&
+                legal.map((command) => (
+                  <button
+                    className={`button ${command.type === "skip" ? "" : "primary"}`}
+                    key={command.type}
+                    disabled={!canAct}
+                    onClick={() => execute(command)}
+                  >
+                    {command.type === "roll" && <Dices aria-hidden="true" />}
+                    {command.type === "roll"
+                      ? "掷骰前进"
+                      : command.type === "buy"
+                        ? `购买地产 · ${number(pending!.price)}`
+                        : "跳过，保留现金"}
+                    {command.type === "buy" && (
+                      <ArrowRight aria-hidden="true" />
+                    )}
+                  </button>
+                ))}
+              {!state.outcome && !motion && (
                 <button
                   className="button economy-auto-step"
                   disabled={!canAct}
@@ -428,7 +524,7 @@ export function BoardTable({
                   自动玩家走一步
                 </button>
               )}
-              {state.outcome && (
+              {state.outcome && !motion && (
                 <button
                   className="button primary"
                   disabled={busy || readOnly || newGameDisabled}
@@ -473,7 +569,17 @@ export function BoardTable({
           本局使用开局时的规则
         </span>
         <span role="status">
-          {busy ? "正在保存操作…" : readOnly ? "只读回放" : "操作后自动保存"}
+          {busy
+            ? "正在保存操作…"
+            : motion
+              ? motion.phase === "dice"
+                ? "掷骰结果已确定"
+                : motion.phase === "move"
+                  ? "棋子移动中"
+                  : "本次资金结算"
+              : readOnly
+                ? "只读回放"
+                : "操作后自动保存"}
         </span>
       </footer>
     </section>
